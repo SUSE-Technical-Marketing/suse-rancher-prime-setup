@@ -5,6 +5,298 @@ import * as pulumi from "@pulumi/pulumi";
 import * as inputs from "../types/input";
 import * as outputs from "../types/output";
 
+export namespace harvesterhci {
+    export namespace v1beta1 {
+        export interface KeyPair {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "harvesterhci.io/v1beta1";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "KeyPair";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.harvesterhci.v1beta1.KeyPairSpec;
+            status: outputs.harvesterhci.v1beta1.KeyPairStatus;
+        }
+
+        export interface KeyPairSpec {
+            publicKey: string;
+        }
+
+        export interface KeyPairSpecPatch {
+            publicKey: string;
+        }
+
+        export interface KeyPairStatus {
+            conditions: outputs.harvesterhci.v1beta1.KeyPairStatusConditions[];
+            fingerPrint: string;
+        }
+
+        export interface KeyPairStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of the condition.
+             */
+            type: string;
+        }
+
+        export interface KeyPairStatusConditionsPatch {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of the condition.
+             */
+            type: string;
+        }
+
+        export interface KeyPairStatusPatch {
+            conditions: outputs.harvesterhci.v1beta1.KeyPairStatusConditionsPatch[];
+            fingerPrint: string;
+        }
+
+        export interface VirtualMachineImage {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "harvesterhci.io/v1beta1";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "VirtualMachineImage";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.harvesterhci.v1beta1.VirtualMachineImageSpec;
+            status: outputs.harvesterhci.v1beta1.VirtualMachineImageStatus;
+        }
+
+        export interface VirtualMachineImageSpec {
+            backend: string;
+            checksum: string;
+            description: string;
+            displayName: string;
+            pvcName: string;
+            pvcNamespace: string;
+            retry: number;
+            securityParameters: outputs.harvesterhci.v1beta1.VirtualMachineImageSpecSecurityParameters;
+            sourceType: string;
+            storageClassParameters: {[key: string]: string};
+            /**
+             * The VM Image will store the data volume in the target storage class.
+             */
+            targetStorageClassName: string;
+            url: string;
+        }
+
+        export interface VirtualMachineImageSpecPatch {
+            backend: string;
+            checksum: string;
+            description: string;
+            displayName: string;
+            pvcName: string;
+            pvcNamespace: string;
+            retry: number;
+            securityParameters: outputs.harvesterhci.v1beta1.VirtualMachineImageSpecSecurityParametersPatch;
+            sourceType: string;
+            storageClassParameters: {[key: string]: string};
+            /**
+             * The VM Image will store the data volume in the target storage class.
+             */
+            targetStorageClassName: string;
+            url: string;
+        }
+
+        export interface VirtualMachineImageSpecSecurityParameters {
+            cryptoOperation: string;
+            sourceImageName: string;
+            sourceImageNamespace: string;
+        }
+
+        export interface VirtualMachineImageSpecSecurityParametersPatch {
+            cryptoOperation: string;
+            sourceImageName: string;
+            sourceImageNamespace: string;
+        }
+
+        export interface VirtualMachineImageStatus {
+            appliedUrl: string;
+            backupTarget: outputs.harvesterhci.v1beta1.VirtualMachineImageStatusBackupTarget;
+            conditions: outputs.harvesterhci.v1beta1.VirtualMachineImageStatusConditions[];
+            failed: number;
+            lastFailedTime: string;
+            progress: number;
+            size: number;
+            storageClassName: string;
+            /**
+             * The VM Image will store the data volume in the target storage class.
+             */
+            targetStorageClassName: string;
+            virtualSize: number;
+        }
+
+        /**
+         * BackupTarget is where VM Backup stores
+         */
+        export interface VirtualMachineImageStatusBackupTarget {
+            bucketName: string;
+            bucketRegion: string;
+            endpoint: string;
+        }
+
+        /**
+         * BackupTarget is where VM Backup stores
+         */
+        export interface VirtualMachineImageStatusBackupTargetPatch {
+            bucketName: string;
+            bucketRegion: string;
+            endpoint: string;
+        }
+
+        export interface VirtualMachineImageStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of the condition.
+             */
+            type: string;
+        }
+
+        export interface VirtualMachineImageStatusConditionsPatch {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of the condition.
+             */
+            type: string;
+        }
+
+        export interface VirtualMachineImageStatusPatch {
+            appliedUrl: string;
+            backupTarget: outputs.harvesterhci.v1beta1.VirtualMachineImageStatusBackupTargetPatch;
+            conditions: outputs.harvesterhci.v1beta1.VirtualMachineImageStatusConditionsPatch[];
+            failed: number;
+            lastFailedTime: string;
+            progress: number;
+            size: number;
+            storageClassName: string;
+            /**
+             * The VM Image will store the data volume in the target storage class.
+             */
+            targetStorageClassName: string;
+            virtualSize: number;
+        }
+
+    }
+}
+
+export namespace k8s {
+    export namespace v1 {
+        export interface NetworkAttachmentDefinition {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "k8s.cni.cncf.io/v1";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "NetworkAttachmentDefinition";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.k8s.v1.NetworkAttachmentDefinitionSpec;
+        }
+
+        export interface NetworkAttachmentDefinitionSpec {
+            config: string;
+        }
+
+        export interface NetworkAttachmentDefinitionSpecPatch {
+            config: string;
+        }
+
+    }
+}
+
 export namespace kubevirt {
     export namespace v1 {
         /**

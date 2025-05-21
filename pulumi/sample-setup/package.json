@@ -8,7 +8,8 @@
     "dependencies": {
         "@pulumi/kubernetes": "^4.23.0",
         "@pulumi/pulumi": "^3.169.0",
-        "@suse-tmm/harvester-base": "workspace:^",
-        "@suse-tmm/rancher-kubeconfig": "workspace:^"
+        "@suse-tmm/harvester": "workspace:^",
+        "@suse-tmm/rancher-kubeconfig": "workspace:^",
+        "@suse-tmm/utils": "workspace:^"
     }
 }

@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as harvester from "../crds/nodejs/harvesterhci/v1beta1";
+import * as harvester from "../../crds/nodejs/harvesterhci/v1beta1";
 
 export interface VmImageArgs {
     name: string;
@@ -8,8 +8,7 @@ export interface VmImageArgs {
     sourceType?: string;
 }
 
-
-const images: VmImageArgs[] = [
+const DefaultImages: VmImageArgs[] = [
     {
         name: "opensuse-leap-15.6",
         displayName: "openSUSE Leap 15.6",
@@ -45,11 +44,11 @@ function addImage(name: string, image: any, opts: pulumi.CustomResourceOptions) 
     }, opts);
 }
 
-export function createImages(extraImages: VmImageArgs[], opts: pulumi.CustomResourceOptions): harvester.VirtualMachineImage[] {
-    const imagesList: harvester.VirtualMachineImage[] = [];
-    (images.concat(extraImages)).forEach((image) => {
-        imagesList.push(addImage(image.name, image, opts));
+export function createImages(extraImages: VmImageArgs[], opts: pulumi.CustomResourceOptions): Map<string, harvester.VirtualMachineImage> {
+    const images = new Map<string, harvester.VirtualMachineImage>();
+    (DefaultImages.concat(extraImages)).forEach((image) => {
+        images.set(image.name, addImage(image.name, image, opts));
     });
 
-    return imagesList;
+    return images;
 }

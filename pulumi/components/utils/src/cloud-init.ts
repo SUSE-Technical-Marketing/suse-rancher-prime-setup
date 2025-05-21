@@ -21,7 +21,7 @@ export type PackageArgs = string | string[] | { name: string; version?: string }
 export type RunCmdArgs = string | string[];
 
 export interface CloudInitArgs {
-    templated: boolean;
+    templated?: boolean;
 
     users?: CloudInitUserArgs[];
 
@@ -66,7 +66,7 @@ export class CloudInitUser {
 }
 
 export class CloudInit {
-    templated: boolean;
+    templated?: boolean;
     users?: CloudInitUser[];
     packages?: PackageArgs[];
     packageUpdate?: boolean;

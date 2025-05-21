@@ -14,11 +14,13 @@ utilities.lazyLoad(exports, ["Provider"], () => require("./provider"));
 // Export sub-modules:
 import * as harvesterhci from "./harvesterhci";
 import * as k8s from "./k8s";
+import * as kubevirt from "./kubevirt";
 import * as types from "./types";
 
 export {
     harvesterhci,
     k8s,
+    kubevirt,
     types,
 };
 pulumi.runtime.registerResourcePackage("crds", {

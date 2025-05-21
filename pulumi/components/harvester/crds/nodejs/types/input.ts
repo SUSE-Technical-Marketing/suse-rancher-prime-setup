@@ -5,6 +5,213 @@ import * as pulumi from "@pulumi/pulumi";
 import * as inputs from "../types/input";
 import * as outputs from "../types/output";
 
+export namespace harvesterhci {
+    export namespace v1beta1 {
+        export interface KeyPair {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"harvesterhci.io/v1beta1">;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"KeyPair">;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            spec?: pulumi.Input<inputs.harvesterhci.v1beta1.KeyPairSpec>;
+            status?: pulumi.Input<inputs.harvesterhci.v1beta1.KeyPairStatus>;
+        }
+
+        export interface KeyPairSpec {
+            publicKey?: pulumi.Input<string>;
+        }
+
+        export interface KeyPairSpecPatch {
+            publicKey?: pulumi.Input<string>;
+        }
+
+        export interface KeyPairStatus {
+            conditions?: pulumi.Input<pulumi.Input<inputs.harvesterhci.v1beta1.KeyPairStatusConditions>[]>;
+            fingerPrint?: pulumi.Input<string>;
+        }
+
+        export interface KeyPairStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime?: pulumi.Input<string>;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime?: pulumi.Input<string>;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message?: pulumi.Input<string>;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason?: pulumi.Input<string>;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status?: pulumi.Input<string>;
+            /**
+             * Type of the condition.
+             */
+            type?: pulumi.Input<string>;
+        }
+
+        export interface VirtualMachineImage {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"harvesterhci.io/v1beta1">;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"VirtualMachineImage">;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            spec?: pulumi.Input<inputs.harvesterhci.v1beta1.VirtualMachineImageSpec>;
+            status?: pulumi.Input<inputs.harvesterhci.v1beta1.VirtualMachineImageStatus>;
+        }
+
+        export interface VirtualMachineImageSpec {
+            backend?: pulumi.Input<string>;
+            checksum?: pulumi.Input<string>;
+            description?: pulumi.Input<string>;
+            displayName?: pulumi.Input<string>;
+            pvcName?: pulumi.Input<string>;
+            pvcNamespace?: pulumi.Input<string>;
+            retry?: pulumi.Input<number>;
+            securityParameters?: pulumi.Input<inputs.harvesterhci.v1beta1.VirtualMachineImageSpecSecurityParameters>;
+            sourceType?: pulumi.Input<string>;
+            storageClassParameters?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            /**
+             * The VM Image will store the data volume in the target storage class.
+             */
+            targetStorageClassName?: pulumi.Input<string>;
+            url?: pulumi.Input<string>;
+        }
+
+        export interface VirtualMachineImageSpecPatch {
+            backend?: pulumi.Input<string>;
+            checksum?: pulumi.Input<string>;
+            description?: pulumi.Input<string>;
+            displayName?: pulumi.Input<string>;
+            pvcName?: pulumi.Input<string>;
+            pvcNamespace?: pulumi.Input<string>;
+            retry?: pulumi.Input<number>;
+            securityParameters?: pulumi.Input<inputs.harvesterhci.v1beta1.VirtualMachineImageSpecSecurityParametersPatch>;
+            sourceType?: pulumi.Input<string>;
+            storageClassParameters?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            /**
+             * The VM Image will store the data volume in the target storage class.
+             */
+            targetStorageClassName?: pulumi.Input<string>;
+            url?: pulumi.Input<string>;
+        }
+
+        export interface VirtualMachineImageSpecSecurityParameters {
+            cryptoOperation?: pulumi.Input<string>;
+            sourceImageName?: pulumi.Input<string>;
+            sourceImageNamespace?: pulumi.Input<string>;
+        }
+
+        export interface VirtualMachineImageSpecSecurityParametersPatch {
+            cryptoOperation?: pulumi.Input<string>;
+            sourceImageName?: pulumi.Input<string>;
+            sourceImageNamespace?: pulumi.Input<string>;
+        }
+
+        export interface VirtualMachineImageStatus {
+            appliedUrl?: pulumi.Input<string>;
+            backupTarget?: pulumi.Input<inputs.harvesterhci.v1beta1.VirtualMachineImageStatusBackupTarget>;
+            conditions?: pulumi.Input<pulumi.Input<inputs.harvesterhci.v1beta1.VirtualMachineImageStatusConditions>[]>;
+            failed?: pulumi.Input<number>;
+            lastFailedTime?: pulumi.Input<string>;
+            progress?: pulumi.Input<number>;
+            size?: pulumi.Input<number>;
+            storageClassName?: pulumi.Input<string>;
+            /**
+             * The VM Image will store the data volume in the target storage class.
+             */
+            targetStorageClassName?: pulumi.Input<string>;
+            virtualSize?: pulumi.Input<number>;
+        }
+
+        /**
+         * BackupTarget is where VM Backup stores
+         */
+        export interface VirtualMachineImageStatusBackupTarget {
+            bucketName?: pulumi.Input<string>;
+            bucketRegion?: pulumi.Input<string>;
+            endpoint?: pulumi.Input<string>;
+        }
+
+        export interface VirtualMachineImageStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime?: pulumi.Input<string>;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime?: pulumi.Input<string>;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message?: pulumi.Input<string>;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason?: pulumi.Input<string>;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status?: pulumi.Input<string>;
+            /**
+             * Type of the condition.
+             */
+            type?: pulumi.Input<string>;
+        }
+
+    }
+}
+
+export namespace k8s {
+    export namespace v1 {
+        export interface NetworkAttachmentDefinition {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"k8s.cni.cncf.io/v1">;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"NetworkAttachmentDefinition">;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            spec?: pulumi.Input<inputs.k8s.v1.NetworkAttachmentDefinitionSpec>;
+        }
+
+        export interface NetworkAttachmentDefinitionSpec {
+            config?: pulumi.Input<string>;
+        }
+
+        export interface NetworkAttachmentDefinitionSpecPatch {
+            config?: pulumi.Input<string>;
+        }
+    }
+}
+
 export namespace kubevirt {
     export namespace v1 {
         /**
