@@ -2,14 +2,56 @@ harbor:
   url: ""
   username: "admin"
   password: "Harbor12345"
-registry:
-  name: "application-collection"
-  url: "https://dp.apps.rancher.io"
-  type: "docker-registry"
-  insecure: false
-  credential:
-    type: "basic"
-    access_key: ""
-    access_secret: ""
-project:
-  name: "application-collection"
+  
+registries:
+  - name: "application-collection"
+    url: "https://dp.apps.rancher.io"
+    type: "docker-registry"
+    insecure: false
+    credential:
+      type: "basic"
+      access_key: ""
+      access_secret: ""
+      
+  - name: "docker"
+    url: "https://registry-1.docker.io"
+    type: "docker-registry"
+    insecure: false
+    #credential:
+    #  type: "basic"
+    #  access_key: "<YOUR_DOCKER_IO_USER>"
+    #  access_secret: "<YOUR_DOCKER_IO_PASS>"
+
+  - name: "ghcr"
+    url: "https://ghcr.io"
+    type: "docker-registry"
+    insecure: false
+    #credential:
+    #  type: "basic"
+    #  access_key: "<YOUR_GHCR_USER>"
+    #  access_secret: "<YOUR_GHCR_PASS>"
+
+  - name: "quay"
+    url: "https://quay.io"
+    type: "docker-registry"
+    insecure: false
+    #credential:
+    #  type: "basic"
+    #  access_key: "<YOUR_QUAY_USER>"
+    #  access_secret: "<YOUR_QUAY_PASS>"
+
+  - name: "suse"
+    url: "http://registry.suse.com"
+    type: "docker-registry"
+    insecure: true
+
+
+  - name: "rancher"
+    url: "http://registry.rancher.com"
+    type: "docker-registry"
+    insecure: false
+
+  - name: "k8s"
+    url: "http://registry.k8s.io"
+    type: "docker-registry"
+    insecure: false
