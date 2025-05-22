@@ -4,6 +4,7 @@ import { CloudInitArgs } from "@suse-tmm/utils";
 import { fileSync } from "tmp";
 import { writeFileSync } from "fs";
 import { createVirtualMachine, VirtualMachineArgs } from "./virtualmachine"
+import { VirtualMachine } from "../../crds/nodejs/kubevirt/v1/virtualMachine";
 
 export interface HarvesterVmArgs {
     kubeconfig: pulumi.Input<string>;
@@ -11,6 +12,7 @@ export interface HarvesterVmArgs {
 }
 
 export class HarvesterVm extends pulumi.ComponentResource {
+
     constructor(name: string, args: HarvesterVmArgs, opts?: pulumi.ComponentResourceOptions) {
         super("suse-tmm:harvester:virtualmachine", name, {}, opts);
 
@@ -23,7 +25,7 @@ export class HarvesterVm extends pulumi.ComponentResource {
                 kubeconfig: fn,
             }, { parent: this });
 
-            createVirtualMachine(name, virtualMachine, {
+            return createVirtualMachine(name, virtualMachine, {
                 provider: harvesterK8sProvider,
                 parent: this,
             });
