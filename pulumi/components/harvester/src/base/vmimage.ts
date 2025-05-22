@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as harvester from "../../crds/nodejs/harvesterhci/v1beta1";
+import {harvesterhci} from "@suse-tmm/harvester-crds";
 
 export interface VmImageArgs {
     name: string;
@@ -27,7 +27,7 @@ const DefaultImages: VmImageArgs[] = [
 ];
 
 function addImage(name: string, image: any, opts: pulumi.CustomResourceOptions) {
-    return new harvester.VirtualMachineImage(name, {
+    return new harvesterhci.v1beta1.VirtualMachineImage(name, {
         metadata: {
             name: name,
             namespace: "harvester-public",
@@ -44,8 +44,8 @@ function addImage(name: string, image: any, opts: pulumi.CustomResourceOptions) 
     }, opts);
 }
 
-export function createImages(extraImages: VmImageArgs[], opts: pulumi.CustomResourceOptions): Map<string, harvester.VirtualMachineImage> {
-    const images = new Map<string, harvester.VirtualMachineImage>();
+export function createImages(extraImages: VmImageArgs[], opts: pulumi.CustomResourceOptions): Map<string, harvesterhci.v1beta1.VirtualMachineImage> {
+    const images = new Map<string, harvesterhci.v1beta1.VirtualMachineImage>();
     (DefaultImages.concat(extraImages)).forEach((image) => {
         images.set(image.name, addImage(image.name, image, opts));
     });

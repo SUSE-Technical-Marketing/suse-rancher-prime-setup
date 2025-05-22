@@ -10,6 +10,21 @@ export type VirtualMachine = import("./virtualMachine").VirtualMachine;
 export const VirtualMachine: typeof import("./virtualMachine").VirtualMachine = null as any;
 utilities.lazyLoad(exports, ["VirtualMachine"], () => require("./virtualMachine"));
 
+export { VirtualMachineInstanceArgs } from "./virtualMachineInstance";
+export type VirtualMachineInstance = import("./virtualMachineInstance").VirtualMachineInstance;
+export const VirtualMachineInstance: typeof import("./virtualMachineInstance").VirtualMachineInstance = null as any;
+utilities.lazyLoad(exports, ["VirtualMachineInstance"], () => require("./virtualMachineInstance"));
+
+export { VirtualMachineInstanceListArgs } from "./virtualMachineInstanceList";
+export type VirtualMachineInstanceList = import("./virtualMachineInstanceList").VirtualMachineInstanceList;
+export const VirtualMachineInstanceList: typeof import("./virtualMachineInstanceList").VirtualMachineInstanceList = null as any;
+utilities.lazyLoad(exports, ["VirtualMachineInstanceList"], () => require("./virtualMachineInstanceList"));
+
+export { VirtualMachineInstancePatchArgs } from "./virtualMachineInstancePatch";
+export type VirtualMachineInstancePatch = import("./virtualMachineInstancePatch").VirtualMachineInstancePatch;
+export const VirtualMachineInstancePatch: typeof import("./virtualMachineInstancePatch").VirtualMachineInstancePatch = null as any;
+utilities.lazyLoad(exports, ["VirtualMachineInstancePatch"], () => require("./virtualMachineInstancePatch"));
+
 export { VirtualMachineListArgs } from "./virtualMachineList";
 export type VirtualMachineList = import("./virtualMachineList").VirtualMachineList;
 export const VirtualMachineList: typeof import("./virtualMachineList").VirtualMachineList = null as any;
@@ -27,6 +42,12 @@ const _module = {
         switch (type) {
             case "kubernetes:kubevirt.io/v1:VirtualMachine":
                 return new VirtualMachine(name, <any>undefined, { urn })
+            case "kubernetes:kubevirt.io/v1:VirtualMachineInstance":
+                return new VirtualMachineInstance(name, <any>undefined, { urn })
+            case "kubernetes:kubevirt.io/v1:VirtualMachineInstanceList":
+                return new VirtualMachineInstanceList(name, <any>undefined, { urn })
+            case "kubernetes:kubevirt.io/v1:VirtualMachineInstancePatch":
+                return new VirtualMachineInstancePatch(name, <any>undefined, { urn })
             case "kubernetes:kubevirt.io/v1:VirtualMachineList":
                 return new VirtualMachineList(name, <any>undefined, { urn })
             case "kubernetes:kubevirt.io/v1:VirtualMachinePatch":

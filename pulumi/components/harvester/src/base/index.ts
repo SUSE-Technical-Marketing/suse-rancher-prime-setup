@@ -5,8 +5,8 @@ import { createImages, VmImageArgs } from "./vmimage";
 import { createNetworks } from "./network";
 import { fileSync } from "tmp";
 import { writeFileSync } from "fs";
-import { VirtualMachineImage } from "../../crds/nodejs/harvesterhci/v1beta1";
-import { NetworkAttachmentDefinition } from "../../crds/nodejs/k8s/v1";
+import { harvesterhci } from "@suse-tmm/harvester-crds";
+import { k8s as k8scrds } from "@suse-tmm/harvester-crds";
 import { StorageClass } from "@pulumi/kubernetes/storage/v1";
 
 export interface HarvesterBaseArgs {
@@ -15,8 +15,8 @@ export interface HarvesterBaseArgs {
 }
 
 export class HarvesterBase extends pulumi.ComponentResource {
-    public images: pulumi.Output<Map<string, VirtualMachineImage>>;
-    public networks: pulumi.Output<Map<string, NetworkAttachmentDefinition>>;
+    public images: pulumi.Output<Map<string, harvesterhci.v1beta1.VirtualMachineImage>>;
+    public networks: pulumi.Output<Map<string, k8scrds.v1.NetworkAttachmentDefinition>>;
     public storageClass: pulumi.Output<StorageClass>;
     constructor(name: string, args: HarvesterBaseArgs, opts?: pulumi.ComponentResourceOptions) {
         super("suse-tmm:harvester:base", name, {}, opts);

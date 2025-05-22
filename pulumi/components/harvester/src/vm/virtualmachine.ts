@@ -1,11 +1,9 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
-import { VirtualMachine } from "../../crds/nodejs/kubevirt/v1/virtualMachine"
-import * as kubevirt from "../../crds/nodejs/types/input";
+import { harvesterhci } from "@suse-tmm/harvester-crds";
+import { kubevirt } from "@suse-tmm/harvester-crds";
 import { CloudInit, CloudInitArgs } from "@suse-tmm/utils";
-import { Namespace, Secret } from "@pulumi/kubernetes/core/v1";
-import { create } from "domain";
-import { VirtualMachineImage } from "../../crds/nodejs/harvesterhci/v1beta1";
+import { Secret } from "@pulumi/kubernetes/core/v1";
 
 const volumeClaimTemplatesAnnotation = "harvesterhci.io/volumeClaimTemplates";
 
@@ -23,7 +21,7 @@ export interface NetworkArgs {
 export interface DiskArgs {
     name: pulumi.Input<string>;
     size: pulumi.Input<string>;
-    image: pulumi.Input<VirtualMachineImage>
+    image: pulumi.Input<harvesterhci.v1beta1.VirtualMachineImage>
 }
 
 export interface VirtualMachineArgs {
@@ -75,7 +73,7 @@ export function createVirtualMachine(name: string, args: VirtualMachineArgs, opt
             });
         }
 
-        const vm = new VirtualMachine(name, {
+        const vm = new kubevirt.v1.VirtualMachine(name, {
             metadata: {
                 name: name,
                 namespace: namespace,

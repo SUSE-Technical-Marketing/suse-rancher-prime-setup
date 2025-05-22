@@ -1,10 +1,8 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
-import { CloudInitArgs } from "@suse-tmm/utils";
 import { fileSync } from "tmp";
 import { writeFileSync } from "fs";
 import { createVirtualMachine, VirtualMachineArgs } from "./virtualmachine"
-import { VirtualMachine } from "../../crds/nodejs/kubevirt/v1/virtualMachine";
 
 export interface HarvesterVmArgs {
     kubeconfig: pulumi.Input<string>;
