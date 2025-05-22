@@ -2,7 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 import { harvesterhci } from "@suse-tmm/harvester-crds";
 import { kubevirt } from "@suse-tmm/harvester-crds";
-import { CloudInit, CloudInitArgs } from "@suse-tmm/utils";
+import { CloudInitArgs, renderCloudInit } from "@suse-tmm/utils";
 import { Secret } from "@pulumi/kubernetes/core/v1";
 
 const volumeClaimTemplatesAnnotation = "harvesterhci.io/volumeClaimTemplates";
@@ -175,7 +175,7 @@ function createPvc(name: string, namespace: string, disk: pulumi.UnwrappedObject
 };
 
 function createCloudInitSecret(name: string, namespace: string, cloudInit: CloudInitArgs, opts: pulumi.ComponentResourceOptions): Secret {
-    const cloudInitContents = new CloudInit(cloudInit).toYaml();
+    const cloudInitContents = renderCloudInit(cloudInit);
     const cloudInitSecret = new Secret(`${name}-cloudinit`, {
         metadata: {
             name: `${name}-cloudinit`,

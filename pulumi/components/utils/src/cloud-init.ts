@@ -1,7 +1,9 @@
-import { output, Output } from "@pulumi/pulumi";
 import * as yaml from "yaml";
 
-export interface CloudInitUserArgs {
+export type CloudInitProcessor = (cfg: CloudInitArgs) => CloudInitArgs;
+
+export type CloudInitUserArgs = string | CloudInitUser;
+export interface CloudInitUser {
     name: string;
     sudo?: string;
     password: string;
@@ -27,95 +29,98 @@ export type PackageArgs = string | string[] | { name: string; version?: string }
 export type RunCmdArgs = string | string[];
 
 export interface CloudInitArgs {
-    templated?: boolean;
-    debug?: boolean;
+    templated: boolean;
+    debug: boolean;
 
-    output?: OutputArgs;
+    output: OutputArgs;
 
-    users?: CloudInitUserArgs[];
+    users: CloudInitUserArgs[];
 
-    packages?: PackageArgs[];
+    packages: PackageArgs[];
 
-    packageUpdate?: boolean;
-    packageUpgrade?: boolean;
+    packageUpdate: boolean;
+    packageUpgrade: boolean;
 
-    writeFiles?: WriteFileArgs[];
+    writeFiles: WriteFileArgs[];
 
-    runcmd?: RunCmdArgs[];
+    runcmd: RunCmdArgs[];
 }
 
-export class CloudInitUser {
-    name: string;
-    sudo?: string;
-    password: string;
-    sshAuthorizedKeys?: string[];
-    lockPassword?: boolean;
-    shell?: string;
-    constructor(args: CloudInitUserArgs) {
-        this.name = args.name;
-        this.sudo = args.sudo ;
-        this.password = args.password;
-        this.sshAuthorizedKeys = args.sshAuthorizedKeys;
-        this.lockPassword = args.lockPassword;
-        this.shell = args.shell || "/bin/bash";
-    }
-
-    toYaml(): any {
-        const userObj = {
-            name: this.name,
-            sudo: this.sudo,
-            password: this.password,
-            ssh_authorized_keys: this.sshAuthorizedKeys,
-            lock_password: this.lockPassword,
-            shell: this.shell,
-        };
-
-        return userObj;
-    }
+export function addWriteFiles(args: CloudInitArgs, w: WriteFileArgs): CloudInitArgs {
+    args.writeFiles = (args.writeFiles || []).concat(w);
+    return args;
 }
 
-export class CloudInit {
-    templated?: boolean;
-    debug?: boolean;
-    users?: CloudInitUser[];
-    packages?: PackageArgs[];
-    packageUpdate?: boolean;
-    packageUpgrade?: boolean;
-    writeFiles?: WriteFileArgs[];
-    runcmd?: RunCmdArgs[];
-    output?: OutputArgs;
+export function cloudInit(...processors: CloudInitProcessor[]): CloudInitArgs {
+    let ci = {
+        templated: false,
+        debug: false,
+        output: {},
+        users: [],
+        packages: [],
+        packageUpdate: false,
+        packageUpgrade: false,
+        writeFiles: [],
+        runcmd: []
+    } as CloudInitArgs;
+    processors.forEach((processor) => {
+        ci = processor(ci);
+    });
+    return ci;
+}
 
-    constructor(args: CloudInitArgs) {
-        this.templated = args.templated;
-        this.debug = args.debug;
-        this.users = args.users?.map((user) => new CloudInitUser(user));
-        this.packages = args.packages;
-        this.packageUpdate = args.packageUpdate;
-        this.packageUpgrade = args.packageUpgrade;
-        this.writeFiles = args.writeFiles;
-        this.runcmd = args.runcmd;
-        this.output = args.output;
+export function renderCloudInit(args: CloudInitArgs): string {
+    const cloudInitObj: any = {}
+    if (args.debug) {
+        cloudInitObj.debug = args.debug;
+    }
+    if (args.output) {
+        cloudInitObj.output = args.output;
+    }
+    if (args.packageUpdate) {
+        cloudInitObj.package_update = args.packageUpdate;
+    }
+    if (args.packageUpgrade) {
+        cloudInitObj.package_upgrade = args.packageUpgrade;
+    }
+    if (args.writeFiles) {
+        cloudInitObj.write_files = args.writeFiles;
+    }
+    if (args.runcmd) {
+        cloudInitObj.runcmd = args.runcmd;
+    }
+    if (args.packages) {
+        cloudInitObj.packages = args.packages;
+    }
+    if (args.users) {
+        cloudInitObj.users = args.users.map((u) => {
+            if (typeof u === "string") {
+                return u;
+            } else {
+                return renderUser(u);
+            }
+        });
+        cloudInitObj.ssh_authorized_keys = args.users.filter((user => typeof user !== "string" && user.sshAuthorizedKeys)).flatMap((user) => (user as CloudInitUser).sshAuthorizedKeys);
     }
 
-    toYaml(): string {
-        const cloudInitObj: any = {
-            debug: this.debug,
-            output: this.output,
-            users: (["default"] as (CloudInitUser|string)[]).concat(this.users?.map((user) => user.toYaml()) || []),
-            packages: this.packages,
-            ssh_authorized_keys: this.users?.flatMap((user) => user.sshAuthorizedKeys),
-            package_update: this.packageUpdate,
-            package_upgrade: this.packageUpgrade,
-            write_files: this.writeFiles,
-            runcmd: this.runcmd,
-        };
-
-        let cloudinit = yaml.stringify(cloudInitObj, { keepUndefined: false });
-        cloudinit = `#cloud-config\n${cloudinit}`;
-        if (this.templated) {
-            cloudinit = `## template: jinja\n${cloudinit}`;
-        }
-
-        return cloudinit;
+    let cloudinit = yaml.stringify(cloudInitObj, { keepUndefined: false });
+    cloudinit = `#cloud-config\n${cloudinit}`;
+    if (args.templated) {
+        cloudinit = `## template: jinja\n${cloudinit}`;
     }
+
+    return cloudinit;
+}
+
+function renderUser(user: CloudInitUser): any {
+    const userObj = {
+        name: user.name,
+        sudo: user.sudo,
+        password: user.password,
+        ssh_authorized_keys: user.sshAuthorizedKeys,
+        lock_password: user.lockPassword,
+        shell: user.shell,
+    };
+
+    return userObj;
 }
