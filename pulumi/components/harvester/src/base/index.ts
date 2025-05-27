@@ -21,13 +21,10 @@ export class HarvesterBase extends pulumi.ComponentResource {
     constructor(name: string, args: HarvesterBaseArgs, opts?: pulumi.ComponentResourceOptions) {
         super("suse-tmm:harvester:base", name, {}, opts);
 
-        const out = pulumi.all([args.kubeconfig, args.extraImages]).apply(async ([kubeconfig, extraImages]) => {
-            const kubeconfigFile = fileSync({ prefix: "kubeconfig", postfix: ".yaml" });
-            const fn = kubeconfigFile.name
-            writeFileSync(fn, kubeconfig);
+        const out = pulumi.all([args.kubeconfig, args.extraImages]).apply(([kubeconfig, extraImages]) => {
 
             const harvesterK8sProvider = new k8s.Provider("harvester-k8s", {
-                kubeconfig: fn,
+                kubeconfig: kubeconfig,
             }, { parent: this });
 
             const storageClass = pulumi.output(createSingleReplicaStorageClass({ provider: harvesterK8sProvider, parent: this }));

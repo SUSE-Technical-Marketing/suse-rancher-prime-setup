@@ -5,20 +5,7 @@ import * as rancher from "@suse-tmm/rancher-kubeconfig";
 import { BashRcLocal, cloudInit, DefaultUser, DisableIpv6, GuestAgent, IncreaseFileLimit, InstallK3s, KubeFirewall, NewUser, Packages, PackageUpdate } from "@suse-tmm/utils";
 
 
-export function provisionHarvester() {
-    const config = new pulumi.Config("harvester");
-    const harvesterUrl = config.require("url");
-    const username = config.require("username");
-    const password = config.requireSecret("password");
-
-    const kubeconfig = new rancher.RancherKubeconfig("harvesterKubeconfig", {
-        url: harvesterUrl,
-        username: username,
-        password: password,
-        clusterName: "local",
-        insecure: true, // Harvester normally has a self-signed cert
-    });
-
+export function provisionHarvester(kubeconfig: rancher.RancherKubeconfigDynamic) {
     const harvesterBase = new harvester.HarvesterBase("harvesterBase", {
         kubeconfig: kubeconfig.kubeconfig,
         extraImages: [
@@ -30,6 +17,10 @@ export function provisionHarvester() {
         ]
     });
 
+    return harvesterBase;
+}
+
+export function provisionControlTower(harvesterBase: harvester.HarvesterBase, kubeconfig: rancher.RancherKubeconfigDynamic) {
     const openSuseImage = harvesterBase.images.apply(images => images.get("opensuse-leap-15.6")!);
     const network = harvesterBase.networks.apply(networks => networks.get("backbone-vlan")!);
     const harvesterVm = new harvester.HarvesterVm("control-tower", {
@@ -72,9 +63,25 @@ export function provisionHarvester() {
         }
     });
 
-    pulumi.all([kubeconfig.kubeconfig]).apply(([kubeconfig]) => {
-        pulumi.log.info(kubeconfig);
-    });
+    return harvesterVm
 }
 
-provisionHarvester();
+const config = new pulumi.Config("harvester");
+const harvesterUrl = config.require("url");
+const username = config.require("username");
+const password = config.requireSecret("password");
+const kubeconfig = new rancher.RancherKubeconfigDynamic("harvesterKubeconfig", {
+    url: harvesterUrl,
+    username: username,
+    password: password,
+    clusterName: "local",
+    insecure: true, // Harvester normally has a self-signed cert
+});
+
+const harvBase = provisionHarvester(kubeconfig);
+const vmi = provisionControlTower(harvBase, kubeconfig);
+
+
+pulumi.all([kubeconfig.kubeconfig]).apply(([kubeconfig]) => {
+    pulumi.log.info(kubeconfig);
+});

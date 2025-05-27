@@ -6,17 +6,20 @@
     "license": "Apache-2.0",
     "peerDependencies": {
         "@pulumi/kubernetes": "^4.23.0",
-        "@pulumi/pulumi": "^3.169.0",
-        "axios": "^1.9.0",
-        "yaml": "^2.8.0"
+        "@pulumi/pulumi": "^3.171.0"
     },
     "scripts": {
         "build": "tsc -p ."
     },
     "devDependencies": {
+        "@pulumi/pulumi": "^3.171.0",
+        "@types/js-yaml": "^4.0.9",
         "@types/node": "^22.0.0",
         "typescript": "^5.8.3"
     },
     "dependencies": {
+        "@suse-tmm/utils": "workspace:^",
+        "got": "^12.6.1",
+        "js-yaml": "^3.14.1"
     }
 }

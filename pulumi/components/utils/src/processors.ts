@@ -1,5 +1,5 @@
 import "./stripMargin";
-import { CloudInitProcessor, CloudInitUser, CloudInitUserArgs } from "./cloud-init";
+import { CloudInitProcessor, CloudInitUser, CloudInitUserArgs, PackageArgs } from "./cloud-init";
 
 export const DisableIpv6: CloudInitProcessor = (args) => {
     args.writeFiles = args.writeFiles.concat({
@@ -52,7 +52,7 @@ export function NewUser(args: CloudInitUser): CloudInitProcessor {
     }
 }
 
-export function Packages(...args: string[]): CloudInitProcessor {
+export function Packages(...args: PackageArgs[]): CloudInitProcessor {
     return (cfg) => {
         cfg.packages = cfg.packages.concat(args);
         return cfg;
@@ -116,6 +116,11 @@ export const PackageUpdate: CloudInitProcessor = (cfg) => {
     return cfg;
 }
 
+export const PackageUpgrade: CloudInitProcessor = (cfg) => {
+    cfg.packageUpgrade = true;
+    return cfg;
+}
+
 export const KubeFirewall: CloudInitProcessor = (cfg) => {
     cfg.runcmd = cfg.runcmd.concat(
         "firewall-cmd --permanent --add-port=6443/tcp #apiserver",
@@ -124,4 +129,16 @@ export const KubeFirewall: CloudInitProcessor = (cfg) => {
         "firewall-cmd --reload",
     );
     return cfg;
+}
+
+export function WriteFile(path: string, content: string, permissions?: string, owner?: string): CloudInitProcessor {
+    return (cfg) => {
+        cfg.writeFiles = cfg.writeFiles.concat({
+            path,
+            content,
+            permissions: permissions,
+            owner: owner
+        });
+        return cfg;
+    };
 }

@@ -1,5 +1,5 @@
 {
-    "name": "@suse-tmm/harvester-crds",
+    "name": "@suse-tmm/rancher-crds",
     "version": "0.0.1",
     "main": "index.ts",
     "types": "index.d.ts",

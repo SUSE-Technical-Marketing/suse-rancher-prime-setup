@@ -33,7 +33,7 @@ export interface VirtualMachineArgs {
 }
 
 export function createVirtualMachine(name: string, args: VirtualMachineArgs, opts: pulumi.ComponentResourceOptions) {
-    pulumi.all([args.resources, args.namespace, args.cloudInit, args.network, args.disk]).apply(([resources, namespace, cloudInit, network, disk]) => {
+    return pulumi.all([args.resources, args.namespace, args.cloudInit, args.network, args.disk]).apply(([resources, namespace, cloudInit, network, disk]) => {
         let volumes = [];
         const pvc = pulumi.output(createPvc(name, namespace, disk, opts));
 
@@ -77,9 +77,6 @@ export function createVirtualMachine(name: string, args: VirtualMachineArgs, opt
             metadata: {
                 name: name,
                 namespace: namespace,
-                annotations: {
-                    // volumeClaimTemplatesAnnotation: volumeClaimTemplates,
-                },
             },
             spec: {
                 runStrategy: "RerunOnFailure",
@@ -119,11 +116,8 @@ export function createVirtualMachine(name: string, args: VirtualMachineArgs, opt
                                 }
                             },
                             resources: {
-                                requests: {
-                                    memory: resources.memory,
-                                },
                                 limits: {
-                                    cpu: resources.cpu,
+                                    cpu: `${resources.cpu}`,
                                     memory: resources.memory,
                                 },
                             },

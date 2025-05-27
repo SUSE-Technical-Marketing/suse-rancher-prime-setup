@@ -83,16 +83,16 @@ export function renderCloudInit(args: CloudInitArgs): string {
     if (args.packageUpgrade) {
         cloudInitObj.package_upgrade = args.packageUpgrade;
     }
-    if (args.writeFiles) {
+    if (args.writeFiles && args.writeFiles.length > 0) {
         cloudInitObj.write_files = args.writeFiles;
     }
-    if (args.runcmd) {
+    if (args.runcmd && args.runcmd.length > 0) {
         cloudInitObj.runcmd = args.runcmd;
     }
-    if (args.packages) {
+    if (args.packages && args.packages.length > 0) {
         cloudInitObj.packages = args.packages;
     }
-    if (args.users) {
+    if (args.users && args.users.length > 0) {
         cloudInitObj.users = args.users.map((u) => {
             if (typeof u === "string") {
                 return u;
@@ -112,14 +112,14 @@ export function renderCloudInit(args: CloudInitArgs): string {
     return cloudinit;
 }
 
-function renderUser(user: CloudInitUser): any {
+export function renderUser(user: CloudInitUser): { [key: string]: any } {
     const userObj = {
         name: user.name,
         sudo: user.sudo,
         password: user.password,
         ssh_authorized_keys: user.sshAuthorizedKeys,
         lock_password: user.lockPassword,
-        shell: user.shell,
+        shell: user.shell || "/bin/bash",
     };
 
     return userObj;
