@@ -71,7 +71,7 @@ class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubec
     }
 }
 
-export class RancherKubeconfigDynamic extends dynamic.Resource {
+export class RancherKubeconfig extends dynamic.Resource {
     public readonly kubeconfig!: pulumi.Output<string>;
 
     constructor(name: string, args: RancherKubeconfigResourceInputs, opts?: pulumi.ResourceOptions) {

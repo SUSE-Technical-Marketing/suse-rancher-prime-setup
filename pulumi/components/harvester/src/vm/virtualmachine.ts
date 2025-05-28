@@ -77,6 +77,9 @@ export function createVirtualMachine(name: string, args: VirtualMachineArgs, opt
             metadata: {
                 name: name,
                 namespace: namespace,
+                annotations: {
+                    "pulumi.com/waitFor": "condition=AgentConnected"
+                }
             },
             spec: {
                 runStrategy: "RerunOnFailure",

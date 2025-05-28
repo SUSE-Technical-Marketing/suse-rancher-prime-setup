@@ -1,5 +1,5 @@
 {
-    "name": "@suse-tmm/rancher-kubeconfig",
+    "name": "@suse-tmm/kubeconfig",
     "version": "0.0.1",
     "main": "index.ts",
     "types": "index.d.ts",
@@ -14,12 +14,17 @@
     "devDependencies": {
         "@pulumi/pulumi": "^3.171.0",
         "@types/js-yaml": "^4.0.9",
-        "@types/node": "^22.0.0",
+        "@types/node": "^22.15.23",
+        "@types/ssh2": "^1.15.5",
+        "@types/tmp": "^0.2.6",
         "typescript": "^5.8.3"
     },
     "dependencies": {
         "@suse-tmm/utils": "workspace:^",
         "got": "^12.6.1",
-        "js-yaml": "^3.14.1"
+        "js-yaml": "^3.14.1",
+        "node-ssh": "^13.2.1",
+        "ssh2": "^1.16.0",
+        "tmp": "^0.2.3"
     }
 }

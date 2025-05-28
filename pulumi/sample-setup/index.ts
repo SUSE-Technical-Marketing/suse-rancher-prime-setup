@@ -1,11 +1,11 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 import * as harvester from "@suse-tmm/harvester";
-import * as rancher from "@suse-tmm/rancher-kubeconfig";
+import * as kubeconfig from "@suse-tmm/kubeconfig";
 import { BashRcLocal, cloudInit, DefaultUser, DisableIpv6, GuestAgent, IncreaseFileLimit, InstallK3s, KubeFirewall, NewUser, Packages, PackageUpdate } from "@suse-tmm/utils";
+import { RancherManagerInstall } from "@suse-tmm/rancher-install";
 
-
-export function provisionHarvester(kubeconfig: rancher.RancherKubeconfigDynamic) {
+export function provisionHarvester(kubeconfig: kubeconfig.RancherKubeconfig) {
     const harvesterBase = new harvester.HarvesterBase("harvesterBase", {
         kubeconfig: kubeconfig.kubeconfig,
         extraImages: [
@@ -20,9 +20,14 @@ export function provisionHarvester(kubeconfig: rancher.RancherKubeconfigDynamic)
     return harvesterBase;
 }
 
-export function provisionControlTower(harvesterBase: harvester.HarvesterBase, kubeconfig: rancher.RancherKubeconfigDynamic) {
+interface VmArgs {
+    sshUser: string;
+    sshPubKey: string;
+}
+
+export function provisionControlTower(harvesterBase: harvester.HarvesterBase, args: VmArgs, kubeconfig: kubeconfig.RancherKubeconfig) {
     const openSuseImage = harvesterBase.images.apply(images => images.get("opensuse-leap-15.6")!);
-    const network = harvesterBase.networks.apply(networks => networks.get("backbone-vlan")!);
+    const network = harvesterBase.networks.get("backbone-vlan")!;
     const harvesterVm = new harvester.HarvesterVm("control-tower", {
         kubeconfig: kubeconfig.kubeconfig,
         virtualMachine: {
@@ -46,12 +51,10 @@ export function provisionControlTower(harvesterBase: harvester.HarvesterBase, ku
                 DisableIpv6,
                 DefaultUser,
                 NewUser({
-                    name: "jeroen",
+                    name: args.sshUser,
                     password: "$2y$10$M8ZamcBlJG4xMooQSI7M2eAy2vrDrFx4WOG79SrPKjZUU/kDpsRE6",
                     sudo: "ALL=(ALL) NOPASSWD:ALL",
-                    sshAuthorizedKeys: ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBSE68VYUiwL5a8xcmv34RZ1OYnrEcRBe4NaeKpE/twU jeroen@hierynomus.com",
-                        "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDDmt6+SsXzLoRptifmSKlyjq6grRf4Yb1f2g0Etn7PKUK0LLKO3qZmSEgDwhohALXU7ZhSMVttYgLCjtFd4kG/JEdJVkGSqppLekgpc/T3yG8K3sO78UBdWtnLVY/6MtIHC1GHsAikTuPIJfIqftIk1RZwLKfIIgkT3HQAl9Kzn45QCVj4RrOhekHmqlgePrasTe1HKFRjQ/cuM6cqHSaPNWHrgshlci5BVTS6hqjNxeW/Rb/X4vDcvs/5glRvd0M3ESr1Aii5fhATzHSCGUje2U91ztRDvXdZQNsxQGPP1oTVTRa0oxKutpZee5lMEUjwU6hzoAx3jxPehayFjWJh"
-                    ]
+                    sshAuthorizedKeys: [args.sshPubKey],
                 }),
                 PackageUpdate,
                 Packages("curl", "helm", "git-core", "bash-completion", "vim", "nano", "iputils", "wget", "mc", "tree", "btop", "kubernetes-client", "helm", "k9s", "cloud-init"),
@@ -66,11 +69,22 @@ export function provisionControlTower(harvesterBase: harvester.HarvesterBase, ku
     return harvesterVm
 }
 
-const config = new pulumi.Config("harvester");
-const harvesterUrl = config.require("url");
-const username = config.require("username");
-const password = config.requireSecret("password");
-const kubeconfig = new rancher.RancherKubeconfigDynamic("harvesterKubeconfig", {
+const harvesterConfig = new pulumi.Config("harvester");
+const harvesterUrl = harvesterConfig.require("url");
+const username = harvesterConfig.require("username");
+const password = harvesterConfig.requireSecret("password");
+const vmConfig = new pulumi.Config("vm");
+const sshUser = vmConfig.require("sshUser");
+const sshPubKey = vmConfig.require("sshPubKey");
+const sshPrivKey = vmConfig.requireSecret("sshPrivKey");
+const certManagerConfig = new pulumi.Config("cert-manager");
+const letsEncryptEmail = certManagerConfig.get("letsEncryptEmail");
+const cloudFlareApiKey = certManagerConfig.get("cloudflareApiKey");
+
+pulumi.log.info(`Lets Encrypt Email: ${letsEncryptEmail ? "Provided" : "Not Provided"}`);
+pulumi.log.info(`Cloudflare API Key: ${cloudFlareApiKey ? "Provided" : "Not Provided"}`);
+
+const cfg = new kubeconfig.RancherKubeconfig("harvesterKubeconfig", {
     url: harvesterUrl,
     username: username,
     password: password,
@@ -78,10 +92,34 @@ const kubeconfig = new rancher.RancherKubeconfigDynamic("harvesterKubeconfig", {
     insecure: true, // Harvester normally has a self-signed cert
 });
 
-const harvBase = provisionHarvester(kubeconfig);
-const vmi = provisionControlTower(harvBase, kubeconfig);
+const harvBase = provisionHarvester(cfg);
+const vmi = provisionControlTower(harvBase, {
+    sshUser: sshUser,
+    sshPubKey: sshPubKey
+}, cfg);
+const ip = vmi.virtualMachineInstance.status.interfaces[0].ipAddress;
+
+const controlTowerKubeconfig = new kubeconfig.RemoteKubeconfig("controlTowerKubeconfig", {
+    hostname: ip,
+    username: sshUser,
+    privKey: sshPrivKey,
+    path: "/etc/rancher/k3s/k3s.yaml",
+    updateServerAddress: true, // Patch the kubeconfig to use the correct server address
+});
+
+new RancherManagerInstall("rancherManager", {
+    kubeconfig: controlTowerKubeconfig.kubeconfig,
+    tls: {
+        certManager: cloudFlareApiKey && letsEncryptEmail ? {
+            version: "v1.17.2",
+            cloudFlareApiToken: cloudFlareApiKey,
+            letsEncryptEmail: letsEncryptEmail
+        } : undefined,
+    }
+});
 
 
-pulumi.all([kubeconfig.kubeconfig]).apply(([kubeconfig]) => {
-    pulumi.log.info(kubeconfig);
+pulumi.all([cfg.kubeconfig, controlTowerKubeconfig.kubeconfig]).apply(([harvkcfg, controlkcfg]) => {
+    pulumi.log.info(`Harvester Kubeconfig: ${harvkcfg}`);
+    pulumi.log.info(`Control Tower Kubeconfig: ${controlkcfg}`);
 });

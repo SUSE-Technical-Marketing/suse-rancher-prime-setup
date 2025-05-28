@@ -1,5 +1,5 @@
 import "./stripMargin";
-import { CloudInitProcessor, CloudInitUser, CloudInitUserArgs, PackageArgs } from "./cloud-init";
+import { CloudInitProcessor, CloudInitUser, CloudInitUserArgs, PackageArgs, RunCmdArgs } from "./cloud-init";
 
 export const DisableIpv6: CloudInitProcessor = (args) => {
     args.writeFiles = args.writeFiles.concat({
@@ -10,7 +10,7 @@ export const DisableIpv6: CloudInitProcessor = (args) => {
         |net.ipv6.conf.default.disable_ipv6 = 1
         |net.ipv6.conf.lo.disable_ipv6 = 1`.stripMargin()
     });
-    args.runcmd.concat(
+    args.runcmd = args.runcmd.concat(
         "sysctl -p /etc/sysctl.d/99-disable-ipv6.conf                 # Disable IPv6"
     );
     return args;
@@ -62,7 +62,7 @@ export function Packages(...args: PackageArgs[]): CloudInitProcessor {
 export const GuestAgent: CloudInitProcessor = (cfg) => {
     cfg.packages = cfg.packages.concat("qemu-guest-agent");
     cfg.runcmd = cfg.runcmd.concat(
-        ["systemctl", "enable", "--now", "qemu-guest-agent.service"]
+        "systemctl enable --now qemu-guest-agent.service"
     );
     return cfg;
 }
