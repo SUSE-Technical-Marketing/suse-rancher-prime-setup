@@ -18,6 +18,8 @@ export interface CertManagerArgs {
     cloudFlareApiToken: pulumi.Input<string>; // Cloudflare API token for DNS validation
 }
 
+export const RancherTLSSecretName = "rancher-tls";
+
 
 export function handleCustomTLS(tls: TLSArgs, opts?: pulumi.ComponentResourceOptions): k8s.core.v1.Secret {
     if (!tls.certificate) {
@@ -30,9 +32,9 @@ export function handleCustomTLS(tls: TLSArgs, opts?: pulumi.ComponentResourceOpt
         },
     }, opts);
 
-    return new k8s.core.v1.Secret("rancher-tls", {
+    return new k8s.core.v1.Secret(RancherTLSSecretName, {
         metadata: {
-            name: "rancher-tls",
+            name: RancherTLSSecretName,
             namespace: ns.metadata.name,
         },
         type: "kubernetes.io/tls",

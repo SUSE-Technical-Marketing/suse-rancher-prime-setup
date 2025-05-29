@@ -97,7 +97,7 @@ const vmi = provisionControlTower(harvBase, {
     sshUser: sshUser,
     sshPubKey: sshPubKey
 }, cfg);
-const ip = vmi.virtualMachineInstance.status.interfaces[0].ipAddress;
+const ip = vmi.vmIpAddress;
 
 const controlTowerKubeconfig = new kubeconfig.RemoteKubeconfig("controlTowerKubeconfig", {
     hostname: ip,

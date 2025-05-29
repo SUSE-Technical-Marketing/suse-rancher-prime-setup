@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi"
 import { helmInstallRancher } from "./rancher";
 import * as k8s from "@pulumi/kubernetes";
-import { handleCustomTLS, installCertManager, TLSArgs } from "./certs"
+import { handleCustomTLS, installCertManager, RancherTLSSecretName, TLSArgs } from "./certs"
 
 export interface HarvesterArgs {
     url: pulumi.Input<string>;
@@ -62,7 +62,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
                 ingress: {
                     tls: {
                         source: "secret",
-                        secretName: "rancher-tls"
+                        secretName: RancherTLSSecretName
                     },
                     extraAnnotations: {
                         "cert-manager.io/cluster-issuer": "letsencrypt-prod"

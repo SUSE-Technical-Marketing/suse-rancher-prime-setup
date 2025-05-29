@@ -4,6 +4,7 @@ import { fileSync } from "tmp";
 import { writeFileSync } from "fs";
 import { createVirtualMachine, VirtualMachineArgs } from "./virtualmachine"
 import { kubevirt } from "@suse-tmm/harvester-crds";
+import { VmIpAddress } from "./ipaddress";
 
 export interface HarvesterVmArgs {
     kubeconfig: pulumi.Input<string>;
@@ -11,7 +12,7 @@ export interface HarvesterVmArgs {
 }
 
 export class HarvesterVm extends pulumi.ComponentResource {
-    public virtualMachineInstance: pulumi.Output<kubevirt.v1.VirtualMachineInstance>;
+    public vmIpAddress: pulumi.Output<string>;
 
     constructor(name: string, args: HarvesterVmArgs, opts?: pulumi.ComponentResourceOptions) {
         super("suse-tmm:harvester:virtualmachine", name, {}, opts);
@@ -20,7 +21,7 @@ export class HarvesterVm extends pulumi.ComponentResource {
             kubeconfig: args.kubeconfig,
         }, { parent: this });
 
-        const vmiOutput = pulumi.all([args.kubeconfig, args.virtualMachine]).apply(async ([kubeconfig, virtualMachine]) => {
+        const vmiOutput = pulumi.all([args.virtualMachine]).apply(async ([virtualMachine]) => {
             const vm = createVirtualMachine(name, virtualMachine, {
                 provider: harvesterK8sProvider,
                 parent: this,
@@ -29,16 +30,16 @@ export class HarvesterVm extends pulumi.ComponentResource {
             return vm;
         });
 
-        this.virtualMachineInstance = vmiOutput.apply((vm) => {
-            const vmi = kubevirt.v1.VirtualMachineInstance.get(name, pulumi.interpolate`${vm.metadata.namespace}/${vm.metadata.name}`, {
-                provider: harvesterK8sProvider,
-                parent: this,
-                dependsOn: [vm],
-            });
-            return vmi;
-        });
+        this.vmIpAddress = new VmIpAddress(`${name}-ip`, {
+            kubeconfig: args.kubeconfig,
+            namespace: vmiOutput.metadata.namespace,
+            name: vmiOutput.metadata.name,
+            timeout: 60, // Wait up to 60 seconds for the IP address to be available
+        }, {
+            parent: this,
+        }).ipAddress;
         this.registerOutputs({
-            virtualMachineInstance: this.virtualMachineInstance,
+            vmIpAddress: this.vmIpAddress,
         });
 ;
     }
