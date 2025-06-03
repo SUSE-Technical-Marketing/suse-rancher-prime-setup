@@ -6,14 +6,14 @@ import { BashRcLocal, cloudInit, DefaultUser, DisableIpv6, GuestAgent, IncreaseF
 import { RancherManagerInstall } from "@suse-tmm/rancher-install";
 
 export function provisionHarvester(kubeconfig: kubeconfig.RancherKubeconfig) {
-    const harvesterBase = new harvester.HarvesterBase("harvesterBase", {
+    const harvesterBase = new harvester.HarvesterBase("harvester-base", {
         kubeconfig: kubeconfig.kubeconfig,
         extraImages: [
-            {
-                name: "fedora-cloud-42",
-                displayName: "Fedora Cloud 42",
-                url: "https://download.fedoraproject.org/pub/fedora/linux/releases/42/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-42-1.1.x86_64.qcow2"
-            }
+            // {
+            //     name: "fedora-cloud-42",
+            //     displayName: "Fedora Cloud 42",
+            //     url: "https://download.fedoraproject.org/pub/fedora/linux/releases/42/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-42-1.1.x86_64.qcow2"
+            // }
         ]
     });
 
@@ -26,7 +26,7 @@ interface VmArgs {
 }
 
 export function provisionControlTower(harvesterBase: harvester.HarvesterBase, args: VmArgs, kubeconfig: kubeconfig.RancherKubeconfig) {
-    const openSuseImage = harvesterBase.images.apply(images => images.get("opensuse-leap-15.6")!);
+    const openSuseImage = harvesterBase.images.get("opensuse-leap-15.6")!;
     const network = harvesterBase.networks.get("backbone-vlan")!;
     const harvesterVm = new harvester.HarvesterVm("control-tower", {
         kubeconfig: kubeconfig.kubeconfig,
@@ -34,7 +34,7 @@ export function provisionControlTower(harvesterBase: harvester.HarvesterBase, ar
             namespace: "harvester-public",
             resources: {
                 cpu: 2,
-                memory: "4Gi"
+                memory: "6Gi"
             },
             network: {
                 name: network.metadata.name,
@@ -42,7 +42,7 @@ export function provisionControlTower(harvesterBase: harvester.HarvesterBase, ar
             },
             disk: {
                 name: "disk0",
-                size: "10Gi",
+                size: "100Gi",
                 image: openSuseImage
             },
             cloudInit: cloudInit(
@@ -80,11 +80,13 @@ const sshPrivKey = vmConfig.requireSecret("sshPrivKey");
 const certManagerConfig = new pulumi.Config("cert-manager");
 const letsEncryptEmail = certManagerConfig.get("letsEncryptEmail");
 const cloudFlareApiKey = certManagerConfig.get("cloudflareApiKey");
+const labConfig = new pulumi.Config("lab");
+const domain = labConfig.get("domain");
 
 pulumi.log.info(`Lets Encrypt Email: ${letsEncryptEmail ? "Provided" : "Not Provided"}`);
 pulumi.log.info(`Cloudflare API Key: ${cloudFlareApiKey ? "Provided" : "Not Provided"}`);
 
-const cfg = new kubeconfig.RancherKubeconfig("harvesterKubeconfig", {
+const cfg = new kubeconfig.RancherKubeconfig("harvester-kubeconfig", {
     url: harvesterUrl,
     username: username,
     password: password,
@@ -99,7 +101,7 @@ const vmi = provisionControlTower(harvBase, {
 }, cfg);
 const ip = vmi.vmIpAddress;
 
-const controlTowerKubeconfig = new kubeconfig.RemoteKubeconfig("controlTowerKubeconfig", {
+const controlTowerKubeconfig = new kubeconfig.RemoteKubeconfig("control-tower-kubeconfig", {
     hostname: ip,
     username: sshUser,
     privKey: sshPrivKey,
@@ -107,13 +109,17 @@ const controlTowerKubeconfig = new kubeconfig.RemoteKubeconfig("controlTowerKube
     updateServerAddress: true, // Patch the kubeconfig to use the correct server address
 });
 
-new RancherManagerInstall("rancherManager", {
+new RancherManagerInstall("rancher-manager", {
     kubeconfig: controlTowerKubeconfig.kubeconfig,
+    domain: domain,
+    hostname: "control-tower",
+    installIngress: true, // Install Ingress controller
     tls: {
         certManager: cloudFlareApiKey && letsEncryptEmail ? {
             version: "v1.17.2",
             cloudFlareApiToken: cloudFlareApiKey,
-            letsEncryptEmail: letsEncryptEmail
+            letsEncryptEmail: letsEncryptEmail,
+            wildcardDomain: `control-tower.${domain}`,
         } : undefined,
     }
 });

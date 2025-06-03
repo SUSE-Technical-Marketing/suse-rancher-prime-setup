@@ -8,7 +8,7 @@ import { VmIpAddress } from "./ipaddress";
 
 export interface HarvesterVmArgs {
     kubeconfig: pulumi.Input<string>;
-    virtualMachine: pulumi.Input<VirtualMachineArgs>;
+    virtualMachine: VirtualMachineArgs;
 }
 
 export class HarvesterVm extends pulumi.ComponentResource {
@@ -21,15 +21,10 @@ export class HarvesterVm extends pulumi.ComponentResource {
             kubeconfig: args.kubeconfig,
         }, { parent: this });
 
-        const vmiOutput = pulumi.all([args.virtualMachine]).apply(async ([virtualMachine]) => {
-            const vm = createVirtualMachine(name, virtualMachine, {
+        const vmiOutput = createVirtualMachine(name, args.virtualMachine, {
                 provider: harvesterK8sProvider,
                 parent: this,
             });
-
-            return vm;
-        });
-
         this.vmIpAddress = new VmIpAddress(`${name}-ip`, {
             kubeconfig: args.kubeconfig,
             namespace: vmiOutput.metadata.namespace,

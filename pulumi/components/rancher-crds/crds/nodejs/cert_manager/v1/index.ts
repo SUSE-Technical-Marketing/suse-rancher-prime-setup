@@ -5,6 +5,21 @@ import * as pulumi from "@pulumi/pulumi";
 import * as utilities from "../../utilities";
 
 // Export members:
+export { CertificateArgs } from "./certificate";
+export type Certificate = import("./certificate").Certificate;
+export const Certificate: typeof import("./certificate").Certificate = null as any;
+utilities.lazyLoad(exports, ["Certificate"], () => require("./certificate"));
+
+export { CertificateListArgs } from "./certificateList";
+export type CertificateList = import("./certificateList").CertificateList;
+export const CertificateList: typeof import("./certificateList").CertificateList = null as any;
+utilities.lazyLoad(exports, ["CertificateList"], () => require("./certificateList"));
+
+export { CertificatePatchArgs } from "./certificatePatch";
+export type CertificatePatch = import("./certificatePatch").CertificatePatch;
+export const CertificatePatch: typeof import("./certificatePatch").CertificatePatch = null as any;
+utilities.lazyLoad(exports, ["CertificatePatch"], () => require("./certificatePatch"));
+
 export { ClusterIssuerArgs } from "./clusterIssuer";
 export type ClusterIssuer = import("./clusterIssuer").ClusterIssuer;
 export const ClusterIssuer: typeof import("./clusterIssuer").ClusterIssuer = null as any;
@@ -25,6 +40,12 @@ const _module = {
     version: utilities.getVersion(),
     construct: (name: string, type: string, urn: string): pulumi.Resource => {
         switch (type) {
+            case "kubernetes:cert-manager.io/v1:Certificate":
+                return new Certificate(name, <any>undefined, { urn })
+            case "kubernetes:cert-manager.io/v1:CertificateList":
+                return new CertificateList(name, <any>undefined, { urn })
+            case "kubernetes:cert-manager.io/v1:CertificatePatch":
+                return new CertificatePatch(name, <any>undefined, { urn })
             case "kubernetes:cert-manager.io/v1:ClusterIssuer":
                 return new ClusterIssuer(name, <any>undefined, { urn })
             case "kubernetes:cert-manager.io/v1:ClusterIssuerList":

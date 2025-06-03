@@ -33,5 +33,5 @@ export function helmInstallRancher(name: string, args: HelmArgs, opts?: pulumi.C
             repo: "https://charts.rancher.com/server-charts/prime",
         },
         values: values,
-    },opts);
+    }, { ...opts, retainOnDelete: true }); // On delete, we can retain the release, as the cluster will be deleted anyway.
 }

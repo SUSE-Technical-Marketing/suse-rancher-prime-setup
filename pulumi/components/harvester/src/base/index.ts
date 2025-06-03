@@ -11,11 +11,11 @@ import { StorageClass } from "@pulumi/kubernetes/storage/v1";
 
 export interface HarvesterBaseArgs {
     kubeconfig: pulumi.Input<string>;
-    extraImages?: pulumi.Input<VmImageArgs[]>;
+    extraImages?: VmImageArgs[];
 }
 
 export class HarvesterBase extends pulumi.ComponentResource {
-    public images: pulumi.Output<Map<string, harvesterhci.v1beta1.VirtualMachineImage>>;
+    public images: Map<string, harvesterhci.v1beta1.VirtualMachineImage>;
     public networks: Map<string, k8scrds.v1.NetworkAttachmentDefinition>;
     public storageClass: StorageClass;
     constructor(name: string, args: HarvesterBaseArgs, opts?: pulumi.ComponentResourceOptions) {
@@ -27,12 +27,8 @@ export class HarvesterBase extends pulumi.ComponentResource {
         this.storageClass = createSingleReplicaStorageClass({ provider: harvesterK8sProvider, parent: this });
         this.networks = createNetworks({ provider: harvesterK8sProvider, parent: this });
 
-        const out = pulumi.all([args.kubeconfig, args.extraImages]).apply(([kubeconfig, extraImages]) => {
-            const images = createImages(extraImages || [], { provider: harvesterK8sProvider, dependsOn: [this.storageClass], parent: this });
+        this.images = createImages(args.extraImages || [], { provider: harvesterK8sProvider, dependsOn: [this.storageClass], parent: this });
 
-            return { images };
-        });
-        this.images = out.images;
         this.registerOutputs({
             images: this.images,
             storageClass: this.storageClass,

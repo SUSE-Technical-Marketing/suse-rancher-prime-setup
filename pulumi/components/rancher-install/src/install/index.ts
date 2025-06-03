@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi"
 import { helmInstallRancher } from "./rancher";
 import * as k8s from "@pulumi/kubernetes";
-import { handleCustomTLS, installCertManager, RancherTLSSecretName, TLSArgs } from "./certs"
+import { installIngressNginx, installSprouter, TLS, TLSArgs } from "@suse-tmm/common";
 
 export interface HarvesterArgs {
     url: pulumi.Input<string>;
@@ -14,9 +14,12 @@ export interface HarvesterArgs {
 
 export interface RancherInstallArgs {
     kubeconfig?: pulumi.Input<string>; // Install on existing cluster
-    harvester?: pulumi.Input<HarvesterArgs>; // Install Rancher on new VM in Harvester
+    harvester?: HarvesterArgs; // Install Rancher on new VM in Harvester
+    installIngress?: pulumi.Input<boolean>; // Install Ingress controller
     ec2?: pulumi.Input<any>; // Install on EC2 instance type
-    tls: pulumi.Input<TLSArgs>; // TLS configuration
+    tls: TLSArgs; // TLS configuration
+    hostname?: pulumi.Input<string>; // Hostname for Rancher
+    domain?: pulumi.Input<string>; // Domain for Rancher
 }
 
 export class RancherManagerInstall extends pulumi.ComponentResource {
@@ -30,11 +33,6 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
 
         if (args.kubeconfig) {
             this.installRancher(args.kubeconfig, args, opts);
-            // Install Rancher on existing cluster
-            // this.kubeconfig = pulumi.output(args.kubeconfig);
-            // this.rancherUrl = pulumi.output("https://rancher.example.com");
-            // this.rancherUsername = pulumi.output("admin");
-            // this.rancherPassword = pulumi.output("password");
         }
     }
 
@@ -43,32 +41,63 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
             kubeconfig: args.kubeconfig,
         }, { parent: this });
 
-        const tlsResource = pulumi.all([args.tls]).apply(([tls]) => {
-            if (tls.certificate) {
-                return handleCustomTLS(tls, { parent: this, provider: provider });
-            } else if (tls.certManager) {
-                // Handle Cert Manager configuration
-                return installCertManager(tls.certManager, { parent: this, provider: provider });
-            } else {
-                pulumi.log.warn("No TLS configuration provided, using non-secure settings.");
-                return undefined; // No TLS configuration
-            }
-        });
+        let resOpts = { ...opts, provider: provider, parent: this };
+
+        installSprouter(resOpts)
+        if (args.installIngress) {
+            // Install NGINX Ingress Controller
+            installIngressNginx(resOpts);
+        }
+
+        // Create TLS
+        const tls = new TLS("rancher-tls", args.tls, resOpts);
+
+        let rancherValues: {[key: string]: any} = {
+            hostname: `rancher.${args.hostname}.${args.domain}`,
+        }
+
+        if (tls.tlsSecret) {
+            rancherValues = {
+                ...rancherValues,
+                ingress: {
+                    ingressClassName: "nginx",
+                    tls: {
+                        source: "secret",
+                        secretName: tls.tlsSecret?.metadata.name
+                    },
+                }
+            };
+        } else if (tls.certificate) {
+            rancherValues = {
+                ...rancherValues,
+                ingress: {
+                    ingressClassName: "nginx",
+                    tls: {
+                        source: "secret",
+                        secretName: tls.certificate.metadata.name
+                    },
+                }
+            };
+        } else if (args.tls.certManager && !tls.certificate) {
+            // Cert-Manager is configured, but no wildcard certificate is created yet
+            rancherValues = {
+                ...rancherValues,
+                ingress: {
+                    ingressClassName: "nginx",
+                    tls: {
+                        source: "secret",
+                        secretName: "rancher-tls",
+                    },
+                    extraAnnotations: {
+                        "cert-manager.io/cluster-issuer": "letsencrypt-prod",
+                    }
+                }
+            };
+        }
 
         const rancherRelease = helmInstallRancher("rancher", {
             rancherVersion: "v2.11.2",
-            values: {
-                hostname: "rancher.flightdeck.lab.geeko.me",
-                ingress: {
-                    tls: {
-                        source: "secret",
-                        secretName: RancherTLSSecretName
-                    },
-                    extraAnnotations: {
-                        "cert-manager.io/cluster-issuer": "letsencrypt-prod"
-                    },
-                }
-            }
+            values: rancherValues
         }, { parent: this, provider: provider });
     }
 }

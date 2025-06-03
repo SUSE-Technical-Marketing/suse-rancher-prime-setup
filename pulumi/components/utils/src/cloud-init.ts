@@ -26,7 +26,7 @@ export interface OutputArgs {
 }
 
 export type PackageArgs = string | string[] | { name: string; version?: string };
-export type RunCmdArgs = string | string[];
+export type CmdArgs = string | string[];
 
 export interface CloudInitArgs {
     templated: boolean;
@@ -42,8 +42,8 @@ export interface CloudInitArgs {
     packageUpgrade: boolean;
 
     writeFiles: WriteFileArgs[];
-
-    runcmd: RunCmdArgs[];
+    bootcmd: CmdArgs[];
+    runcmd: CmdArgs[];
 }
 
 export function addWriteFiles(args: CloudInitArgs, w: WriteFileArgs): CloudInitArgs {
@@ -61,6 +61,7 @@ export function cloudInit(...processors: CloudInitProcessor[]): CloudInitArgs {
         packageUpdate: false,
         packageUpgrade: false,
         writeFiles: [],
+        bootcmd: [],
         runcmd: []
     } as CloudInitArgs;
     processors.forEach((processor) => {
@@ -85,6 +86,9 @@ export function renderCloudInit(args: CloudInitArgs): string {
     }
     if (args.writeFiles && args.writeFiles.length > 0) {
         cloudInitObj.write_files = args.writeFiles;
+    }
+    if (args.bootcmd && args.bootcmd.length > 0) {
+        cloudInitObj.bootcmd = args.bootcmd;
     }
     if (args.runcmd && args.runcmd.length > 0) {
         cloudInitObj.runcmd = args.runcmd;
