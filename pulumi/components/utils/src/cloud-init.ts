@@ -1,13 +1,14 @@
 import * as yaml from "yaml";
+import * as pulumi from "@pulumi/pulumi";
 
 export type CloudInitProcessor = (cfg: CloudInitArgs) => CloudInitArgs;
 
 export type CloudInitUserArgs = string | CloudInitUser;
 export interface CloudInitUser {
-    name: string;
+    name: pulumi.Input<string>;
     sudo?: string;
     password: string;
-    sshAuthorizedKeys?: string[];
+    sshAuthorizedKeys?: pulumi.Input<string>[];
     lockPassword?: boolean;
     shell?: string;
 }

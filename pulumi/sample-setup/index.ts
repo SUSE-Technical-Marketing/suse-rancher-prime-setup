@@ -20,55 +20,6 @@ export function provisionHarvester(kubeconfig: kubeconfig.RancherKubeconfig) {
     return harvesterBase;
 }
 
-interface VmArgs {
-    sshUser: string;
-    sshPubKey: string;
-}
-
-export function provisionControlTower(harvesterBase: harvester.HarvesterBase, args: VmArgs, kubeconfig: kubeconfig.RancherKubeconfig) {
-    const openSuseImage = harvesterBase.images.get("opensuse-leap-15.6")!;
-    const network = harvesterBase.networks.get("backbone-vlan")!;
-    const harvesterVm = new harvester.HarvesterVm("control-tower", {
-        kubeconfig: kubeconfig.kubeconfig,
-        virtualMachine: {
-            namespace: "harvester-public",
-            resources: {
-                cpu: 2,
-                memory: "6Gi"
-            },
-            network: {
-                name: network.metadata.name,
-                namespace: network.metadata.namespace
-            },
-            disk: {
-                name: "disk0",
-                size: "100Gi",
-                image: openSuseImage
-            },
-            cloudInit: cloudInit(
-                BashRcLocal,
-                KubeFirewall,
-                DisableIpv6,
-                DefaultUser,
-                NewUser({
-                    name: args.sshUser,
-                    password: "$2y$10$M8ZamcBlJG4xMooQSI7M2eAy2vrDrFx4WOG79SrPKjZUU/kDpsRE6",
-                    sudo: "ALL=(ALL) NOPASSWD:ALL",
-                    sshAuthorizedKeys: [args.sshPubKey],
-                }),
-                PackageUpdate,
-                Packages("curl", "helm", "git-core", "bash-completion", "vim", "nano", "iputils", "wget", "mc", "tree", "btop", "kubernetes-client", "helm", "k9s", "cloud-init"),
-
-                GuestAgent,
-                IncreaseFileLimit,
-                InstallK3s
-            ),
-        }
-    });
-
-    return harvesterVm
-}
-
 const harvesterConfig = new pulumi.Config("harvester");
 const harvesterUrl = harvesterConfig.require("url");
 const username = harvesterConfig.require("username");
@@ -82,11 +33,13 @@ const letsEncryptEmail = certManagerConfig.get("letsEncryptEmail");
 const cloudFlareApiKey = certManagerConfig.get("cloudflareApiKey");
 const labConfig = new pulumi.Config("lab");
 const domain = labConfig.get("domain");
+const rancherConfig = new pulumi.Config("rancher");
+const adminPassword = rancherConfig.requireSecret("adminPassword");
 
 pulumi.log.info(`Lets Encrypt Email: ${letsEncryptEmail ? "Provided" : "Not Provided"}`);
 pulumi.log.info(`Cloudflare API Key: ${cloudFlareApiKey ? "Provided" : "Not Provided"}`);
 
-const cfg = new kubeconfig.RancherKubeconfig("harvester-kubeconfig", {
+const harvesterKubeconfig = new kubeconfig.RancherKubeconfig("harvester-kubeconfig", {
     url: harvesterUrl,
     username: username,
     password: password,
@@ -94,26 +47,32 @@ const cfg = new kubeconfig.RancherKubeconfig("harvester-kubeconfig", {
     insecure: true, // Harvester normally has a self-signed cert
 });
 
-const harvBase = provisionHarvester(cfg);
-const vmi = provisionControlTower(harvBase, {
-    sshUser: sshUser,
-    sshPubKey: sshPubKey
-}, cfg);
-const ip = vmi.vmIpAddress;
+const harvBase = provisionHarvester(harvesterKubeconfig);
 
-const controlTowerKubeconfig = new kubeconfig.RemoteKubeconfig("control-tower-kubeconfig", {
-    hostname: ip,
-    username: sshUser,
-    privKey: sshPrivKey,
-    path: "/etc/rancher/k3s/k3s.yaml",
-    updateServerAddress: true, // Patch the kubeconfig to use the correct server address
-});
+const nw = harvBase.networks.get("backbone-vlan")!;
+const image = harvBase.images.get("opensuse-leap-15.6")!;
 
-new RancherManagerInstall("rancher-manager", {
-    kubeconfig: controlTowerKubeconfig.kubeconfig,
+const rancherManager = new RancherManagerInstall("rancher-manager", {
+    harvester: {
+        kubeconfig: harvesterKubeconfig.kubeconfig,
+        vmName: "control-tower",
+        vmNamespace: "harvester-public",
+        vmImage: {
+            id: image.id,
+            storageClassName: image.status.storageClassName
+        },
+        sshUser: sshUser,
+        keypair: {
+            publicKey: sshPubKey,
+            privateKey: sshPrivKey,
+        },
+        network: {
+            namespace: nw.metadata.namespace,
+            name: nw.metadata.name,
+        }
+    },
     domain: domain,
     hostname: "control-tower",
-    installIngress: true, // Install Ingress controller
     tls: {
         certManager: cloudFlareApiKey && letsEncryptEmail ? {
             version: "v1.17.2",
@@ -121,11 +80,14 @@ new RancherManagerInstall("rancher-manager", {
             letsEncryptEmail: letsEncryptEmail,
             wildcardDomain: `control-tower.${domain}`,
         } : undefined,
-    }
+    },
+    adminPassword: adminPassword,
+}, {
+    dependsOn: [harvBase]
 });
 
 
-pulumi.all([cfg.kubeconfig, controlTowerKubeconfig.kubeconfig]).apply(([harvkcfg, controlkcfg]) => {
-    pulumi.log.info(`Harvester Kubeconfig: ${harvkcfg}`);
-    pulumi.log.info(`Control Tower Kubeconfig: ${controlkcfg}`);
-});
+// pulumi.all([harvesterKubeconfig.kubeconfig, rancherManager.kubeconfig]).apply(([harvkcfg, controlkcfg]) => {
+//     // pulumi.log.info(`Harvester Kubeconfig: ${harvkcfg}`);
+//     // pulumi.log.info(`control-tower Kubeconfig: ${controlkcfg}`);
+// });

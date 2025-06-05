@@ -5,6 +5,7 @@ import { fileSync } from "tmp";
 import { writeFileSync, readFile } from "fs";
 import { promisify } from "util";
 import { load, dump } from "js-yaml";
+import { waitFor } from "@suse-tmm/utils";
 
 // This module provides a dynamic resource for fetching a kubeconfig file from a remote server
 // using SSH. It allows users to specify the hostname, port, username, and either a password or private key for authentication.
@@ -23,10 +24,6 @@ export interface RemoteKubeconfigInputs {
     pollIntervalSeconds?: pulumi.Input<number>;
     pollTimeoutSeconds?: pulumi.Input<number>;
 }
-// export interface RemoteKubeconfigProviderInputs
-//   extends Omit<RemoteKubeconfigInputs, keyof pulumi.Input<any>> {
-//   // same fields but concrete types
-// }
 
 export interface RemoteKubeconfigProviderInputs {
     hostname: string;
@@ -51,24 +48,13 @@ class RemoteKubeconfigProvider implements dynamic.ResourceProvider<RemoteKubecon
             throw new Error("Either password or private key must be provided for authentication.");
         }
 
-
-        const deadline = Date.now() + pollTimeoutSeconds * 1_000;
-        let kubeconfig: string | undefined;
-
-        while (Date.now() < deadline) {
-            pulumi.log.debug(`Checking ${path} on ${hostname}…`);
-
-            kubeconfig = await this.tryFetch(hostname, port, username, password, privKey, path);
-
-            if (kubeconfig !== undefined) break;               // 🎉 got the file
-            await new Promise(r => setTimeout(r, pollIntervalSeconds * 1_000));
-        }
-
-        if (kubeconfig === undefined) {
-            throw new Error(
-                `Timed out after ${pollTimeoutSeconds}s waiting for ${path} on ${hostname}`,
-            );
-        }
+        let kubeconfig = await waitFor(() => this.tryFetch(hostname, port, username, password, privKey, path), {
+            intervalMs: pollIntervalSeconds * 1_000,
+            timeoutMs: pollTimeoutSeconds * 1_000,
+        }).catch(err => {
+            pulumi.log.error(`Failed to fetch kubeconfig from ${hostname}:${port} at ${path}: ${err.message}`);
+            throw new Error(`Failed to fetch kubeconfig from ${hostname}:${port} at ${path}: ${err.message}`);
+        });
 
         if (inputs.updateServerAddress) {
             // Update the server address in the kubeconfig

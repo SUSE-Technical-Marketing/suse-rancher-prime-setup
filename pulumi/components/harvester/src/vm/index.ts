@@ -21,18 +21,20 @@ export class HarvesterVm extends pulumi.ComponentResource {
             kubeconfig: args.kubeconfig,
         }, { parent: this });
 
-        const vmiOutput = createVirtualMachine(name, args.virtualMachine, {
+        const vm = createVirtualMachine(name, args.virtualMachine, {
                 provider: harvesterK8sProvider,
                 parent: this,
-            });
+        });
+
         this.vmIpAddress = new VmIpAddress(`${name}-ip`, {
             kubeconfig: args.kubeconfig,
-            namespace: vmiOutput.metadata.namespace,
-            name: vmiOutput.metadata.name,
+            namespace: vm.metadata.namespace,
+            name: vm.metadata.name,
             timeout: 60, // Wait up to 60 seconds for the IP address to be available
         }, {
             parent: this,
         }).ipAddress;
+
         this.registerOutputs({
             vmIpAddress: this.vmIpAddress,
         });

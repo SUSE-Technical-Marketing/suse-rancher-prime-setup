@@ -21,7 +21,8 @@ export interface NetworkArgs {
 export interface DiskArgs {
     name: pulumi.Input<string>;
     size: pulumi.Input<string>;
-    image: harvesterhci.v1beta1.VirtualMachineImage;
+    imageId: pulumi.Input<string>;
+    storageClassName: pulumi.Input<string>;
 }
 
 export interface VirtualMachineArgs {
@@ -149,7 +150,7 @@ function createPvc(name: string, namespace: pulumi.Input<string>, disk: DiskArgs
             name: `${name}-${disk.name}`,
             namespace: namespace,
             annotations: {
-                "harvesterhci.io/imageId": disk.image.id
+                "harvesterhci.io/imageId": disk.imageId,
             },
             labels: {
                 "harvesterhci.io/creator": "pulumi",
@@ -164,9 +165,9 @@ function createPvc(name: string, namespace: pulumi.Input<string>, disk: DiskArgs
                 }
             },
             volumeMode: "Block",
-            storageClassName: disk.image.status.storageClassName,
+            storageClassName: disk.storageClassName,
         }
-    }, { ...opts, dependsOn: [disk.image] })
+    }, { ...opts })
 };
 
 function createCloudInitSecret(name: string, namespace: pulumi.Input<string>, cloudInit: CloudInitArgs, opts: pulumi.ComponentResourceOptions): Secret {

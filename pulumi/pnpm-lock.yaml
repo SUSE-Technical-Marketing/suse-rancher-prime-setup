@@ -241,12 +241,21 @@ importers:
       '@suse-tmm/common':
         specifier: workspace:^
         version: link:../common
+      '@suse-tmm/harvester':
+        specifier: workspace:^
+        version: link:../harvester
+      '@suse-tmm/kubeconfig':
+        specifier: workspace:^
+        version: link:../kubeconfig
       '@suse-tmm/rancher-crds':
         specifier: workspace:^
         version: link:../rancher-crds
       '@suse-tmm/utils':
         specifier: workspace:^
         version: link:../utils
+      got:
+        specifier: ^12.6.1
+        version: 12.6.1
     devDependencies:
       '@types/node':
         specifier: ^22.15.23
@@ -291,6 +300,9 @@ importers:
 
   components/utils:
     dependencies:
+      js-yaml:
+        specifier: ^3.14.1
+        version: 3.14.1
       yaml:
         specifier: ^2.8.0
         version: 2.8.0
@@ -298,6 +310,9 @@ importers:
       '@types/chai':
         specifier: ^5.2.2
         version: 5.2.2
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
       '@types/mocha':
         specifier: ^10.0.10
         version: 10.0.10

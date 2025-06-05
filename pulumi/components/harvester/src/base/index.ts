@@ -27,7 +27,7 @@ export class HarvesterBase extends pulumi.ComponentResource {
         this.storageClass = createSingleReplicaStorageClass({ provider: harvesterK8sProvider, parent: this });
         this.networks = createNetworks({ provider: harvesterK8sProvider, parent: this });
 
-        this.images = createImages(args.extraImages || [], { provider: harvesterK8sProvider, dependsOn: [this.storageClass], parent: this });
+        this.images = createImages(args.extraImages || [], this.storageClass.metadata.name, { provider: harvesterK8sProvider, dependsOn: [this.storageClass], parent: this });
 
         this.registerOutputs({
             images: this.images,

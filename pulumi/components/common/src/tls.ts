@@ -140,11 +140,13 @@ export class TLS extends pulumi.ComponentResource {
             metadata: {
                 name: WildcardCertificateSecretName,
                 namespace: ns.metadata.name, // Use the same namespace as cert-manager
+                annotations: {
+                    "pulumi.com/waitFor": "condition=Ready"
+                }
             },
             spec: {
                 secretTemplate: {
                     annotations: {
-                        "pulumi.com/waitFor": "condition=Ready",
                         "sprouter.geeko.me/enabled": "true"
                     }
                 },
@@ -152,9 +154,9 @@ export class TLS extends pulumi.ComponentResource {
                 dnsNames: [`*.${certManager.wildcardDomain}`, `${certManager.wildcardDomain}`],
                 issuerRef: {
                     name: ci.metadata.name,
-                    kind: ci.kind,
-                },
-            },
+                    kind: ci.kind
+                }
+            }
         }, opts);
     }
 }

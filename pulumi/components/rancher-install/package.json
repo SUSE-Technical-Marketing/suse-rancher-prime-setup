@@ -18,7 +18,10 @@
     "dependencies": {
         "@pulumi/command": "^1.1.0",
         "@suse-tmm/common": "workspace:^",
+        "@suse-tmm/harvester": "workspace:^",
+        "@suse-tmm/kubeconfig": "workspace:^",
         "@suse-tmm/rancher-crds": "workspace:^",
-        "@suse-tmm/utils": "workspace:^"
+        "@suse-tmm/utils": "workspace:^",
+        "got": "^12.6.1"
     }
 }

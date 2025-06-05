@@ -26,14 +26,14 @@ const DefaultImages: VmImageArgs[] = [
     // }
 ];
 
-function addImage(name: string, image: any, opts: pulumi.CustomResourceOptions) {
+function addImage(name: string, image: any, storageClassName: pulumi.Input<string>, opts: pulumi.CustomResourceOptions) {
     return new harvesterhci.v1beta1.VirtualMachineImage(name, {
         metadata: {
             name: name,
             namespace: "harvester-public",
             annotations: {
                 "pulumi.com/waitFor": "condition=Imported",
-                "harvesterhci.io/storageClassName": "longhorn-single",
+                "harvesterhci.io/storageClassName": storageClassName,
             }
         },
         spec: {
@@ -44,10 +44,10 @@ function addImage(name: string, image: any, opts: pulumi.CustomResourceOptions) 
     }, opts);
 }
 
-export function createImages(extraImages: VmImageArgs[], opts: pulumi.CustomResourceOptions): Map<string, harvesterhci.v1beta1.VirtualMachineImage> {
+export function createImages(extraImages: VmImageArgs[], storageClassName: pulumi.Input<string>, opts: pulumi.CustomResourceOptions): Map<string, harvesterhci.v1beta1.VirtualMachineImage> {
     const images = new Map<string, harvesterhci.v1beta1.VirtualMachineImage>();
     (DefaultImages.concat(extraImages)).forEach((image) => {
-        images.set(image.name, addImage(image.name, image, opts));
+        images.set(image.name, addImage(image.name, image, storageClassName, opts));
     });
 
     return images;
