@@ -17,7 +17,7 @@
     },
     "dependencies": {
         "@pulumi/command": "^1.1.0",
-        "@suse-tmm/rancher-crds": "workspace:^",
+        "@suse-tmm/common-crds": "workspace:^",
         "@suse-tmm/utils": "workspace:^"
     }
 }

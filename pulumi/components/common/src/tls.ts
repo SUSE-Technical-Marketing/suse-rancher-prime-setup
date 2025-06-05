@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
-import { cert_manager } from "@suse-tmm/rancher-crds";
+import { cert_manager } from "@suse-tmm/common-crds";
 
 const WildcardCertificateSecretName = "wildcard-cert";
 

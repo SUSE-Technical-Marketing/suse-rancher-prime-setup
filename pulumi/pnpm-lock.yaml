@@ -48,12 +48,28 @@ importers:
       '@pulumi/pulumi':
         specifier: ^3.171.0
         version: 3.171.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)
-      '@suse-tmm/rancher-crds':
+      '@suse-tmm/common-crds':
         specifier: workspace:^
-        version: link:../rancher-crds
+        version: link:../common-crds
       '@suse-tmm/utils':
         specifier: workspace:^
         version: link:../utils
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.23
+        version: 22.15.23
+      typescript:
+        specifier: ^5.8.3
+        version: 5.8.3
+
+  components/common-crds:
+    dependencies:
+      '@pulumi/kubernetes':
+        specifier: ^4.23.0
+        version: 4.23.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)
+      '@pulumi/pulumi':
+        specifier: ^3.171.0
+        version: 3.171.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)
     devDependencies:
       '@types/node':
         specifier: ^22.15.23
@@ -247,9 +263,6 @@ importers:
       '@suse-tmm/kubeconfig':
         specifier: workspace:^
         version: link:../kubeconfig
-      '@suse-tmm/rancher-crds':
-        specifier: workspace:^
-        version: link:../rancher-crds
       '@suse-tmm/utils':
         specifier: workspace:^
         version: link:../utils
