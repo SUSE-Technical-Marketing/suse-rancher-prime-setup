@@ -3,9 +3,11 @@ import * as harvester from "@suse-tmm/harvester";
 import * as kubeconfig from "@suse-tmm/kubeconfig";
 import { RancherManagerInstall } from "@suse-tmm/rancher";
 
-export function provisionHarvester(kubeconfig: kubeconfig.RancherKubeconfig) {
+export function provisionHarvester(clusterNetwork:string, kubeconfig: kubeconfig.RancherKubeconfig) {
+
     const harvesterBase = new harvester.HarvesterBase("harvester-base", {
         kubeconfig: kubeconfig.kubeconfig,
+        clusterNetwork: clusterNetwork,
         extraImages: [
             // {
             //     name: "fedora-cloud-42",
@@ -22,21 +24,26 @@ const harvesterConfig = new pulumi.Config("harvester");
 const harvesterUrl = harvesterConfig.require("url");
 const username = harvesterConfig.require("username");
 const password = harvesterConfig.requireSecret("password");
+const clusterNetwork = harvesterConfig.get("clusterNetwork") || "mgmt";
+
 const vmConfig = new pulumi.Config("vm");
 const sshUser = vmConfig.require("sshUser");
 const sshPubKey = vmConfig.require("sshPubKey");
 const sshPrivKey = vmConfig.requireSecret("sshPrivKey");
+
 const certManagerConfig = new pulumi.Config("cert-manager");
-const staging = certManagerConfig.getBoolean("staging") || true; // Default to true if not provided
+const staging = (certManagerConfig.get("staging") || "true") === "true"; // Default to true if not provided
 const letsEncryptEmail = certManagerConfig.get("letsEncryptEmail");
 const cloudFlareApiKey = certManagerConfig.get("cloudflareApiKey");
+
 const labConfig = new pulumi.Config("lab");
 const domain = labConfig.get("domain");
+
 const rancherConfig = new pulumi.Config("rancher");
 const adminPassword = rancherConfig.requireSecret("adminPassword");
 const skipBootstrap = rancherConfig.getBoolean("skipBootstrap") || false;
 
-pulumi.log.info(`Lets Encrypt Email: ${letsEncryptEmail ? "Provided" : "Not Provided"}`);
+pulumi.log.info(`Lets Encrypt Environment: ${staging ? "Staging" : "Production"}, Email: ${letsEncryptEmail ? "Provided" : "Not Provided"}`);
 pulumi.log.info(`Cloudflare API Key: ${cloudFlareApiKey ? "Provided" : "Not Provided"}`);
 
 const harvesterKubeconfig = new kubeconfig.RancherKubeconfig("harvester-kubeconfig", {
@@ -47,7 +54,7 @@ const harvesterKubeconfig = new kubeconfig.RancherKubeconfig("harvester-kubeconf
     insecure: true, // Harvester normally has a self-signed cert
 });
 
-const harvBase = provisionHarvester(harvesterKubeconfig);
+const harvBase = provisionHarvester(clusterNetwork, harvesterKubeconfig);
 
 const nw = harvBase.networks.get("backbone-vlan")!;
 const image = harvBase.images.get("opensuse-leap-15.6")!;

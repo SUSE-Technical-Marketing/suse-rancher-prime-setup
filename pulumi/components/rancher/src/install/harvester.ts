@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as harvester from "@suse-tmm/harvester";
-import { BashRcLocal, cloudInit, DefaultUser, DisableIpv6, GuestAgent, IncreaseFileLimit, InstallK3s, KubeFirewall, NewUser, Packages, PackageUpdate } from "@suse-tmm/utils";
+import { BashRcLocal, cloudInit, DefaultUser, DisableIpv6, GuestAgent, IncreaseFileLimit, InstallK3s, KubeFirewall, NewUser, Packages, PackageUpdate, DhcpInterface } from "@suse-tmm/utils";
 
 interface HarvesterNetwork {
     namespace: pulumi.Input<string>;
@@ -31,6 +31,7 @@ export function provisionHarvesterVm(args: HarvesterVmArgs, kubeconfig: pulumi.I
         kubeconfig: kubeconfig,
         virtualMachine: {
             namespace: args.vmNamespace || "harvester-public",
+            networkName: args.network.name,
             resources: {
                 cpu: 2,
                 memory: "6Gi"
@@ -61,6 +62,9 @@ export function provisionHarvesterVm(args: HarvesterVmArgs, kubeconfig: pulumi.I
 
                 GuestAgent,
                 IncreaseFileLimit,
+                DhcpInterface("eth0"),
+                DhcpInterface("eth1"),
+
                 InstallK3s
             ),
         }

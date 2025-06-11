@@ -1,9 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import { dynamic } from "@pulumi/pulumi";
 import * as ssh from "ssh2";
-import { fileSync } from "tmp";
-import { writeFileSync, readFile } from "fs";
-import { promisify } from "util";
 import { load, dump } from "js-yaml";
 import { waitFor } from "@suse-tmm/utils";
 
@@ -47,7 +44,7 @@ class RemoteKubeconfigProvider implements dynamic.ResourceProvider<RemoteKubecon
         if (!password && !privKey) {
             throw new Error("Either password or private key must be provided for authentication.");
         }
-
+        
         let kubeconfig = await waitFor(() => this.tryFetch(hostname, port, username, password, privKey, path), {
             intervalMs: pollIntervalSeconds * 1_000,
             timeoutMs: pollTimeoutSeconds * 1_000,
@@ -60,7 +57,11 @@ class RemoteKubeconfigProvider implements dynamic.ResourceProvider<RemoteKubecon
             // Update the server address in the kubeconfig
             const doc = load(kubeconfig) as any;
             doc.clusters[0].cluster.server = `https://${hostname}:6443`;
+            doc.clusters[0].cluster["insecure-skip-tls-verify"] = true
+            delete doc.clusters[0].cluster["certificate-authority-data"];
+
             kubeconfig = dump(doc);
+            pulumi.log.info(kubeconfig);
         }
 
         return {

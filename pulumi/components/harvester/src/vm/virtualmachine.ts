@@ -2,7 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 import { harvesterhci } from "@suse-tmm/harvester-crds";
 import { kubevirt } from "@suse-tmm/harvester-crds";
-import { CloudInitArgs, renderCloudInit } from "@suse-tmm/utils";
+import {CloudInitArgs, cloudInit,  renderCloudInit} from "@suse-tmm/utils";
 import { Secret } from "@pulumi/kubernetes/core/v1";
 
 const volumeClaimTemplatesAnnotation = "harvesterhci.io/volumeClaimTemplates";
@@ -29,6 +29,7 @@ export interface VirtualMachineArgs {
     namespace: pulumi.Input<string>;
     resources: ResourcesArgs;
     cloudInit?: CloudInitArgs;
+    networkName?: pulumi.Input<string>;
     network: NetworkArgs;
     disk: DiskArgs;
 }
@@ -99,6 +100,11 @@ export function createVirtualMachine(name: string, args: VirtualMachineArgs, opt
                         devices: {
                             interfaces: [
                                 {
+                                    name: "default",
+                                    model: "virtio",
+                                    masquerade: {}
+                                },
+                                {
                                     name: args.network.name,
                                     model: "virtio",
                                     bridge: {}
@@ -128,6 +134,10 @@ export function createVirtualMachine(name: string, args: VirtualMachineArgs, opt
                     evictionStrategy: "LiveMigrateIfPossible",
                     hostname: name,
                     networks: [
+                        {
+                            name: "default",
+                            pod: {}
+                        },
                         {
                             name: args.network.name,
                             multus: {
@@ -171,7 +181,12 @@ function createPvc(name: string, namespace: pulumi.Input<string>, disk: DiskArgs
 };
 
 function createCloudInitSecret(name: string, namespace: pulumi.Input<string>, cloudInit: CloudInitArgs, opts: pulumi.ComponentResourceOptions): Secret {
-    const cloudInitContents = renderCloudInit(cloudInit);
+    const cloudInitContents = renderCloudInit(cloudInit, true);
+    let networkDataContents = "";
+    if (cloudInit.network) {
+       const networkCloudInit = { network: cloudInit.network } as CloudInitArgs;
+       networkDataContents = renderCloudInit(networkCloudInit, false);
+    }
     const cloudInitSecret = new Secret(`${name}-cloudinit`, {
         metadata: {
             name: `${name}-cloudinit`,
@@ -184,7 +199,7 @@ function createCloudInitSecret(name: string, namespace: pulumi.Input<string>, cl
         },
         stringData: {
             "userdata": cloudInitContents,
-            "networkdata": ""
+            "networkdata": networkDataContents,
         },
         type: "secret"
     }, opts);

@@ -113,7 +113,7 @@ export function cloudInit(...processors: CloudInitProcessor[]): CloudInitArgs {
     return ci;
 }
 
-export function renderCloudInit(args: CloudInitArgs): string {
+export function renderCloudInit(args: CloudInitArgs, ignoreNetwork: boolean = false): string {
     const cloudInitObj: any = {}
     if (args.debug) {
         cloudInitObj.debug = args.debug;
@@ -149,7 +149,7 @@ export function renderCloudInit(args: CloudInitArgs): string {
         });
         cloudInitObj.ssh_authorized_keys = args.users.filter((user => typeof user !== "string" && user.sshAuthorizedKeys)).flatMap((user) => (user as CloudInitUser).sshAuthorizedKeys);
     }
-    if (args.network) {
+    if (args.network && !ignoreNetwork) {
         cloudInitObj.network = args.network;
     }
 
