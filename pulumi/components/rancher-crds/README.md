@@ -1,7 +1,7 @@
-# Common CRDs component
+# Rancher CRDs component
 
 ## Overview
-This component contains all the CRDs that are needed by our IaC setup for Rancher and Apps.
+This component contains all the CRDs that are needed by our IaC setup for Harvester.
 
 ## Adding a new CRD
 1. Add the CRD to the `src` directory.

@@ -1,9 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as k8s from "@pulumi/kubernetes";
 import * as harvester from "@suse-tmm/harvester";
 import * as kubeconfig from "@suse-tmm/kubeconfig";
-import { BashRcLocal, cloudInit, DefaultUser, DisableIpv6, GuestAgent, IncreaseFileLimit, InstallK3s, KubeFirewall, NewUser, Packages, PackageUpdate } from "@suse-tmm/utils";
-import { RancherManagerInstall } from "@suse-tmm/rancher-install";
+import { RancherManagerInstall } from "@suse-tmm/rancher";
 
 export function provisionHarvester(kubeconfig: kubeconfig.RancherKubeconfig) {
     const harvesterBase = new harvester.HarvesterBase("harvester-base", {

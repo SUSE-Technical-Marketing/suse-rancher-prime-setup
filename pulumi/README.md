@@ -33,8 +33,9 @@ pulumi config set vm:sshPubKey "$(cat ~/.ssh/id_rsa.pub)"
 pulumi config set vm:sshPrivKey --secret "$(cat ~/.ssh/id_rsa)"
 pulumi config set cert-manager:letsEncryptEmail "<your-email>"
 pulumi config set cert-manager:cloudflareApiKey --secret "<your-cloudflare-api-key>"
-```
+pulumi config set rancher:adminPassword --secret "<your-rancher-admin-password>"
 pulumi config set lab:domain "<your-domain>" // e.g. "geeko.me"
+```
 
 ## Creating the resources:
 ```bash
