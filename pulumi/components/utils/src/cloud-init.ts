@@ -29,6 +29,45 @@ export interface OutputArgs {
 export type PackageArgs = string | string[] | { name: string; version?: string };
 export type CmdArgs = string | string[];
 
+// Network configuration interfaces
+export interface NetworkSubnet {
+    type: "dhcp" | "static" | "dhcp6" | "static6";
+    address?: string;
+    netmask?: string;
+    gateway?: string;
+    dns_nameservers?: string[];
+    dns_search?: string[];
+}
+
+export interface NetworkInterface {
+    type: "physical" | "bond" | "bridge" | "vlan";
+    name: string;
+    mac_address?: string;
+    subnets?: NetworkSubnet[];
+    // Bond specific
+    bond_interfaces?: string[];
+    bond_mode?: string;
+    bond_miimon?: number;
+    // VLAN specific
+    vlan_link?: string;
+    vlan_id?: number;
+    // Bridge specific
+    bridge_interfaces?: string[];
+    bridge_stp?: boolean;
+    bridge_fd?: number;
+    bridge_maxwait?: number;
+}
+
+export interface NetworkConfig {
+    version: 1 | 2;
+    config?: NetworkInterface[];
+    // Version 2 format
+    ethernets?: { [key: string]: any };
+    bonds?: { [key: string]: any };
+    bridges?: { [key: string]: any };
+    vlans?: { [key: string]: any };
+}
+
 export interface CloudInitArgs {
     templated: boolean;
     debug: boolean;
@@ -45,6 +84,8 @@ export interface CloudInitArgs {
     writeFiles: WriteFileArgs[];
     bootcmd: CmdArgs[];
     runcmd: CmdArgs[];
+
+    network?: NetworkConfig;
 }
 
 export function addWriteFiles(args: CloudInitArgs, w: WriteFileArgs): CloudInitArgs {
@@ -63,7 +104,8 @@ export function cloudInit(...processors: CloudInitProcessor[]): CloudInitArgs {
         packageUpgrade: false,
         writeFiles: [],
         bootcmd: [],
-        runcmd: []
+        runcmd: [],
+        network: undefined
     } as CloudInitArgs;
     processors.forEach((processor) => {
         ci = processor(ci);
@@ -107,6 +149,9 @@ export function renderCloudInit(args: CloudInitArgs): string {
         });
         cloudInitObj.ssh_authorized_keys = args.users.filter((user => typeof user !== "string" && user.sshAuthorizedKeys)).flatMap((user) => (user as CloudInitUser).sshAuthorizedKeys);
     }
+    if (args.network) {
+        cloudInitObj.network = args.network;
+    }
 
     let cloudinit = yaml.stringify(cloudInitObj, { keepUndefined: false });
     cloudinit = `#cloud-config\n${cloudinit}`;
@@ -129,3 +174,44 @@ export function renderUser(user: CloudInitUser): { [key: string]: any } {
 
     return userObj;
 }
+
+// Network configuration helper functions
+export function createDhcpInterface(name: string, macAddress?: string): NetworkInterface {
+    return {
+        type: "physical",
+        name: name,
+        mac_address: macAddress,
+        subnets: [{ type: "dhcp" }]
+    };
+}
+
+export function createStaticInterface(
+    name: string,
+    address: string,
+    netmask: string,
+    gateway?: string,
+    dnsServers?: string[],
+    macAddress?: string
+): NetworkInterface {
+    return {
+        type: "physical",
+        name: name,
+        mac_address: macAddress,
+        subnets: [{
+            type: "static",
+            address: address,
+            netmask: netmask,
+            gateway: gateway,
+            dns_nameservers: dnsServers
+        }]
+    };
+}
+
+export function createNetworkConfig(interfaces: NetworkInterface[], version: 1 | 2 = 1): NetworkConfig {
+    return {
+        version: version,
+        config: interfaces
+    };
+}
+
+

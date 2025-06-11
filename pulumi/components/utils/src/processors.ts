@@ -1,5 +1,16 @@
 import "./stripMargin";
-import { CloudInitProcessor, CloudInitUser, CloudInitUserArgs, PackageArgs, CmdArgs } from "./cloud-init";
+import {
+    CloudInitProcessor,
+    CloudInitUser,
+    CloudInitUserArgs,
+    PackageArgs,
+    CmdArgs,
+    NetworkConfig,
+    NetworkInterface,
+    createDhcpInterface,
+    createStaticInterface,
+    createNetworkConfig
+} from "./cloud-init";
 
 export const DisableIpv6: CloudInitProcessor = (args) => {
     args.writeFiles = args.writeFiles.concat({
@@ -149,6 +160,49 @@ export function WriteFile(path: string, content: string, permissions?: string, o
             permissions: permissions,
             owner: owner
         });
+        return cfg;
+    };
+}
+
+// Network configuration processors
+export function NetworkConfiguration(networkConfig: NetworkConfig): CloudInitProcessor {
+    return (cfg) => {
+        cfg.network = networkConfig;
+        return cfg;
+    };
+}
+
+export function DhcpInterface(name: string, macAddress?: string): CloudInitProcessor {
+    return (cfg) => {
+        const iface = createDhcpInterface(name, macAddress);
+        if (!cfg.network) {
+            cfg.network = createNetworkConfig([iface]);
+        } else if (cfg.network.config) {
+            cfg.network.config = cfg.network.config.concat(iface);
+        } else {
+            cfg.network.config = [iface];
+        }
+        return cfg;
+    };
+}
+
+export function StaticInterface(
+    name: string,
+    address: string,
+    netmask: string,
+    gateway?: string,
+    dnsServers?: string[],
+    macAddress?: string
+): CloudInitProcessor {
+    return (cfg) => {
+        const iface = createStaticInterface(name, address, netmask, gateway, dnsServers, macAddress);
+        if (!cfg.network) {
+            cfg.network = createNetworkConfig([iface]);
+        } else if (cfg.network.config) {
+            cfg.network.config = cfg.network.config.concat(iface);
+        } else {
+            cfg.network.config = [iface];
+        }
         return cfg;
     };
 }
