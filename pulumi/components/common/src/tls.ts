@@ -19,6 +19,7 @@ export interface CertManagerArgs {
     letsEncryptEmail: pulumi.Input<string>; // Email for Let's Encrypt
     cloudFlareApiToken: pulumi.Input<string>; // Cloudflare API token for DNS validation
     wildcardDomain?: pulumi.Input<string>; // Optional: domain for wildcard certificate
+    staging?: pulumi.Input<boolean>; // Optional: use staging environment for Let's Encrypt
 }
 
 export class TLS extends pulumi.ComponentResource {
@@ -88,7 +89,7 @@ export class TLS extends pulumi.ComponentResource {
         const ci = this.setupClusterIssuer(ns, certManager, { ...opts, dependsOn: [cm], parent: ns });
         if (certManager.wildcardDomain) {
             pulumi.log.info(`Setting up wildcard certificate for domain: ${certManager.wildcardDomain}`);
-            return this.createWildcardCertificate(ns, ci, certManager, { ...opts, dependsOn: [ci], parent: ns });
+            return this.createWildcardCertificate(ns, ci, certManager, { ...opts, dependsOn: [ci,cm], parent: ns });
         }
         return undefined; // No domain specified, no certificate created
     }
@@ -112,7 +113,7 @@ export class TLS extends pulumi.ComponentResource {
             },
             spec: {
                 acme: {
-                    server: "https://acme-v02.api.letsencrypt.org/directory",
+                    server: certManager.staging ? "https://acme-staging-v02.api.letsencrypt.org/directory": "https://acme-v02.api.letsencrypt.org/directory",
                     email: certManager.letsEncryptEmail,
                     privateKeySecretRef: {
                         name: "letsencrypt-prod",

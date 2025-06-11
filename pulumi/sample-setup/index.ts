@@ -27,6 +27,7 @@ const sshUser = vmConfig.require("sshUser");
 const sshPubKey = vmConfig.require("sshPubKey");
 const sshPrivKey = vmConfig.requireSecret("sshPrivKey");
 const certManagerConfig = new pulumi.Config("cert-manager");
+const staging = certManagerConfig.getBoolean("staging") || true; // Default to true if not provided
 const letsEncryptEmail = certManagerConfig.get("letsEncryptEmail");
 const cloudFlareApiKey = certManagerConfig.get("cloudflareApiKey");
 const labConfig = new pulumi.Config("lab");
@@ -77,6 +78,7 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
             cloudFlareApiToken: cloudFlareApiKey,
             letsEncryptEmail: letsEncryptEmail,
             wildcardDomain: `control-tower.${domain}`,
+            staging: staging
         } : undefined,
     },
     adminPassword: adminPassword,
