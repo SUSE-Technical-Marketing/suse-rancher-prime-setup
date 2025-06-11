@@ -19,6 +19,7 @@ export interface RancherInstallArgs {
     hostname?: pulumi.Input<string>; // Hostname for Rancher
     domain?: pulumi.Input<string>; // Domain for Rancher
     adminPassword?: pulumi.Input<string>; // Optional admin password for Rancher
+    skipBootstrap?: pulumi.Input<boolean>; // Optional skip the bootstrap for Rancher
 }
 
 export class RancherManagerInstall extends pulumi.ComponentResource {
@@ -54,6 +55,18 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
 
         const { release, url } = this.installRancher(this.kubeconfig, args, installIngress, myOpts);
 
+        this.rancherUrl = pulumi.output(url);
+        if (args.skipBootstrap) {
+            pulumi.log.info("Skipping bootstrap for Rancher");
+            this.rancherAdminPassword = pulumi.output("");
+            this.registerOutputs({
+                kubeconfig: this.kubeconfig,
+                rancherAdminPassword: this.rancherAdminPassword,
+                rancherUrl: this.rancherUrl,
+            });
+            return;
+        }
+
         const bootstrapPassword = new BootstrapAdminPassword("rancher-bootstrap-password", {
             kubeconfig: this.kubeconfig,
             password: args.adminPassword,
@@ -64,8 +77,6 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         });
         this.rancherAdminPassword = bootstrapPassword.password;
         // this.rancherAdminPassword = pulumi.output("");
-
-        this.rancherUrl = pulumi.output(url);
 
         this.registerOutputs({
             kubeconfig: this.kubeconfig,
@@ -144,5 +155,13 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
             release: rancherRelease,
             url: `https://${rancherValues.hostname}`
         };
+    }
+    
+    static validateAdminPassword(password: pulumi.Output<string>) {
+        password.apply(password => {
+            if (password.length < 12) {
+                throw new Error("Admin password must be at least 12 characters long");
+            }
+        });
     }
 }

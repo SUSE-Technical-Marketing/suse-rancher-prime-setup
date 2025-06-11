@@ -34,6 +34,7 @@ const labConfig = new pulumi.Config("lab");
 const domain = labConfig.get("domain");
 const rancherConfig = new pulumi.Config("rancher");
 const adminPassword = rancherConfig.requireSecret("adminPassword");
+const skipBootstrap = rancherConfig.getBoolean("skipBootstrap") || false;
 
 pulumi.log.info(`Lets Encrypt Email: ${letsEncryptEmail ? "Provided" : "Not Provided"}`);
 pulumi.log.info(`Cloudflare API Key: ${cloudFlareApiKey ? "Provided" : "Not Provided"}`);
@@ -50,6 +51,8 @@ const harvBase = provisionHarvester(harvesterKubeconfig);
 
 const nw = harvBase.networks.get("backbone-vlan")!;
 const image = harvBase.images.get("opensuse-leap-15.6")!;
+
+RancherManagerInstall.validateAdminPassword(adminPassword);
 
 const rancherManager = new RancherManagerInstall("rancher-manager", {
     harvester: {
@@ -82,6 +85,7 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
         } : undefined,
     },
     adminPassword: adminPassword,
+    skipBootstrap: skipBootstrap,
 }, {
     dependsOn: [harvBase]
 });
