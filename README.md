@@ -22,9 +22,9 @@ Once the base system is installed, you can enable additional capabilities on any
 Currently supported add-ons include:
 
 - `needs-storage`  - Installs Longhorn and sets up a default storage class with 1 replica.
-- `needs-security` - Installs SUSE Security and configures autoscan.
+- `needs-security` - Installs SUSE Security and configures autoscan. Reqires Longhorn is already installed
 - `needs-ingress-nginx` - Installs and configures ingress-nginx, required for all k3s clusters (to support certificates).
-- `needs-private-registry` - Installs SUSE Private Registry and creates a proxy cache for the Application Collection using your credentials.
+- `needs-private-registry` - Installs SUSE Private Registry and creates a proxy cache for the Application Collection and the six most common registries.
 
 ## BYO VMs - Instructions on installing and building the lab
 

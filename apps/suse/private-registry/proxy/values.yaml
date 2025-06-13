@@ -1,7 +1,7 @@
 harbor:
   url: ""
   username: "admin"
-  password: "Harbor12345"
+  password: "admin"
   
 registries:
   - name: "application-collection"
