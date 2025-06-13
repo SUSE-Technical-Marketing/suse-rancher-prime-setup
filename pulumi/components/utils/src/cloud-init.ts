@@ -1,13 +1,14 @@
 import * as yaml from "yaml";
+import * as pulumi from "@pulumi/pulumi";
 
 export type CloudInitProcessor = (cfg: CloudInitArgs) => CloudInitArgs;
 
 export type CloudInitUserArgs = string | CloudInitUser;
 export interface CloudInitUser {
-    name: string;
+    name: pulumi.Input<string>;
     sudo?: string;
     password: string;
-    sshAuthorizedKeys?: string[];
+    sshAuthorizedKeys?: pulumi.Input<string>[];
     lockPassword?: boolean;
     shell?: string;
 }
@@ -26,7 +27,7 @@ export interface OutputArgs {
 }
 
 export type PackageArgs = string | string[] | { name: string; version?: string };
-export type RunCmdArgs = string | string[];
+export type CmdArgs = string | string[];
 
 export interface CloudInitArgs {
     templated: boolean;
@@ -42,8 +43,8 @@ export interface CloudInitArgs {
     packageUpgrade: boolean;
 
     writeFiles: WriteFileArgs[];
-
-    runcmd: RunCmdArgs[];
+    bootcmd: CmdArgs[];
+    runcmd: CmdArgs[];
 }
 
 export function addWriteFiles(args: CloudInitArgs, w: WriteFileArgs): CloudInitArgs {
@@ -61,6 +62,7 @@ export function cloudInit(...processors: CloudInitProcessor[]): CloudInitArgs {
         packageUpdate: false,
         packageUpgrade: false,
         writeFiles: [],
+        bootcmd: [],
         runcmd: []
     } as CloudInitArgs;
     processors.forEach((processor) => {
@@ -83,16 +85,19 @@ export function renderCloudInit(args: CloudInitArgs): string {
     if (args.packageUpgrade) {
         cloudInitObj.package_upgrade = args.packageUpgrade;
     }
-    if (args.writeFiles) {
+    if (args.writeFiles && args.writeFiles.length > 0) {
         cloudInitObj.write_files = args.writeFiles;
     }
-    if (args.runcmd) {
+    if (args.bootcmd && args.bootcmd.length > 0) {
+        cloudInitObj.bootcmd = args.bootcmd;
+    }
+    if (args.runcmd && args.runcmd.length > 0) {
         cloudInitObj.runcmd = args.runcmd;
     }
-    if (args.packages) {
+    if (args.packages && args.packages.length > 0) {
         cloudInitObj.packages = args.packages;
     }
-    if (args.users) {
+    if (args.users && args.users.length > 0) {
         cloudInitObj.users = args.users.map((u) => {
             if (typeof u === "string") {
                 return u;
@@ -112,14 +117,14 @@ export function renderCloudInit(args: CloudInitArgs): string {
     return cloudinit;
 }
 
-function renderUser(user: CloudInitUser): any {
+export function renderUser(user: CloudInitUser): { [key: string]: any } {
     const userObj = {
         name: user.name,
         sudo: user.sudo,
         password: user.password,
         ssh_authorized_keys: user.sshAuthorizedKeys,
         lock_password: user.lockPassword,
-        shell: user.shell,
+        shell: user.shell || "/bin/bash",
     };
 
     return userObj;

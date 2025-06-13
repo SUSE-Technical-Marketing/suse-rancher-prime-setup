@@ -2,14 +2,17 @@
     "name": "test",
     "main": "index.ts",
     "devDependencies": {
-        "@types/node": "^22.0.0",
+        "@pulumi/pulumi": "^3.171.0",
+        "@types/js-yaml": "^4.0.9",
+        "@types/node": "^22.15.23",
         "typescript": "^5.8.3"
     },
     "dependencies": {
         "@pulumi/kubernetes": "^4.23.0",
-        "@pulumi/pulumi": "^3.169.0",
         "@suse-tmm/harvester": "workspace:^",
-        "@suse-tmm/rancher-kubeconfig": "workspace:^",
-        "@suse-tmm/utils": "workspace:^"
+        "@suse-tmm/kubeconfig": "workspace:^",
+        "@suse-tmm/rancher": "workspace:^",
+        "@suse-tmm/utils": "workspace:^",
+        "js-yaml": "^3.14.1"
     }
 }

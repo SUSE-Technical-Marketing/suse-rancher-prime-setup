@@ -11,34 +11,24 @@ import { StorageClass } from "@pulumi/kubernetes/storage/v1";
 
 export interface HarvesterBaseArgs {
     kubeconfig: pulumi.Input<string>;
-    extraImages?: pulumi.Input<VmImageArgs[]>;
+    extraImages?: VmImageArgs[];
 }
 
 export class HarvesterBase extends pulumi.ComponentResource {
-    public images: pulumi.Output<Map<string, harvesterhci.v1beta1.VirtualMachineImage>>;
-    public networks: pulumi.Output<Map<string, k8scrds.v1.NetworkAttachmentDefinition>>;
-    public storageClass: pulumi.Output<StorageClass>;
+    public images: Map<string, harvesterhci.v1beta1.VirtualMachineImage>;
+    public networks: Map<string, k8scrds.v1.NetworkAttachmentDefinition>;
+    public storageClass: StorageClass;
     constructor(name: string, args: HarvesterBaseArgs, opts?: pulumi.ComponentResourceOptions) {
         super("suse-tmm:harvester:base", name, {}, opts);
 
-        const out = pulumi.all([args.kubeconfig, args.extraImages]).apply(async ([kubeconfig, extraImages]) => {
-            const kubeconfigFile = fileSync({ prefix: "kubeconfig", postfix: ".yaml" });
-            const fn = kubeconfigFile.name
-            writeFileSync(fn, kubeconfig);
+        const harvesterK8sProvider = new k8s.Provider("harvester-k8s", {
+            kubeconfig: args.kubeconfig,
+        }, { parent: this });
+        this.storageClass = createSingleReplicaStorageClass({ provider: harvesterK8sProvider, parent: this });
+        this.networks = createNetworks({ provider: harvesterK8sProvider, parent: this });
 
-            const harvesterK8sProvider = new k8s.Provider("harvester-k8s", {
-                kubeconfig: fn,
-            }, { parent: this });
+        this.images = createImages(args.extraImages || [], this.storageClass.metadata.name, { provider: harvesterK8sProvider, dependsOn: [this.storageClass], parent: this });
 
-            const storageClass = pulumi.output(createSingleReplicaStorageClass({ provider: harvesterK8sProvider, parent: this }));
-            const images = createImages(extraImages || [], { provider: harvesterK8sProvider, dependsOn: [storageClass], parent: this });
-            const networks = createNetworks({ provider: harvesterK8sProvider, parent: this });
-
-            return { storageClass, images, networks };
-        });
-        this.images = out.images;
-        this.storageClass = out.storageClass;
-        this.networks = out.networks;
         this.registerOutputs({
             images: this.images,
             storageClass: this.storageClass,

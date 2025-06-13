@@ -1,40 +1,10 @@
 import * as yaml from "yaml";
-import { CloudInitUser, CloudInitUserArgs, CloudInit } from "../src/cloud-init";
+import { cloudInit, CloudInitUser, CloudInitUserArgs, renderCloudInit, renderUser } from "../src/cloud-init";
 import { assert } from "chai";
 import { describe, it } from "mocha";
+import { NewUser, Packages, PackageUpdate, PackageUpgrade, WriteFile } from "../src/processors";
 
 describe("CloudInitUser", () => {
-    it("should initialize with required fields", () => {
-        const args: CloudInitUserArgs = {
-            name: "testuser",
-            password: "testpass"
-        };
-        const user = new CloudInitUser(args);
-        assert.equal(user.name, "testuser");
-        assert.equal(user.password, "testpass");
-        assert.equal(user.shell, "/bin/bash");
-        assert.equal(user.sudo, undefined);
-        assert.equal(user.sshAuthorizedKeys, undefined);
-        assert.equal(user.lockPassword, undefined);
-    });
-
-    it("should initialize with all fields", () => {
-        const args: CloudInitUserArgs = {
-            name: "alice",
-            sudo: "ALL=(ALL) NOPASSWD:ALL",
-            password: "secret",
-            sshAuthorizedKeys: ["ssh-rsa AAA..."],
-            lockPassword: true,
-            shell: "/bin/zsh"
-        };
-        const user = new CloudInitUser(args);
-        assert.equal(user.name, "alice");
-        assert.equal(user.sudo, "ALL=(ALL) NOPASSWD:ALL");
-        assert.equal(user.password, "secret");
-        assert.deepEqual(user.sshAuthorizedKeys, ["ssh-rsa AAA..."]);
-        assert.equal(user.lockPassword, true);
-        assert.equal(user.shell, "/bin/zsh");
-    });
 
     it("should generate correct YAML", () => {
         const args: CloudInitUserArgs = {
@@ -44,9 +14,7 @@ describe("CloudInitUser", () => {
             lockPassword: false,
             shell: "/bin/sh"
         };
-        const user = new CloudInitUser(args);
-        const yamlStr = user.toYaml();
-        const parsed = yaml.parse(yamlStr);
+        const parsed = renderUser(args);
         assert.equal(parsed.name, "bob");
         assert.equal(parsed.password, "pw");
         assert.deepEqual(parsed.ssh_authorized_keys, ["key1", "key2"]);
@@ -54,62 +22,36 @@ describe("CloudInitUser", () => {
         assert.equal(parsed.shell, "/bin/sh");
     });
 
-    it("should omit undefined fields in YAML", () => {
+    it("should have undefined fields", () => {
         const args: CloudInitUserArgs = {
             name: "eve",
             password: "pw"
         };
-        const user = new CloudInitUser(args);
-        const yamlStr = user.toYaml();
-        const parsed = yaml.parse(yamlStr);
+        const parsed = renderUser(args);
         assert.equal(parsed.name, "eve");
         assert.equal(parsed.password, "pw");
         assert.equal(parsed.shell, "/bin/bash");
-        assert.ok(!("sudo" in parsed));
-        assert.ok(!("ssh_authorized_keys" in parsed));
-        assert.ok(!("lock_password" in parsed));
+        assert.isUndefined(parsed.sudo);
+        assert.isUndefined(parsed.ssh_authorized_keys);
+        assert.isUndefined(parsed.lock_password);
     });
 });
 
 describe("CloudInit", () => {
-    it("should initialize with required fields", () => {
-        const args = {
-            templated: true
-        };
-        const ci = new CloudInit(args);
-        assert.equal(ci.templated, true);
-        assert.equal(ci.users, undefined);
-        assert.equal(ci.packages, undefined);
-        assert.equal(ci.packageUpdate, undefined);
-        assert.equal(ci.packageUpgrade, undefined);
-        assert.equal(ci.writeFiles, undefined);
-        assert.equal(ci.runcmd, undefined);
-    });
 
     it("should initialize with all fields", () => {
-        const args = {
-            templated: false,
-            users: [
-                { name: "bob", password: "pw" }
-            ],
-            packages: [
-                "nginx",
-                { name: "curl", version: "7.79.1" }
-            ],
-            packageUpdate: true,
-            packageUpgrade: false,
-            writeFiles: [
-                { path: "/tmp/test.txt", content: "hello", permissions: "0644", owner: "root:root" }
-            ],
-            runcmd: [
-                "echo hello",
-                ["ls", "-l"]
-            ]
-        };
-        const ci = new CloudInit(args);
+        const ci = cloudInit(Packages("nginx", { name: "curl", version: "7.79.1" }),
+            NewUser({ name: "bob", password: "pw" }),
+            PackageUpdate,
+            WriteFile("/tmp/test.txt", "hello", "0644", "root:root"),
+            (args) => {
+                args.runcmd = ["echo hello", ["ls", "-l"]];
+                return args;
+            });
+
         assert.equal(ci.templated, false);
         assert.equal(ci.users?.length, 1);
-        assert.equal(ci.users?.[0].name, "bob");
+        assert.equal((ci.users?.[0] as CloudInitUser).name, "bob");
         assert.deepEqual(ci.packages, [
             "nginx",
             { name: "curl", version: "7.79.1" }
@@ -126,6 +68,18 @@ describe("CloudInit", () => {
     });
 
     it("should generate correct YAML with all fields", () => {
+        const ci = cloudInit(
+            Packages("vim", ["git", "2.30.0"]),
+            NewUser({ name: "alice", password: "pw", shell: "/bin/zsh" }),
+            PackageUpdate,
+            PackageUpgrade,
+            WriteFile("/etc/motd", "Welcome", "0644"),
+            (args) => {
+                args.runcmd = ["uptime", ["systemctl", "enable", "--now"]];
+                return args;
+            }
+        );
+
         const args = {
             templated: true,
             users: [
@@ -145,9 +99,7 @@ describe("CloudInit", () => {
                 ["systemctl", "enable", "--now"]
             ]
         };
-        const ci = new CloudInit(args);
-        const yamlStr = ci.toYaml();
-        console.log(yamlStr);
+        const yamlStr = renderCloudInit(ci);
         const parsed = yaml.parse(yamlStr);
 
         assert.ok(Array.isArray(parsed.users));
@@ -169,30 +121,22 @@ describe("CloudInit", () => {
     });
 
     it("should add cloud config preamble", () => {
-        const args = {
-            templated: true
-        };
-        const ci = new CloudInit(args);
-        const yamlStr = ci.toYaml();
+        const ci = cloudInit((args) => { args.templated = true; return args; });
+        const yamlStr = renderCloudInit(ci);
         assert.ok(yamlStr.startsWith("## template: jinja\n#cloud-config"));
     });
+
     it("should add cloud config preamble without templated", () => {
-        const args = {
-            templated: false
-        };
-        const ci = new CloudInit(args);
-        const yamlStr = ci.toYaml();
+        const ci = cloudInit((args) => { args.templated = false; return args; });
+        const yamlStr = renderCloudInit(ci);
         assert.ok(yamlStr.startsWith("#cloud-config"));
     });
 
     it("should omit undefined fields in YAML", () => {
-        const args = {
-            templated: false
-        };
-        const ci = new CloudInit(args);
-        const yamlStr = ci.toYaml();
+        const ci = cloudInit((args) => { args.templated = true; return args; });
+        const yamlStr = renderCloudInit(ci);
         const parsed = yaml.parse(yamlStr);
-
+        console.log(parsed);
         assert.ok(!("users" in parsed));
         assert.ok(!("packages" in parsed));
         assert.ok(!("package_update" in parsed));

@@ -21,140 +21,136 @@ export interface NetworkArgs {
 export interface DiskArgs {
     name: pulumi.Input<string>;
     size: pulumi.Input<string>;
-    image: pulumi.Input<harvesterhci.v1beta1.VirtualMachineImage>
+    imageId: pulumi.Input<string>;
+    storageClassName: pulumi.Input<string>;
 }
 
 export interface VirtualMachineArgs {
     namespace: pulumi.Input<string>;
-    resources: pulumi.Input<ResourcesArgs>;
-    cloudInit?: pulumi.Input<CloudInitArgs>;
-    network: pulumi.Input<NetworkArgs>;
-    disk: pulumi.Input<DiskArgs>;
+    resources: ResourcesArgs;
+    cloudInit?: CloudInitArgs;
+    network: NetworkArgs;
+    disk: DiskArgs;
 }
 
 export function createVirtualMachine(name: string, args: VirtualMachineArgs, opts: pulumi.ComponentResourceOptions) {
-    pulumi.all([args.resources, args.namespace, args.cloudInit, args.network, args.disk]).apply(([resources, namespace, cloudInit, network, disk]) => {
-        let volumes = [];
-        const pvc = pulumi.output(createPvc(name, namespace, disk, opts));
+    let volumes = [];
+    const pvc = pulumi.output(createPvc(name, args.namespace, args.disk, opts));
 
+    volumes.push({
+        name: "disk0",
+        persistentVolumeClaim: {
+            claimName: pvc.metadata.name,
+        },
+    });
+    let disks = []
+    disks.push({
+        name: "disk0",
+        disk: {
+            bus: "virtio",
+        },
+        bootOrder: 1,
+    });
+
+    if (args.cloudInit) {
+        const cloudinitSecret = createCloudInitSecret(name, args.namespace, args.cloudInit, opts);
         volumes.push({
-            name: "disk0",
-            persistentVolumeClaim: {
-                claimName: pvc.metadata.name,
+            name: "cloudinitdisk",
+            cloudInitNoCloud: {
+                secretRef: {
+                    name: cloudinitSecret.metadata.name
+                },
+                networkDataSecretRef: {
+                    name: cloudinitSecret.metadata.name
+                }
             },
         });
-        let disks = []
         disks.push({
-            name: "disk0",
+            name: "cloudinitdisk",
             disk: {
                 bus: "virtio",
             },
-            bootOrder: 1,
         });
+    }
 
-        if (cloudInit) {
-            const cloudinitSecret = createCloudInitSecret(name, namespace, cloudInit, opts);
-            volumes.push({
-                name: "cloudinitdisk",
-                cloudInitNoCloud: {
-                    secretRef: {
-                        name: cloudinitSecret.metadata.name
+    const vm = new kubevirt.v1.VirtualMachine(name, {
+        metadata: {
+            name: name,
+            namespace: args.namespace,
+            annotations: {
+                "pulumi.com/waitFor": "condition=AgentConnected"
+            }
+        },
+        spec: {
+            runStrategy: "RerunOnFailure",
+            template: {
+                metadata: {
+                    labels: {
+                        "harvesterhci.io/vmName": name,
                     },
-                    networkDataSecretRef: {
-                        name: cloudinitSecret.metadata.name
-                    }
                 },
-            });
-            disks.push({
-                name: "cloudinitdisk",
-                disk: {
-                    bus: "virtio",
-                },
-            });
-        }
-
-        const vm = new kubevirt.v1.VirtualMachine(name, {
-            metadata: {
-                name: name,
-                namespace: namespace,
-                annotations: {
-                    // volumeClaimTemplatesAnnotation: volumeClaimTemplates,
-                },
-            },
-            spec: {
-                runStrategy: "RerunOnFailure",
-                template: {
-                    metadata: {
-                        labels: {
-                            "harvesterhci.io/vmName": name,
+                spec: {
+                    domain: {
+                        cpu: {
+                            cores: args.resources.cpu,
+                            sockets: 1,
+                            threads: 1,
                         },
-                    },
-                    spec: {
-                        domain: {
-                            cpu: {
-                                cores: resources.cpu,
-                                sockets: 1,
-                                threads: 1,
-                            },
-                            devices: {
-                                interfaces: [
-                                    {
-                                        name: network.name,
-                                        model: "virtio",
-                                        bridge: {}
-                                    }
-                                ],
-                                inputs: [
-                                    {
-                                        bus: "usb",
-                                        name: "tablet",
-                                        type: "tablet",
-                                    }
-                                ],
-                                disks: disks,
-                            },
-                            features: {
-                                acpi: {
-                                    enabled: true
+                        devices: {
+                            interfaces: [
+                                {
+                                    name: args.network.name,
+                                    model: "virtio",
+                                    bridge: {}
                                 }
-                            },
-                            resources: {
-                                requests: {
-                                    memory: resources.memory,
-                                },
-                                limits: {
-                                    cpu: resources.cpu,
-                                    memory: resources.memory,
-                                },
-                            },
+                            ],
+                            inputs: [
+                                {
+                                    bus: "usb",
+                                    name: "tablet",
+                                    type: "tablet",
+                                }
+                            ],
+                            disks: disks,
                         },
-                        evictionStrategy: "LiveMigrateIfPossible",
-                        hostname: name,
-                        networks: [
-                            {
-                                name: network.name,
-                                multus: {
-                                    networkName: `${network.namespace}/${network.name}`
-                                }
+                        features: {
+                            acpi: {
+                                enabled: true
                             }
-                        ],
-                        volumes: volumes,
-                    }
+                        },
+                        resources: {
+                            limits: {
+                                cpu: `${args.resources.cpu}`,
+                                memory: args.resources.memory,
+                            },
+                        },
+                    },
+                    evictionStrategy: "LiveMigrateIfPossible",
+                    hostname: name,
+                    networks: [
+                        {
+                            name: args.network.name,
+                            multus: {
+                                networkName: pulumi.interpolate`${args.network.namespace}/${args.network.name}`
+                            }
+                        }
+                    ],
+                    volumes: volumes,
                 }
             }
-        }, opts);
+        }
+    }, opts);
 
-        return vm;
-    });
+    return vm;
 }
 
-function createPvc(name: string, namespace: string, disk: pulumi.UnwrappedObject<DiskArgs>, opts: pulumi.ComponentResourceOptions): k8s.core.v1.PersistentVolumeClaim {
+function createPvc(name: string, namespace: pulumi.Input<string>, disk: DiskArgs, opts: pulumi.ComponentResourceOptions): k8s.core.v1.PersistentVolumeClaim {
     return new k8s.core.v1.PersistentVolumeClaim(`${name}-${disk.name}`, {
         metadata: {
             name: `${name}-${disk.name}`,
             namespace: namespace,
             annotations: {
-                "harvesterhci.io/imageId": disk.image.id
+                "harvesterhci.io/imageId": disk.imageId,
             },
             labels: {
                 "harvesterhci.io/creator": "pulumi",
@@ -169,12 +165,12 @@ function createPvc(name: string, namespace: string, disk: pulumi.UnwrappedObject
                 }
             },
             volumeMode: "Block",
-            storageClassName: disk.image.status.storageClassName,
+            storageClassName: disk.storageClassName,
         }
-    }, { ...opts, dependsOn: [disk.image] })
+    }, { ...opts })
 };
 
-function createCloudInitSecret(name: string, namespace: string, cloudInit: CloudInitArgs, opts: pulumi.ComponentResourceOptions): Secret {
+function createCloudInitSecret(name: string, namespace: pulumi.Input<string>, cloudInit: CloudInitArgs, opts: pulumi.ComponentResourceOptions): Secret {
     const cloudInitContents = renderCloudInit(cloudInit);
     const cloudInitSecret = new Secret(`${name}-cloudinit`, {
         metadata: {

@@ -1,0 +1,19 @@
+{
+    "name": "@suse-tmm/common-crds",
+    "version": "0.0.1",
+    "main": "index.ts",
+    "types": "index.d.ts",
+    "license": "Apache-2.0",
+    "peerDependencies": {
+        "@pulumi/kubernetes": "^4.23.0",
+        "@pulumi/pulumi": "^3.171.0"
+    },
+    "scripts": {
+        "generate": "crd2pulumi --nodejs --force src/*.yaml",
+        "build": "tsc -p ."
+    },
+    "devDependencies": {
+        "@types/node": "^22.15.23",
+        "typescript": "^5.8.3"
+    }
+}
