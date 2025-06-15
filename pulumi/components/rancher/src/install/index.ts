@@ -40,7 +40,8 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
                 username: args.harvester.sshUser,
                 privKey: args.harvester.keypair.privateKey,
                 path: "/etc/rancher/k3s/k3s.yaml",
-                updateServerAddress: true, // We fetch the kubeconfig from the VM which contains 127.0.0.1 as address, we need to update it to the VM's IP address
+                updateServerAddress: true,
+                pollDelaySeconds: 10, // Lets the network routes stabilize before trying to access the VM
             }, myOpts);
 
             this.kubeconfig = kubeconfig.kubeconfig;
@@ -76,7 +77,6 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
             dependsOn: [release],
         });
         this.rancherAdminPassword = bootstrapPassword.password;
-        // this.rancherAdminPassword = pulumi.output("");
 
         this.registerOutputs({
             kubeconfig: this.kubeconfig,
