@@ -12,31 +12,6 @@ importers:
         specifier: ^3.171.0
         version: 3.171.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)
 
-  components/apps:
-    dependencies:
-      '@pulumi/command':
-        specifier: ^1.1.0
-        version: 1.1.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)
-      '@pulumi/kubernetes':
-        specifier: ^4.23.0
-        version: 4.23.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)
-      '@pulumi/pulumi':
-        specifier: ^3.171.0
-        version: 3.171.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)
-      '@suse-tmm/rancher-crds':
-        specifier: workspace:^
-        version: link:../rancher-crds
-      '@suse-tmm/utils':
-        specifier: workspace:^
-        version: link:../utils
-    devDependencies:
-      '@types/node':
-        specifier: ^22.15.23
-        version: 22.15.23
-      typescript:
-        specifier: ^5.8.3
-        version: 5.8.3
-
   components/common:
     dependencies:
       '@pulumi/command':
@@ -121,28 +96,6 @@ importers:
         specifier: ^5.8.3
         version: 5.8.3
 
-  components/harvester-base:
-    dependencies:
-      '@pulumi/kubernetes':
-        specifier: ^4.23.0
-        version: 4.23.0(ts-node@10.9.2(@types/node@22.15.18)(typescript@5.8.3))(typescript@5.8.3)
-      '@pulumi/pulumi':
-        specifier: ^3.169.0
-        version: 3.169.0(ts-node@10.9.2(@types/node@22.15.18)(typescript@5.8.3))(typescript@5.8.3)
-      '@types/tmp':
-        specifier: ^0.2.6
-        version: 0.2.6
-      tmp:
-        specifier: ^0.2.3
-        version: 0.2.3
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.15.18
-      typescript:
-        specifier: ^5.8.3
-        version: 5.8.3
-
   components/harvester-crds:
     dependencies:
       '@pulumi/kubernetes':
@@ -155,31 +108,6 @@ importers:
       '@types/node':
         specifier: ^22.15.23
         version: 22.15.23
-      typescript:
-        specifier: ^5.8.3
-        version: 5.8.3
-
-  components/harvester-vms:
-    dependencies:
-      '@pulumi/kubernetes':
-        specifier: ^4.23.0
-        version: 4.23.0(ts-node@10.9.2(@types/node@22.15.18)(typescript@5.8.3))(typescript@5.8.3)
-      '@pulumi/pulumi':
-        specifier: ^3.169.0
-        version: 3.169.0(ts-node@10.9.2(@types/node@22.15.18)(typescript@5.8.3))(typescript@5.8.3)
-      '@suse-tmm/utils':
-        specifier: workspace:^
-        version: link:../utils
-      '@types/tmp':
-        specifier: ^0.2.6
-        version: 0.2.6
-      tmp:
-        specifier: ^0.2.3
-        version: 0.2.3
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.15.18
       typescript:
         specifier: ^5.8.3
         version: 5.8.3
@@ -227,23 +155,7 @@ importers:
         specifier: ^5.8.3
         version: 5.8.3
 
-  components/rancher-crds:
-    dependencies:
-      '@pulumi/kubernetes':
-        specifier: ^4.23.0
-        version: 4.23.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)
-      '@pulumi/pulumi':
-        specifier: ^3.171.0
-        version: 3.171.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)
-    devDependencies:
-      '@types/node':
-        specifier: ^22.15.23
-        version: 22.15.23
-      typescript:
-        specifier: ^5.8.3
-        version: 5.8.3
-
-  components/rancher-install:
+  components/rancher:
     dependencies:
       '@pulumi/command':
         specifier: ^1.1.0
@@ -277,36 +189,18 @@ importers:
         specifier: ^5.8.3
         version: 5.8.3
 
-  components/rancher-kubeconfig:
+  components/rancher-crds:
     dependencies:
       '@pulumi/kubernetes':
         specifier: ^4.23.0
-        version: 4.23.0(ts-node@10.9.2(@types/node@22.15.18)(typescript@5.8.3))(typescript@5.8.3)
-      '@suse-tmm/utils':
-        specifier: workspace:^
-        version: link:../utils
-      axios:
-        specifier: ^1.9.0
-        version: 1.9.0
-      got:
-        specifier: ^12.6.1
-        version: 12.6.1
-      js-yaml:
-        specifier: ^3.14.1
-        version: 3.14.1
-      yaml:
-        specifier: ^2.8.0
-        version: 2.8.0
-    devDependencies:
+        version: 4.23.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)
       '@pulumi/pulumi':
         specifier: ^3.171.0
-        version: 3.171.0(ts-node@10.9.2(@types/node@22.15.18)(typescript@5.8.3))(typescript@5.8.3)
-      '@types/js-yaml':
-        specifier: ^4.0.9
-        version: 4.0.9
+        version: 3.171.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)
+    devDependencies:
       '@types/node':
-        specifier: ^22.0.0
-        version: 22.15.18
+        specifier: ^22.15.23
+        version: 22.15.23
       typescript:
         specifier: ^5.8.3
         version: 5.8.3
@@ -384,10 +278,6 @@ packages:
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
-
-  '@grpc/grpc-js@1.13.3':
-    resolution: {integrity: sha512-FTXHdOoPbZrBjlVLHuKbDZnsTxXv2BlHF57xw6LuThXacXvtkahEPED0CKMk6obZDf65Hv4k3z62eyPNpvinIg==}
-    engines: {node: '>=12.10.0'}
 
   '@grpc/grpc-js@1.13.4':
     resolution: {integrity: sha512-GsFaMXCkMqkKIvwCQjCrwH+GHbPKBjhwo/8ZuUkWHqbI73Kky9I+pQltrlT0+MWpedCoosda53lgjYfyEPgxBg==}
@@ -611,18 +501,6 @@ packages:
   '@pulumi/kubernetes@4.23.0':
     resolution: {integrity: sha512-sMNV8cNx+MdvwNXCze3EiYgfRCTilJ9PMq4hqT8lOz7hgX5Un9yyDILJCkrt0wlGlB11Dgbq39mjwCeoImOEgg==}
 
-  '@pulumi/pulumi@3.169.0':
-    resolution: {integrity: sha512-l8x+gTySKWG2dRGvlScfl9EJaYgymkcUFaNAaz7lONYcvqllXXVw/mhbnsleNhC02gDiuP0p/9CfctHLqf75+Q==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      ts-node: '>= 7.0.1 < 12'
-      typescript: '>= 3.8.3 < 6'
-    peerDependenciesMeta:
-      ts-node:
-        optional: true
-      typescript:
-        optional: true
-
   '@pulumi/pulumi@3.171.0':
     resolution: {integrity: sha512-HJHvZR0lsLROq3oDYSoXkfeKh0ddjglSmbqk1lkRuGdF8Y5DeD80wOSlD6c4EKWyo4N8f8wtWP7uDc5/HvH07g==}
     engines: {node: '>=18'}
@@ -725,9 +603,6 @@ packages:
   '@types/node@18.19.104':
     resolution: {integrity: sha512-mqjoYx1RjmN61vjnHWfiWzAlwvBKutoUdm+kYLPnjI5DCh8ZqofUhaTbT3WLl7bt3itR8DuCf8ShnxI0JvIC3g==}
 
-  '@types/node@22.15.18':
-    resolution: {integrity: sha512-v1DKRfUdyW+jJhZNEI1PYy29S2YRxMV5AOO/x/SjKmW0acCIOqmbj6Haf9eHAhsPmrhlHSxEhv/1WszcLWV4cg==}
-
   '@types/node@22.15.23':
     resolution: {integrity: sha512-7Ec1zaFPF4RJ0eXu1YT/xgiebqwqoJz8rYPDi/O2BcZ++Wpt0Kq9cl0eg6NN6bYbPnR67ZLo7St5Q3UK0SnARw==}
 
@@ -809,9 +684,6 @@ packages:
 
   asynckit@0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
-
-  axios@1.9.0:
-    resolution: {integrity: sha512-re4CqKTJaURpzbLHtIi6XpDv20/CnpXOtjRY5/CU32L8gU8ek9UIivcfvSWvmKEngmVbrUtPpdDwWDWL7DNHvg==}
 
   b4a@1.6.7:
     resolution: {integrity: sha512-OnAYlL5b7LEkALw87fUVafQw5rVR9RjwGd4KUwNQ6DrrNmaVaUCgLipfVlzrPQ4tWOR9P0IXGNOx50jYCCdSJg==}
@@ -1067,14 +939,6 @@ packages:
   fast-fifo@1.3.2:
     resolution: {integrity: sha512-/d9sfos4yxzpwkDkuN7k2SqFKtYNmCTzgfEpz82x34IM9/zc8KGxQoXg1liNC/izpRM/MBdt44Nmx41ZWqk+FQ==}
 
-  fdir@6.4.4:
-    resolution: {integrity: sha512-1NZP+GK4GfuAv3PqKvxQRDMjdSRZjnkq7KfhlNrCNNlZ0ygQFpebfrnfnq/W7fpUnAv9aGWmY1zKx7FYL3gwhg==}
-    peerDependencies:
-      picomatch: ^3 || ^4
-    peerDependenciesMeta:
-      picomatch:
-        optional: true
-
   fdir@6.4.5:
     resolution: {integrity: sha512-4BG7puHpVsIYxZUbiUE3RqGloLaSSwzYie5jvasC4LWuBWzZawynvYouhjbQKw2JuIGYdm0DzIxl8iVidKlUEw==}
     peerDependencies:
@@ -1094,15 +958,6 @@ packages:
   flat@5.0.2:
     resolution: {integrity: sha512-b6suED+5/3rTpUBdG1gupIl8MPFCAMA0QXwmljLhvCUKcUvdE4gWky9zpuGCcXHOsz4J9wPGNWq6OKpmIzz3hQ==}
     hasBin: true
-
-  follow-redirects@1.15.9:
-    resolution: {integrity: sha512-gew4GsXizNgdoRyqmyfMHyAmXsZDk6mHkSxZFCzW9gwlbtOW44CDtYavM+y+72qD/Vq2l550kMF52DT8fOLJqQ==}
-    engines: {node: '>=4.0'}
-    peerDependencies:
-      debug: '*'
-    peerDependenciesMeta:
-      debug:
-        optional: true
 
   foreground-child@3.3.1:
     resolution: {integrity: sha512-gIXjKqtFuWEgzFRJA9WCQeSJLZDjgJUOMCMzxtvFq/37KojM1BFGufqsCy0r4qSQmYLsZYMeyRqzIWOMup03sw==}
@@ -1663,9 +1518,6 @@ packages:
     resolution: {integrity: sha512-mRUWCc3KUU4w1jU8sGxICXH/gNS94DvI1gxqDvBzhj1JpcsimQkYiOJfwsPUykUI5ZaspFbSgmBLER8IrQ3tqw==}
     engines: {node: '>=12.0.0'}
 
-  proxy-from-env@1.1.0:
-    resolution: {integrity: sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg==}
-
   pump@3.0.2:
     resolution: {integrity: sha512-tUPXtzlGM8FE3P0ZL6DVs/3P58k9nk8/jZeQCurTJylQA8qFYzHFfhBJkuqyE0FifOsQ0uKWekiZ5g8wtr28cw==}
 
@@ -2037,11 +1889,6 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@grpc/grpc-js@1.13.3':
-    dependencies:
-      '@grpc/proto-loader': 0.7.15
-      '@js-sdsl/ordered-map': 4.4.2
-
   '@grpc/grpc-js@1.13.4':
     dependencies:
       '@grpc/proto-loader': 0.7.15
@@ -2356,17 +2203,6 @@ snapshots:
       - ts-node
       - typescript
 
-  '@pulumi/kubernetes@4.23.0(ts-node@10.9.2(@types/node@22.15.18)(typescript@5.8.3))(typescript@5.8.3)':
-    dependencies:
-      '@pulumi/pulumi': 3.171.0(ts-node@10.9.2(@types/node@22.15.18)(typescript@5.8.3))(typescript@5.8.3)
-      glob: 10.4.5
-      shell-quote: 1.8.2
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
-      - ts-node
-      - typescript
-
   '@pulumi/kubernetes@4.23.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)':
     dependencies:
       '@pulumi/pulumi': 3.171.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)
@@ -2377,80 +2213,6 @@ snapshots:
       - supports-color
       - ts-node
       - typescript
-
-  '@pulumi/pulumi@3.169.0(ts-node@10.9.2(@types/node@22.15.18)(typescript@5.8.3))(typescript@5.8.3)':
-    dependencies:
-      '@grpc/grpc-js': 1.13.3
-      '@logdna/tail-file': 2.2.0
-      '@npmcli/arborist': 7.5.4
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/exporter-zipkin': 1.30.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/instrumentation': 0.55.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/instrumentation-grpc': 0.55.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 1.30.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-base': 1.30.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-node': 1.30.1(@opentelemetry/api@1.9.0)
-      '@types/google-protobuf': 3.15.12
-      '@types/semver': 7.7.0
-      '@types/tmp': 0.2.6
-      execa: 5.1.1
-      fdir: 6.4.4(picomatch@3.0.1)
-      google-protobuf: 3.21.4
-      got: 11.8.6
-      ini: 2.0.0
-      js-yaml: 3.14.1
-      minimist: 1.2.8
-      normalize-package-data: 6.0.2
-      picomatch: 3.0.1
-      pkg-dir: 7.0.0
-      require-from-string: 2.0.2
-      semver: 7.7.2
-      source-map-support: 0.5.21
-      tmp: 0.2.3
-      upath: 1.2.0
-    optionalDependencies:
-      ts-node: 10.9.2(@types/node@22.15.18)(typescript@5.8.3)
-      typescript: 5.8.3
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
-
-  '@pulumi/pulumi@3.171.0(ts-node@10.9.2(@types/node@22.15.18)(typescript@5.8.3))(typescript@5.8.3)':
-    dependencies:
-      '@grpc/grpc-js': 1.13.3
-      '@logdna/tail-file': 2.2.0
-      '@npmcli/arborist': 7.5.4
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/exporter-zipkin': 1.30.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/instrumentation': 0.55.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/instrumentation-grpc': 0.55.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 1.30.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-base': 1.30.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-node': 1.30.1(@opentelemetry/api@1.9.0)
-      '@types/google-protobuf': 3.15.12
-      '@types/semver': 7.7.0
-      '@types/tmp': 0.2.6
-      execa: 5.1.1
-      fdir: 6.4.4(picomatch@3.0.1)
-      google-protobuf: 3.21.4
-      got: 11.8.6
-      ini: 2.0.0
-      js-yaml: 3.14.1
-      minimist: 1.2.8
-      normalize-package-data: 6.0.2
-      picomatch: 3.0.1
-      pkg-dir: 7.0.0
-      require-from-string: 2.0.2
-      semver: 7.7.2
-      source-map-support: 0.5.21
-      tmp: 0.2.3
-      upath: 1.2.0
-    optionalDependencies:
-      ts-node: 10.9.2(@types/node@22.15.18)(typescript@5.8.3)
-      typescript: 5.8.3
-    transitivePeerDependencies:
-      - bluebird
-      - supports-color
 
   '@pulumi/pulumi@3.171.0(ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3))(typescript@5.8.3)':
     dependencies:
@@ -2582,10 +2344,6 @@ snapshots:
     dependencies:
       undici-types: 5.26.5
 
-  '@types/node@22.15.18':
-    dependencies:
-      undici-types: 6.21.0
-
   '@types/node@22.15.23':
     dependencies:
       undici-types: 6.21.0
@@ -2652,14 +2410,6 @@ snapshots:
   assertion-error@2.0.1: {}
 
   asynckit@0.4.0: {}
-
-  axios@1.9.0:
-    dependencies:
-      follow-redirects: 1.15.9
-      form-data: 4.0.2
-      proxy-from-env: 1.1.0
-    transitivePeerDependencies:
-      - debug
 
   b4a@1.6.7: {}
 
@@ -2823,10 +2573,6 @@ snapshots:
 
   cssesc@3.0.0: {}
 
-  debug@4.4.1:
-    dependencies:
-      ms: 2.1.3
-
   debug@4.4.1(supports-color@8.1.1):
     dependencies:
       ms: 2.1.3
@@ -2911,10 +2657,6 @@ snapshots:
 
   fast-fifo@1.3.2: {}
 
-  fdir@6.4.4(picomatch@3.0.1):
-    optionalDependencies:
-      picomatch: 3.0.1
-
   fdir@6.4.5(picomatch@3.0.1):
     optionalDependencies:
       picomatch: 3.0.1
@@ -2930,8 +2672,6 @@ snapshots:
       path-exists: 5.0.0
 
   flat@5.0.2: {}
-
-  follow-redirects@1.15.9: {}
 
   foreground-child@3.3.1:
     dependencies:
@@ -3051,7 +2791,7 @@ snapshots:
   http-proxy-agent@7.0.2:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -3068,7 +2808,7 @@ snapshots:
   https-proxy-agent@7.0.6:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -3528,8 +3268,6 @@ snapshots:
       '@types/node': 22.15.23
       long: 5.3.2
 
-  proxy-from-env@1.1.0: {}
-
   pump@3.0.2:
     dependencies:
       end-of-stream: 1.4.4
@@ -3556,7 +3294,7 @@ snapshots:
 
   require-in-the-middle@7.5.2:
     dependencies:
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@8.1.1)
       module-details-from-path: 1.0.4
       resolve: 1.22.10
     transitivePeerDependencies:
@@ -3632,7 +3370,7 @@ snapshots:
   socks-proxy-agent@8.0.5:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@8.1.1)
       socks: 2.8.4
     transitivePeerDependencies:
       - supports-color
@@ -3757,25 +3495,6 @@ snapshots:
 
   treeverse@3.0.0: {}
 
-  ts-node@10.9.2(@types/node@22.15.18)(typescript@5.8.3):
-    dependencies:
-      '@cspotcode/source-map-support': 0.8.1
-      '@tsconfig/node10': 1.0.11
-      '@tsconfig/node12': 1.0.11
-      '@tsconfig/node14': 1.0.3
-      '@tsconfig/node16': 1.0.4
-      '@types/node': 22.15.18
-      acorn: 8.14.1
-      acorn-walk: 8.3.4
-      arg: 4.1.3
-      create-require: 1.1.1
-      diff: 4.0.2
-      make-error: 1.3.6
-      typescript: 5.8.3
-      v8-compile-cache-lib: 3.0.1
-      yn: 3.1.1
-    optional: true
-
   ts-node@10.9.2(@types/node@22.15.23)(typescript@5.8.3):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
@@ -3797,7 +3516,7 @@ snapshots:
   tuf-js@2.2.1:
     dependencies:
       '@tufjs/models': 2.0.1
-      debug: 4.4.1
+      debug: 4.4.1(supports-color@8.1.1)
       make-fetch-happen: 13.0.1
     transitivePeerDependencies:
       - supports-color
