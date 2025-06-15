@@ -13,11 +13,14 @@ export async function waitFor<T>(
   {
     intervalMs  = 5_000,
     timeoutMs = 300_000,
+    delayMs = 1_000, // initial delay before starting the first probe
   }: {
     intervalMs?:  number;
     timeoutMs?: number;
+    delayMs?: number;
   } = {},
 ): Promise<T> {
+  await new Promise(r => setTimeout(r, delayMs));
   const deadline = Date.now() + timeoutMs;
   // eslint-disable-next-line no-constant-condition
   while (true) {

@@ -1,10 +1,11 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as harvester from "@suse-tmm/harvester";
-import { BashRcLocal, cloudInit, DefaultUser, DisableIpv6, GuestAgent, IncreaseFileLimit, InstallK3s, KubeFirewall, NewUser, Packages, PackageUpdate } from "@suse-tmm/utils";
+import { BashRcLocal, cloudInit, DefaultUser, DisableIpv6, GuestAgent, IncreaseFileLimit, InstallK3s, KubeFirewall, NewUser, Packages, PackageUpdate, DhcpInterface } from "@suse-tmm/utils";
 
 interface HarvesterNetwork {
     namespace: pulumi.Input<string>;
     name: pulumi.Input<string>;
+    macAddress?: pulumi.Input<string>; // Optional, if not provided Harvester will generate a MAC address
 }
 
 interface KeyPair {
@@ -17,10 +18,17 @@ interface VmImage {
     storageClassName: pulumi.Input<string>;
 }
 
+interface VmResources {
+    cpu: pulumi.Input<number>;
+    memory: pulumi.Input<string>;
+    diskSize?: pulumi.Input<string>; // Optional, defaults to "100Gi"
+}
+
 export interface HarvesterVmArgs {
     network: HarvesterNetwork;
     vmImage: VmImage;
     vmName: string;
+    vmResources?: VmResources; // Optional, defaults to { cpu: 2, memory: "6Gi" }
     vmNamespace?: string; // Optional, defaults to "harvester-public"
     sshUser: pulumi.Input<string>;
     keypair: KeyPair; // Contains public and private keys for SSH access
@@ -31,17 +39,19 @@ export function provisionHarvesterVm(args: HarvesterVmArgs, kubeconfig: pulumi.I
         kubeconfig: kubeconfig,
         virtualMachine: {
             namespace: args.vmNamespace || "harvester-public",
+            networkName: args.network.name,
             resources: {
-                cpu: 2,
-                memory: "6Gi"
+                cpu: args.vmResources?.cpu || 2, 
+                memory: args.vmResources?.memory || "6Gi"
             },
             network: {
                 name: args.network.name,
-                namespace: args.network.namespace
+                namespace: args.network.namespace,
+                macAddress: args.network.macAddress
             },
             disk: {
                 name: "disk0",
-                size: "100Gi",
+                size: args.vmResources?.diskSize || "100Gi",
                 imageId: args.vmImage.id,
                 storageClassName: args.vmImage.storageClassName
             },
@@ -61,6 +71,9 @@ export function provisionHarvesterVm(args: HarvesterVmArgs, kubeconfig: pulumi.I
 
                 GuestAgent,
                 IncreaseFileLimit,
+                DhcpInterface("eth0"),
+                DhcpInterface("eth1"),
+
                 InstallK3s
             ),
         }

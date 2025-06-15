@@ -1,9 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import { dynamic } from "@pulumi/pulumi";
 import * as ssh from "ssh2";
-import { fileSync } from "tmp";
-import { writeFileSync, readFile } from "fs";
-import { promisify } from "util";
 import { load, dump } from "js-yaml";
 import { waitFor } from "@suse-tmm/utils";
 
@@ -23,6 +20,7 @@ export interface RemoteKubeconfigInputs {
     // How often and how long to poll the remote server for the file.
     pollIntervalSeconds?: pulumi.Input<number>;
     pollTimeoutSeconds?: pulumi.Input<number>;
+    pollDelaySeconds?: pulumi.Input<number>;
 }
 
 export interface RemoteKubeconfigProviderInputs {
@@ -35,6 +33,7 @@ export interface RemoteKubeconfigProviderInputs {
     updateServerAddress?: boolean;
     pollIntervalSeconds?: number;
     pollTimeoutSeconds?: number;
+    pollDelaySeconds?: number;
 }
 
 export interface RemoteKubeconfigProviderOutputs extends RemoteKubeconfigProviderInputs {
@@ -43,14 +42,15 @@ export interface RemoteKubeconfigProviderOutputs extends RemoteKubeconfigProvide
 
 class RemoteKubeconfigProvider implements dynamic.ResourceProvider<RemoteKubeconfigProviderInputs, RemoteKubeconfigProviderOutputs> {
     async create(inputs: RemoteKubeconfigProviderInputs): Promise<dynamic.CreateResult<RemoteKubeconfigProviderOutputs>> {
-        const { hostname, port = 22, username, password, privKey, path, pollIntervalSeconds = 5, pollTimeoutSeconds = 300 } = inputs;
+        const { hostname, port = 22, username, password, privKey, path, pollIntervalSeconds = 5, pollTimeoutSeconds = 300, pollDelaySeconds = 1} = inputs;
         if (!password && !privKey) {
             throw new Error("Either password or private key must be provided for authentication.");
         }
-
+        
         let kubeconfig = await waitFor(() => this.tryFetch(hostname, port, username, password, privKey, path), {
             intervalMs: pollIntervalSeconds * 1_000,
             timeoutMs: pollTimeoutSeconds * 1_000,
+            delayMs: pollDelaySeconds * 1_000,
         }).catch(err => {
             pulumi.log.error(`Failed to fetch kubeconfig from ${hostname}:${port} at ${path}: ${err.message}`);
             throw new Error(`Failed to fetch kubeconfig from ${hostname}:${port} at ${path}: ${err.message}`);
@@ -60,7 +60,9 @@ class RemoteKubeconfigProvider implements dynamic.ResourceProvider<RemoteKubecon
             // Update the server address in the kubeconfig
             const doc = load(kubeconfig) as any;
             doc.clusters[0].cluster.server = `https://${hostname}:6443`;
+
             kubeconfig = dump(doc);
+            pulumi.log.info(kubeconfig);
         }
 
         return {

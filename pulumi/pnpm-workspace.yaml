@@ -1,5 +1,10 @@
 packages:
   - components/*
-onlyBuiltDependencies:
-  - '@pulumi/kubernetes'
+  - sample-setup
 linkWorkspacePackages: true
+onlyBuiltDependencies:
+  - '@pulumi/command'
+  - '@pulumi/kubernetes'
+  - cpu-features
+  - protobufjs
+  - ssh2
