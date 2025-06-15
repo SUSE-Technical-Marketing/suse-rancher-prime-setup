@@ -1,20 +1,23 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as harvester from "@suse-tmm/harvester";
+import { VmImageArgs } from "@suse-tmm/harvester/src/base/vmimage";
 import * as kubeconfig from "@suse-tmm/kubeconfig";
 import { RancherManagerInstall } from "@suse-tmm/rancher";
 
-export function provisionHarvester(clusterNetwork:string, kubeconfig: kubeconfig.RancherKubeconfig) {
+export function provisionHarvester(clusterNetwork:string, downloadSuseImage: boolean, kubeconfig: kubeconfig.RancherKubeconfig) {
+    const images: VmImageArgs[] = []
+    if (downloadSuseImage) {
+        images.push({
+            name: "opensuse-leap-15.6",
+            displayName: "openSUSE Leap 15.6",
+            url: "https://download.opensuse.org/repositories/Cloud:/Images:/Leap_15.6/images/openSUSE-Leap-15.6.x86_64-NoCloud.qcow2",
+        });
+    }
 
     const harvesterBase = new harvester.HarvesterBase("harvester-base", {
         kubeconfig: kubeconfig.kubeconfig,
         clusterNetwork: clusterNetwork,
-        extraImages: [
-            // {
-            //     name: "fedora-cloud-42",
-            //     displayName: "Fedora Cloud 42",
-            //     url: "https://download.fedoraproject.org/pub/fedora/linux/releases/42/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-42-1.1.x86_64.qcow2"
-            // }
-        ]
+        extraImages: images,
     });
 
     return harvesterBase;
@@ -34,6 +37,9 @@ const cpu = vmConfig.getNumber("cpu") || 2;
 const memory = vmConfig.get("memory") || "6Gi"; 
 const diskSize = vmConfig.get("diskSize") || "100Gi";
 const macAddress = vmConfig.get("macAddress") 
+const imageId = vmConfig.get("imageId")
+const imageStorageClass = vmConfig.get("imageStorageClass") || "longhorn-single"
+
 
 const certManagerConfig = new pulumi.Config("cert-manager");
 const staging = (certManagerConfig.get("staging") || "true") === "true"; // Default to true if not provided
@@ -58,15 +64,31 @@ const harvesterKubeconfig = new kubeconfig.RancherKubeconfig("harvester-kubeconf
     insecure: true, // Harvester normally has a self-signed cert
 });
 
-const harvBase = provisionHarvester(clusterNetwork, harvesterKubeconfig);
+// If imageId is not provided, we will download the openSUSE Leap 15.6 image
+const downloadSuseImage = imageId === undefined ? true : false;
+let imageDetails: {id: pulumi.Output<string>, storageClassName: pulumi.Output<string>} 
 
+const harvBase = provisionHarvester(clusterNetwork, downloadSuseImage, harvesterKubeconfig);
 const nw = harvBase.networks.get("backbone-vlan")!;
-const image = harvBase.images.get("opensuse-leap-15.6")!;
+
+if (downloadSuseImage) {
+    const image = harvBase.images.get("opensuse-leap-15.6")!;
+    imageDetails = {
+        id: image.id,
+        storageClassName: image.status.storageClassName
+    };
+} else {
+    imageDetails = {
+        id: pulumi.output(imageId ? imageId : ""),
+        storageClassName: pulumi.output(imageStorageClass)
+    }
+}
 
 RancherManagerInstall.validateAdminPassword(adminPassword);
 
 const rancherManager = new RancherManagerInstall("rancher-manager", {
     harvester: {
+
         kubeconfig: harvesterKubeconfig.kubeconfig,
         vmName: "control-tower",
         vmNamespace: "harvester-public",
@@ -76,8 +98,8 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
             diskSize: diskSize
         },
         vmImage: {
-            id: image.id,
-            storageClassName: image.status.storageClassName
+            id: imageDetails.id,
+            storageClassName: imageDetails.storageClassName
         },
         sshUser: sshUser,
         keypair: {
