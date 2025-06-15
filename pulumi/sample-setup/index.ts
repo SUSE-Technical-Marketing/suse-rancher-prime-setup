@@ -30,6 +30,10 @@ const vmConfig = new pulumi.Config("vm");
 const sshUser = vmConfig.require("sshUser");
 const sshPubKey = vmConfig.require("sshPubKey");
 const sshPrivKey = vmConfig.requireSecret("sshPrivKey");
+const cpu = vmConfig.getNumber("cpu") || 2;
+const memory = vmConfig.get("memory") || "6Gi"; 
+const diskSize = vmConfig.get("diskSize") || "100Gi";
+const macAddress = vmConfig.get("macAddress") 
 
 const certManagerConfig = new pulumi.Config("cert-manager");
 const staging = (certManagerConfig.get("staging") || "true") === "true"; // Default to true if not provided
@@ -66,6 +70,11 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
         kubeconfig: harvesterKubeconfig.kubeconfig,
         vmName: "control-tower",
         vmNamespace: "harvester-public",
+        vmResources: {
+            cpu: cpu,
+            memory: memory,
+            diskSize: diskSize
+        },
         vmImage: {
             id: image.id,
             storageClassName: image.status.storageClassName
@@ -78,6 +87,7 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
         network: {
             namespace: nw.metadata.namespace,
             name: nw.metadata.name,
+            macAddress: macAddress, // Optional, if not provided Harvester will generate a MAC address
         }
     },
     domain: domain,

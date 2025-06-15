@@ -16,6 +16,7 @@ export interface ResourcesArgs {
 export interface NetworkArgs {
     name: pulumi.Input<string>;
     namespace: pulumi.Input<string>;
+    macAddress?: pulumi.Input<string>; 
 }
 
 export interface DiskArgs {
@@ -107,6 +108,7 @@ export function createVirtualMachine(name: string, args: VirtualMachineArgs, opt
                                 {
                                     name: args.network.name,
                                     model: "virtio",
+                                    macAddress: args.network.macAddress,
                                     bridge: {}
                                 }
                             ],
