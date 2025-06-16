@@ -9,6 +9,7 @@ export interface VmIpAddressProviderInputs {
     kubeconfig: string; // Kubeconfig to access the Kubernetes cluster
     namespace: string;
     name: string;
+    networkName?: string;
     timeout?: number; // Optional timeout in seconds
 }
 
@@ -20,19 +21,20 @@ export interface VmIpAddressInputs {
     kubeconfig: pulumi.Input<string>; // Kubeconfig to access the Kubernetes cluster
     namespace: pulumi.Input<string>;
     name: pulumi.Input<string>;
+    networkName?: pulumi.Input<string>;
     timeout?: pulumi.Input<number>; // Optional timeout in seconds
 }
 
 class VmIpAddressProvider implements dynamic.ResourceProvider<VmIpAddressProviderInputs, VmIpAddressProviderOutputs> {
     async create(inputs: VmIpAddressProviderInputs): Promise<pulumi.dynamic.CreateResult<VmIpAddressProviderOutputs>> {
-        const { kubeconfig, namespace, name, timeout = 30 } = inputs;
+        const { kubeconfig, namespace, name, networkName, timeout = 30 } = inputs;
 
-        const ip = await waitFor(() => this.getVmiIp(kubeconfig, namespace, name), {
+        const ip = await waitFor(() => this.getVmiIp(kubeconfig, namespace, name, networkName), {
             intervalMs: 5_000,
             timeoutMs: timeout * 1000,
         }).catch(err => {
-            pulumi.log.error(`Failed to get IP for VMI ${namespace}/${name}: ${err.message}`);
-            throw new Error(`Failed to get IP for VMI ${namespace}/${name}: ${err.message}`);
+            pulumi.log.error(`Failed to get IP for VMI ${namespace}/${name} ${networkName ? `interface ${networkName}` : ""}: ${err.message}`);
+            throw new Error(`Failed to get IP for VMI ${namespace}/${name} ${networkName ? `interface ${networkName}` : ""}: ${err.message}`);
         });
 
         return {
@@ -45,7 +47,7 @@ class VmIpAddressProvider implements dynamic.ResourceProvider<VmIpAddressProvide
         return this.create(news);
     }
 
-    async getVmiIp(kubeconfigYaml: string, namespace: string, vmName: string): Promise<string | undefined> {
+    async getVmiIp(kubeconfigYaml: string, namespace: string, vmName: string, interfaceName?: string): Promise<string | undefined> {
 
         // 2️⃣  parse the kubeconfig -------------------------------------------------
         const httpConfig = kubeConfigToHttp(kubeconfigYaml);
@@ -59,8 +61,20 @@ class VmIpAddressProvider implements dynamic.ResourceProvider<VmIpAddressProvide
             timeout: { request: 10000 },
             retry: { limit: 2 },
         });
-
-        return res.body?.status?.interfaces?.[0]?.ipAddress;
+        if (res.body?.status?.interfaces) {
+            if (interfaceName) {
+                const iface = res.body.status.interfaces.find((i: any) => i.name === interfaceName);
+                if (iface) {
+                    return iface.ipAddress;
+                } else {
+                    return undefined;
+                }
+            } else {
+                return res.body.status.interfaces[0].ipAddress;
+            }
+        } else {
+            return undefined;
+        }
     }
 }
 

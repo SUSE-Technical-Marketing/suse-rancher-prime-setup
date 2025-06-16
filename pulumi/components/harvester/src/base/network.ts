@@ -8,17 +8,17 @@ interface NetworkDefinition {
     config: string;
 }
 
-const DefaultNetworks = [
-    {
+function defaultNetwork(clusterNetwork: string): NetworkDefinition {
+    return {
         name: "backbone-vlan",
         annotations: {
-            "network.harvesterhci.io/clusternetwork": "mgmt",
+            "network.harvesterhci.io/clusternetwork": clusterNetwork,
             "network.harvesterhci.io/ready": "true",
             "network.harvesterhci.io/type": "UntaggedNetwork"
         },
-        config: "{\"cniVersion\":\"0.3.1\",\"name\":\"backbone\",\"type\":\"bridge\",\"bridge\":\"mgmt-br\",\"promiscMode\":true,\"ipam\":{}}"
+        config: `{"cniVersion":"0.3.1","name":"backbone","type":"bridge","bridge":"${clusterNetwork}-br","promiscMode":true,"ipam":{}}`
     }
-] as NetworkDefinition[];
+}
 
 function createNetworkAttachmentDefinition(
     name: string,
@@ -37,15 +37,14 @@ function createNetworkAttachmentDefinition(
     }, opts);
 }
 
-export function createNetworks(opts: pulumi.CustomResourceOptions): Map<string, k8s.v1.NetworkAttachmentDefinition> {
+export function createNetworks(clusterNetwork: string, opts: pulumi.CustomResourceOptions): Map<string, k8s.v1.NetworkAttachmentDefinition> {
     const networks: Map<string, k8s.v1.NetworkAttachmentDefinition> = new Map<string, k8s.v1.NetworkAttachmentDefinition>();
-    DefaultNetworks.forEach((network) => {
-        networks.set(network.name, createNetworkAttachmentDefinition(
-            network.name,
-            network.annotations,
-            network.config,
-            opts
-        ));
-    });
+    const network = defaultNetwork(clusterNetwork);
+    networks.set(network.name, createNetworkAttachmentDefinition(
+        network.name,
+        network.annotations,
+        network.config,
+        opts
+    ));
     return networks;
 }

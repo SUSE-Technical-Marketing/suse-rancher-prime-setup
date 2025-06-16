@@ -29,3 +29,4 @@ go.work.sum
 
 .pnpm-store
 node_modules
+.idea

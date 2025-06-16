@@ -1,8 +1,26 @@
 import * as yaml from "yaml";
-import { cloudInit, CloudInitUser, CloudInitUserArgs, renderCloudInit, renderUser } from "../src/cloud-init";
+import {
+    cloudInit,
+    CloudInitUser,
+    CloudInitUserArgs,
+    renderCloudInit,
+    renderUser,
+    createDhcpInterface,
+    createStaticInterface,
+    createNetworkConfig
+} from "../src/cloud-init";
 import { assert } from "chai";
 import { describe, it } from "mocha";
-import { NewUser, Packages, PackageUpdate, PackageUpgrade, WriteFile } from "../src/processors";
+import {
+    NewUser,
+    Packages,
+    PackageUpdate,
+    PackageUpgrade,
+    WriteFile,
+    NetworkConfiguration,
+    DhcpInterface,
+    StaticInterface
+} from "../src/processors";
 
 describe("CloudInitUser", () => {
 
@@ -143,5 +161,127 @@ describe("CloudInit", () => {
         assert.ok(!("package_upgrade" in parsed));
         assert.ok(!("write_files" in parsed));
         assert.ok(!("runcmd" in parsed));
+        assert.ok(!("network" in parsed));
+    });
+});
+
+describe("Network Configuration", () => {
+
+    it("should create DHCP interface", () => {
+        const iface = createDhcpInterface("enp1s0", "00:11:22:33:44:55");
+        assert.equal(iface.type, "physical");
+        assert.equal(iface.name, "enp1s0");
+        assert.equal(iface.mac_address, "00:11:22:33:44:55");
+        assert.equal(iface.subnets?.length, 1);
+        assert.equal(iface.subnets?.[0].type, "dhcp");
+    });
+
+    it("should create static interface", () => {
+        const iface = createStaticInterface(
+            "enp2s0",
+            "192.168.1.100",
+            "255.255.255.0",
+            "192.168.1.1",
+            ["8.8.8.8", "8.8.4.4"],
+            "00:11:22:33:44:66"
+        );
+        assert.equal(iface.type, "physical");
+        assert.equal(iface.name, "enp2s0");
+        assert.equal(iface.mac_address, "00:11:22:33:44:66");
+        assert.equal(iface.subnets?.length, 1);
+        assert.equal(iface.subnets?.[0].type, "static");
+        assert.equal(iface.subnets?.[0].address, "192.168.1.100");
+        assert.equal(iface.subnets?.[0].netmask, "255.255.255.0");
+        assert.equal(iface.subnets?.[0].gateway, "192.168.1.1");
+        assert.deepEqual(iface.subnets?.[0].dns_nameservers, ["8.8.8.8", "8.8.4.4"]);
+    });
+
+    it("should create network config", () => {
+        const dhcpIface = createDhcpInterface("enp1s0");
+        const staticIface = createStaticInterface("enp2s0", "192.168.1.100", "255.255.255.0");
+        const networkConfig = createNetworkConfig([dhcpIface, staticIface]);
+
+        assert.equal(networkConfig.version, 1);
+        assert.equal(networkConfig.config?.length, 2);
+        assert.equal(networkConfig.config?.[0].name, "enp1s0");
+        assert.equal(networkConfig.config?.[1].name, "enp2s0");
+    });
+
+    it("should add network config to cloud-init", () => {
+        const networkConfig = createNetworkConfig([
+            createDhcpInterface("enp1s0"),
+            createDhcpInterface("enp2s0")
+        ]);
+
+        const ci = cloudInit(NetworkConfiguration(networkConfig));
+        assert.equal(ci.network?.version, 1);
+        assert.equal(ci.network?.config?.length, 2);
+        assert.equal(ci.network?.config?.[0].name, "enp1s0");
+        assert.equal(ci.network?.config?.[1].name, "enp2s0");
+    });
+
+    it("should render network config in YAML", () => {
+        const ci = cloudInit(
+            DhcpInterface("enp1s0"),
+            DhcpInterface("enp2s0")
+        );
+
+        const yamlStr = renderCloudInit(ci);
+        const parsed = yaml.parse(yamlStr);
+
+        assert.ok("network" in parsed);
+        assert.equal(parsed.network.version, 1);
+        assert.equal(parsed.network.config.length, 2);
+        assert.equal(parsed.network.config[0].name, "enp1s0");
+        assert.equal(parsed.network.config[0].type, "physical");
+        assert.equal(parsed.network.config[0].subnets[0].type, "dhcp");
+        assert.equal(parsed.network.config[1].name, "enp2s0");
+        assert.equal(parsed.network.config[1].type, "physical");
+        assert.equal(parsed.network.config[1].subnets[0].type, "dhcp");
+    });
+
+    it("should render static interface in YAML", () => {
+        const ci = cloudInit(
+            StaticInterface("enp1s0", "192.168.1.100", "255.255.255.0", "192.168.1.1", ["8.8.8.8"])
+        );
+
+        const yamlStr = renderCloudInit(ci);
+        const parsed = yaml.parse(yamlStr);
+
+        assert.ok("network" in parsed);
+        assert.equal(parsed.network.config[0].subnets[0].type, "static");
+        assert.equal(parsed.network.config[0].subnets[0].address, "192.168.1.100");
+        assert.equal(parsed.network.config[0].subnets[0].netmask, "255.255.255.0");
+        assert.equal(parsed.network.config[0].subnets[0].gateway, "192.168.1.1");
+        assert.deepEqual(parsed.network.config[0].subnets[0].dns_nameservers, ["8.8.8.8"]);
+    });
+
+    it("should match the example network config format", () => {
+        const ci = cloudInit(
+            DhcpInterface("enp1s0"),
+            DhcpInterface("enp2s0")
+        );
+
+        const yamlStr = renderCloudInit(ci);
+        const parsed = yaml.parse(yamlStr);
+
+        // This should match the format from the user's example
+        const expectedStructure = {
+            version: 1,
+            config: [
+                {
+                    type: "physical",
+                    name: "enp1s0",
+                    subnets: [{ type: "dhcp" }]
+                },
+                {
+                    type: "physical",
+                    name: "enp2s0",
+                    subnets: [{ type: "dhcp" }]
+                }
+            ]
+        };
+
+        assert.deepEqual(parsed.network, expectedStructure);
     });
 });

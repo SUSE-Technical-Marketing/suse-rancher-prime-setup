@@ -30,6 +30,7 @@ export class HarvesterVm extends pulumi.ComponentResource {
             kubeconfig: args.kubeconfig,
             namespace: vm.metadata.namespace,
             name: vm.metadata.name,
+            networkName: args.virtualMachine.network.name,
             timeout: 60, // Wait up to 60 seconds for the IP address to be available
         }, {
             parent: this,
