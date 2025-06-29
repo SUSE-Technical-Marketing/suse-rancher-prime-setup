@@ -2,7 +2,7 @@
 set -e
 
 # Install K3s 
-curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.31.6+k3s1" sh -
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="v1.32.5+k3s1" sh -
 
 # Wait for kubeconfig to become available
 CONFIG_FILE="/etc/rancher/k3s/k3s.yaml"
