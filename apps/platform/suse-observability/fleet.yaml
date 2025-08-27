@@ -2,6 +2,7 @@ defaultNamespace: suse-observability
 helm:
   chart: suse-observability
   repo: https://charts.rancher.com/server-charts/prime/suse-observability
+  version: 2.3.7 # This needs to be manualy updated
   releaseName: suse-observability
   values:
     stackstate:
