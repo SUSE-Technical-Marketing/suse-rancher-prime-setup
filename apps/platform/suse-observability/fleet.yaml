@@ -8,6 +8,8 @@ helm:
     stackstate:
       baseUrl: ${ if hasKey .ClusterAnnotations "hosted-domain" }observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
     ingress:
+      ingressClassName: nginx
+
       hosts:
         - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
       tls:
@@ -40,7 +42,7 @@ helm:
               - hosts: ["otlp-http-observability.${ .ClusterName }.lab.geeko.me"]
                 secretName: otel-http-ecc-tls
   valuesFiles:
-    - trial_sizing.yaml
+    - sizing_values.yaml
     - values.yaml
   valuesFrom:
     - secretKeyRef:

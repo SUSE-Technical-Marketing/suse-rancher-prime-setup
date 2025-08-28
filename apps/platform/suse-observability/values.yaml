@@ -29,13 +29,15 @@ stackstate:
   apiKey:
     key: "beTRIDqKh6xvXpCw6wkxIt9bvoyLwJGU"
 
-  experimental:
+  features:
     traces: true
   deployment:
     mode: SelfHosted
     edition: "Prime"
   components:
     all:
+      deploymentStrategy:
+        type: Recreate
       extraEnv:
         open:
           CONFIG_FORCE_stackgraph_retentionWindowMs: "86400000"
@@ -55,6 +57,9 @@ stackstate:
           CONFIG_FORCE_stackstate_receiver_processAgent_maxNewRelationsHourlyPerHost: "10000"
           CONFIG_FORCE_stackstate_receiver_processAgent_maxNewComponentsHourlyPerHost: "10000"
       retention: 1
+      poddisruptionbudget:
+        maxUnavailable: 1
+
     state:
       config: |
         stackstate.stateService.defaultPropagation = Transparent
@@ -67,3 +72,6 @@ clickhouse:
     enabled: false
 backup:
   enabled: false
+  configuration:
+    scheduled:
+      enabled: false

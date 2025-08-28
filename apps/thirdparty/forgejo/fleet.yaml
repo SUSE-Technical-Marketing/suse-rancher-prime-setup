@@ -1,0 +1,25 @@
+defaultNamespace: forgejo
+helm:
+  chart: oci://code.forgejo.org/forgejo-helm/forgejo
+  releaseName: forgejo
+  version: "12.5.3
+  values:
+    ingress:
+      enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${ else }false${ end}
+      className: nginx
+      hosts:
+        - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }git.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
+          paths:
+            - path: /
+              pathType: Prefix
+              port: http
+      tls:
+        - secretName: forgejo-tls
+          hosts:
+            - ${ if hasKey .ClusterAnnotations "hosted-domain" }git.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-forgejo: "true"
+labels:
+  provides: forgejo
