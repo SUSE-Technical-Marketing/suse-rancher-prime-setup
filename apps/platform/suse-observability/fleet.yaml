@@ -2,11 +2,11 @@ defaultNamespace: suse-observability
 helm:
   chart: suse-observability
   repo: https://charts.rancher.com/server-charts/prime/suse-observability
-  version: 2.3.7 # This needs to be manualy updated
+  version: 2.4.0 # This needs to be manualy updated
   releaseName: suse-observability
   values:
     stackstate:
-      baseUrl: ${ if hasKey .ClusterAnnotations "hosted-domain" }observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
+      baseUrl: ${ if hasKey .ClusterAnnotations "hosted-domain" }https://observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
     ingress:
       ingressClassName: nginx
 
