@@ -13,10 +13,14 @@ utilities.lazyLoad(exports, ["Provider"], () => require("./provider"));
 
 // Export sub-modules:
 import * as catalog from "./catalog";
+import * as management from "./management";
+import * as provisioning from "./provisioning";
 import * as types from "./types";
 
 export {
     catalog,
+    management,
+    provisioning,
     types,
 };
 pulumi.runtime.registerResourcePackage("crds", {

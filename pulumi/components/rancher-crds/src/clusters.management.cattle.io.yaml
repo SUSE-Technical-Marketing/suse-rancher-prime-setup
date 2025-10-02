@@ -1,0 +1,87 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    objectset.rio.cattle.io/applied: H4sIAAAAAAAA/5STXavbPAzHv8qDrt0+p0tPaAO7GBuDMRhjL70Zu1BttfXi2MaSc84o+e7DSXteBi1nl1Kkn/5/WTkCRruhxDZ4aEpA90K+hDxvVzy34f9+AQpa6w008DazhO4LcchJ0zvaWW+l9CroSNCgIDRHQO+DYPnAJQzbX6SFSebJhrlGEUeFbAsS1MXv4c5Tmu379rI09d9H683rK7quwz12BA1ol1ko8bxDj3vqyMtj6YsgHFEXEgwKdKLR/DfbEQt2ERqfnVPgcEvu6koOyAdooNb1Gm8W6+p2tUSqlje39ap+ZfRirevVYmvqqq7WtFyWaS+yMCjgSLqM3qeQIzRwwepoptSdn3zigoLockL3ZBQoYOv32WF6zJZRMRFT6um7b3248+8tOcPQ7NAxKWAdIj0j99MFMjQ/jmc/fVXw+kDdeFIhkn/z+cOm+vqQiilESmInuWd797M2byl5EuLZWcgsT0pmu5MUSZnKTgQl8z+2DQrk9+hgekUombHeTBWFGxLu6dTw89kk1JqikPn016Kfbni8ouCNPf1D0/kUKpnNw7JKdhj+BAAA//8+JR2KxAMAAA
+    objectset.rio.cattle.io/id: ""
+    objectset.rio.cattle.io/owner-gvk: apiextensions.k8s.io/v1, Kind=CustomResourceDefinition
+    objectset.rio.cattle.io/owner-name: clusters.management.cattle.io
+    objectset.rio.cattle.io/owner-namespace: ""
+  creationTimestamp: "2025-09-30T10:24:34Z"
+  generation: 1
+  labels:
+    objectset.rio.cattle.io/hash: 6c69a0193584ae34056862dc19c681bd63639e44
+  name: clusters.management.cattle.io
+  resourceVersion: "1169"
+  uid: a254cec9-b97a-4fb5-a31d-3437b7f67fc5
+spec:
+  conversion:
+    strategy: None
+  group: management.cattle.io
+  names:
+    kind: Cluster
+    listKind: ClusterList
+    plural: clusters
+    singular: cluster
+  scope: Cluster
+  versions:
+  - name: v3
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            properties:
+              fleetWorkspaceName:
+                type: string
+              displayName:
+                type: string
+            # x-kubernetes-preserve-unknown-fields: true
+          status:
+            properties:
+              conditions:
+                items:
+                  properties:
+                    lastTransitionTime:
+                      nullable: true
+                      type: string
+                    lastUpdateTime:
+                      nullable: true
+                      type: string
+                    message:
+                      nullable: true
+                      type: string
+                    reason:
+                      nullable: true
+                      type: string
+                    status:
+                      nullable: true
+                      type: string
+                    type:
+                      nullable: true
+                      type: string
+                  type: object
+                nullable: true
+                type: array
+            # x-kubernetes-preserve-unknown-fields: true
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: Cluster
+    listKind: ClusterList
+    plural: clusters
+    singular: cluster
+  conditions:
+  - lastTransitionTime: "2025-09-30T10:24:34Z"
+    message: no conflicts found
+    reason: NoConflicts
+    status: "True"
+    type: NamesAccepted
+  - lastTransitionTime: "2025-09-30T10:24:34Z"
+    message: the initial names have been accepted
+    reason: InitialNamesAccepted
+    status: "True"
+    type: Established
+  storedVersions:
+  - v3

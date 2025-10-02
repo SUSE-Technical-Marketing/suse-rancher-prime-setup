@@ -390,6 +390,64 @@ export namespace catalog {
     }
 }
 
+export namespace management {
+    export namespace v3 {
+        export interface Cluster {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "management.cattle.io/v3";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "Cluster";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.management.v3.ClusterSpec;
+            status: outputs.management.v3.ClusterStatus;
+        }
+
+        export interface ClusterSpec {
+            displayName: string;
+            fleetWorkspaceName: string;
+        }
+
+        export interface ClusterSpecPatch {
+            displayName: string;
+            fleetWorkspaceName: string;
+        }
+
+        export interface ClusterStatus {
+            conditions: outputs.management.v3.ClusterStatusConditions[];
+        }
+
+        export interface ClusterStatusConditions {
+            lastTransitionTime: string;
+            lastUpdateTime: string;
+            message: string;
+            reason: string;
+            status: string;
+            type: string;
+        }
+
+        export interface ClusterStatusConditionsPatch {
+            lastTransitionTime: string;
+            lastUpdateTime: string;
+            message: string;
+            reason: string;
+            status: string;
+            type: string;
+        }
+
+        export interface ClusterStatusPatch {
+            conditions: outputs.management.v3.ClusterStatusConditionsPatch[];
+        }
+
+    }
+}
+
 export namespace meta {
     export namespace v1 {
         /**
@@ -700,6 +758,1582 @@ export namespace meta {
              * UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids
              */
             uid: string;
+        }
+
+    }
+}
+
+export namespace provisioning {
+    export namespace v1 {
+        export interface Cluster {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "provisioning.cattle.io/v1";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "Cluster";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.provisioning.v1.ClusterSpec;
+            status: outputs.provisioning.v1.ClusterStatus;
+        }
+
+        export interface ClusterSpec {
+            agentEnvVars: outputs.provisioning.v1.ClusterSpecAgentEnvVars[];
+            cloudCredentialSecretName: string;
+            clusterAPIConfig: outputs.provisioning.v1.ClusterSpecClusterAPIConfig;
+            clusterAgentDeploymentCustomization: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomization;
+            defaultClusterRoleForProjectMembers: string;
+            defaultPodSecurityAdmissionConfigurationTemplateName: string;
+            enableNetworkPolicy: boolean;
+            fleetAgentDeploymentCustomization: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomization;
+            kubernetesVersion: string;
+            localClusterAuthEndpoint: outputs.provisioning.v1.ClusterSpecLocalClusterAuthEndpoint;
+            redeploySystemAgentGeneration: number;
+            rkeConfig: outputs.provisioning.v1.ClusterSpecRkeConfig;
+        }
+
+        export interface ClusterSpecAgentEnvVars {
+            name: string;
+            value: string;
+        }
+
+        export interface ClusterSpecAgentEnvVarsPatch {
+            name: string;
+            value: string;
+        }
+
+        export interface ClusterSpecClusterAPIConfig {
+            clusterName: string;
+        }
+
+        export interface ClusterSpecClusterAPIConfigPatch {
+            clusterName: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomization {
+            appendTolerations: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationAppendTolerations[];
+            overrideAffinity: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinity;
+            overrideResourceRequirements: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirements;
+            schedulingCustomization: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomization;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationAppendTolerations {
+            effect: string;
+            key: string;
+            operator: string;
+            tolerationSeconds: number;
+            value: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationAppendTolerationsPatch {
+            effect: string;
+            key: string;
+            operator: string;
+            tolerationSeconds: number;
+            value: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinity {
+            nodeAffinity: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinity;
+            podAffinity: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinity;
+            podAntiAffinity: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinity;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinity {
+            preferredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution[];
+            requiredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPatch {
+            preferredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch[];
+            requiredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            preference: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference;
+            weight: number;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            preference: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferencePatch;
+            weight: number;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions[];
+            matchFields: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFieldsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferencePatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressionsPatch[];
+            matchFields: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFieldsPatch[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            nodeSelectorTerms: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions[];
+            matchFields: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFieldsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressionsPatch[];
+            matchFields: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFieldsPatch[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            nodeSelectorTerms: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsPatch[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPatch {
+            nodeAffinity: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPatch;
+            podAffinity: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPatch;
+            podAntiAffinity: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPatch;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinity {
+            preferredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution[];
+            requiredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPatch {
+            preferredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch[];
+            requiredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm;
+            weight: number;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            podAffinityTerm: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch;
+            weight: number;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch {
+            labelSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            labelSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinity {
+            preferredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution[];
+            requiredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPatch {
+            preferredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch[];
+            requiredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm;
+            weight: number;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            podAffinityTerm: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch;
+            weight: number;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch {
+            labelSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            labelSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirements {
+            claims: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirementsClaims[];
+            limits: {[key: string]: string};
+            requests: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirementsClaims {
+            name: string;
+            request: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirementsClaimsPatch {
+            name: string;
+            request: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirementsPatch {
+            claims: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirementsClaimsPatch[];
+            limits: {[key: string]: string};
+            requests: {[key: string]: string};
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationPatch {
+            appendTolerations: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationAppendTolerationsPatch[];
+            overrideAffinity: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPatch;
+            overrideResourceRequirements: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirementsPatch;
+            schedulingCustomization: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPatch;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomization {
+            podDisruptionBudget: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudget;
+            priorityClass: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPriorityClass;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPatch {
+            podDisruptionBudget: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudgetPatch;
+            priorityClass: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPriorityClassPatch;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudget {
+            maxUnavailable: string;
+            minAvailable: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudgetPatch {
+            maxUnavailable: string;
+            minAvailable: string;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPriorityClass {
+            preemptionPolicy: string;
+            value: number;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPriorityClassPatch {
+            preemptionPolicy: string;
+            value: number;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomization {
+            appendTolerations: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationAppendTolerations[];
+            overrideAffinity: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinity;
+            overrideResourceRequirements: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirements;
+            schedulingCustomization: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomization;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationAppendTolerations {
+            effect: string;
+            key: string;
+            operator: string;
+            tolerationSeconds: number;
+            value: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationAppendTolerationsPatch {
+            effect: string;
+            key: string;
+            operator: string;
+            tolerationSeconds: number;
+            value: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinity {
+            nodeAffinity: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinity;
+            podAffinity: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinity;
+            podAntiAffinity: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinity;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinity {
+            preferredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution[];
+            requiredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPatch {
+            preferredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch[];
+            requiredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            preference: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference;
+            weight: number;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            preference: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferencePatch;
+            weight: number;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions[];
+            matchFields: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFieldsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferencePatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressionsPatch[];
+            matchFields: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFieldsPatch[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            nodeSelectorTerms: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions[];
+            matchFields: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFieldsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressionsPatch[];
+            matchFields: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFieldsPatch[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            nodeSelectorTerms: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsPatch[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPatch {
+            nodeAffinity: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPatch;
+            podAffinity: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPatch;
+            podAntiAffinity: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPatch;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinity {
+            preferredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution[];
+            requiredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPatch {
+            preferredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch[];
+            requiredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm;
+            weight: number;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            podAffinityTerm: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch;
+            weight: number;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch {
+            labelSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            labelSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinity {
+            preferredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution[];
+            requiredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPatch {
+            preferredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch[];
+            requiredDuringSchedulingIgnoredDuringExecution: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm;
+            weight: number;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            podAffinityTerm: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch;
+            weight: number;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch {
+            labelSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            labelSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch;
+            matchLabelKeys: string[];
+            mismatchLabelKeys: string[];
+            namespaceSelector: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch;
+            namespaces: string[];
+            topologyKey: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirements {
+            claims: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirementsClaims[];
+            limits: {[key: string]: string};
+            requests: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirementsClaims {
+            name: string;
+            request: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirementsClaimsPatch {
+            name: string;
+            request: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirementsPatch {
+            claims: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirementsClaimsPatch[];
+            limits: {[key: string]: string};
+            requests: {[key: string]: string};
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationPatch {
+            appendTolerations: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationAppendTolerationsPatch[];
+            overrideAffinity: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPatch;
+            overrideResourceRequirements: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirementsPatch;
+            schedulingCustomization: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPatch;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomization {
+            podDisruptionBudget: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudget;
+            priorityClass: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPriorityClass;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPatch {
+            podDisruptionBudget: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudgetPatch;
+            priorityClass: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPriorityClassPatch;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudget {
+            maxUnavailable: string;
+            minAvailable: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudgetPatch {
+            maxUnavailable: string;
+            minAvailable: string;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPriorityClass {
+            preemptionPolicy: string;
+            value: number;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPriorityClassPatch {
+            preemptionPolicy: string;
+            value: number;
+        }
+
+        export interface ClusterSpecLocalClusterAuthEndpoint {
+            caCerts: string;
+            enabled: boolean;
+            fqdn: string;
+        }
+
+        export interface ClusterSpecLocalClusterAuthEndpointPatch {
+            caCerts: string;
+            enabled: boolean;
+            fqdn: string;
+        }
+
+        export interface ClusterSpecPatch {
+            agentEnvVars: outputs.provisioning.v1.ClusterSpecAgentEnvVarsPatch[];
+            cloudCredentialSecretName: string;
+            clusterAPIConfig: outputs.provisioning.v1.ClusterSpecClusterAPIConfigPatch;
+            clusterAgentDeploymentCustomization: outputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationPatch;
+            defaultClusterRoleForProjectMembers: string;
+            defaultPodSecurityAdmissionConfigurationTemplateName: string;
+            enableNetworkPolicy: boolean;
+            fleetAgentDeploymentCustomization: outputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationPatch;
+            kubernetesVersion: string;
+            localClusterAuthEndpoint: outputs.provisioning.v1.ClusterSpecLocalClusterAuthEndpointPatch;
+            redeploySystemAgentGeneration: number;
+            rkeConfig: outputs.provisioning.v1.ClusterSpecRkeConfigPatch;
+        }
+
+        export interface ClusterSpecRkeConfig {
+            additionalManifest: string;
+            chartValues: {[key: string]: any};
+            dataDirectories: outputs.provisioning.v1.ClusterSpecRkeConfigDataDirectories;
+            etcd: outputs.provisioning.v1.ClusterSpecRkeConfigEtcd;
+            etcdSnapshotCreate: outputs.provisioning.v1.ClusterSpecRkeConfigEtcdSnapshotCreate;
+            etcdSnapshotRestore: outputs.provisioning.v1.ClusterSpecRkeConfigEtcdSnapshotRestore;
+            infrastructureRef: outputs.provisioning.v1.ClusterSpecRkeConfigInfrastructureRef;
+            machineGlobalConfig: {[key: string]: any};
+            machinePoolDefaults: outputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolDefaults;
+            machinePools: outputs.provisioning.v1.ClusterSpecRkeConfigMachinePools[];
+            machineSelectorConfig: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorConfig[];
+            machineSelectorFiles: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFiles[];
+            networking: outputs.provisioning.v1.ClusterSpecRkeConfigNetworking;
+            provisionGeneration: number;
+            registries: outputs.provisioning.v1.ClusterSpecRkeConfigRegistries;
+            rotateCertificates: outputs.provisioning.v1.ClusterSpecRkeConfigRotateCertificates;
+            rotateEncryptionKeys: outputs.provisioning.v1.ClusterSpecRkeConfigRotateEncryptionKeys;
+            upgradeStrategy: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategy;
+        }
+
+        export interface ClusterSpecRkeConfigDataDirectories {
+            k8sDistro: string;
+            provisioning: string;
+            systemAgent: string;
+        }
+
+        export interface ClusterSpecRkeConfigDataDirectoriesPatch {
+            k8sDistro: string;
+            provisioning: string;
+            systemAgent: string;
+        }
+
+        export interface ClusterSpecRkeConfigEtcd {
+            disableSnapshots: boolean;
+            s3: outputs.provisioning.v1.ClusterSpecRkeConfigEtcdS3;
+            snapshotRetention: number;
+            snapshotScheduleCron: string;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdPatch {
+            disableSnapshots: boolean;
+            s3: outputs.provisioning.v1.ClusterSpecRkeConfigEtcdS3Patch;
+            snapshotRetention: number;
+            snapshotScheduleCron: string;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdS3 {
+            bucket: string;
+            cloudCredentialName: string;
+            endpoint: string;
+            endpointCA: string;
+            folder: string;
+            region: string;
+            skipSSLVerify: boolean;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdS3Patch {
+            bucket: string;
+            cloudCredentialName: string;
+            endpoint: string;
+            endpointCA: string;
+            folder: string;
+            region: string;
+            skipSSLVerify: boolean;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdSnapshotCreate {
+            generation: number;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdSnapshotCreatePatch {
+            generation: number;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdSnapshotRestore {
+            generation: number;
+            name: string;
+            restoreRKEConfig: string;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdSnapshotRestorePatch {
+            generation: number;
+            name: string;
+            restoreRKEConfig: string;
+        }
+
+        export interface ClusterSpecRkeConfigInfrastructureRef {
+            apiVersion: string;
+            fieldPath: string;
+            kind: string;
+            name: string;
+            namespace: string;
+            resourceVersion: string;
+            uid: string;
+        }
+
+        export interface ClusterSpecRkeConfigInfrastructureRefPatch {
+            apiVersion: string;
+            fieldPath: string;
+            kind: string;
+            name: string;
+            namespace: string;
+            resourceVersion: string;
+            uid: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolDefaults {
+            hostnameLengthLimit: number;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolDefaultsPatch {
+            hostnameLengthLimit: number;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePools {
+            cloudCredentialSecretName: string;
+            controlPlaneRole: boolean;
+            displayName: string;
+            drainBeforeDelete: boolean;
+            drainBeforeDeleteTimeout: string;
+            dynamicSchemaSpec: string;
+            etcdRole: boolean;
+            hostnameLengthLimit: number;
+            labels: {[key: string]: string};
+            machineConfigRef: outputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsMachineConfigRef;
+            machineDeploymentAnnotations: {[key: string]: string};
+            machineDeploymentLabels: {[key: string]: string};
+            machineOS: string;
+            maxUnhealthy: string;
+            name: string;
+            nodeStartupTimeout: string;
+            paused: boolean;
+            quantity: number;
+            rollingUpdate: outputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsRollingUpdate;
+            taints: outputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsTaints[];
+            unhealthyNodeTimeout: string;
+            unhealthyRange: string;
+            workerRole: boolean;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsMachineConfigRef {
+            apiVersion: string;
+            fieldPath: string;
+            kind: string;
+            name: string;
+            namespace: string;
+            resourceVersion: string;
+            uid: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsMachineConfigRefPatch {
+            apiVersion: string;
+            fieldPath: string;
+            kind: string;
+            name: string;
+            namespace: string;
+            resourceVersion: string;
+            uid: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsPatch {
+            cloudCredentialSecretName: string;
+            controlPlaneRole: boolean;
+            displayName: string;
+            drainBeforeDelete: boolean;
+            drainBeforeDeleteTimeout: string;
+            dynamicSchemaSpec: string;
+            etcdRole: boolean;
+            hostnameLengthLimit: number;
+            labels: {[key: string]: string};
+            machineConfigRef: outputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsMachineConfigRefPatch;
+            machineDeploymentAnnotations: {[key: string]: string};
+            machineDeploymentLabels: {[key: string]: string};
+            machineOS: string;
+            maxUnhealthy: string;
+            name: string;
+            nodeStartupTimeout: string;
+            paused: boolean;
+            quantity: number;
+            rollingUpdate: outputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsRollingUpdatePatch;
+            taints: outputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsTaintsPatch[];
+            unhealthyNodeTimeout: string;
+            unhealthyRange: string;
+            workerRole: boolean;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsRollingUpdate {
+            maxSurge: number | string;
+            maxUnavailable: number | string;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsRollingUpdatePatch {
+            maxSurge: number | string;
+            maxUnavailable: number | string;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsTaints {
+            effect: string;
+            key: string;
+            timeAdded: string;
+            value: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsTaintsPatch {
+            effect: string;
+            key: string;
+            timeAdded: string;
+            value: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorConfig {
+            config: {[key: string]: any};
+            machineLabelSelector: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelector;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorConfigPatch {
+            config: {[key: string]: any};
+            machineLabelSelector: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelectorPatch;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFiles {
+            fileSources: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSources[];
+            machineLabelSelector: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelector;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSources {
+            configMap: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMap;
+            secret: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecret;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMap {
+            defaultPermissions: string;
+            items: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMapItems[];
+            name: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMapItems {
+            dynamic: boolean;
+            hash: string;
+            key: string;
+            path: string;
+            permissions: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMapItemsPatch {
+            dynamic: boolean;
+            hash: string;
+            key: string;
+            path: string;
+            permissions: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMapPatch {
+            defaultPermissions: string;
+            items: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMapItemsPatch[];
+            name: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesPatch {
+            configMap: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMapPatch;
+            secret: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecretPatch;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecret {
+            defaultPermissions: string;
+            items: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecretItems[];
+            name: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecretItems {
+            dynamic: boolean;
+            hash: string;
+            key: string;
+            path: string;
+            permissions: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecretItemsPatch {
+            dynamic: boolean;
+            hash: string;
+            key: string;
+            path: string;
+            permissions: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecretPatch {
+            defaultPermissions: string;
+            items: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecretItemsPatch[];
+            name: string;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelector {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelectorMatchExpressions[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelectorMatchExpressions {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelectorMatchExpressionsPatch {
+            key: string;
+            operator: string;
+            values: string[];
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelectorPatch {
+            matchExpressions: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelectorMatchExpressionsPatch[];
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesPatch {
+            fileSources: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesPatch[];
+            machineLabelSelector: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelectorPatch;
+        }
+
+        export interface ClusterSpecRkeConfigNetworking {
+            stackPreference: string;
+        }
+
+        export interface ClusterSpecRkeConfigNetworkingPatch {
+            stackPreference: string;
+        }
+
+        export interface ClusterSpecRkeConfigPatch {
+            additionalManifest: string;
+            chartValues: {[key: string]: any};
+            dataDirectories: outputs.provisioning.v1.ClusterSpecRkeConfigDataDirectoriesPatch;
+            etcd: outputs.provisioning.v1.ClusterSpecRkeConfigEtcdPatch;
+            etcdSnapshotCreate: outputs.provisioning.v1.ClusterSpecRkeConfigEtcdSnapshotCreatePatch;
+            etcdSnapshotRestore: outputs.provisioning.v1.ClusterSpecRkeConfigEtcdSnapshotRestorePatch;
+            infrastructureRef: outputs.provisioning.v1.ClusterSpecRkeConfigInfrastructureRefPatch;
+            machineGlobalConfig: {[key: string]: any};
+            machinePoolDefaults: outputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolDefaultsPatch;
+            machinePools: outputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsPatch[];
+            machineSelectorConfig: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorConfigPatch[];
+            machineSelectorFiles: outputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesPatch[];
+            networking: outputs.provisioning.v1.ClusterSpecRkeConfigNetworkingPatch;
+            provisionGeneration: number;
+            registries: outputs.provisioning.v1.ClusterSpecRkeConfigRegistriesPatch;
+            rotateCertificates: outputs.provisioning.v1.ClusterSpecRkeConfigRotateCertificatesPatch;
+            rotateEncryptionKeys: outputs.provisioning.v1.ClusterSpecRkeConfigRotateEncryptionKeysPatch;
+            upgradeStrategy: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyPatch;
+        }
+
+        export interface ClusterSpecRkeConfigRegistries {
+            configs: {[key: string]: {[key: string]: string}};
+            mirrors: {[key: string]: {[key: string]: string}};
+        }
+
+        export interface ClusterSpecRkeConfigRegistriesPatch {
+            configs: {[key: string]: {[key: string]: string}};
+            mirrors: {[key: string]: {[key: string]: string}};
+        }
+
+        export interface ClusterSpecRkeConfigRotateCertificates {
+            generation: number;
+            services: string[];
+        }
+
+        export interface ClusterSpecRkeConfigRotateCertificatesPatch {
+            generation: number;
+            services: string[];
+        }
+
+        export interface ClusterSpecRkeConfigRotateEncryptionKeys {
+            generation: number;
+        }
+
+        export interface ClusterSpecRkeConfigRotateEncryptionKeysPatch {
+            generation: number;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategy {
+            controlPlaneConcurrency: string;
+            controlPlaneDrainOptions: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptions;
+            workerConcurrency: string;
+            workerDrainOptions: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptions;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptions {
+            deleteEmptyDirData: boolean;
+            disableEviction: boolean;
+            enabled: boolean;
+            force: boolean;
+            gracePeriod: number;
+            ignoreDaemonSets: boolean;
+            ignoreErrors: boolean;
+            postDrainHooks: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPostDrainHooks[];
+            preDrainHooks: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPreDrainHooks[];
+            skipWaitForDeleteTimeoutSeconds: number;
+            timeout: number;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPatch {
+            deleteEmptyDirData: boolean;
+            disableEviction: boolean;
+            enabled: boolean;
+            force: boolean;
+            gracePeriod: number;
+            ignoreDaemonSets: boolean;
+            ignoreErrors: boolean;
+            postDrainHooks: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPostDrainHooksPatch[];
+            preDrainHooks: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPreDrainHooksPatch[];
+            skipWaitForDeleteTimeoutSeconds: number;
+            timeout: number;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPostDrainHooks {
+            annotation: string;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPostDrainHooksPatch {
+            annotation: string;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPreDrainHooks {
+            annotation: string;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPreDrainHooksPatch {
+            annotation: string;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyPatch {
+            controlPlaneConcurrency: string;
+            controlPlaneDrainOptions: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPatch;
+            workerConcurrency: string;
+            workerDrainOptions: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPatch;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptions {
+            deleteEmptyDirData: boolean;
+            disableEviction: boolean;
+            enabled: boolean;
+            force: boolean;
+            gracePeriod: number;
+            ignoreDaemonSets: boolean;
+            ignoreErrors: boolean;
+            postDrainHooks: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPostDrainHooks[];
+            preDrainHooks: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPreDrainHooks[];
+            skipWaitForDeleteTimeoutSeconds: number;
+            timeout: number;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPatch {
+            deleteEmptyDirData: boolean;
+            disableEviction: boolean;
+            enabled: boolean;
+            force: boolean;
+            gracePeriod: number;
+            ignoreDaemonSets: boolean;
+            ignoreErrors: boolean;
+            postDrainHooks: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPostDrainHooksPatch[];
+            preDrainHooks: outputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPreDrainHooksPatch[];
+            skipWaitForDeleteTimeoutSeconds: number;
+            timeout: number;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPostDrainHooks {
+            annotation: string;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPostDrainHooksPatch {
+            annotation: string;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPreDrainHooks {
+            annotation: string;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPreDrainHooksPatch {
+            annotation: string;
+        }
+
+        export interface ClusterStatus {
+            agentDeployed: boolean;
+            clientSecretName: string;
+            clusterName: string;
+            conditions: outputs.provisioning.v1.ClusterStatusConditions[];
+            fleetWorkspaceName: string;
+            observedGeneration: number;
+            ready: boolean;
+        }
+
+        export interface ClusterStatusConditions {
+            lastTransitionTime: string;
+            lastUpdateTime: string;
+            message: string;
+            reason: string;
+            status: string;
+            type: string;
+        }
+
+        export interface ClusterStatusConditionsPatch {
+            lastTransitionTime: string;
+            lastUpdateTime: string;
+            message: string;
+            reason: string;
+            status: string;
+            type: string;
+        }
+
+        export interface ClusterStatusPatch {
+            agentDeployed: boolean;
+            clientSecretName: string;
+            clusterName: string;
+            conditions: outputs.provisioning.v1.ClusterStatusConditionsPatch[];
+            fleetWorkspaceName: string;
+            observedGeneration: number;
+            ready: boolean;
         }
 
     }

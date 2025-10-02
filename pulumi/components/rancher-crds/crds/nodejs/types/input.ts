@@ -307,6 +307,51 @@ export namespace catalog {
     }
 }
 
+export namespace management {
+    export namespace v3 {
+        export interface Cluster {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"management.cattle.io/v3">;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"Cluster">;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            spec?: pulumi.Input<inputs.management.v3.ClusterSpec>;
+            status?: pulumi.Input<inputs.management.v3.ClusterStatus>;
+        }
+
+        export interface ClusterSpec {
+            displayName?: pulumi.Input<string>;
+            fleetWorkspaceName?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecPatch {
+            displayName?: pulumi.Input<string>;
+            fleetWorkspaceName?: pulumi.Input<string>;
+        }
+
+        export interface ClusterStatus {
+            conditions?: pulumi.Input<pulumi.Input<inputs.management.v3.ClusterStatusConditions>[]>;
+        }
+
+        export interface ClusterStatusConditions {
+            lastTransitionTime?: pulumi.Input<string>;
+            lastUpdateTime?: pulumi.Input<string>;
+            message?: pulumi.Input<string>;
+            reason?: pulumi.Input<string>;
+            status?: pulumi.Input<string>;
+            type?: pulumi.Input<string>;
+        }
+
+    }
+}
+
 export namespace meta {
     export namespace v1 {
         /**
@@ -617,6 +662,1563 @@ export namespace meta {
              * UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids
              */
             uid?: pulumi.Input<string>;
+        }
+
+    }
+}
+
+export namespace provisioning {
+    export namespace v1 {
+        export interface Cluster {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"provisioning.cattle.io/v1">;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"Cluster">;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            spec?: pulumi.Input<inputs.provisioning.v1.ClusterSpec>;
+            status?: pulumi.Input<inputs.provisioning.v1.ClusterStatus>;
+        }
+
+        export interface ClusterSpec {
+            agentEnvVars?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecAgentEnvVars>[]>;
+            cloudCredentialSecretName?: pulumi.Input<string>;
+            clusterAPIConfig?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAPIConfig>;
+            clusterAgentDeploymentCustomization?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomization>;
+            defaultClusterRoleForProjectMembers?: pulumi.Input<string>;
+            defaultPodSecurityAdmissionConfigurationTemplateName?: pulumi.Input<string>;
+            enableNetworkPolicy?: pulumi.Input<boolean>;
+            fleetAgentDeploymentCustomization?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomization>;
+            kubernetesVersion?: pulumi.Input<string>;
+            localClusterAuthEndpoint?: pulumi.Input<inputs.provisioning.v1.ClusterSpecLocalClusterAuthEndpoint>;
+            redeploySystemAgentGeneration?: pulumi.Input<number>;
+            rkeConfig?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfig>;
+        }
+
+        export interface ClusterSpecAgentEnvVars {
+            name?: pulumi.Input<string>;
+            value?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecAgentEnvVarsPatch {
+            name?: pulumi.Input<string>;
+            value?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAPIConfig {
+            clusterName?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAPIConfigPatch {
+            clusterName?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomization {
+            appendTolerations?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationAppendTolerations>[]>;
+            overrideAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinity>;
+            overrideResourceRequirements?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirements>;
+            schedulingCustomization?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomization>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationAppendTolerations {
+            effect?: pulumi.Input<string>;
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            tolerationSeconds?: pulumi.Input<number>;
+            value?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationAppendTolerationsPatch {
+            effect?: pulumi.Input<string>;
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            tolerationSeconds?: pulumi.Input<number>;
+            value?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinity {
+            nodeAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinity>;
+            podAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinity>;
+            podAntiAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinity>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinity {
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution>[]>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPatch {
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch>[]>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            preference?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference>;
+            weight?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            preference?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferencePatch>;
+            weight?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions>[]>;
+            matchFields?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFieldsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferencePatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressionsPatch>[]>;
+            matchFields?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFieldsPatch>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            nodeSelectorTerms?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions>[]>;
+            matchFields?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFieldsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressionsPatch>[]>;
+            matchFields?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFieldsPatch>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            nodeSelectorTerms?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsPatch>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPatch {
+            nodeAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityNodeAffinityPatch>;
+            podAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPatch>;
+            podAntiAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPatch>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinity {
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution>[]>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPatch {
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch>[]>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm>;
+            weight?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            podAffinityTerm?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch>;
+            weight?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinity {
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution>[]>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPatch {
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch>[]>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm>;
+            weight?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            podAffinityTerm?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch>;
+            weight?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirements {
+            claims?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirementsClaims>[]>;
+            limits?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            requests?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirementsClaims {
+            name?: pulumi.Input<string>;
+            request?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirementsClaimsPatch {
+            name?: pulumi.Input<string>;
+            request?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirementsPatch {
+            claims?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirementsClaimsPatch>[]>;
+            limits?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            requests?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationPatch {
+            appendTolerations?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationAppendTolerationsPatch>[]>;
+            overrideAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideAffinityPatch>;
+            overrideResourceRequirements?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationOverrideResourceRequirementsPatch>;
+            schedulingCustomization?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPatch>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomization {
+            podDisruptionBudget?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudget>;
+            priorityClass?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPriorityClass>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPatch {
+            podDisruptionBudget?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudgetPatch>;
+            priorityClass?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPriorityClassPatch>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudget {
+            maxUnavailable?: pulumi.Input<string>;
+            minAvailable?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudgetPatch {
+            maxUnavailable?: pulumi.Input<string>;
+            minAvailable?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPriorityClass {
+            preemptionPolicy?: pulumi.Input<string>;
+            value?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecClusterAgentDeploymentCustomizationSchedulingCustomizationPriorityClassPatch {
+            preemptionPolicy?: pulumi.Input<string>;
+            value?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomization {
+            appendTolerations?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationAppendTolerations>[]>;
+            overrideAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinity>;
+            overrideResourceRequirements?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirements>;
+            schedulingCustomization?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomization>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationAppendTolerations {
+            effect?: pulumi.Input<string>;
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            tolerationSeconds?: pulumi.Input<number>;
+            value?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationAppendTolerationsPatch {
+            effect?: pulumi.Input<string>;
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            tolerationSeconds?: pulumi.Input<number>;
+            value?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinity {
+            nodeAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinity>;
+            podAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinity>;
+            podAntiAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinity>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinity {
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution>[]>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPatch {
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch>[]>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            preference?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference>;
+            weight?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            preference?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferencePatch>;
+            weight?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions>[]>;
+            matchFields?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFieldsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferencePatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressionsPatch>[]>;
+            matchFields?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFieldsPatch>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            nodeSelectorTerms?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions>[]>;
+            matchFields?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFieldsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressionsPatch>[]>;
+            matchFields?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFieldsPatch>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            nodeSelectorTerms?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsPatch>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPatch {
+            nodeAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityNodeAffinityPatch>;
+            podAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPatch>;
+            podAntiAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPatch>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinity {
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution>[]>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPatch {
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch>[]>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm>;
+            weight?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            podAffinityTerm?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch>;
+            weight?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinity {
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution>[]>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPatch {
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch>[]>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm>;
+            weight?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            podAffinityTerm?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch>;
+            weight?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            labelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch>;
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[]>;
+            namespaceSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch>;
+            namespaces?: pulumi.Input<pulumi.Input<string>[]>;
+            topologyKey?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirements {
+            claims?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirementsClaims>[]>;
+            limits?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            requests?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirementsClaims {
+            name?: pulumi.Input<string>;
+            request?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirementsClaimsPatch {
+            name?: pulumi.Input<string>;
+            request?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirementsPatch {
+            claims?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirementsClaimsPatch>[]>;
+            limits?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            requests?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationPatch {
+            appendTolerations?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationAppendTolerationsPatch>[]>;
+            overrideAffinity?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideAffinityPatch>;
+            overrideResourceRequirements?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationOverrideResourceRequirementsPatch>;
+            schedulingCustomization?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPatch>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomization {
+            podDisruptionBudget?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudget>;
+            priorityClass?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPriorityClass>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPatch {
+            podDisruptionBudget?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudgetPatch>;
+            priorityClass?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPriorityClassPatch>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudget {
+            maxUnavailable?: pulumi.Input<string>;
+            minAvailable?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPodDisruptionBudgetPatch {
+            maxUnavailable?: pulumi.Input<string>;
+            minAvailable?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPriorityClass {
+            preemptionPolicy?: pulumi.Input<string>;
+            value?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecFleetAgentDeploymentCustomizationSchedulingCustomizationPriorityClassPatch {
+            preemptionPolicy?: pulumi.Input<string>;
+            value?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecLocalClusterAuthEndpoint {
+            caCerts?: pulumi.Input<string>;
+            enabled?: pulumi.Input<boolean>;
+            fqdn?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecLocalClusterAuthEndpointPatch {
+            caCerts?: pulumi.Input<string>;
+            enabled?: pulumi.Input<boolean>;
+            fqdn?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecPatch {
+            agentEnvVars?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecAgentEnvVarsPatch>[]>;
+            cloudCredentialSecretName?: pulumi.Input<string>;
+            clusterAPIConfig?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAPIConfigPatch>;
+            clusterAgentDeploymentCustomization?: pulumi.Input<inputs.provisioning.v1.ClusterSpecClusterAgentDeploymentCustomizationPatch>;
+            defaultClusterRoleForProjectMembers?: pulumi.Input<string>;
+            defaultPodSecurityAdmissionConfigurationTemplateName?: pulumi.Input<string>;
+            enableNetworkPolicy?: pulumi.Input<boolean>;
+            fleetAgentDeploymentCustomization?: pulumi.Input<inputs.provisioning.v1.ClusterSpecFleetAgentDeploymentCustomizationPatch>;
+            kubernetesVersion?: pulumi.Input<string>;
+            localClusterAuthEndpoint?: pulumi.Input<inputs.provisioning.v1.ClusterSpecLocalClusterAuthEndpointPatch>;
+            redeploySystemAgentGeneration?: pulumi.Input<number>;
+            rkeConfig?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigPatch>;
+        }
+
+        export interface ClusterSpecRkeConfig {
+            additionalManifest?: pulumi.Input<string>;
+            chartValues?: pulumi.Input<{[key: string]: any}>;
+            dataDirectories?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigDataDirectories>;
+            etcd?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigEtcd>;
+            etcdSnapshotCreate?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigEtcdSnapshotCreate>;
+            etcdSnapshotRestore?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigEtcdSnapshotRestore>;
+            infrastructureRef?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigInfrastructureRef>;
+            machineGlobalConfig?: pulumi.Input<{[key: string]: any}>;
+            machinePoolDefaults?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolDefaults>;
+            machinePools?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachinePools>[]>;
+            machineSelectorConfig?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorConfig>[]>;
+            machineSelectorFiles?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFiles>[]>;
+            networking?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigNetworking>;
+            provisionGeneration?: pulumi.Input<number>;
+            registries?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigRegistries>;
+            rotateCertificates?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigRotateCertificates>;
+            rotateEncryptionKeys?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigRotateEncryptionKeys>;
+            upgradeStrategy?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategy>;
+        }
+
+        export interface ClusterSpecRkeConfigDataDirectories {
+            k8sDistro?: pulumi.Input<string>;
+            provisioning?: pulumi.Input<string>;
+            systemAgent?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigDataDirectoriesPatch {
+            k8sDistro?: pulumi.Input<string>;
+            provisioning?: pulumi.Input<string>;
+            systemAgent?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigEtcd {
+            disableSnapshots?: pulumi.Input<boolean>;
+            s3?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigEtcdS3>;
+            snapshotRetention?: pulumi.Input<number>;
+            snapshotScheduleCron?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdPatch {
+            disableSnapshots?: pulumi.Input<boolean>;
+            s3?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigEtcdS3Patch>;
+            snapshotRetention?: pulumi.Input<number>;
+            snapshotScheduleCron?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdS3 {
+            bucket?: pulumi.Input<string>;
+            cloudCredentialName?: pulumi.Input<string>;
+            endpoint?: pulumi.Input<string>;
+            endpointCA?: pulumi.Input<string>;
+            folder?: pulumi.Input<string>;
+            region?: pulumi.Input<string>;
+            skipSSLVerify?: pulumi.Input<boolean>;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdS3Patch {
+            bucket?: pulumi.Input<string>;
+            cloudCredentialName?: pulumi.Input<string>;
+            endpoint?: pulumi.Input<string>;
+            endpointCA?: pulumi.Input<string>;
+            folder?: pulumi.Input<string>;
+            region?: pulumi.Input<string>;
+            skipSSLVerify?: pulumi.Input<boolean>;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdSnapshotCreate {
+            generation?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdSnapshotCreatePatch {
+            generation?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdSnapshotRestore {
+            generation?: pulumi.Input<number>;
+            name?: pulumi.Input<string>;
+            restoreRKEConfig?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigEtcdSnapshotRestorePatch {
+            generation?: pulumi.Input<number>;
+            name?: pulumi.Input<string>;
+            restoreRKEConfig?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigInfrastructureRef {
+            apiVersion?: pulumi.Input<string>;
+            fieldPath?: pulumi.Input<string>;
+            kind?: pulumi.Input<string>;
+            name?: pulumi.Input<string>;
+            namespace?: pulumi.Input<string>;
+            resourceVersion?: pulumi.Input<string>;
+            uid?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigInfrastructureRefPatch {
+            apiVersion?: pulumi.Input<string>;
+            fieldPath?: pulumi.Input<string>;
+            kind?: pulumi.Input<string>;
+            name?: pulumi.Input<string>;
+            namespace?: pulumi.Input<string>;
+            resourceVersion?: pulumi.Input<string>;
+            uid?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolDefaults {
+            hostnameLengthLimit?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolDefaultsPatch {
+            hostnameLengthLimit?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePools {
+            cloudCredentialSecretName?: pulumi.Input<string>;
+            controlPlaneRole?: pulumi.Input<boolean>;
+            displayName?: pulumi.Input<string>;
+            drainBeforeDelete?: pulumi.Input<boolean>;
+            drainBeforeDeleteTimeout?: pulumi.Input<string>;
+            dynamicSchemaSpec?: pulumi.Input<string>;
+            etcdRole?: pulumi.Input<boolean>;
+            hostnameLengthLimit?: pulumi.Input<number>;
+            labels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            machineConfigRef?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsMachineConfigRef>;
+            machineDeploymentAnnotations?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            machineDeploymentLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            machineOS?: pulumi.Input<string>;
+            maxUnhealthy?: pulumi.Input<string>;
+            name?: pulumi.Input<string>;
+            nodeStartupTimeout?: pulumi.Input<string>;
+            paused?: pulumi.Input<boolean>;
+            quantity?: pulumi.Input<number>;
+            rollingUpdate?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsRollingUpdate>;
+            taints?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsTaints>[]>;
+            unhealthyNodeTimeout?: pulumi.Input<string>;
+            unhealthyRange?: pulumi.Input<string>;
+            workerRole?: pulumi.Input<boolean>;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsMachineConfigRef {
+            apiVersion?: pulumi.Input<string>;
+            fieldPath?: pulumi.Input<string>;
+            kind?: pulumi.Input<string>;
+            name?: pulumi.Input<string>;
+            namespace?: pulumi.Input<string>;
+            resourceVersion?: pulumi.Input<string>;
+            uid?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsMachineConfigRefPatch {
+            apiVersion?: pulumi.Input<string>;
+            fieldPath?: pulumi.Input<string>;
+            kind?: pulumi.Input<string>;
+            name?: pulumi.Input<string>;
+            namespace?: pulumi.Input<string>;
+            resourceVersion?: pulumi.Input<string>;
+            uid?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsPatch {
+            cloudCredentialSecretName?: pulumi.Input<string>;
+            controlPlaneRole?: pulumi.Input<boolean>;
+            displayName?: pulumi.Input<string>;
+            drainBeforeDelete?: pulumi.Input<boolean>;
+            drainBeforeDeleteTimeout?: pulumi.Input<string>;
+            dynamicSchemaSpec?: pulumi.Input<string>;
+            etcdRole?: pulumi.Input<boolean>;
+            hostnameLengthLimit?: pulumi.Input<number>;
+            labels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            machineConfigRef?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsMachineConfigRefPatch>;
+            machineDeploymentAnnotations?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            machineDeploymentLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            machineOS?: pulumi.Input<string>;
+            maxUnhealthy?: pulumi.Input<string>;
+            name?: pulumi.Input<string>;
+            nodeStartupTimeout?: pulumi.Input<string>;
+            paused?: pulumi.Input<boolean>;
+            quantity?: pulumi.Input<number>;
+            rollingUpdate?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsRollingUpdatePatch>;
+            taints?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsTaintsPatch>[]>;
+            unhealthyNodeTimeout?: pulumi.Input<string>;
+            unhealthyRange?: pulumi.Input<string>;
+            workerRole?: pulumi.Input<boolean>;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsRollingUpdate {
+            maxSurge?: pulumi.Input<number | string>;
+            maxUnavailable?: pulumi.Input<number | string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsRollingUpdatePatch {
+            maxSurge?: pulumi.Input<number | string>;
+            maxUnavailable?: pulumi.Input<number | string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsTaints {
+            effect?: pulumi.Input<string>;
+            key?: pulumi.Input<string>;
+            timeAdded?: pulumi.Input<string>;
+            value?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachinePoolsTaintsPatch {
+            effect?: pulumi.Input<string>;
+            key?: pulumi.Input<string>;
+            timeAdded?: pulumi.Input<string>;
+            value?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorConfig {
+            config?: pulumi.Input<{[key: string]: any}>;
+            machineLabelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelector>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorConfigPatch {
+            config?: pulumi.Input<{[key: string]: any}>;
+            machineLabelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorConfigMachineLabelSelectorPatch>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFiles {
+            fileSources?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSources>[]>;
+            machineLabelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelector>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSources {
+            configMap?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMap>;
+            secret?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecret>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMap {
+            defaultPermissions?: pulumi.Input<string>;
+            items?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMapItems>[]>;
+            name?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMapItems {
+            dynamic?: pulumi.Input<boolean>;
+            hash?: pulumi.Input<string>;
+            key?: pulumi.Input<string>;
+            path?: pulumi.Input<string>;
+            permissions?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMapItemsPatch {
+            dynamic?: pulumi.Input<boolean>;
+            hash?: pulumi.Input<string>;
+            key?: pulumi.Input<string>;
+            path?: pulumi.Input<string>;
+            permissions?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMapPatch {
+            defaultPermissions?: pulumi.Input<string>;
+            items?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMapItemsPatch>[]>;
+            name?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesPatch {
+            configMap?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesConfigMapPatch>;
+            secret?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecretPatch>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecret {
+            defaultPermissions?: pulumi.Input<string>;
+            items?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecretItems>[]>;
+            name?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecretItems {
+            dynamic?: pulumi.Input<boolean>;
+            hash?: pulumi.Input<string>;
+            key?: pulumi.Input<string>;
+            path?: pulumi.Input<string>;
+            permissions?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecretItemsPatch {
+            dynamic?: pulumi.Input<boolean>;
+            hash?: pulumi.Input<string>;
+            key?: pulumi.Input<string>;
+            path?: pulumi.Input<string>;
+            permissions?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecretPatch {
+            defaultPermissions?: pulumi.Input<string>;
+            items?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesSecretItemsPatch>[]>;
+            name?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelector {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelectorMatchExpressions>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelectorMatchExpressions {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelectorMatchExpressionsPatch {
+            key?: pulumi.Input<string>;
+            operator?: pulumi.Input<string>;
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelectorPatch {
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelectorMatchExpressionsPatch>[]>;
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterSpecRkeConfigMachineSelectorFilesPatch {
+            fileSources?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesFileSourcesPatch>[]>;
+            machineLabelSelector?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesMachineLabelSelectorPatch>;
+        }
+
+        export interface ClusterSpecRkeConfigNetworking {
+            stackPreference?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigNetworkingPatch {
+            stackPreference?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigPatch {
+            additionalManifest?: pulumi.Input<string>;
+            chartValues?: pulumi.Input<{[key: string]: any}>;
+            dataDirectories?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigDataDirectoriesPatch>;
+            etcd?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigEtcdPatch>;
+            etcdSnapshotCreate?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigEtcdSnapshotCreatePatch>;
+            etcdSnapshotRestore?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigEtcdSnapshotRestorePatch>;
+            infrastructureRef?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigInfrastructureRefPatch>;
+            machineGlobalConfig?: pulumi.Input<{[key: string]: any}>;
+            machinePoolDefaults?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolDefaultsPatch>;
+            machinePools?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachinePoolsPatch>[]>;
+            machineSelectorConfig?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorConfigPatch>[]>;
+            machineSelectorFiles?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigMachineSelectorFilesPatch>[]>;
+            networking?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigNetworkingPatch>;
+            provisionGeneration?: pulumi.Input<number>;
+            registries?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigRegistriesPatch>;
+            rotateCertificates?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigRotateCertificatesPatch>;
+            rotateEncryptionKeys?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigRotateEncryptionKeysPatch>;
+            upgradeStrategy?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyPatch>;
+        }
+
+        export interface ClusterSpecRkeConfigRegistries {
+            configs?: pulumi.Input<{[key: string]: pulumi.Input<{[key: string]: pulumi.Input<string>}>}>;
+            mirrors?: pulumi.Input<{[key: string]: pulumi.Input<{[key: string]: pulumi.Input<string>}>}>;
+        }
+
+        export interface ClusterSpecRkeConfigRegistriesPatch {
+            configs?: pulumi.Input<{[key: string]: pulumi.Input<{[key: string]: pulumi.Input<string>}>}>;
+            mirrors?: pulumi.Input<{[key: string]: pulumi.Input<{[key: string]: pulumi.Input<string>}>}>;
+        }
+
+        export interface ClusterSpecRkeConfigRotateCertificates {
+            generation?: pulumi.Input<number>;
+            services?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecRkeConfigRotateCertificatesPatch {
+            generation?: pulumi.Input<number>;
+            services?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        export interface ClusterSpecRkeConfigRotateEncryptionKeys {
+            generation?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecRkeConfigRotateEncryptionKeysPatch {
+            generation?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategy {
+            controlPlaneConcurrency?: pulumi.Input<string>;
+            controlPlaneDrainOptions?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptions>;
+            workerConcurrency?: pulumi.Input<string>;
+            workerDrainOptions?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptions>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptions {
+            deleteEmptyDirData?: pulumi.Input<boolean>;
+            disableEviction?: pulumi.Input<boolean>;
+            enabled?: pulumi.Input<boolean>;
+            force?: pulumi.Input<boolean>;
+            gracePeriod?: pulumi.Input<number>;
+            ignoreDaemonSets?: pulumi.Input<boolean>;
+            ignoreErrors?: pulumi.Input<boolean>;
+            postDrainHooks?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPostDrainHooks>[]>;
+            preDrainHooks?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPreDrainHooks>[]>;
+            skipWaitForDeleteTimeoutSeconds?: pulumi.Input<number>;
+            timeout?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPatch {
+            deleteEmptyDirData?: pulumi.Input<boolean>;
+            disableEviction?: pulumi.Input<boolean>;
+            enabled?: pulumi.Input<boolean>;
+            force?: pulumi.Input<boolean>;
+            gracePeriod?: pulumi.Input<number>;
+            ignoreDaemonSets?: pulumi.Input<boolean>;
+            ignoreErrors?: pulumi.Input<boolean>;
+            postDrainHooks?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPostDrainHooksPatch>[]>;
+            preDrainHooks?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPreDrainHooksPatch>[]>;
+            skipWaitForDeleteTimeoutSeconds?: pulumi.Input<number>;
+            timeout?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPostDrainHooks {
+            annotation?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPostDrainHooksPatch {
+            annotation?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPreDrainHooks {
+            annotation?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPreDrainHooksPatch {
+            annotation?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyPatch {
+            controlPlaneConcurrency?: pulumi.Input<string>;
+            controlPlaneDrainOptions?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyControlPlaneDrainOptionsPatch>;
+            workerConcurrency?: pulumi.Input<string>;
+            workerDrainOptions?: pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPatch>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptions {
+            deleteEmptyDirData?: pulumi.Input<boolean>;
+            disableEviction?: pulumi.Input<boolean>;
+            enabled?: pulumi.Input<boolean>;
+            force?: pulumi.Input<boolean>;
+            gracePeriod?: pulumi.Input<number>;
+            ignoreDaemonSets?: pulumi.Input<boolean>;
+            ignoreErrors?: pulumi.Input<boolean>;
+            postDrainHooks?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPostDrainHooks>[]>;
+            preDrainHooks?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPreDrainHooks>[]>;
+            skipWaitForDeleteTimeoutSeconds?: pulumi.Input<number>;
+            timeout?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPatch {
+            deleteEmptyDirData?: pulumi.Input<boolean>;
+            disableEviction?: pulumi.Input<boolean>;
+            enabled?: pulumi.Input<boolean>;
+            force?: pulumi.Input<boolean>;
+            gracePeriod?: pulumi.Input<number>;
+            ignoreDaemonSets?: pulumi.Input<boolean>;
+            ignoreErrors?: pulumi.Input<boolean>;
+            postDrainHooks?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPostDrainHooksPatch>[]>;
+            preDrainHooks?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPreDrainHooksPatch>[]>;
+            skipWaitForDeleteTimeoutSeconds?: pulumi.Input<number>;
+            timeout?: pulumi.Input<number>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPostDrainHooks {
+            annotation?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPostDrainHooksPatch {
+            annotation?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPreDrainHooks {
+            annotation?: pulumi.Input<string>;
+        }
+
+        export interface ClusterSpecRkeConfigUpgradeStrategyWorkerDrainOptionsPreDrainHooksPatch {
+            annotation?: pulumi.Input<string>;
+        }
+
+        export interface ClusterStatus {
+            agentDeployed?: pulumi.Input<boolean>;
+            clientSecretName?: pulumi.Input<string>;
+            clusterName?: pulumi.Input<string>;
+            conditions?: pulumi.Input<pulumi.Input<inputs.provisioning.v1.ClusterStatusConditions>[]>;
+            fleetWorkspaceName?: pulumi.Input<string>;
+            observedGeneration?: pulumi.Input<number>;
+            ready?: pulumi.Input<boolean>;
+        }
+
+        export interface ClusterStatusConditions {
+            lastTransitionTime?: pulumi.Input<string>;
+            lastUpdateTime?: pulumi.Input<string>;
+            message?: pulumi.Input<string>;
+            reason?: pulumi.Input<string>;
+            status?: pulumi.Input<string>;
+            type?: pulumi.Input<string>;
         }
 
     }
