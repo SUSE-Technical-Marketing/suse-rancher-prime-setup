@@ -12,14 +12,15 @@
         "build": "tsc -p ."
     },
     "devDependencies": {
-        "@types/node": "^22.15.23",
-        "typescript": "^5.8.3"
+        "@types/node": "^22.18.7",
+        "typescript": "^5.9.2"
     },
     "dependencies": {
-        "@pulumi/command": "^1.1.0",
+        "@pulumi/command": "^1.1.2",
         "@suse-tmm/common": "workspace:^",
         "@suse-tmm/harvester": "workspace:^",
-        "@suse-tmm/kubeconfig": "workspace:^",
+        "@suse-tmm/harvester-crds": "workspace:^",
+        "@suse-tmm/rancher-crds": "workspace:^",
         "@suse-tmm/utils": "workspace:^",
         "got": "^12.6.1"
     }

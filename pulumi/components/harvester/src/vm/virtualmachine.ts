@@ -1,6 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
-import { harvesterhci } from "@suse-tmm/harvester-crds";
 import { kubevirt } from "@suse-tmm/harvester-crds";
 import {CloudInitArgs, cloudInit,  renderCloudInit} from "@suse-tmm/utils";
 import { Secret } from "@pulumi/kubernetes/core/v1";

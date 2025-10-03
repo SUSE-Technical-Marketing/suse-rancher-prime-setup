@@ -86,15 +86,6 @@ export class TLS extends pulumi.ComponentResource {
             },
         }, { ...opts, parent: ns });
 
-        const ci = this.setupClusterIssuer(ns, certManager, { ...opts, dependsOn: [cm], parent: ns });
-        if (certManager.wildcardDomain) {
-            pulumi.log.info(`Setting up wildcard certificate for domain: ${certManager.wildcardDomain}`);
-            return this.createWildcardCertificate(ns, ci, certManager, { ...opts, dependsOn: [ci,cm], parent: ns });
-        }
-        return undefined; // No domain specified, no certificate created
-    }
-
-    private setupClusterIssuer(ns: k8s.core.v1.Namespace, certManager: CertManagerArgs, opts?: pulumi.ComponentResourceOptions): cert_manager.ClusterIssuer {
         const apiToken = new k8s.core.v1.Secret("cloudflare-api-token", {
             metadata: {
                 name: "cloudflare-api-token",
@@ -104,35 +95,45 @@ export class TLS extends pulumi.ComponentResource {
             stringData: {
                 "api-token": certManager.cloudFlareApiToken,
             },
-        }, { ...opts, retainOnDelete: true });
+        }, { ...opts, dependsOn: [cm], retainOnDelete: true, parent: ns });
 
-        return new cert_manager.ClusterIssuer("letsencrypt-prod", {
-            metadata: {
-                name: "letsencrypt-prod",
-                namespace: ns.metadata.name, // Use the same namespace as cert-manager
-            },
-            spec: {
-                acme: {
-                    server: certManager.staging ? "https://acme-staging-v02.api.letsencrypt.org/directory": "https://acme-v02.api.letsencrypt.org/directory",
-                    email: certManager.letsEncryptEmail,
-                    privateKeySecretRef: {
-                        name: "letsencrypt-prod",
-                    },
-                    solvers: [
-                        {
-                            dns01: {
-                                cloudflare: {
-                                    apiTokenSecretRef: {
-                                        name: apiToken.metadata.name, // introduce dependency
-                                        key: "api-token",
+        const prodCi = this.setupClusterIssuer(ns, "letsencrypt-prod", "https://acme-v02.api.letsencrypt.org/directory", certManager, apiToken, { ...opts, parent: ns });
+        const stagingCi = this.setupClusterIssuer(ns, "letsencrypt-staging", "https://acme-staging-v02.api.letsencrypt.org/directory", certManager, apiToken, { ...opts, parent: ns });
+        if (certManager.wildcardDomain) {
+            pulumi.log.info(`Setting up wildcard certificate for domain: ${certManager.wildcardDomain}`);
+            return this.createWildcardCertificate(ns, certManager.staging ? stagingCi : prodCi, certManager, { ...opts, dependsOn: [stagingCi, prodCi, cm], parent: ns });
+        }
+        return undefined; // No domain specified, no certificate created
+    }
+
+    private setupClusterIssuer(ns: k8s.core.v1.Namespace, name: string, url: string, certManager: CertManagerArgs, apiToken: k8s.core.v1.Secret, opts?: pulumi.ComponentResourceOptions): cert_manager.ClusterIssuer {
+        return new cert_manager.ClusterIssuer(name, {
+                metadata: {
+                    name: name,
+                    namespace: ns.metadata.name, // Use the same namespace as cert-manager
+                },
+                spec: {
+                    acme: {
+                        server: url,
+                        email: certManager.letsEncryptEmail,
+                        privateKeySecretRef: {
+                            name: name,
+                        },
+                        solvers: [
+                            {
+                                dns01: {
+                                    cloudflare: {
+                                        apiTokenSecretRef: {
+                                            name: apiToken.metadata.name, // introduce dependency
+                                            key: "api-token",
+                                        },
                                     },
                                 },
                             },
-                        },
-                    ],
+                        ],
+                    },
                 },
-            },
-        }, { ...opts, dependsOn: [apiToken] });
+            }, { ...opts, dependsOn: [apiToken] });
     }
 
     private createWildcardCertificate(ns: k8s.core.v1.Namespace, ci: cert_manager.ClusterIssuer, certManager: CertManagerArgs, opts?: pulumi.ComponentResourceOptions): cert_manager.Certificate {

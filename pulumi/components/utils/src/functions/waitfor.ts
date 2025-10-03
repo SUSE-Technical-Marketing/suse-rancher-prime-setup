@@ -5,17 +5,18 @@
  * @param probe     async function that resolves <T | undefined>
  * @param intervalMs  how long to wait between attempts   (default 5 s)
  * @param timeoutMs overall timeout in milliseconds     (default 5 min)
+ * @param delayMs   initial delay before starting the first probe (default 1 s)
  * @returns the first non-undefined result
  * @throws  if timeout is reached or `probe` throws
  */
 export async function waitFor<T>(
   probe: () => Promise<T | undefined>,
   {
-    intervalMs  = 5_000,
+    intervalMs = 5_000,
     timeoutMs = 300_000,
-    delayMs = 1_000, // initial delay before starting the first probe
+    delayMs = 1_000,
   }: {
-    intervalMs?:  number;
+    intervalMs?: number;
     timeoutMs?: number;
     delayMs?: number;
   } = {},

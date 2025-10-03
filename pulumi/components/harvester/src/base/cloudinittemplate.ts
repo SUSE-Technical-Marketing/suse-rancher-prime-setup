@@ -32,21 +32,6 @@ const DefaultCloudInitTemplates: CloudInitTemplateArgs[] = [{
 }]
 
 export class CloudInitTemplate extends kubernetes.core.v1.Secret {
-    // getCloudInit(name: string, namespace: string, opts: pulumi.CustomResourceOptions): pulumi.Output<CloudInit> {
-    //     const secret = kubernetes.core.v1.Secret.get(name, namespace, opts);
-    //     if (!secret) {
-    //         throw new Error(`Secret ${name} not found`);
-    //     }
-    //     pulumi.all([secret.metadata, secret.data]).apply(([metadata, data]) => {
-    //         if (metadata.labels["harvesterhci.io/cloud-init-template"] !== "user") {
-    //             throw new Error(`Secret ${name} is not a valid cloud-init template`);
-    //         }
-    //         if (!data?.cloudInit) {
-    //             throw new Error(`Secret ${name} does not contain cloud-init data`);
-    //         }
-    //         return new CloudInit(data.cloudInit);
-    //     });
-    // }
     constructor(name: string, cloudInit: CloudInitArgs, opts?: pulumi.CustomResourceOptions) {
         super(name, {
             metadata: {

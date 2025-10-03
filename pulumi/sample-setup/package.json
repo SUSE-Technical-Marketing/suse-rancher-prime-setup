@@ -10,7 +10,6 @@
     "dependencies": {
         "@pulumi/kubernetes": "^4.23.0",
         "@suse-tmm/harvester": "workspace:^",
-        "@suse-tmm/kubeconfig": "workspace:^",
         "@suse-tmm/rancher": "workspace:^",
         "@suse-tmm/utils": "workspace:^",
         "js-yaml": "^3.14.1"

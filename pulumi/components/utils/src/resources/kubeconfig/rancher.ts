@@ -1,10 +1,10 @@
 import * as pulumi from "@pulumi/pulumi";
+import { dynamic } from "@pulumi/pulumi";
 import got from "got";
 import https from "https";
 import * as yaml from "js-yaml";
-import * as dynamic from "@pulumi/pulumi/dynamic";
 
-export interface RancherKubeconfigResourceInputs {
+export interface RancherKubeconfigInputs {
     url: pulumi.Input<string>;
     username: pulumi.Input<string>;
     password: pulumi.Input<string>;
@@ -12,7 +12,7 @@ export interface RancherKubeconfigResourceInputs {
     insecure?: pulumi.Input<boolean>;
 }
 
-export interface RancherKubeconfigInputs {
+interface RancherKubeconfigProviderInputs {
     url: string;
     username: string;
     password: string;
@@ -20,13 +20,13 @@ export interface RancherKubeconfigInputs {
     insecure?: boolean;
 }
 
-export interface RancherKubeconfigOutputs extends RancherKubeconfigInputs{
+interface RancherKubeconfigProviderOutputs extends RancherKubeconfigProviderInputs {
     kubeconfig: string;
 }
 
-class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubeconfigInputs, RancherKubeconfigOutputs> {
+class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubeconfigProviderInputs, RancherKubeconfigProviderOutputs> {
 
-    create(inputs: RancherKubeconfigInputs): Promise<dynamic.CreateResult<RancherKubeconfigOutputs>> {
+    create(inputs: RancherKubeconfigProviderInputs): Promise<dynamic.CreateResult<RancherKubeconfigProviderOutputs>> {
         const { url, username, password, clusterName, insecure } = inputs;
         // Handle self-signed certs
         const httpsAgent = new https.Agent({
@@ -55,7 +55,7 @@ class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubec
         });
     }
 
-    async diff(_id: string, _olds: RancherKubeconfigOutputs, _news: RancherKubeconfigInputs): Promise<dynamic.DiffResult> {
+    async diff(_id: string, _olds: RancherKubeconfigProviderOutputs, _news: RancherKubeconfigProviderInputs): Promise<dynamic.DiffResult> {
         return {
             changes: _olds.url !== _news.url ||
                 _olds.username !== _news.username ||
@@ -65,7 +65,7 @@ class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubec
         }
     }
 
-    async update(id: string, _olds: RancherKubeconfigOutputs, news: RancherKubeconfigInputs): Promise<dynamic.UpdateResult> {
+    async update(id: string, _olds: RancherKubeconfigProviderOutputs, news: RancherKubeconfigProviderInputs): Promise<dynamic.UpdateResult> {
         // For simplicity, re-run create logic.
         return this.create(news);
     }
@@ -74,23 +74,23 @@ class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubec
 export class RancherKubeconfig extends dynamic.Resource {
     public readonly kubeconfig!: pulumi.Output<string>;
 
-    constructor(name: string, args: RancherKubeconfigResourceInputs, opts?: pulumi.ResourceOptions) {
-        super(new RancherKubeconfigProvider(), name, { kubeconfig: undefined, ...args }, {...opts, additionalSecretOutputs: ["kubeconfig"]});
+    constructor(name: string, args: RancherKubeconfigInputs, opts?: pulumi.ResourceOptions) {
+        super(new RancherKubeconfigProvider(), name, { kubeconfig: undefined, ...args }, { ...opts, additionalSecretOutputs: ["kubeconfig"] });
 
     }
 }
 
 function loginRancher(url: string, username: string, password: string, agent: https.Agent): Promise<string> {
-    return got.post < { token: string }>(`${url}/v3-public/localProviders/local?action=login`, {
+    return got.post<{ token: string }>(`${url}/v3-public/localProviders/local?action=login`, {
         json: { username, password },
         agent: { https: agent },
         responseType: 'json'
     })
-    .then(response => response.body.token)
-    .catch(error => {
-        console.error("Error logging in to Rancher:", error);
-        throw error;
-    });
+        .then(response => response.body.token)
+        .catch(error => {
+            console.error("Error logging in to Rancher:", error);
+            throw error;
+        });
 }
 
 function downloadKubeconfig(url: string, clusterName: string, bearerToken: string, agent: https.Agent): Promise<string> {
@@ -99,11 +99,11 @@ function downloadKubeconfig(url: string, clusterName: string, bearerToken: strin
         headers: { Authorization: `Bearer ${bearerToken}` },
         responseType: 'json'
     })
-    .then(response => {
-        return response.body.config;
-    })
-    .catch(error => {
-        console.error("Error generating kubeconfig:", error);
-        throw error;
-    });
+        .then(response => {
+            return response.body.config;
+        })
+        .catch(error => {
+            console.error("Error generating kubeconfig:", error);
+            throw error;
+        });
 }

@@ -3,8 +3,6 @@ import * as k8s from "@pulumi/kubernetes";
 import {createSingleReplicaStorageClass} from "./storageclass";
 import { createImages, VmImageArgs } from "./vmimage";
 import { createNetworks } from "./network";
-import { fileSync } from "tmp";
-import { writeFileSync } from "fs";
 import { harvesterhci } from "@suse-tmm/harvester-crds";
 import { k8s as k8scrds } from "@suse-tmm/harvester-crds";
 import { StorageClass } from "@pulumi/kubernetes/storage/v1";

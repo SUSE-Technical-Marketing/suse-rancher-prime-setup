@@ -1,8 +1,11 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as harvester from "@suse-tmm/harvester";
 import { VmImageArgs } from "@suse-tmm/harvester/src/base/vmimage";
-import * as kubeconfig from "@suse-tmm/kubeconfig";
+import * as kubernetes from "@pulumi/kubernetes";
 import { RancherManagerInstall } from "@suse-tmm/rancher";
+import { installUIPluginRepo, RancherUIPlugin } from "@suse-tmm/rancher";
+import { kubeconfig } from "@suse-tmm/utils";
+import { HarvesterCloudProvider } from "@suse-tmm/rancher/src/cloud/harvester";
 
 export function provisionHarvester(clusterNetwork:string, downloadSuseImage: boolean, kubeconfig: kubeconfig.RancherKubeconfig) {
     const images: VmImageArgs[] = []
@@ -29,14 +32,15 @@ const username = harvesterConfig.require("username");
 const password = harvesterConfig.requireSecret("password");
 const clusterNetwork = harvesterConfig.get("clusterNetwork") || "mgmt";
 
+const harvesterName = harvesterConfig.get("name") || "harvester";
 const vmConfig = new pulumi.Config("vm");
 const sshUser = vmConfig.require("sshUser");
 const sshPubKey = vmConfig.require("sshPubKey");
 const sshPrivKey = vmConfig.requireSecret("sshPrivKey");
 const cpu = vmConfig.getNumber("cpu") || 2;
-const memory = vmConfig.get("memory") || "6Gi"; 
+const memory = vmConfig.get("memory") || "6Gi";
 const diskSize = vmConfig.get("diskSize") || "100Gi";
-const macAddress = vmConfig.get("macAddress") 
+const macAddress = vmConfig.get("macAddress")
 const imageId = vmConfig.get("imageId")
 const imageStorageClass = vmConfig.get("imageStorageClass") || "longhorn-single"
 
@@ -66,7 +70,7 @@ const harvesterKubeconfig = new kubeconfig.RancherKubeconfig("harvester-kubeconf
 
 // If imageId is not provided, we will download the openSUSE Leap 15.6 image
 const downloadSuseImage = imageId === undefined ? true : false;
-let imageDetails: {id: pulumi.Output<string>, storageClassName: pulumi.Output<string>} 
+let imageDetails: {id: pulumi.Output<string>, storageClassName: pulumi.Output<string>}
 
 const harvBase = provisionHarvester(clusterNetwork, downloadSuseImage, harvesterKubeconfig);
 const nw = harvBase.networks.get("backbone-vlan")!;
@@ -129,6 +133,29 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
     dependsOn: [harvBase]
 });
 
+const rancherK8sProvider = new kubernetes.Provider("rancher-k8s", { kubeconfig: rancherManager.kubeconfig });
+const repo = installUIPluginRepo({ provider: rancherK8sProvider, dependsOn: [rancherManager] });
+const uiPlugin = new RancherUIPlugin("harvester", {
+    chartName: "harvester",
+    rancher: {
+        rancherServer: rancherManager.rancherUrl,
+        username: "admin",
+        password: rancherManager.rancherAdminPassword
+    },
+    repoName: repo.metadata.name,
+    version: "1.5.2"
+});
+
+new HarvesterCloudProvider("harvester-cloud", {
+    rancherKubeconfig: rancherManager.kubeconfig,
+    clusterName: harvesterName,
+    harvester: {
+        rancherServer: harvesterUrl,
+        username: username,
+        password: password,
+        insecure: true, // Harvester normally has a self-signed cert
+    }
+}, { provider: rancherK8sProvider, dependsOn: [uiPlugin] });
 
 // pulumi.all([harvesterKubeconfig.kubeconfig, rancherManager.kubeconfig]).apply(([harvkcfg, controlkcfg]) => {
 //     // pulumi.log.info(`Harvester Kubeconfig: ${harvkcfg}`);

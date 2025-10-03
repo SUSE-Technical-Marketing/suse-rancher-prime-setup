@@ -1,5 +1,4 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as kubernetes from "@pulumi/kubernetes";
 import { k8s } from "@suse-tmm/harvester-crds";
 
 interface NetworkDefinition {

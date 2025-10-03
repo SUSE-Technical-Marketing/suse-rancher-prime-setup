@@ -12,7 +12,7 @@ WORKDIR /home/pulumi
 RUN curl -fsSL https://get.pnpm.io/install.sh | sh -
 
 # Install Pulumi
-RUN VERSION=3.173.0 && \
+RUN VERSION=3.198.0 && \
     curl -sSL https://get.pulumi.com/ | bash -s -- --version $VERSION
 
 # Install crd2pulumi

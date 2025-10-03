@@ -1,9 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
-import { fileSync } from "tmp";
-import { writeFileSync } from "fs";
 import { createVirtualMachine, VirtualMachineArgs } from "./virtualmachine"
-import { kubevirt } from "@suse-tmm/harvester-crds";
 import { VmIpAddress } from "./ipaddress";
 
 export interface HarvesterVmArgs {

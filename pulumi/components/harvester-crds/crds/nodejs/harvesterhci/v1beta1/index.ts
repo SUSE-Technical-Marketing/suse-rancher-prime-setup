@@ -20,6 +20,21 @@ export type KeyPairPatch = import("./keyPairPatch").KeyPairPatch;
 export const KeyPairPatch: typeof import("./keyPairPatch").KeyPairPatch = null as any;
 utilities.lazyLoad(exports, ["KeyPairPatch"], () => require("./keyPairPatch"));
 
+export { SettingArgs } from "./setting";
+export type Setting = import("./setting").Setting;
+export const Setting: typeof import("./setting").Setting = null as any;
+utilities.lazyLoad(exports, ["Setting"], () => require("./setting"));
+
+export { SettingListArgs } from "./settingList";
+export type SettingList = import("./settingList").SettingList;
+export const SettingList: typeof import("./settingList").SettingList = null as any;
+utilities.lazyLoad(exports, ["SettingList"], () => require("./settingList"));
+
+export { SettingPatchArgs } from "./settingPatch";
+export type SettingPatch = import("./settingPatch").SettingPatch;
+export const SettingPatch: typeof import("./settingPatch").SettingPatch = null as any;
+utilities.lazyLoad(exports, ["SettingPatch"], () => require("./settingPatch"));
+
 export { VirtualMachineImageArgs } from "./virtualMachineImage";
 export type VirtualMachineImage = import("./virtualMachineImage").VirtualMachineImage;
 export const VirtualMachineImage: typeof import("./virtualMachineImage").VirtualMachineImage = null as any;
@@ -46,6 +61,12 @@ const _module = {
                 return new KeyPairList(name, <any>undefined, { urn })
             case "kubernetes:harvesterhci.io/v1beta1:KeyPairPatch":
                 return new KeyPairPatch(name, <any>undefined, { urn })
+            case "kubernetes:harvesterhci.io/v1beta1:Setting":
+                return new Setting(name, <any>undefined, { urn })
+            case "kubernetes:harvesterhci.io/v1beta1:SettingList":
+                return new SettingList(name, <any>undefined, { urn })
+            case "kubernetes:harvesterhci.io/v1beta1:SettingPatch":
+                return new SettingPatch(name, <any>undefined, { urn })
             case "kubernetes:harvesterhci.io/v1beta1:VirtualMachineImage":
                 return new VirtualMachineImage(name, <any>undefined, { urn })
             case "kubernetes:harvesterhci.io/v1beta1:VirtualMachineImageList":

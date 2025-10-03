@@ -4,8 +4,9 @@ import * as k8s from "@pulumi/kubernetes";
 import { installIngressNginx, installSprouter, TLS, TLSArgs } from "@suse-tmm/common";
 import { provisionHarvesterVm } from "./harvester";
 import { HarvesterVmArgs } from "./harvester";
-import * as k8scfg from "@suse-tmm/kubeconfig";
+import { kubeconfig as k8scfg, RancherLogin } from "@suse-tmm/utils";
 import { BootstrapAdminPassword } from "./bootstrap";
+import { RancherSetting } from "../resources/setting";
 
 export interface HarvesterArgs extends HarvesterVmArgs {
     kubeconfig: pulumi.Input<string>; // Kubeconfig to access the Harvester cluster
@@ -23,15 +24,15 @@ export interface RancherInstallArgs {
 }
 
 export class RancherManagerInstall extends pulumi.ComponentResource {
-    public kubeconfig: pulumi.Output<string>;
-    public rancherAdminPassword: pulumi.Output<string>;
-    public rancherUrl: pulumi.Output<string>;
+    public readonly kubeconfig: pulumi.Output<string>;
+    public readonly rancherAdminPassword: pulumi.Output<string>;
+    public readonly rancherUrl: pulumi.Output<string>;
 
     constructor(name: string, args: RancherInstallArgs, opts?: pulumi.ComponentResourceOptions) {
         super("suse-tmm:components:RancherManagerInstall", name, {}, opts);
         let installIngress = false;
 
-        let myOpts = {...opts, parent: this };
+        let myOpts = { ...opts, parent: this };
         if (args.harvester) {
             // Install Rancher on a new VM in Harvester
             const harvesterVm = provisionHarvesterVm(args.harvester, args.harvester.kubeconfig, myOpts);
@@ -70,13 +71,34 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
 
         const bootstrapPassword = new BootstrapAdminPassword("rancher-bootstrap-password", {
             kubeconfig: this.kubeconfig,
-            password: args.adminPassword,
+            adminPassword: args.adminPassword,
             rancherUrl: url,
         }, {
             parent: this,
             dependsOn: [release],
         });
         this.rancherAdminPassword = bootstrapPassword.password;
+
+        const authToken = new RancherLogin("rancher-login", {
+            rancherServer: url,
+            username: bootstrapPassword.username,
+            password: this.rancherAdminPassword,
+        }, {
+            parent: this,
+            dependsOn: [bootstrapPassword]
+        });
+
+        new RancherSetting("server-url", {
+            rancherServer: url,
+            authToken: authToken.authToken,
+            settingName: "server-url",
+            settingValue: url,
+        }, {
+            parent: this,
+            dependsOn: [authToken],
+        });
+
+        this.rancherUrl = pulumi.output(url);
 
         this.registerOutputs({
             kubeconfig: this.kubeconfig,
@@ -103,7 +125,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         // Create TLS
         const tls = new TLS("rancher-tls", args.tls, resOpts);
 
-        let rancherValues: {[key: string]: any} = {
+        let rancherValues: { [key: string]: any } = {
             hostname: `rancher.${args.hostname}.${args.domain}`,
         }
 
@@ -156,7 +178,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
             url: `https://${rancherValues.hostname}`
         };
     }
-    
+
     static validateAdminPassword(password: pulumi.Output<string>) {
         password.apply(password => {
             if (password.length < 12) {

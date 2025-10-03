@@ -1,8 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as dynamic from "@pulumi/pulumi/dynamic";
 import got from "got";
-import * as yaml from "js-yaml";
-import https from "https";
 import { waitFor, kubeConfigToHttp } from "@suse-tmm/utils";
 
 export interface VmIpAddressProviderInputs {
@@ -49,9 +47,9 @@ class VmIpAddressProvider implements dynamic.ResourceProvider<VmIpAddressProvide
 
     async getVmiIp(kubeconfigYaml: string, namespace: string, vmName: string, interfaceName?: string): Promise<string | undefined> {
 
-        // 2️⃣  parse the kubeconfig -------------------------------------------------
+        // parse the kubeconfig -------------------------------------------------
         const httpConfig = kubeConfigToHttp(kubeconfigYaml);
-        // 4️⃣  call the VMI endpoint ------------------------------------------------
+        // call the VMI endpoint ------------------------------------------------
         const url = `${httpConfig.server}/apis/kubevirt.io/v1/namespaces/${namespace}/virtualmachineinstances/${vmName}`;
 
         const res: any = await got.get(url, {

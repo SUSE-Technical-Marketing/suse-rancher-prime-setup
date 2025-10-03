@@ -1,25 +1,30 @@
 import * as pulumi from "@pulumi/pulumi";
 import { dynamic } from "@pulumi/pulumi";
 import { KubeConfigHttpOutput, kubeConfigToHttp, waitFor } from "@suse-tmm/utils";
+import { loginToRancher, RancherLoginArgs } from "../functions/login";
 import got from "got";
 
 export interface BootstrapAdminPasswordArgs {
     kubeconfig: pulumi.Input<string>; // Kubeconfig to access the Rancher API
     rancherUrl: pulumi.Input<string>; // URL of the Rancher server
-    password?: pulumi.Input<string>;
+    adminPassword?: pulumi.Input<string>;
 }
 
 interface BootstrapAdminPasswordProviderInputs {
     kubeconfig: string; // Kubeconfig to access the Rancher API
     rancherUrl: string; // URL of the Rancher server
-    password?: string;
+    adminPassword?: string;
 }
 
-interface BootstrapAdminPasswordProviderOutputs extends BootstrapAdminPasswordProviderInputs {}
+interface BootstrapAdminPasswordProviderOutputs extends BootstrapAdminPasswordProviderInputs {
+    username: string; // Username for Rancher admin user
+    password: string; // Password for Rancher admin user
+}
+
 
 class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<BootstrapAdminPasswordProviderInputs, BootstrapAdminPasswordProviderOutputs> {
     async create(inputs: BootstrapAdminPasswordProviderInputs): Promise<dynamic.CreateResult<BootstrapAdminPasswordProviderOutputs>> {
-        let password = inputs.password;
+        let password = inputs.adminPassword;
         const username = "admin"; // Default username for Rancher admin
         if (!password || password === "") {
             pulumi.log.warn("No password provided for Rancher admin user. A random password will be generated.");
@@ -30,7 +35,7 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
         const httpConfig = kubeConfigToHttp(inputs.kubeconfig);
 
         // Fetch the bootstrap token from the Rancher API
-        const newPassword = await waitFor(() => this.fetchBootstrapToken(httpConfig).catch(err => {
+        return await waitFor(() => this.fetchBootstrapToken(httpConfig).catch(err => {
             pulumi.log.error(`Failed to fetch bootstrap token: ${err.message}`);
             throw new Error(`Failed to fetch bootstrap token: ${err.message}`);
         }), {
@@ -39,7 +44,7 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
         }).then(async token => {
             return {
                 bootstrapToken: token,
-                authToken: await this.loginToRancher(inputs.rancherUrl, username, token).catch(err => {
+                authToken: await loginToRancher({ rancherServer: inputs.rancherUrl, username: username, password: token }).catch(err => {
                     pulumi.log.error(`Failed to login to Rancher with bootstrap token: ${err.message}`);
                     throw new Error(`Failed to login to Rancher with bootstrap token: ${err.message}`);
                 })
@@ -49,19 +54,19 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
                 pulumi.log.error(`Failed to update password for user ${username}: ${err.message}`);
                 throw new Error(`Failed to update password for user ${username}: ${err.message}`);
             });
-            return password;
         }).catch(err => {
             pulumi.log.error(`Failed to complete password setup: ${err.message}`);
             throw new Error(`Failed to complete password setup: ${err.message}`);
+        }).then(() => {
+            return {
+                id: `cattle-system/bootstrap-password-${new Date().toISOString()}`,
+                outs: {
+                    ...inputs,
+                    username: username,
+                    password: password,
+                }
+            }
         });
-
-        return {
-            id: `cattle-system/bootstrap-password-${new Date().toISOString()}`,
-            outs: {
-                ...inputs,
-                password: newPassword,
-            },
-        };
     }
 
     async updatePassword(server: string, username: string, token: string, password: string, newPassword: string): Promise<void> {
@@ -85,26 +90,6 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
         }
     }
 
-    async loginToRancher(server: string, username: string, password: string): Promise<string> {
-        const url = `${server}/v3-public/localProviders/local?action=login`;
-        const res: any = await got.post(url, {
-            json: {
-                username: username,
-                password: password,
-            },
-            responseType: "json",
-            timeout: { request: 10000 },
-            retry: { limit: 2 },
-        });
-
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-            throw new Error(`Failed to login to Rancher: ${res.statusCode} ${res.statusMessage}`);
-        }
-
-        const token = res.body?.["token"];
-        return token;
-    }
-
     async fetchBootstrapToken(httpConfig: KubeConfigHttpOutput): Promise<string | undefined> {
         const url = `${httpConfig.server}/api/v1/namespaces/cattle-system/secrets/bootstrap-secret`;
         const res: any = await got.get(url, {
@@ -124,6 +109,16 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
 
         return deBase64Token
     }
+
+    async diff(id: pulumi.ID, olds: BootstrapAdminPasswordProviderOutputs, news: BootstrapAdminPasswordProviderInputs): Promise<pulumi.dynamic.DiffResult> {
+        return {
+            changes: false,
+        }
+    }
+
+    async update(id: pulumi.ID, olds: BootstrapAdminPasswordProviderOutputs, news: BootstrapAdminPasswordProviderInputs): Promise<pulumi.dynamic.UpdateResult<BootstrapAdminPasswordProviderOutputs>> {
+        return { outs: { ...olds } };
+    }
 }
 
 export class BootstrapAdminPassword extends dynamic.Resource {
@@ -131,6 +126,6 @@ export class BootstrapAdminPassword extends dynamic.Resource {
     public readonly username!: pulumi.Output<string>;
 
     constructor(name: string, args: BootstrapAdminPasswordArgs, opts?: pulumi.ComponentResourceOptions) {
-        super(new BootstrapAdminPasswordProvider(), name, args, { ...opts, additionalSecretOutputs: ["password"] });
+        super(new BootstrapAdminPasswordProvider(), name, {...args, username: undefined, password: undefined }, { ...opts, additionalSecretOutputs: ["password"] });
     }
 }
