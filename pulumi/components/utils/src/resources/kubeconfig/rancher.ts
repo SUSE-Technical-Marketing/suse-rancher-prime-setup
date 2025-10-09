@@ -3,6 +3,7 @@ import { dynamic } from "@pulumi/pulumi";
 import got from "got";
 import https from "https";
 import * as yaml from "js-yaml";
+import { KubeConfig } from ".";
 
 export interface RancherKubeconfigInputs {
     url: pulumi.Input<string>;
@@ -39,13 +40,7 @@ class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubec
         }).then(kubeconfig => {
             pulumi.log.info(`Successfully downloaded kubeconfig for cluster ${clusterName}`);
             if (insecure) {
-                const kubeyaml = yaml.load(kubeconfig) as any;
-                if (!kubeyaml.clusters || kubeyaml.clusters.length === 0) {
-                    throw new Error("Invalid kubeconfig: No clusters found.");
-                }
-                kubeyaml.clusters[0].cluster["insecure-skip-tls-verify"] = true;
-                delete kubeyaml.clusters[0].cluster["certificate-authority-data"];
-                kubeconfig = yaml.dump(kubeyaml);
+                kubeconfig = new KubeConfig(kubeconfig).insecure().kubeconfig;
             }
             pulumi.log.info(`Resulting kubeconfig = ${kubeconfig}`);
             return { id: `${clusterName}-${Date.now()}`, outs: { ...inputs, kubeconfig: kubeconfig } };
@@ -85,12 +80,10 @@ function loginRancher(url: string, username: string, password: string, agent: ht
         json: { username, password },
         agent: { https: agent },
         responseType: 'json'
-    })
-        .then(response => response.body.token)
-        .catch(error => {
-            console.error("Error logging in to Rancher:", error);
-            throw error;
-        });
+    }).then(response => response.body.token).catch(error => {
+        console.error("Error logging in to Rancher:", error);
+        throw error;
+    });
 }
 
 function downloadKubeconfig(url: string, clusterName: string, bearerToken: string, agent: https.Agent): Promise<string> {
@@ -98,12 +91,10 @@ function downloadKubeconfig(url: string, clusterName: string, bearerToken: strin
         agent: { https: agent },
         headers: { Authorization: `Bearer ${bearerToken}` },
         responseType: 'json'
-    })
-        .then(response => {
-            return response.body.config;
-        })
-        .catch(error => {
-            console.error("Error generating kubeconfig:", error);
-            throw error;
-        });
+    }).then(response => {
+        return response.body.config;
+    }).catch(error => {
+        console.error("Error generating kubeconfig:", error);
+        throw error;
+    });
 }

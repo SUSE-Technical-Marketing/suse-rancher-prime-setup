@@ -21,6 +21,7 @@ export class RancherUIPlugin extends pulumi.ComponentResource {
             rancherServer: args.rancher.rancherServer,
             authToken: login.authToken,
             repo: args.repoName,
+            insecure: args.rancher.insecure,
             chartName: args.chartName,
             chartVersion: args.version,
             namespace: "cattle-ui-plugin-system"

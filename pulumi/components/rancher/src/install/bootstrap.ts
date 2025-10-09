@@ -8,12 +8,14 @@ export interface BootstrapAdminPasswordArgs {
     kubeconfig: pulumi.Input<string>; // Kubeconfig to access the Rancher API
     rancherUrl: pulumi.Input<string>; // URL of the Rancher server
     adminPassword?: pulumi.Input<string>;
+    insecure?: pulumi.Input<boolean>; // Whether to skip TLS verification (e.g., when using staging certs)
 }
 
 interface BootstrapAdminPasswordProviderInputs {
     kubeconfig: string; // Kubeconfig to access the Rancher API
     rancherUrl: string; // URL of the Rancher server
     adminPassword?: string;
+    insecure?: boolean; // Whether to skip TLS verification (e.g., when using staging certs)
 }
 
 interface BootstrapAdminPasswordProviderOutputs extends BootstrapAdminPasswordProviderInputs {
@@ -44,13 +46,13 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
         }).then(async token => {
             return {
                 bootstrapToken: token,
-                authToken: await loginToRancher({ rancherServer: inputs.rancherUrl, username: username, password: token }).catch(err => {
+                authToken: await loginToRancher({ rancherServer: inputs.rancherUrl, username: username, password: token, insecure: inputs.insecure }).catch(err => {
                     pulumi.log.error(`Failed to login to Rancher with bootstrap token: ${err.message}`);
                     throw new Error(`Failed to login to Rancher with bootstrap token: ${err.message}`);
                 })
             };
         }).then(obj => {
-            this.updatePassword(inputs.rancherUrl, username, obj.authToken, obj.bootstrapToken, password).catch(err => {
+            this.updatePassword(inputs.rancherUrl, username, obj.authToken, obj.bootstrapToken, password, inputs.insecure).catch(err => {
                 pulumi.log.error(`Failed to update password for user ${username}: ${err.message}`);
                 throw new Error(`Failed to update password for user ${username}: ${err.message}`);
             });
@@ -69,12 +71,15 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
         });
     }
 
-    async updatePassword(server: string, username: string, token: string, password: string, newPassword: string): Promise<void> {
+    async updatePassword(server: string, username: string, token: string, password: string, newPassword: string, insecure?: boolean): Promise<void> {
         const url = `${server}/v3/users?action=changepassword`;
 
         const res = await got.post(url, {
             headers: {
                 "Authorization": `Bearer ${token}`
+            },
+            https: {
+                rejectUnauthorized: !insecure,
             },
             json: {
                 currentPassword: password,

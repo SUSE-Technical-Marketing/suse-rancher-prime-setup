@@ -2,7 +2,6 @@ import * as pulumi from "@pulumi/pulumi";
 import * as dynamic from "@pulumi/pulumi/dynamic";
 import got from "got";
 import { waitFor, kubeConfigToHttp } from "@suse-tmm/utils";
-
 export interface VmIpAddressProviderInputs {
     kubeconfig: string; // Kubeconfig to access the Kubernetes cluster
     namespace: string;
@@ -45,6 +44,25 @@ class VmIpAddressProvider implements dynamic.ResourceProvider<VmIpAddressProvide
         return this.create(news);
     }
 
+    // Needs to be a valid IPv4 address, but without using net.isIPv4 as that is not serializable
+    isIPv4Address(ip: string): boolean {
+        if (!ip) {
+            return false;
+        }
+        const parts = ip.split(".");
+        if (parts.length !== 4) {
+            return false;
+        }
+        for (const part of parts) {
+            const num = Number(part);
+            if (isNaN(num) || num < 0 || num > 255) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
     async getVmiIp(kubeconfigYaml: string, namespace: string, vmName: string, interfaceName?: string): Promise<string | undefined> {
 
         // parse the kubeconfig -------------------------------------------------
@@ -62,13 +80,22 @@ class VmIpAddressProvider implements dynamic.ResourceProvider<VmIpAddressProvide
         if (res.body?.status?.interfaces) {
             if (interfaceName) {
                 const iface = res.body.status.interfaces.find((i: any) => i.name === interfaceName);
-                if (iface) {
+                
+                // If iface is set and iface.ipAddress is an IPv4 address, return it
+                if (iface && this.isIPv4Address(iface.ipAddress)) {
                     return iface.ipAddress;
                 } else {
                     return undefined;
                 }
             } else {
-                return res.body.status.interfaces[0].ipAddress;
+                const iface = res.body.status.interfaces[0];
+                // If iface is set and iface.ipAddress is an IPv4 address, return it
+                if (iface && this.isIPv4Address(iface.ipAddress)) {
+                    pulumi.log.info(`Found IP address ${iface.ipAddress} for VMI ${namespace}/${vmName} on interface ${iface.name}`);
+                    return iface.ipAddress;
+                } else {
+                    return undefined;
+                }
             }
         } else {
             return undefined;

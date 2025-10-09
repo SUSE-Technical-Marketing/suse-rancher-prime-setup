@@ -100,11 +100,6 @@ export function createVirtualMachine(name: string, args: VirtualMachineArgs, opt
                         devices: {
                             interfaces: [
                                 {
-                                    name: "default",
-                                    model: "virtio",
-                                    masquerade: {}
-                                },
-                                {
                                     name: args.network.name,
                                     model: "virtio",
                                     macAddress: args.network.macAddress,
@@ -135,10 +130,6 @@ export function createVirtualMachine(name: string, args: VirtualMachineArgs, opt
                     evictionStrategy: "LiveMigrateIfPossible",
                     hostname: name,
                     networks: [
-                        {
-                            name: "default",
-                            pod: {}
-                        },
                         {
                             name: args.network.name,
                             multus: {

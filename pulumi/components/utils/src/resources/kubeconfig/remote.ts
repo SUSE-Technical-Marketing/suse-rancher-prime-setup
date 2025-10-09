@@ -1,9 +1,8 @@
 import * as pulumi from "@pulumi/pulumi";
 import { dynamic } from "@pulumi/pulumi";
-import * as ssh from "ssh2";
-import { load, dump } from "js-yaml";
+import { KubeConfig } from ".";
+import { Client } from "ssh2";
 import { waitFor } from "../../functions/waitfor";
-
 // This module provides a dynamic resource for fetching a kubeconfig file from a remote server
 // using SSH. It allows users to specify the hostname, port, username, and either a password or private key for authentication.
 
@@ -16,6 +15,7 @@ export interface RemoteKubeconfigInputs {
     // Path to the kubeconfig file on the remote server
     path: pulumi.Input<string>;
     updateServerAddress?: pulumi.Input<boolean>;
+    insecure?: pulumi.Input<boolean>;
     // As the file may not be immediately available, we can poll the remote server
     // How often and how long to poll the remote server for the file.
     pollIntervalSeconds?: pulumi.Input<number>;
@@ -31,6 +31,7 @@ interface RemoteKubeconfigProviderInputs {
     privKey?: string;
     path: string;
     updateServerAddress?: boolean;
+    insecure?: boolean;
     pollIntervalSeconds?: number;
     pollTimeoutSeconds?: number;
     pollDelaySeconds?: number; // Optional delay before starting to poll
@@ -52,21 +53,20 @@ class RemoteKubeconfigProvider implements dynamic.ResourceProvider<RemoteKubecon
             intervalMs: pollIntervalSeconds * 1_000,
             timeoutMs: pollTimeoutSeconds * 1_000,
             delayMs: inputs.pollDelaySeconds ? inputs.pollDelaySeconds * 1_000 : 0, // Optional delay before starting to poll
+        }).then(kc => {
+            return new KubeConfig(kc!);
+        }).then(kc => {
+            return inputs.insecure ? kc.insecure() : kc;
+        }).then(kc => {
+            return inputs.updateServerAddress ? kc.updateServerAddress(hostname, 6443) : kc;
         }).catch(err => {
             pulumi.log.error(`Failed to fetch kubeconfig from ${hostname}:${port} at ${path}: ${err.message}`);
             throw new Error(`Failed to fetch kubeconfig from ${hostname}:${port} at ${path}: ${err.message}`);
         });
 
-        if (inputs.updateServerAddress) {
-            // Update the server address in the kubeconfig
-            const doc = load(kubeconfig) as any;
-            doc.clusters[0].cluster.server = `https://${hostname}:6443`;
-            kubeconfig = dump(doc);
-        }
-
         return {
             id: `kubeconfig-${hostname}-${Date.now()}`,
-            outs: { ...inputs, kubeconfig: kubeconfig },
+            outs: { ...inputs, kubeconfig: kubeconfig.kubeconfig },
         };
     }
 
@@ -79,7 +79,7 @@ class RemoteKubeconfigProvider implements dynamic.ResourceProvider<RemoteKubecon
         remotePath: string,
     ): Promise<string | undefined> {
         return new Promise((resolve, reject) => {
-            const client = new ssh.Client();
+            const client = new Client();
             client.on("ready", () => {
                 client.sftp((err, sftp) => {
                     if (err) { client.end(); return reject(err); }

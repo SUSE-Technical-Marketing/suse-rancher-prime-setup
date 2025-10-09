@@ -2,10 +2,12 @@ import * as pulumi from "@pulumi/pulumi";
 import * as dynamic from "@pulumi/pulumi/dynamic";
 import { loginToRancher, RancherLoginArgs } from "../functions/login";
 import got from "got";
+import https from "https";
 
 export interface RancherAppInputs {
     rancherServer: pulumi.Input<string>; // Rancher server URL
     authToken: pulumi.Input<string>; // Rancher authentication token
+    insecure?: pulumi.Input<boolean>; // Whether to skip TLS verification
     repo: pulumi.Input<string>; // URL of the Rancher app repository
     chartName: pulumi.Input<string>; // Name of the chart to install
     chartVersion: pulumi.Input<string>; // Version of the chart to install
@@ -16,6 +18,7 @@ export interface RancherAppInputs {
 interface RancherAppProviderInputs {
     rancherServer: string; // Rancher server URL
     authToken: string; // Rancher authentication token
+    insecure?: boolean; // Whether to skip TLS verification
     repo: string; // URL of the Rancher app repository
     chartName: string; // Name of the chart to install
     chartVersion: string; // Version of the chart to install
@@ -44,6 +47,11 @@ class RancherAppProvider implements dynamic.ResourceProvider<RancherAppProviderI
         // 3️⃣ Make the HTTP request to install the app -----------------------------
         const response = await got.post(url, {
             json: body,
+            agent: {
+                https: new https.Agent({
+                    rejectUnauthorized: !inputs.insecure, // Allow self-signed certificates if insecure is true
+                }),
+            },
             headers: {
                 "Authorization": `Bearer ${authToken}`,
             },

@@ -140,7 +140,8 @@ const uiPlugin = new RancherUIPlugin("harvester", {
     rancher: {
         rancherServer: rancherManager.rancherUrl,
         username: "admin",
-        password: rancherManager.rancherAdminPassword
+        password: rancherManager.rancherAdminPassword,
+        insecure: staging,
     },
     repoName: repo.metadata.name,
     version: "1.5.2"

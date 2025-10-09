@@ -4,6 +4,7 @@ export interface RancherLoginArgs {
     rancherServer: string; // URL of the Rancher server
     username: string; // Username for Rancher login
     password: string; // Password for Rancher login
+    insecure?: boolean; // Whether to skip TLS verification (e.g., when using staging certs)
 }
 
 export async function loginToRancher(args: RancherLoginArgs): Promise<string> {
@@ -16,7 +17,10 @@ export async function loginToRancher(args: RancherLoginArgs): Promise<string> {
         },
         responseType: "json",
         timeout: { request: 10000 },
-        retry: { limit: 2 },
+        retry: { limit: 5, calculateDelay: () => 5000 },
+        https: {
+            rejectUnauthorized: !args.insecure,
+        },
     });
 
     if (res.statusCode < 200 || res.statusCode >= 300) {

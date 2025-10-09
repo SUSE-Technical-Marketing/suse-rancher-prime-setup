@@ -7,6 +7,7 @@ import { HarvesterVmArgs } from "./harvester";
 import { kubeconfig as k8scfg, RancherLogin } from "@suse-tmm/utils";
 import { BootstrapAdminPassword } from "./bootstrap";
 import { RancherSetting } from "../resources/setting";
+import * as command from "@pulumi/command";
 
 export interface HarvesterArgs extends HarvesterVmArgs {
     kubeconfig: pulumi.Input<string>; // Kubeconfig to access the Harvester cluster
@@ -36,14 +37,27 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         if (args.harvester) {
             // Install Rancher on a new VM in Harvester
             const harvesterVm = provisionHarvesterVm(args.harvester, args.harvester.kubeconfig, myOpts);
+
+            const waitForCloudInit = new command.remote.Command("wait-cloudinit", {
+                connection: {
+                    host: harvesterVm.vmIpAddress,
+                    user: args.harvester.sshUser,
+                    privateKey: args.harvester.keypair.privateKey,
+                    dialErrorLimit: 20,
+                    perDialTimeout: 30,
+                },
+                // This exits when cloud-init completes (or fails non-zero if it errors)
+                create: "sudo cloud-init status --wait",
+            }, { dependsOn: [harvesterVm] });
             const kubeconfig = new k8scfg.RemoteKubeconfig("vm-kubeconfig", {
                 hostname: harvesterVm.vmIpAddress,
                 username: args.harvester.sshUser,
                 privKey: args.harvester.keypair.privateKey,
                 path: "/etc/rancher/k3s/k3s.yaml",
                 updateServerAddress: true,
+                insecure: args.tls.certManager?.staging || false, // If using staging certs, we need to skip TLS verification
                 pollDelaySeconds: 10, // Lets the network routes stabilize before trying to access the VM
-            }, myOpts);
+            }, {...myOpts, dependsOn: [waitForCloudInit] });
 
             this.kubeconfig = kubeconfig.kubeconfig;
             myOpts = { ...myOpts, dependsOn: [kubeconfig, harvesterVm] };
@@ -73,6 +87,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
             kubeconfig: this.kubeconfig,
             adminPassword: args.adminPassword,
             rancherUrl: url,
+            insecure: args.tls.certManager?.staging || false,
         }, {
             parent: this,
             dependsOn: [release],
@@ -83,6 +98,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
             rancherServer: url,
             username: bootstrapPassword.username,
             password: this.rancherAdminPassword,
+            insecure: args.tls.certManager?.staging || false,
         }, {
             parent: this,
             dependsOn: [bootstrapPassword]
@@ -93,6 +109,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
             authToken: authToken.authToken,
             settingName: "server-url",
             settingValue: url,
+            insecure: args.tls.certManager?.staging || false,
         }, {
             parent: this,
             dependsOn: [authToken],
