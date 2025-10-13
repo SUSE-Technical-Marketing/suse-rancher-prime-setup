@@ -22,6 +22,7 @@ export interface RancherInstallArgs {
     domain?: pulumi.Input<string>; // Domain for Rancher
     adminPassword?: pulumi.Input<string>; // Optional admin password for Rancher
     skipBootstrap?: pulumi.Input<boolean>; // Optional skip the bootstrap for Rancher
+    version: pulumi.Input<string>; // Optional Rancher version to install
 }
 
 export class RancherManagerInstall extends pulumi.ComponentResource {
@@ -186,7 +187,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         }
 
         const rancherRelease = helmInstallRancher("rancher", {
-            rancherVersion: "v2.11.2",
+            rancherVersion: args.version,
             values: rancherValues
         }, { parent: this, provider: provider });
 

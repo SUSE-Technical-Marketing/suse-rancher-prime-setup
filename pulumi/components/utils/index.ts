@@ -4,6 +4,7 @@ export * from "./src/stripMargin";
 export * from "./src/merge";
 export * from "./src/output";
 export * from "./src/functions/waitfor";
+export * from "./src/functions/login";
 export * from "./src/functions/kubehttp";
 export * from "./src/opts";
 export * from "./src/resources/kubewait";

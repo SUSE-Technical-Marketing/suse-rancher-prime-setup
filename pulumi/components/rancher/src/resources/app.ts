@@ -1,6 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as dynamic from "@pulumi/pulumi/dynamic";
-import { loginToRancher, RancherLoginArgs } from "../functions/login";
 import got from "got";
 import https from "https";
 

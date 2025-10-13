@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import { dynamic } from "@pulumi/pulumi";
 import { KubeConfigHttpOutput, kubeConfigToHttp, waitFor } from "@suse-tmm/utils";
-import { loginToRancher, RancherLoginArgs } from "../functions/login";
+import { loginToRancher, RancherLoginArgs } from "@suse-tmm/utils";
 import got from "got";
 
 export interface BootstrapAdminPasswordArgs {

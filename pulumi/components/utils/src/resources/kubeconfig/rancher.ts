@@ -4,19 +4,22 @@ import got from "got";
 import https from "https";
 import * as yaml from "js-yaml";
 import { KubeConfig } from ".";
+import { loginToRancher } from "../../functions/login";
 
 export interface RancherKubeconfigInputs {
     url: pulumi.Input<string>;
-    username: pulumi.Input<string>;
-    password: pulumi.Input<string>;
+    username?: pulumi.Input<string>;
+    password?: pulumi.Input<string>;
+    token?: pulumi.Input<string>;
     clusterName: pulumi.Input<string>;
     insecure?: pulumi.Input<boolean>;
 }
 
 interface RancherKubeconfigProviderInputs {
     url: string;
-    username: string;
-    password: string;
+    username?: string;
+    password?: string;
+    token?: string;
     clusterName: string;
     insecure?: boolean;
 }
@@ -28,13 +31,13 @@ interface RancherKubeconfigProviderOutputs extends RancherKubeconfigProviderInpu
 class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubeconfigProviderInputs, RancherKubeconfigProviderOutputs> {
 
     create(inputs: RancherKubeconfigProviderInputs): Promise<dynamic.CreateResult<RancherKubeconfigProviderOutputs>> {
-        const { url, username, password, clusterName, insecure } = inputs;
+        const { url, username, password, token, clusterName, insecure } = inputs;
         // Handle self-signed certs
         const httpsAgent = new https.Agent({
             rejectUnauthorized: false,
         });
 
-        return loginRancher(url, username, password, httpsAgent).then(token => {
+        return loginToRancher({ rancherServer: url, insecure, username, password, token, retryLimit: 5 }).then(token => {
             pulumi.log.info(`Successfully logged in to Rancher at ${url} as ${username}, token: ${token.substring(0, 10)}...`);
             return downloadKubeconfig(url, clusterName, token, httpsAgent);
         }).then(kubeconfig => {
@@ -73,17 +76,6 @@ export class RancherKubeconfig extends dynamic.Resource {
         super(new RancherKubeconfigProvider(), name, { kubeconfig: undefined, ...args }, { ...opts, additionalSecretOutputs: ["kubeconfig"] });
 
     }
-}
-
-function loginRancher(url: string, username: string, password: string, agent: https.Agent): Promise<string> {
-    return got.post<{ token: string }>(`${url}/v3-public/localProviders/local?action=login`, {
-        json: { username, password },
-        agent: { https: agent },
-        responseType: 'json'
-    }).then(response => response.body.token).catch(error => {
-        console.error("Error logging in to Rancher:", error);
-        throw error;
-    });
 }
 
 function downloadKubeconfig(url: string, clusterName: string, bearerToken: string, agent: https.Agent): Promise<string> {

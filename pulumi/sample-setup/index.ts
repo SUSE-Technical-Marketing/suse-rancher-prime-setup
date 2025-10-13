@@ -27,12 +27,11 @@ export function provisionHarvester(clusterNetwork:string, downloadSuseImage: boo
 }
 
 const harvesterConfig = new pulumi.Config("harvester");
-const harvesterUrl = harvesterConfig.require("url");
 const username = harvesterConfig.require("username");
 const password = harvesterConfig.requireSecret("password");
 const clusterNetwork = harvesterConfig.get("clusterNetwork") || "mgmt";
-
 const harvesterName = harvesterConfig.get("name") || "harvester";
+
 const vmConfig = new pulumi.Config("vm");
 const sshUser = vmConfig.require("sshUser");
 const sshPubKey = vmConfig.require("sshPubKey");
@@ -56,7 +55,10 @@ const domain = labConfig.get("domain");
 const rancherConfig = new pulumi.Config("rancher");
 const adminPassword = rancherConfig.requireSecret("adminPassword");
 const skipBootstrap = rancherConfig.getBoolean("skipBootstrap") || false;
+const rancherVmName = rancherConfig.require("vmName");
 
+
+const harvesterUrl = pulumi.interpolate`https://${harvesterName}.${domain}`;
 pulumi.log.info(`Lets Encrypt Environment: ${staging ? "Staging" : "Production"}, Email: ${letsEncryptEmail ? "Provided" : "Not Provided"}`);
 pulumi.log.info(`Cloudflare API Key: ${cloudFlareApiKey ? "Provided" : "Not Provided"}`);
 
@@ -94,7 +96,7 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
     harvester: {
 
         kubeconfig: harvesterKubeconfig.kubeconfig,
-        vmName: "control-tower",
+        vmName: rancherVmName,
         vmNamespace: "harvester-public",
         vmResources: {
             cpu: cpu,
@@ -117,13 +119,14 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
         }
     },
     domain: domain,
-    hostname: "control-tower",
+    hostname: rancherVmName,
+    version: "v2.12.2",
     tls: {
         certManager: cloudFlareApiKey && letsEncryptEmail ? {
             version: "v1.17.2",
             cloudFlareApiToken: cloudFlareApiKey,
             letsEncryptEmail: letsEncryptEmail,
-            wildcardDomain: `control-tower.${domain}`,
+            wildcardDomain: `${rancherVmName}.${domain}`,
             staging: staging
         } : undefined,
     },
