@@ -44,6 +44,7 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
             intervalMs: 5_000,
             timeoutMs: 300_000, // 5 minutes
         }).then(async token => {
+            pulumi.log.info("Successfully fetched bootstrap token from Rancher API, going to login.");
             return {
                 bootstrapToken: token,
                 authToken: await loginToRancher({ rancherServer: inputs.rancherUrl, username: username, password: token, insecure: inputs.insecure }).catch(err => {
@@ -52,6 +53,7 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
                 })
             };
         }).then(obj => {
+            pulumi.log.info("Successfully logged in to Rancher with bootstrap token, going to update password.");
             this.updatePassword(inputs.rancherUrl, username, obj.authToken, obj.bootstrapToken, password, inputs.insecure).catch(err => {
                 pulumi.log.error(`Failed to update password for user ${username}: ${err.message}`);
                 throw new Error(`Failed to update password for user ${username}: ${err.message}`);
@@ -96,6 +98,7 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
     }
 
     async fetchBootstrapToken(httpConfig: KubeConfigHttpOutput): Promise<string | undefined> {
+        pulumi.log.info(`Fetching bootstrap token from Rancher API at ${httpConfig.server}`);
         const url = `${httpConfig.server}/api/v1/namespaces/cattle-system/secrets/bootstrap-secret`;
         const res: any = await got.get(url, {
             agent: { https: httpConfig.agent },

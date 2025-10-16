@@ -28,8 +28,8 @@ interface RancherAppProviderInputs {
 interface RancherAppProviderOutputs extends RancherAppProviderInputs { }
 
 class RancherAppProvider implements dynamic.ResourceProvider<RancherAppProviderInputs, RancherAppProviderOutputs> {
-    async create(inputs: any): Promise<dynamic.CreateResult<RancherAppProviderOutputs>> {
-        const { rancherServer: server, authToken, repo, chartName, chartVersion, namespace, values } = inputs as RancherAppProviderInputs;
+    async create(inputs: RancherAppProviderInputs): Promise<dynamic.CreateResult<RancherAppProviderOutputs>> {
+        const { rancherServer: server, authToken, repo, chartName, chartVersion, namespace, values } = inputs;
 
         const url = `${server}/v1/catalog.cattle.io.clusterrepos/${repo}?action=install`;
         const body = {
@@ -43,28 +43,32 @@ class RancherAppProvider implements dynamic.ResourceProvider<RancherAppProviderI
             namespace: namespace
         };
 
+        pulumi.log.info(`Installing Rancher app: ${chartName} in namespace: ${namespace} from repo: ${repo} on server: ${server}`);
+
         // 3️⃣ Make the HTTP request to install the app -----------------------------
-        const response = await got.post(url, {
+        return got.post(url, {
             json: body,
-            agent: {
-                https: new https.Agent({
-                    rejectUnauthorized: !inputs.insecure, // Allow self-signed certificates if insecure is true
-                }),
+            https: {
+                rejectUnauthorized: !inputs.insecure,
             },
             headers: {
                 "Authorization": `Bearer ${authToken}`,
             },
+            timeout: { request: 120_000 },
             responseType: "json",
+        }).then(response => {
+            if (response.statusCode < 200 || response.statusCode >= 300) {
+                throw new Error(`Failed to install Rancher app: ${response.statusMessage}`);
+            }
+            pulumi.log.info(`Successfully installed Rancher app: ${chartName} in namespace: ${namespace}`);
+            return {
+                id: `${namespace}/${chartName}`,
+                outs: inputs as RancherAppProviderOutputs,
+            };
+        }).catch(err => {
+            pulumi.log.error(`Failed to install Rancher app: ${err.message}`);
+            throw new Error(`Failed to install Rancher app: ${err.message}`);
         });
-
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-            throw new Error(`Failed to install Rancher app: ${response.statusMessage}`);
-        }
-
-        return {
-            id: `${namespace}/${chartName}`,
-            outs: inputs as RancherAppProviderOutputs,
-        };
     }
 
     async diff(id: pulumi.ID, olds: RancherAppProviderOutputs, news: RancherAppProviderInputs): Promise<pulumi.dynamic.DiffResult> {

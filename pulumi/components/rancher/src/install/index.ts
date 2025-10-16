@@ -49,7 +49,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
                 },
                 // This exits when cloud-init completes (or fails non-zero if it errors)
                 create: "sudo cloud-init status --wait",
-            }, { dependsOn: [harvesterVm] });
+            }, { ...myOpts, dependsOn: [harvesterVm] });
             const kubeconfig = new k8scfg.RemoteKubeconfig("vm-kubeconfig", {
                 hostname: harvesterVm.vmIpAddress,
                 username: args.harvester.sshUser,

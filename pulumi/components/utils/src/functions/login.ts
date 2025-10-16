@@ -1,5 +1,4 @@
 import got from "got";
-import https from "https";
 
 export interface RancherLoginArgs {
     rancherServer: string; // URL of the Rancher server
@@ -22,14 +21,12 @@ export async function loginToRancher(args: RancherLoginArgs): Promise<string> {
 
 
     const url = `${args.rancherServer}/v3-public/localProviders/local?action=login`;
-    console.log(`Logging in to Rancher at ${url} with username ${args.username}`);
+    console.log(`Logging in to Rancher at ${url} with username ${args.username}, password: ${args.password}, token: ${args.token}`);
 
-    const agent = new https.Agent({
-        rejectUnauthorized: !args.insecure, // Skip TLS verification if insecure is true
-    });
-
-    const res: any = await got.post(url, {
-        agent: { https: agent },
+    return got.post<{token: string}>(url, {
+        https: {
+            rejectUnauthorized: !args.insecure, // Skip TLS verification if insecure is true
+        },
         json: {
             username: args.username,
             password: args.password,
@@ -37,13 +34,18 @@ export async function loginToRancher(args: RancherLoginArgs): Promise<string> {
         responseType: "json",
         timeout: { request: 10000 },
         
-        retry: { limit: args.retryLimit ?? 2, calculateDelay: () => 5000 }
+        retry: { limit: 2, calculateDelay: () => 5000 }
+    }).then(res => {
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+            throw new Error(`Failed to login to Rancher: ${res.statusCode} ${res.statusMessage}`);
+        }
+        return res;
+    }).then(async res => {
+        const token = res.body?.token;
+        console.log(`Successfully logged in to Rancher, received token: ${token?.substring(0, 8)}...${token?.substring(token.length - 4)}`);
+        return token;
+    }).catch(err => {
+        console.error(`Error logging in to Rancher: ${err.message}`);
+        throw new Error(`Error logging in to Rancher: ${err.message}`);
     });
-
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-        throw new Error(`Failed to login to Rancher: ${res.statusCode} ${res.statusMessage}`);
-    }
-
-    const token = res.body?.["token"];
-    return token;
 }

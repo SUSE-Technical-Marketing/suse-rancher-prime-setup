@@ -16,14 +16,6 @@ const DefaultCloudInitTemplates: CloudInitTemplateArgs[] = [{
         KubeFirewall,
         DisableIpv6,
         DefaultUser,
-        NewUser({
-            name: "jeroen",
-            password: "$2y$10$M8ZamcBlJG4xMooQSI7M2eAy2vrDrFx4WOG79SrPKjZUU/kDpsRE6",
-            sudo: "ALL=(ALL) NOPASSWD:ALL",
-            sshAuthorizedKeys: ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBSE68VYUiwL5a8xcmv34RZ1OYnrEcRBe4NaeKpE/twU jeroen@hierynomus.com",
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDDmt6+SsXzLoRptifmSKlyjq6grRf4Yb1f2g0Etn7PKUK0LLKO3qZmSEgDwhohALXU7ZhSMVttYgLCjtFd4kG/JEdJVkGSqppLekgpc/T3yG8K3sO78UBdWtnLVY/6MtIHC1GHsAikTuPIJfIqftIk1RZwLKfIIgkT3HQAl9Kzn45QCVj4RrOhekHmqlgePrasTe1HKFRjQ/cuM6cqHSaPNWHrgshlci5BVTS6hqjNxeW/Rb/X4vDcvs/5glRvd0M3ESr1Aii5fhATzHSCGUje2U91ztRDvXdZQNsxQGPP1oTVTRa0oxKutpZee5lMEUjwU6hzoAx3jxPehayFjWJh"
-            ]
-        }),
         PackageUpdate,
         Packages("curl", "helm", "git-core", "bash-completion", "vim", "nano", "iputils", "wget", "mc", "tree", "btop", "kubernetes-client", "helm", "k9s", "cloud-init"),
         GuestAgent,
@@ -44,6 +36,21 @@ export class CloudInitTemplate extends kubernetes.core.v1.Secret {
             }
         }, opts);
     }
+}
+
+export function createCloudInitTemplates(sshUser: string, sshPubKey: string, opts: pulumi.CustomResourceOptions) : Map<string, CloudInitTemplate> {
+    const templates = new Map<string, CloudInitTemplate>();
+    for (const templateArgs of DefaultCloudInitTemplates) {
+        templateArgs.cloudInit = [...templateArgs.cloudInit, NewUser({
+            name: sshUser,
+            sudo: "ALL=(ALL) NOPASSWD:ALL",
+            sshAuthorizedKeys: [sshPubKey],
+            password: "$2y$10$M8ZamcBlJG4xMooQSI7M2eAy2vrDrFx4WOG79SrPKjZUU/kDpsRE6",
+        })];
+        const template = new CloudInitTemplate(templateArgs.name, cloudInit(...templateArgs.cloudInit), opts);
+        templates.set(templateArgs.name, template);
+    }
+    return templates;
 }
 
 
