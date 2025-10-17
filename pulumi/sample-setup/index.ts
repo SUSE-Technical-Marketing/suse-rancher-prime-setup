@@ -124,7 +124,8 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
     },
     domain: domain,
     hostname: rancherVmName,
-    version: versions.RANCHER_VERSION,
+    rancherVersion: versions.RANCHER_VERSION,
+    ingressNginxVersion: versions.INGRESS_NGINX_VERSION,
     tls: {
         certManager: cloudFlareApiKey && letsEncryptEmail ? {
             version: versions.CERT_MANAGER_VERSION,

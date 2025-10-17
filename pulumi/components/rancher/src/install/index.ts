@@ -22,7 +22,8 @@ export interface RancherInstallArgs {
     domain?: pulumi.Input<string>; // Domain for Rancher
     adminPassword?: pulumi.Input<string>; // Optional admin password for Rancher
     skipBootstrap?: pulumi.Input<boolean>; // Optional skip the bootstrap for Rancher
-    version: pulumi.Input<string>; // Optional Rancher version to install
+    rancherVersion: pulumi.Input<string>; // Optional Rancher version to install
+    ingressNginxVersion: pulumi.Input<string>; // Optional Ingress NGINX version to install
 }
 
 export class RancherManagerInstall extends pulumi.ComponentResource {
@@ -137,7 +138,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
 
         if (installIngress) {
             // Install NGINX Ingress Controller
-            installIngressNginx(resOpts);
+            installIngressNginx(args.ingressNginxVersion, resOpts);
         }
 
         // Create TLS
@@ -187,7 +188,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         }
 
         const rancherRelease = helmInstallRancher("rancher", {
-            rancherVersion: args.version,
+            rancherVersion: args.rancherVersion,
             values: rancherValues
         }, resOpts);
 
