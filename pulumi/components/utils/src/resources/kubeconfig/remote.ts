@@ -49,25 +49,24 @@ class RemoteKubeconfigProvider implements dynamic.ResourceProvider<RemoteKubecon
             throw new Error("Either password or private key must be provided for authentication.");
         }
 
-        let kubeconfig = await waitFor(() => this.tryFetch(hostname, port, username, password, privKey, path), {
+        return waitFor(() => this.tryFetch(hostname, port, username, password, privKey, path), {
             intervalMs: pollIntervalSeconds * 1_000,
             timeoutMs: pollTimeoutSeconds * 1_000,
             delayMs: inputs.pollDelaySeconds ? inputs.pollDelaySeconds * 1_000 : 0, // Optional delay before starting to poll
         }).then(kc => {
-            return new KubeConfig(kc!);
-        }).then(kc => {
-            return inputs.insecure ? kc.insecure() : kc;
-        }).then(kc => {
-            return inputs.updateServerAddress ? kc.updateServerAddress(hostname, 6443) : kc;
+            let kubecfg = new KubeConfig(kc!);
+            kubecfg = inputs.insecure ? kubecfg.insecure() : kubecfg;
+            kubecfg = inputs.updateServerAddress ? kubecfg.updateServerAddress(hostname, 6443) : kubecfg;
+            return kubecfg;
         }).catch(err => {
             pulumi.log.error(`Failed to fetch kubeconfig from ${hostname}:${port} at ${path}: ${err.message}`);
             throw new Error(`Failed to fetch kubeconfig from ${hostname}:${port} at ${path}: ${err.message}`);
+        }).then((kubeconfig) => {
+            return {
+                id: `kubeconfig-${hostname}-${Date.now()}`,
+                outs: { ...inputs, kubeconfig: kubeconfig.kubeconfig },
+            };
         });
-
-        return {
-            id: `kubeconfig-${hostname}-${Date.now()}`,
-            outs: { ...inputs, kubeconfig: kubeconfig.kubeconfig },
-        };
     }
 
     async tryFetch(

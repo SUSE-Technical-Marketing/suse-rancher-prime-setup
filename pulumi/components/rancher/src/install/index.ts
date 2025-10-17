@@ -189,7 +189,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         const rancherRelease = helmInstallRancher("rancher", {
             rancherVersion: args.version,
             values: rancherValues
-        }, { parent: this, provider: provider });
+        }, resOpts);
 
         return {
             release: rancherRelease,
@@ -203,5 +203,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
                 throw new Error("Admin password must be at least 12 characters long");
             }
         });
+
+        return password;
     }
 }

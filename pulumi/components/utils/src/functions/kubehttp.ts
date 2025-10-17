@@ -5,6 +5,7 @@ export interface KubeConfigHttpOutput {
     agent: https.Agent;
     headers: Record<string, string>;
     server: string;
+    insecure: boolean;
 }
 
 export function kubeConfigToHttp(kubeconfig: string): KubeConfigHttpOutput {
@@ -47,7 +48,8 @@ export function kubeConfigToHttp(kubeconfig: string): KubeConfigHttpOutput {
     return {
         agent,
         headers,
-        server
+        server,
+        insecure,
     };
 }
 

@@ -54,7 +54,7 @@ class RancherAppProvider implements dynamic.ResourceProvider<RancherAppProviderI
             headers: {
                 "Authorization": `Bearer ${authToken}`,
             },
-            timeout: { request: 120_000 },
+            // timeout: { request: 120_000 },
             responseType: "json",
         }).then(response => {
             if (response.statusCode < 200 || response.statusCode >= 300) {
