@@ -1,6 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 import { deepMerge } from "@suse-tmm/utils";
+import { HelmApp } from "@suse-tmm/common/src/helmapp";
 
 export interface HelmArgs {
     rancherVersion: pulumi.Input<string>; // Optional: specify Rancher version
@@ -19,19 +20,15 @@ const DefaultValues: { [key: string]: any } = {
     replicas: 1
 };
 
-export function helmInstallRancher(name: string, args: HelmArgs, opts?: pulumi.ComponentResourceOptions): k8s.helm.v3.Release {
+export function helmInstallRancher(name: string, args: HelmArgs, opts?: pulumi.ComponentResourceOptions): HelmApp {
 
     const values = deepMerge(DefaultValues, args.values);
 
-    return new k8s.helm.v3.Release(name, {
-        name: "rancher",
+    return new HelmApp(name, {
         chart: "rancher",
         version: args.rancherVersion,
         namespace: "cattle-system",
-        createNamespace: true,
-        repositoryOpts: {
-            repo: "https://charts.rancher.com/server-charts/prime",
-        },
+        repository: "https://charts.rancher.com/server-charts/prime",
         values: values,
-    }, { ...opts, retainOnDelete: true }); // On delete, we can retain the release, as the cluster will be deleted anyway.
+    }, opts);
 }

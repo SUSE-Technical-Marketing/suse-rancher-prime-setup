@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi"
 import { helmInstallRancher } from "./rancher";
 import * as k8s from "@pulumi/kubernetes";
-import { installIngressNginx, installSprouter, TLS, TLSArgs } from "@suse-tmm/common";
+import { IngressNginx, Sprouter, TLS, TLSArgs } from "@suse-tmm/common";
 import { provisionHarvesterVm } from "./harvester";
 import { HarvesterVmArgs } from "./harvester";
 import { kubeconfig as k8scfg, RancherLogin } from "@suse-tmm/utils";
@@ -134,11 +134,11 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         let resOpts = { ...opts, provider: provider, parent: this };
 
         // We use sprouter to copy the certificates to all the required namespaces
-        installSprouter(resOpts);
+        Sprouter(resOpts);
 
         if (installIngress) {
             // Install NGINX Ingress Controller
-            installIngressNginx(args.ingressNginxVersion, resOpts);
+            IngressNginx(args.ingressNginxVersion, resOpts);
         }
 
         // Create TLS

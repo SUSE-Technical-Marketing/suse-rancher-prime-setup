@@ -10,7 +10,7 @@ export interface KubeWaitInputs {
     kind: pulumi.Input<string>;
     namespace?: pulumi.Input<string>;
     name: pulumi.Input<string>;
-    condition: pulumi.Input<string>;
+    condition?: pulumi.Input<string>;
     expectedValue?: pulumi.Input<string>; // e.g. "True"
     timeoutSeconds?: pulumi.Input<number>; // default 300
     pollSeconds?: pulumi.Input<number>; // default 5
@@ -52,6 +52,9 @@ class KubeWaitProvider implements dynamic.ResourceProvider<KubeWaitProviderInput
             } else if (res.statusCode < 200 || res.statusCode >= 300) {
                 throw new Error(`Failed to fetch ${i.kind}/${i.name}: ${res.statusMessage}`);
             } else {
+                if (!i.condition) {
+                    return true; // Resource exists
+                }
                 const val = this.conditionStatus(res.body, i.condition);
                 if (val === expected) {
                     return true; // Condition met

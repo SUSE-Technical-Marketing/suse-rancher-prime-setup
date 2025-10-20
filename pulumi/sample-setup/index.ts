@@ -7,6 +7,7 @@ import { installUIPluginRepo, RancherUIPlugin } from "@suse-tmm/rancher";
 import { kubeconfig } from "@suse-tmm/utils";
 import { HarvesterCloudProvider } from "@suse-tmm/rancher/src/cloud/harvester";
 import * as versions from "./versions"
+import * as gitrepos from "./gitrepos";
 
 export function provisionHarvester(clusterNetwork:string, downloadSuseImage: boolean, kubeconfig: kubeconfig.RancherKubeconfig, sshUser: string, sshPubKey: string) : harvester.HarvesterBase {
     const images: VmImageArgs[] = []
@@ -165,6 +166,8 @@ new HarvesterCloudProvider("harvester-cloud", {
         insecure: true, // Harvester normally has a self-signed cert
     }
 }, { provider: rancherK8sProvider, dependsOn: [uiPlugin] });
+
+gitrepos.createFleetConfiguration(rancherManager.kubeconfig, { provider: rancherK8sProvider, dependsOn: [rancherManager] });
 
 pulumi.all([harvesterKubeconfig.kubeconfig, rancherManager.kubeconfig]).apply(([harvkcfg, controlkcfg]) => {
     pulumi.log.info(`Harvester Kubeconfig: ${harvkcfg}`);
