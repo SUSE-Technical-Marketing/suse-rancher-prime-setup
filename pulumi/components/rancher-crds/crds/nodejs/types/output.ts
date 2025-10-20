@@ -390,6 +390,1841 @@ export namespace catalog {
     }
 }
 
+export namespace fleet {
+    export namespace v1alpha1 {
+        /**
+         * ClusterGroup is a re-usable selector to target a group of clusters.
+         */
+        export interface ClusterGroup {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "fleet.cattle.io/v1alpha1";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "ClusterGroup";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.fleet.v1alpha1.ClusterGroupSpec;
+            status: outputs.fleet.v1alpha1.ClusterGroupStatus;
+        }
+
+        export interface ClusterGroupSpec {
+            selector: outputs.fleet.v1alpha1.ClusterGroupSpecSelector;
+        }
+
+        export interface ClusterGroupSpecPatch {
+            selector: outputs.fleet.v1alpha1.ClusterGroupSpecSelectorPatch;
+        }
+
+        /**
+         * Selector is a label selector, used to select clusters for this group.
+         */
+        export interface ClusterGroupSpecSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.ClusterGroupSpecSelectorMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterGroupSpecSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterGroupSpecSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * Selector is a label selector, used to select clusters for this group.
+         */
+        export interface ClusterGroupSpecSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.ClusterGroupSpecSelectorMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        export interface ClusterGroupStatus {
+            /**
+             * ClusterCount is the number of clusters in the cluster group.
+             */
+            clusterCount: number;
+            /**
+             * Conditions is a list of conditions and their statuses for the cluster group.
+             */
+            conditions: outputs.fleet.v1alpha1.ClusterGroupStatusConditions[];
+            display: outputs.fleet.v1alpha1.ClusterGroupStatusDisplay;
+            /**
+             * NonReadyClusterCount is the number of clusters that are not ready.
+             */
+            nonReadyClusterCount: number;
+            /**
+             * NonReadyClusters is a list of cluster names that are not ready.
+             */
+            nonReadyClusters: string[];
+            resourceCounts: outputs.fleet.v1alpha1.ClusterGroupStatusResourceCounts;
+            summary: outputs.fleet.v1alpha1.ClusterGroupStatusSummary;
+        }
+
+        export interface ClusterGroupStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of cluster condition.
+             */
+            type: string;
+        }
+
+        export interface ClusterGroupStatusConditionsPatch {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of cluster condition.
+             */
+            type: string;
+        }
+
+        /**
+         * Display contains the number of ready, desiredready clusters and a
+         * summary state for the bundle's resources.
+         */
+        export interface ClusterGroupStatusDisplay {
+            /**
+             * ReadyBundles is a string in the form "%d/%d", that describes the
+             * number of bundles that are ready vs. the number of bundles desired
+             * to be ready.
+             */
+            readyBundles: string;
+            /**
+             * ReadyClusters is a string in the form "%d/%d", that describes the
+             * number of clusters that are ready vs. the number of clusters desired
+             * to be ready.
+             */
+            readyClusters: string;
+            /**
+             * State is a summary state for the cluster group, showing "NotReady" if
+             * there are non-ready resources.
+             */
+            state: string;
+        }
+
+        /**
+         * Display contains the number of ready, desiredready clusters and a
+         * summary state for the bundle's resources.
+         */
+        export interface ClusterGroupStatusDisplayPatch {
+            /**
+             * ReadyBundles is a string in the form "%d/%d", that describes the
+             * number of bundles that are ready vs. the number of bundles desired
+             * to be ready.
+             */
+            readyBundles: string;
+            /**
+             * ReadyClusters is a string in the form "%d/%d", that describes the
+             * number of clusters that are ready vs. the number of clusters desired
+             * to be ready.
+             */
+            readyClusters: string;
+            /**
+             * State is a summary state for the cluster group, showing "NotReady" if
+             * there are non-ready resources.
+             */
+            state: string;
+        }
+
+        export interface ClusterGroupStatusPatch {
+            /**
+             * ClusterCount is the number of clusters in the cluster group.
+             */
+            clusterCount: number;
+            /**
+             * Conditions is a list of conditions and their statuses for the cluster group.
+             */
+            conditions: outputs.fleet.v1alpha1.ClusterGroupStatusConditionsPatch[];
+            display: outputs.fleet.v1alpha1.ClusterGroupStatusDisplayPatch;
+            /**
+             * NonReadyClusterCount is the number of clusters that are not ready.
+             */
+            nonReadyClusterCount: number;
+            /**
+             * NonReadyClusters is a list of cluster names that are not ready.
+             */
+            nonReadyClusters: string[];
+            resourceCounts: outputs.fleet.v1alpha1.ClusterGroupStatusResourceCountsPatch;
+            summary: outputs.fleet.v1alpha1.ClusterGroupStatusSummaryPatch;
+        }
+
+        /**
+         * ResourceCounts contains the number of resources in each state over
+         * all bundles in the cluster group.
+         */
+        export interface ClusterGroupStatusResourceCounts {
+            /**
+             * DesiredReady is the number of resources that should be ready.
+             */
+            desiredReady: number;
+            /**
+             * Missing is the number of missing resources.
+             */
+            missing: number;
+            /**
+             * Modified is the number of resources that have been modified.
+             */
+            modified: number;
+            /**
+             * NotReady is the number of not ready resources. Resources are not
+             * ready if they do not match any other state.
+             */
+            notReady: number;
+            /**
+             * Orphaned is the number of orphaned resources.
+             */
+            orphaned: number;
+            /**
+             * Ready is the number of ready resources.
+             */
+            ready: number;
+            /**
+             * Unknown is the number of resources in an unknown state.
+             */
+            unknown: number;
+            /**
+             * WaitApplied is the number of resources that are waiting to be applied.
+             */
+            waitApplied: number;
+        }
+
+        /**
+         * ResourceCounts contains the number of resources in each state over
+         * all bundles in the cluster group.
+         */
+        export interface ClusterGroupStatusResourceCountsPatch {
+            /**
+             * DesiredReady is the number of resources that should be ready.
+             */
+            desiredReady: number;
+            /**
+             * Missing is the number of missing resources.
+             */
+            missing: number;
+            /**
+             * Modified is the number of resources that have been modified.
+             */
+            modified: number;
+            /**
+             * NotReady is the number of not ready resources. Resources are not
+             * ready if they do not match any other state.
+             */
+            notReady: number;
+            /**
+             * Orphaned is the number of orphaned resources.
+             */
+            orphaned: number;
+            /**
+             * Ready is the number of ready resources.
+             */
+            ready: number;
+            /**
+             * Unknown is the number of resources in an unknown state.
+             */
+            unknown: number;
+            /**
+             * WaitApplied is the number of resources that are waiting to be applied.
+             */
+            waitApplied: number;
+        }
+
+        /**
+         * Summary is a summary of the bundle deployments and their resources
+         * in the cluster group.
+         */
+        export interface ClusterGroupStatusSummary {
+            /**
+             * DesiredReady is the number of bundle deployments that should be
+             * ready.
+             */
+            desiredReady: number;
+            /**
+             * ErrApplied is the number of bundle deployments that have been synced
+             * from the Fleet controller and the downstream cluster, but with some
+             * errors when deploying the bundle.
+             */
+            errApplied: number;
+            /**
+             * Modified is the number of bundle deployments that have been deployed
+             * and for which all resources are ready, but where some changes from the
+             * Git repository have not yet been synced.
+             */
+            modified: number;
+            /**
+             * NonReadyClusters is a list of states, which is filled for a bundle
+             * that is not ready.
+             */
+            nonReadyResources: outputs.fleet.v1alpha1.ClusterGroupStatusSummaryNonReadyResources[];
+            /**
+             * NotReady is the number of bundle deployments that have been deployed
+             * where some resources are not ready.
+             */
+            notReady: number;
+            /**
+             * OutOfSync is the number of bundle deployments that have been synced
+             * from Fleet controller, but not yet by the downstream agent.
+             */
+            outOfSync: number;
+            /**
+             * Pending is the number of bundle deployments that are being processed
+             * by Fleet controller.
+             */
+            pending: number;
+            /**
+             * Ready is the number of bundle deployments that have been deployed
+             * where all resources are ready.
+             */
+            ready: number;
+            /**
+             * WaitApplied is the number of bundle deployments that have been
+             * synced from Fleet controller and downstream cluster, but are waiting
+             * to be deployed.
+             */
+            waitApplied: number;
+        }
+
+        /**
+         * NonReadyResource contains information about a bundle that is not ready for a
+         * given state like "ErrApplied". It contains a list of non-ready or modified
+         * resources and their states.
+         */
+        export interface ClusterGroupStatusSummaryNonReadyResources {
+            /**
+             * State is the state of the resource, like e.g. "NotReady" or "ErrApplied".
+             */
+            bundleState: string;
+            /**
+             * Message contains information why the bundle is not ready.
+             */
+            message: string;
+            /**
+             * ModifiedStatus lists the state for each modified resource.
+             */
+            modifiedStatus: outputs.fleet.v1alpha1.ClusterGroupStatusSummaryNonReadyResourcesModifiedStatus[];
+            /**
+             * Name is the name of the resource.
+             */
+            name: string;
+            /**
+             * NonReadyStatus lists the state for each non-ready resource.
+             */
+            nonReadyStatus: outputs.fleet.v1alpha1.ClusterGroupStatusSummaryNonReadyResourcesNonReadyStatus[];
+        }
+
+        /**
+         * ModifiedStatus is used to report the status of a resource that is modified.
+         * It indicates if the modification was a create, a delete or a patch.
+         */
+        export interface ClusterGroupStatusSummaryNonReadyResourcesModifiedStatus {
+            apiVersion: string;
+            delete: boolean;
+            /**
+             * Exist is true if the resource exists but is not owned by us. This can happen if a resource was adopted by another bundle whereas the first bundle still exists and due to that reports that it does not own it.
+             */
+            exist: boolean;
+            kind: string;
+            missing: boolean;
+            name: string;
+            namespace: string;
+            patch: string;
+        }
+
+        /**
+         * ModifiedStatus is used to report the status of a resource that is modified.
+         * It indicates if the modification was a create, a delete or a patch.
+         */
+        export interface ClusterGroupStatusSummaryNonReadyResourcesModifiedStatusPatch {
+            apiVersion: string;
+            delete: boolean;
+            /**
+             * Exist is true if the resource exists but is not owned by us. This can happen if a resource was adopted by another bundle whereas the first bundle still exists and due to that reports that it does not own it.
+             */
+            exist: boolean;
+            kind: string;
+            missing: boolean;
+            name: string;
+            namespace: string;
+            patch: string;
+        }
+
+        /**
+         * NonReadyStatus is used to report the status of a resource that is not ready. It includes a summary.
+         */
+        export interface ClusterGroupStatusSummaryNonReadyResourcesNonReadyStatus {
+            apiVersion: string;
+            kind: string;
+            name: string;
+            namespace: string;
+            summary: outputs.fleet.v1alpha1.ClusterGroupStatusSummaryNonReadyResourcesNonReadyStatusSummary;
+            /**
+             * UID is a type that holds unique ID values, including UUIDs.  Because we
+             * don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+             * intent and helps make sure that UIDs and names do not get conflated.
+             */
+            uid: string;
+        }
+
+        /**
+         * NonReadyStatus is used to report the status of a resource that is not ready. It includes a summary.
+         */
+        export interface ClusterGroupStatusSummaryNonReadyResourcesNonReadyStatusPatch {
+            apiVersion: string;
+            kind: string;
+            name: string;
+            namespace: string;
+            summary: outputs.fleet.v1alpha1.ClusterGroupStatusSummaryNonReadyResourcesNonReadyStatusSummaryPatch;
+            /**
+             * UID is a type that holds unique ID values, including UUIDs.  Because we
+             * don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+             * intent and helps make sure that UIDs and names do not get conflated.
+             */
+            uid: string;
+        }
+
+        export interface ClusterGroupStatusSummaryNonReadyResourcesNonReadyStatusSummary {
+            error: boolean;
+            message: string[];
+            state: string;
+            transitioning: boolean;
+        }
+
+        export interface ClusterGroupStatusSummaryNonReadyResourcesNonReadyStatusSummaryPatch {
+            error: boolean;
+            message: string[];
+            state: string;
+            transitioning: boolean;
+        }
+
+        /**
+         * NonReadyResource contains information about a bundle that is not ready for a
+         * given state like "ErrApplied". It contains a list of non-ready or modified
+         * resources and their states.
+         */
+        export interface ClusterGroupStatusSummaryNonReadyResourcesPatch {
+            /**
+             * State is the state of the resource, like e.g. "NotReady" or "ErrApplied".
+             */
+            bundleState: string;
+            /**
+             * Message contains information why the bundle is not ready.
+             */
+            message: string;
+            /**
+             * ModifiedStatus lists the state for each modified resource.
+             */
+            modifiedStatus: outputs.fleet.v1alpha1.ClusterGroupStatusSummaryNonReadyResourcesModifiedStatusPatch[];
+            /**
+             * Name is the name of the resource.
+             */
+            name: string;
+            /**
+             * NonReadyStatus lists the state for each non-ready resource.
+             */
+            nonReadyStatus: outputs.fleet.v1alpha1.ClusterGroupStatusSummaryNonReadyResourcesNonReadyStatusPatch[];
+        }
+
+        /**
+         * Summary is a summary of the bundle deployments and their resources
+         * in the cluster group.
+         */
+        export interface ClusterGroupStatusSummaryPatch {
+            /**
+             * DesiredReady is the number of bundle deployments that should be
+             * ready.
+             */
+            desiredReady: number;
+            /**
+             * ErrApplied is the number of bundle deployments that have been synced
+             * from the Fleet controller and the downstream cluster, but with some
+             * errors when deploying the bundle.
+             */
+            errApplied: number;
+            /**
+             * Modified is the number of bundle deployments that have been deployed
+             * and for which all resources are ready, but where some changes from the
+             * Git repository have not yet been synced.
+             */
+            modified: number;
+            /**
+             * NonReadyClusters is a list of states, which is filled for a bundle
+             * that is not ready.
+             */
+            nonReadyResources: outputs.fleet.v1alpha1.ClusterGroupStatusSummaryNonReadyResourcesPatch[];
+            /**
+             * NotReady is the number of bundle deployments that have been deployed
+             * where some resources are not ready.
+             */
+            notReady: number;
+            /**
+             * OutOfSync is the number of bundle deployments that have been synced
+             * from Fleet controller, but not yet by the downstream agent.
+             */
+            outOfSync: number;
+            /**
+             * Pending is the number of bundle deployments that are being processed
+             * by Fleet controller.
+             */
+            pending: number;
+            /**
+             * Ready is the number of bundle deployments that have been deployed
+             * where all resources are ready.
+             */
+            ready: number;
+            /**
+             * WaitApplied is the number of bundle deployments that have been
+             * synced from Fleet controller and downstream cluster, but are waiting
+             * to be deployed.
+             */
+            waitApplied: number;
+        }
+
+        /**
+         * GitRepo describes a git repository that is watched by Fleet.
+         * The resource contains the necessary information to deploy the repo, or parts
+         * of it, to target clusters.
+         */
+        export interface GitRepo {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "fleet.cattle.io/v1alpha1";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "GitRepo";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.fleet.v1alpha1.GitRepoSpec;
+            status: outputs.fleet.v1alpha1.GitRepoStatus;
+        }
+
+        export interface GitRepoSpec {
+            /**
+             * Branch The git branch to follow.
+             */
+            branch: string;
+            /**
+             * Bundles defines the paths of bundles to be read.
+             * This drives the fleet resource scanner that simply loads the specified folders
+             */
+            bundles: outputs.fleet.v1alpha1.GitRepoSpecBundles[];
+            /**
+             * CABundle is a PEM encoded CA bundle which will be used to validate the repo's certificate.
+             */
+            caBundle: string;
+            /**
+             * ClientSecretName is the name of the client secret to be used to connect to the repo
+             * It is expected the secret be of type "kubernetes.io/basic-auth" or "kubernetes.io/ssh-auth".
+             */
+            clientSecretName: string;
+            correctDrift: outputs.fleet.v1alpha1.GitRepoSpecCorrectDrift;
+            /**
+             * DeleteNamespace specifies if the namespace created must be deleted after deleting the GitRepo.
+             */
+            deleteNamespace: boolean;
+            /**
+             * Disables git polling. When enabled only webhooks will be used.
+             */
+            disablePolling: boolean;
+            /**
+             * Increment this number to force a redeployment of contents from Git.
+             */
+            forceSyncGeneration: number;
+            /**
+             * HelmRepoURLRegex Helm credentials will be used if the helm repo matches this regex
+             * Credentials will always be used if this is empty or not provided.
+             */
+            helmRepoURLRegex: string;
+            /**
+             * HelmSecretName contains the auth secret for a private Helm repository.
+             */
+            helmSecretName: string;
+            /**
+             * HelmSecretNameForPaths contains the auth secret for private Helm repository for each path.
+             */
+            helmSecretNameForPaths: string;
+            imageScanCommit: outputs.fleet.v1alpha1.GitRepoSpecImageScanCommit;
+            /**
+             * ImageScanInterval is the interval of syncing scanned images and writing back to git repo.
+             */
+            imageScanInterval: string;
+            /**
+             * InsecureSkipTLSverify will use insecure HTTPS to clone the repo.
+             */
+            insecureSkipTLSVerify: boolean;
+            /**
+             * KeepResources specifies if the resources created must be kept after deleting the GitRepo.
+             */
+            keepResources: boolean;
+            /**
+             * OCIRegistrySecret contains the name of the secret to be used for retrieving the OCI registry connection details.
+             */
+            ociRegistrySecret: string;
+            /**
+             * Paths is the directories relative to the git repo root that contain resources to be applied.
+             * Path globbing is supported, for example ["charts/*"] will match all folders as a subdirectory of charts/
+             * If empty, "/" is the default.
+             */
+            paths: string[];
+            /**
+             * Paused, when true, causes changes in Git not to be propagated down to the clusters but instead to mark
+             * resources as OutOfSync.
+             */
+            paused: boolean;
+            /**
+             * PollingInterval is how often to check git for new updates.
+             */
+            pollingInterval: string;
+            /**
+             * Repo is a URL to a git repo to clone and index.
+             */
+            repo: string;
+            /**
+             * Revision A specific commit or tag to operate on.
+             */
+            revision: string;
+            /**
+             * ServiceAccount used in the downstream cluster for deployment.
+             */
+            serviceAccount: string;
+            /**
+             * Ensure that all resources are created in this namespace
+             * Any cluster scoped resource will be rejected if this is set
+             * Additionally this namespace will be created on demand.
+             */
+            targetNamespace: string;
+            /**
+             * Targets is a list of targets this repo will deploy to.
+             */
+            targets: outputs.fleet.v1alpha1.GitRepoSpecTargets[];
+            /**
+             * WebhookSecret contains the name of the secret to use for webhook parsing
+             */
+            webhookSecret: string;
+        }
+
+        export interface GitRepoSpecBundles {
+            /**
+             * Base is the base path for the bundle resources
+             */
+            base: string;
+            /**
+             * Options is the path (relative to path above) that defines a fleet.yaml file to configure the bundle
+             */
+            options: string;
+        }
+
+        export interface GitRepoSpecBundlesPatch {
+            /**
+             * Base is the base path for the bundle resources
+             */
+            base: string;
+            /**
+             * Options is the path (relative to path above) that defines a fleet.yaml file to configure the bundle
+             */
+            options: string;
+        }
+
+        /**
+         * CorrectDrift specifies how drift correction should work.
+         */
+        export interface GitRepoSpecCorrectDrift {
+            /**
+             * Enabled correct drift if true.
+             */
+            enabled: boolean;
+            /**
+             * Force helm rollback with --force option will be used if true. This will try to recreate all resources in the release.
+             */
+            force: boolean;
+            /**
+             * KeepFailHistory keeps track of failed rollbacks in the helm history.
+             */
+            keepFailHistory: boolean;
+        }
+
+        /**
+         * CorrectDrift specifies how drift correction should work.
+         */
+        export interface GitRepoSpecCorrectDriftPatch {
+            /**
+             * Enabled correct drift if true.
+             */
+            enabled: boolean;
+            /**
+             * Force helm rollback with --force option will be used if true. This will try to recreate all resources in the release.
+             */
+            force: boolean;
+            /**
+             * KeepFailHistory keeps track of failed rollbacks in the helm history.
+             */
+            keepFailHistory: boolean;
+        }
+
+        /**
+         * Commit specifies how to commit to the git repo when a new image is scanned and written back to git repo.
+         */
+        export interface GitRepoSpecImageScanCommit {
+            /**
+             * AuthorEmail gives the email to provide when making a commit
+             */
+            authorEmail: string;
+            /**
+             * AuthorName gives the name to provide when making a commit
+             */
+            authorName: string;
+            /**
+             * MessageTemplate provides a template for the commit message,
+             * into which will be interpolated the details of the change made.
+             */
+            messageTemplate: string;
+        }
+
+        /**
+         * Commit specifies how to commit to the git repo when a new image is scanned and written back to git repo.
+         */
+        export interface GitRepoSpecImageScanCommitPatch {
+            /**
+             * AuthorEmail gives the email to provide when making a commit
+             */
+            authorEmail: string;
+            /**
+             * AuthorName gives the name to provide when making a commit
+             */
+            authorName: string;
+            /**
+             * MessageTemplate provides a template for the commit message,
+             * into which will be interpolated the details of the change made.
+             */
+            messageTemplate: string;
+        }
+
+        export interface GitRepoSpecPatch {
+            /**
+             * Branch The git branch to follow.
+             */
+            branch: string;
+            /**
+             * Bundles defines the paths of bundles to be read.
+             * This drives the fleet resource scanner that simply loads the specified folders
+             */
+            bundles: outputs.fleet.v1alpha1.GitRepoSpecBundlesPatch[];
+            /**
+             * CABundle is a PEM encoded CA bundle which will be used to validate the repo's certificate.
+             */
+            caBundle: string;
+            /**
+             * ClientSecretName is the name of the client secret to be used to connect to the repo
+             * It is expected the secret be of type "kubernetes.io/basic-auth" or "kubernetes.io/ssh-auth".
+             */
+            clientSecretName: string;
+            correctDrift: outputs.fleet.v1alpha1.GitRepoSpecCorrectDriftPatch;
+            /**
+             * DeleteNamespace specifies if the namespace created must be deleted after deleting the GitRepo.
+             */
+            deleteNamespace: boolean;
+            /**
+             * Disables git polling. When enabled only webhooks will be used.
+             */
+            disablePolling: boolean;
+            /**
+             * Increment this number to force a redeployment of contents from Git.
+             */
+            forceSyncGeneration: number;
+            /**
+             * HelmRepoURLRegex Helm credentials will be used if the helm repo matches this regex
+             * Credentials will always be used if this is empty or not provided.
+             */
+            helmRepoURLRegex: string;
+            /**
+             * HelmSecretName contains the auth secret for a private Helm repository.
+             */
+            helmSecretName: string;
+            /**
+             * HelmSecretNameForPaths contains the auth secret for private Helm repository for each path.
+             */
+            helmSecretNameForPaths: string;
+            imageScanCommit: outputs.fleet.v1alpha1.GitRepoSpecImageScanCommitPatch;
+            /**
+             * ImageScanInterval is the interval of syncing scanned images and writing back to git repo.
+             */
+            imageScanInterval: string;
+            /**
+             * InsecureSkipTLSverify will use insecure HTTPS to clone the repo.
+             */
+            insecureSkipTLSVerify: boolean;
+            /**
+             * KeepResources specifies if the resources created must be kept after deleting the GitRepo.
+             */
+            keepResources: boolean;
+            /**
+             * OCIRegistrySecret contains the name of the secret to be used for retrieving the OCI registry connection details.
+             */
+            ociRegistrySecret: string;
+            /**
+             * Paths is the directories relative to the git repo root that contain resources to be applied.
+             * Path globbing is supported, for example ["charts/*"] will match all folders as a subdirectory of charts/
+             * If empty, "/" is the default.
+             */
+            paths: string[];
+            /**
+             * Paused, when true, causes changes in Git not to be propagated down to the clusters but instead to mark
+             * resources as OutOfSync.
+             */
+            paused: boolean;
+            /**
+             * PollingInterval is how often to check git for new updates.
+             */
+            pollingInterval: string;
+            /**
+             * Repo is a URL to a git repo to clone and index.
+             */
+            repo: string;
+            /**
+             * Revision A specific commit or tag to operate on.
+             */
+            revision: string;
+            /**
+             * ServiceAccount used in the downstream cluster for deployment.
+             */
+            serviceAccount: string;
+            /**
+             * Ensure that all resources are created in this namespace
+             * Any cluster scoped resource will be rejected if this is set
+             * Additionally this namespace will be created on demand.
+             */
+            targetNamespace: string;
+            /**
+             * Targets is a list of targets this repo will deploy to.
+             */
+            targets: outputs.fleet.v1alpha1.GitRepoSpecTargetsPatch[];
+            /**
+             * WebhookSecret contains the name of the secret to use for webhook parsing
+             */
+            webhookSecret: string;
+        }
+
+        /**
+         * GitTarget is a cluster or cluster group to deploy to.
+         */
+        export interface GitRepoSpecTargets {
+            /**
+             * ClusterGroup is the name of a cluster group in the same namespace as the clusters.
+             */
+            clusterGroup: string;
+            clusterGroupSelector: outputs.fleet.v1alpha1.GitRepoSpecTargetsClusterGroupSelector;
+            /**
+             * ClusterName is the name of a cluster.
+             */
+            clusterName: string;
+            clusterSelector: outputs.fleet.v1alpha1.GitRepoSpecTargetsClusterSelector;
+            /**
+             * Name is the name of this target.
+             */
+            name: string;
+        }
+
+        /**
+         * ClusterGroupSelector is a label selector to select cluster groups.
+         */
+        export interface GitRepoSpecTargetsClusterGroupSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.GitRepoSpecTargetsClusterGroupSelectorMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface GitRepoSpecTargetsClusterGroupSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface GitRepoSpecTargetsClusterGroupSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * ClusterGroupSelector is a label selector to select cluster groups.
+         */
+        export interface GitRepoSpecTargetsClusterGroupSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.GitRepoSpecTargetsClusterGroupSelectorMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * ClusterSelector is a label selector to select clusters.
+         */
+        export interface GitRepoSpecTargetsClusterSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.GitRepoSpecTargetsClusterSelectorMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface GitRepoSpecTargetsClusterSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface GitRepoSpecTargetsClusterSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * ClusterSelector is a label selector to select clusters.
+         */
+        export interface GitRepoSpecTargetsClusterSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.GitRepoSpecTargetsClusterSelectorMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * GitTarget is a cluster or cluster group to deploy to.
+         */
+        export interface GitRepoSpecTargetsPatch {
+            /**
+             * ClusterGroup is the name of a cluster group in the same namespace as the clusters.
+             */
+            clusterGroup: string;
+            clusterGroupSelector: outputs.fleet.v1alpha1.GitRepoSpecTargetsClusterGroupSelectorPatch;
+            /**
+             * ClusterName is the name of a cluster.
+             */
+            clusterName: string;
+            clusterSelector: outputs.fleet.v1alpha1.GitRepoSpecTargetsClusterSelectorPatch;
+            /**
+             * Name is the name of this target.
+             */
+            name: string;
+        }
+
+        export interface GitRepoStatus {
+            /**
+             * Commit is the Git commit hash from the last git job run.
+             */
+            commit: string;
+            /**
+             * Conditions is a list of Wrangler conditions that describe the state
+             * of the resource.
+             */
+            conditions: outputs.fleet.v1alpha1.GitRepoStatusConditions[];
+            /**
+             * DesiredReadyClusters	is the number of clusters that should be ready for bundles of this resource.
+             */
+            desiredReadyClusters: number;
+            display: outputs.fleet.v1alpha1.GitRepoStatusDisplay;
+            /**
+             * GitJobStatus is the status of the last Git job run, e.g. "Current" if there was no error.
+             */
+            gitJobStatus: string;
+            /**
+             * LastPollingTime is the last time the polling check was triggered
+             */
+            lastPollingTriggered: string;
+            /**
+             * LastSyncedImageScanTime is the time of the last image scan.
+             */
+            lastSyncedImageScanTime: string;
+            /**
+             * ObservedGeneration is the current generation of the resource in the cluster. It is copied from k8s
+             * metadata.Generation. The value is incremented for all changes, except for changes to .metadata or .status.
+             */
+            observedGeneration: number;
+            /**
+             * PerClusterResourceCounts contains the number of resources in each state over all bundles, per cluster.
+             */
+            perClusterResourceCounts: {[key: string]: {[key: string]: string}};
+            /**
+             * ReadyClusters is the lowest number of clusters that are ready over
+             * all the bundles of this resource.
+             */
+            readyClusters: number;
+            resourceCounts: outputs.fleet.v1alpha1.GitRepoStatusResourceCounts;
+            /**
+             * Resources contains metadata about the resources of each bundle.
+             */
+            resources: outputs.fleet.v1alpha1.GitRepoStatusResources[];
+            summary: outputs.fleet.v1alpha1.GitRepoStatusSummary;
+            /**
+             * Update generation is the force update generation if spec.forceSyncGeneration is set
+             */
+            updateGeneration: number;
+            /**
+             * WebhookCommit is the latest Git commit hash received from a webhook
+             */
+            webhookCommit: string;
+        }
+
+        export interface GitRepoStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of cluster condition.
+             */
+            type: string;
+        }
+
+        export interface GitRepoStatusConditionsPatch {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of cluster condition.
+             */
+            type: string;
+        }
+
+        /**
+         * Display contains a human readable summary of the status.
+         */
+        export interface GitRepoStatusDisplay {
+            /**
+             * Error is true if a message is present.
+             */
+            error: boolean;
+            /**
+             * Message contains the relevant message from the deployment conditions.
+             */
+            message: string;
+            /**
+             * ReadyBundleDeployments is a string in the form "%d/%d", that describes the
+             * number of ready bundledeployments over the total number of bundledeployments.
+             */
+            readyBundleDeployments: string;
+            /**
+             * State is the state of the resource, e.g. "GitUpdating" or the maximal
+             * BundleState according to StateRank.
+             */
+            state: string;
+        }
+
+        /**
+         * Display contains a human readable summary of the status.
+         */
+        export interface GitRepoStatusDisplayPatch {
+            /**
+             * Error is true if a message is present.
+             */
+            error: boolean;
+            /**
+             * Message contains the relevant message from the deployment conditions.
+             */
+            message: string;
+            /**
+             * ReadyBundleDeployments is a string in the form "%d/%d", that describes the
+             * number of ready bundledeployments over the total number of bundledeployments.
+             */
+            readyBundleDeployments: string;
+            /**
+             * State is the state of the resource, e.g. "GitUpdating" or the maximal
+             * BundleState according to StateRank.
+             */
+            state: string;
+        }
+
+        export interface GitRepoStatusPatch {
+            /**
+             * Commit is the Git commit hash from the last git job run.
+             */
+            commit: string;
+            /**
+             * Conditions is a list of Wrangler conditions that describe the state
+             * of the resource.
+             */
+            conditions: outputs.fleet.v1alpha1.GitRepoStatusConditionsPatch[];
+            /**
+             * DesiredReadyClusters	is the number of clusters that should be ready for bundles of this resource.
+             */
+            desiredReadyClusters: number;
+            display: outputs.fleet.v1alpha1.GitRepoStatusDisplayPatch;
+            /**
+             * GitJobStatus is the status of the last Git job run, e.g. "Current" if there was no error.
+             */
+            gitJobStatus: string;
+            /**
+             * LastPollingTime is the last time the polling check was triggered
+             */
+            lastPollingTriggered: string;
+            /**
+             * LastSyncedImageScanTime is the time of the last image scan.
+             */
+            lastSyncedImageScanTime: string;
+            /**
+             * ObservedGeneration is the current generation of the resource in the cluster. It is copied from k8s
+             * metadata.Generation. The value is incremented for all changes, except for changes to .metadata or .status.
+             */
+            observedGeneration: number;
+            /**
+             * PerClusterResourceCounts contains the number of resources in each state over all bundles, per cluster.
+             */
+            perClusterResourceCounts: {[key: string]: {[key: string]: string}};
+            /**
+             * ReadyClusters is the lowest number of clusters that are ready over
+             * all the bundles of this resource.
+             */
+            readyClusters: number;
+            resourceCounts: outputs.fleet.v1alpha1.GitRepoStatusResourceCountsPatch;
+            /**
+             * Resources contains metadata about the resources of each bundle.
+             */
+            resources: outputs.fleet.v1alpha1.GitRepoStatusResourcesPatch[];
+            summary: outputs.fleet.v1alpha1.GitRepoStatusSummaryPatch;
+            /**
+             * Update generation is the force update generation if spec.forceSyncGeneration is set
+             */
+            updateGeneration: number;
+            /**
+             * WebhookCommit is the latest Git commit hash received from a webhook
+             */
+            webhookCommit: string;
+        }
+
+        /**
+         * ResourceCounts contains the number of resources in each state over all bundles.
+         */
+        export interface GitRepoStatusResourceCounts {
+            /**
+             * DesiredReady is the number of resources that should be ready.
+             */
+            desiredReady: number;
+            /**
+             * Missing is the number of missing resources.
+             */
+            missing: number;
+            /**
+             * Modified is the number of resources that have been modified.
+             */
+            modified: number;
+            /**
+             * NotReady is the number of not ready resources. Resources are not
+             * ready if they do not match any other state.
+             */
+            notReady: number;
+            /**
+             * Orphaned is the number of orphaned resources.
+             */
+            orphaned: number;
+            /**
+             * Ready is the number of ready resources.
+             */
+            ready: number;
+            /**
+             * Unknown is the number of resources in an unknown state.
+             */
+            unknown: number;
+            /**
+             * WaitApplied is the number of resources that are waiting to be applied.
+             */
+            waitApplied: number;
+        }
+
+        /**
+         * ResourceCounts contains the number of resources in each state over all bundles.
+         */
+        export interface GitRepoStatusResourceCountsPatch {
+            /**
+             * DesiredReady is the number of resources that should be ready.
+             */
+            desiredReady: number;
+            /**
+             * Missing is the number of missing resources.
+             */
+            missing: number;
+            /**
+             * Modified is the number of resources that have been modified.
+             */
+            modified: number;
+            /**
+             * NotReady is the number of not ready resources. Resources are not
+             * ready if they do not match any other state.
+             */
+            notReady: number;
+            /**
+             * Orphaned is the number of orphaned resources.
+             */
+            orphaned: number;
+            /**
+             * Ready is the number of ready resources.
+             */
+            ready: number;
+            /**
+             * Unknown is the number of resources in an unknown state.
+             */
+            unknown: number;
+            /**
+             * WaitApplied is the number of resources that are waiting to be applied.
+             */
+            waitApplied: number;
+        }
+
+        /**
+         * Resource contains metadata about the resources of a bundle.
+         */
+        export interface GitRepoStatusResources {
+            /**
+             * APIVersion is the API version of the resource.
+             */
+            apiVersion: string;
+            /**
+             * Error is true if any Error in the PerClusterState is true.
+             */
+            error: boolean;
+            /**
+             * ID is the name of the resource, e.g. "namespace1/my-config" or "backingimagemanagers.storage.io".
+             */
+            id: string;
+            /**
+             * IncompleteState is true if a bundle summary has 10 or more non-ready
+             * resources or a non-ready resource has more 10 or more non-ready or
+             * modified states.
+             */
+            incompleteState: boolean;
+            /**
+             * Kind is the k8s kind of the resource.
+             */
+            kind: string;
+            /**
+             * Message is the first message from the PerClusterStates.
+             */
+            message: string;
+            /**
+             * Name of the resource.
+             */
+            name: string;
+            /**
+             * Namespace of the resource.
+             */
+            namespace: string;
+            perClusterState: outputs.fleet.v1alpha1.GitRepoStatusResourcesPerClusterState;
+            /**
+             * State is the state of the resource, e.g. "Unknown", "WaitApplied", "ErrApplied" or "Ready".
+             */
+            state: string;
+            /**
+             * Transitioning is true if any Transitioning in the PerClusterState is true.
+             */
+            transitioning: boolean;
+            /**
+             * Type is the type of the resource, e.g. "apiextensions.k8s.io.customresourcedefinition" or "configmap".
+             */
+            type: string;
+        }
+
+        /**
+         * Resource contains metadata about the resources of a bundle.
+         */
+        export interface GitRepoStatusResourcesPatch {
+            /**
+             * APIVersion is the API version of the resource.
+             */
+            apiVersion: string;
+            /**
+             * Error is true if any Error in the PerClusterState is true.
+             */
+            error: boolean;
+            /**
+             * ID is the name of the resource, e.g. "namespace1/my-config" or "backingimagemanagers.storage.io".
+             */
+            id: string;
+            /**
+             * IncompleteState is true if a bundle summary has 10 or more non-ready
+             * resources or a non-ready resource has more 10 or more non-ready or
+             * modified states.
+             */
+            incompleteState: boolean;
+            /**
+             * Kind is the k8s kind of the resource.
+             */
+            kind: string;
+            /**
+             * Message is the first message from the PerClusterStates.
+             */
+            message: string;
+            /**
+             * Name of the resource.
+             */
+            name: string;
+            /**
+             * Namespace of the resource.
+             */
+            namespace: string;
+            perClusterState: outputs.fleet.v1alpha1.GitRepoStatusResourcesPerClusterStatePatch;
+            /**
+             * State is the state of the resource, e.g. "Unknown", "WaitApplied", "ErrApplied" or "Ready".
+             */
+            state: string;
+            /**
+             * Transitioning is true if any Transitioning in the PerClusterState is true.
+             */
+            transitioning: boolean;
+            /**
+             * Type is the type of the resource, e.g. "apiextensions.k8s.io.customresourcedefinition" or "configmap".
+             */
+            type: string;
+        }
+
+        /**
+         * PerClusterState contains lists of cluster IDs for every State for this resource
+         */
+        export interface GitRepoStatusResourcesPerClusterState {
+            /**
+             * Missing is a list of cluster IDs for which this a resource is in Missing state
+             */
+            missing: string[];
+            /**
+             * Modified is a list of cluster IDs for which this a resource is in Modified state
+             */
+            modified: string[];
+            /**
+             * NotReady is a list of cluster IDs for which this a resource is in NotReady state
+             */
+            notReady: string[];
+            /**
+             * Orphaned is a list of cluster IDs for which this a resource is in Orphaned state
+             */
+            orphaned: string[];
+            /**
+             * Pending is a list of cluster IDs for which this a resource is in Pending state
+             */
+            pending: string[];
+            /**
+             * Ready is a list of cluster IDs for which this a resource is in Ready state
+             */
+            ready: string[];
+            /**
+             * Unknown is a list of cluster IDs for which this a resource is in Unknown state
+             */
+            unknown: string[];
+            /**
+             * WaitApplied is a list of cluster IDs for which this a resource is in WaitApplied state
+             */
+            waitApplied: string[];
+        }
+
+        /**
+         * PerClusterState contains lists of cluster IDs for every State for this resource
+         */
+        export interface GitRepoStatusResourcesPerClusterStatePatch {
+            /**
+             * Missing is a list of cluster IDs for which this a resource is in Missing state
+             */
+            missing: string[];
+            /**
+             * Modified is a list of cluster IDs for which this a resource is in Modified state
+             */
+            modified: string[];
+            /**
+             * NotReady is a list of cluster IDs for which this a resource is in NotReady state
+             */
+            notReady: string[];
+            /**
+             * Orphaned is a list of cluster IDs for which this a resource is in Orphaned state
+             */
+            orphaned: string[];
+            /**
+             * Pending is a list of cluster IDs for which this a resource is in Pending state
+             */
+            pending: string[];
+            /**
+             * Ready is a list of cluster IDs for which this a resource is in Ready state
+             */
+            ready: string[];
+            /**
+             * Unknown is a list of cluster IDs for which this a resource is in Unknown state
+             */
+            unknown: string[];
+            /**
+             * WaitApplied is a list of cluster IDs for which this a resource is in WaitApplied state
+             */
+            waitApplied: string[];
+        }
+
+        /**
+         * Summary contains the number of bundle deployments in each state and a list of non-ready resources.
+         */
+        export interface GitRepoStatusSummary {
+            /**
+             * DesiredReady is the number of bundle deployments that should be
+             * ready.
+             */
+            desiredReady: number;
+            /**
+             * ErrApplied is the number of bundle deployments that have been synced
+             * from the Fleet controller and the downstream cluster, but with some
+             * errors when deploying the bundle.
+             */
+            errApplied: number;
+            /**
+             * Modified is the number of bundle deployments that have been deployed
+             * and for which all resources are ready, but where some changes from the
+             * Git repository have not yet been synced.
+             */
+            modified: number;
+            /**
+             * NonReadyClusters is a list of states, which is filled for a bundle
+             * that is not ready.
+             */
+            nonReadyResources: outputs.fleet.v1alpha1.GitRepoStatusSummaryNonReadyResources[];
+            /**
+             * NotReady is the number of bundle deployments that have been deployed
+             * where some resources are not ready.
+             */
+            notReady: number;
+            /**
+             * OutOfSync is the number of bundle deployments that have been synced
+             * from Fleet controller, but not yet by the downstream agent.
+             */
+            outOfSync: number;
+            /**
+             * Pending is the number of bundle deployments that are being processed
+             * by Fleet controller.
+             */
+            pending: number;
+            /**
+             * Ready is the number of bundle deployments that have been deployed
+             * where all resources are ready.
+             */
+            ready: number;
+            /**
+             * WaitApplied is the number of bundle deployments that have been
+             * synced from Fleet controller and downstream cluster, but are waiting
+             * to be deployed.
+             */
+            waitApplied: number;
+        }
+
+        /**
+         * NonReadyResource contains information about a bundle that is not ready for a
+         * given state like "ErrApplied". It contains a list of non-ready or modified
+         * resources and their states.
+         */
+        export interface GitRepoStatusSummaryNonReadyResources {
+            /**
+             * State is the state of the resource, like e.g. "NotReady" or "ErrApplied".
+             */
+            bundleState: string;
+            /**
+             * Message contains information why the bundle is not ready.
+             */
+            message: string;
+            /**
+             * ModifiedStatus lists the state for each modified resource.
+             */
+            modifiedStatus: outputs.fleet.v1alpha1.GitRepoStatusSummaryNonReadyResourcesModifiedStatus[];
+            /**
+             * Name is the name of the resource.
+             */
+            name: string;
+            /**
+             * NonReadyStatus lists the state for each non-ready resource.
+             */
+            nonReadyStatus: outputs.fleet.v1alpha1.GitRepoStatusSummaryNonReadyResourcesNonReadyStatus[];
+        }
+
+        /**
+         * ModifiedStatus is used to report the status of a resource that is modified.
+         * It indicates if the modification was a create, a delete or a patch.
+         */
+        export interface GitRepoStatusSummaryNonReadyResourcesModifiedStatus {
+            apiVersion: string;
+            delete: boolean;
+            /**
+             * Exist is true if the resource exists but is not owned by us. This can happen if a resource was adopted by another bundle whereas the first bundle still exists and due to that reports that it does not own it.
+             */
+            exist: boolean;
+            kind: string;
+            missing: boolean;
+            name: string;
+            namespace: string;
+            patch: string;
+        }
+
+        /**
+         * ModifiedStatus is used to report the status of a resource that is modified.
+         * It indicates if the modification was a create, a delete or a patch.
+         */
+        export interface GitRepoStatusSummaryNonReadyResourcesModifiedStatusPatch {
+            apiVersion: string;
+            delete: boolean;
+            /**
+             * Exist is true if the resource exists but is not owned by us. This can happen if a resource was adopted by another bundle whereas the first bundle still exists and due to that reports that it does not own it.
+             */
+            exist: boolean;
+            kind: string;
+            missing: boolean;
+            name: string;
+            namespace: string;
+            patch: string;
+        }
+
+        /**
+         * NonReadyStatus is used to report the status of a resource that is not ready. It includes a summary.
+         */
+        export interface GitRepoStatusSummaryNonReadyResourcesNonReadyStatus {
+            apiVersion: string;
+            kind: string;
+            name: string;
+            namespace: string;
+            summary: outputs.fleet.v1alpha1.GitRepoStatusSummaryNonReadyResourcesNonReadyStatusSummary;
+            /**
+             * UID is a type that holds unique ID values, including UUIDs.  Because we
+             * don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+             * intent and helps make sure that UIDs and names do not get conflated.
+             */
+            uid: string;
+        }
+
+        /**
+         * NonReadyStatus is used to report the status of a resource that is not ready. It includes a summary.
+         */
+        export interface GitRepoStatusSummaryNonReadyResourcesNonReadyStatusPatch {
+            apiVersion: string;
+            kind: string;
+            name: string;
+            namespace: string;
+            summary: outputs.fleet.v1alpha1.GitRepoStatusSummaryNonReadyResourcesNonReadyStatusSummaryPatch;
+            /**
+             * UID is a type that holds unique ID values, including UUIDs.  Because we
+             * don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+             * intent and helps make sure that UIDs and names do not get conflated.
+             */
+            uid: string;
+        }
+
+        export interface GitRepoStatusSummaryNonReadyResourcesNonReadyStatusSummary {
+            error: boolean;
+            message: string[];
+            state: string;
+            transitioning: boolean;
+        }
+
+        export interface GitRepoStatusSummaryNonReadyResourcesNonReadyStatusSummaryPatch {
+            error: boolean;
+            message: string[];
+            state: string;
+            transitioning: boolean;
+        }
+
+        /**
+         * NonReadyResource contains information about a bundle that is not ready for a
+         * given state like "ErrApplied". It contains a list of non-ready or modified
+         * resources and their states.
+         */
+        export interface GitRepoStatusSummaryNonReadyResourcesPatch {
+            /**
+             * State is the state of the resource, like e.g. "NotReady" or "ErrApplied".
+             */
+            bundleState: string;
+            /**
+             * Message contains information why the bundle is not ready.
+             */
+            message: string;
+            /**
+             * ModifiedStatus lists the state for each modified resource.
+             */
+            modifiedStatus: outputs.fleet.v1alpha1.GitRepoStatusSummaryNonReadyResourcesModifiedStatusPatch[];
+            /**
+             * Name is the name of the resource.
+             */
+            name: string;
+            /**
+             * NonReadyStatus lists the state for each non-ready resource.
+             */
+            nonReadyStatus: outputs.fleet.v1alpha1.GitRepoStatusSummaryNonReadyResourcesNonReadyStatusPatch[];
+        }
+
+        /**
+         * Summary contains the number of bundle deployments in each state and a list of non-ready resources.
+         */
+        export interface GitRepoStatusSummaryPatch {
+            /**
+             * DesiredReady is the number of bundle deployments that should be
+             * ready.
+             */
+            desiredReady: number;
+            /**
+             * ErrApplied is the number of bundle deployments that have been synced
+             * from the Fleet controller and the downstream cluster, but with some
+             * errors when deploying the bundle.
+             */
+            errApplied: number;
+            /**
+             * Modified is the number of bundle deployments that have been deployed
+             * and for which all resources are ready, but where some changes from the
+             * Git repository have not yet been synced.
+             */
+            modified: number;
+            /**
+             * NonReadyClusters is a list of states, which is filled for a bundle
+             * that is not ready.
+             */
+            nonReadyResources: outputs.fleet.v1alpha1.GitRepoStatusSummaryNonReadyResourcesPatch[];
+            /**
+             * NotReady is the number of bundle deployments that have been deployed
+             * where some resources are not ready.
+             */
+            notReady: number;
+            /**
+             * OutOfSync is the number of bundle deployments that have been synced
+             * from Fleet controller, but not yet by the downstream agent.
+             */
+            outOfSync: number;
+            /**
+             * Pending is the number of bundle deployments that are being processed
+             * by Fleet controller.
+             */
+            pending: number;
+            /**
+             * Ready is the number of bundle deployments that have been deployed
+             * where all resources are ready.
+             */
+            ready: number;
+            /**
+             * WaitApplied is the number of bundle deployments that have been
+             * synced from Fleet controller and downstream cluster, but are waiting
+             * to be deployed.
+             */
+            waitApplied: number;
+        }
+
+    }
+}
+
 export namespace management {
     export namespace v3 {
         export interface Cluster {

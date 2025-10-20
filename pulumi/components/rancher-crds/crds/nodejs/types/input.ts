@@ -307,6 +307,1241 @@ export namespace catalog {
     }
 }
 
+export namespace fleet {
+    export namespace v1alpha1 {
+        /**
+         * ClusterGroup is a re-usable selector to target a group of clusters.
+         */
+        export interface ClusterGroup {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"fleet.cattle.io/v1alpha1">;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"ClusterGroup">;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            spec?: pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupSpec>;
+            status?: pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupStatus>;
+        }
+
+        export interface ClusterGroupSpec {
+            selector?: pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupSpecSelector>;
+        }
+
+        export interface ClusterGroupSpecPatch {
+            selector?: pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupSpecSelectorPatch>;
+        }
+
+        /**
+         * Selector is a label selector, used to select clusters for this group.
+         */
+        export interface ClusterGroupSpecSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupSpecSelectorMatchExpressions>[]>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterGroupSpecSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterGroupSpecSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        /**
+         * Selector is a label selector, used to select clusters for this group.
+         */
+        export interface ClusterGroupSpecSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupSpecSelectorMatchExpressionsPatch>[]>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        export interface ClusterGroupStatus {
+            /**
+             * ClusterCount is the number of clusters in the cluster group.
+             */
+            clusterCount?: pulumi.Input<number>;
+            /**
+             * Conditions is a list of conditions and their statuses for the cluster group.
+             */
+            conditions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupStatusConditions>[]>;
+            display?: pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupStatusDisplay>;
+            /**
+             * NonReadyClusterCount is the number of clusters that are not ready.
+             */
+            nonReadyClusterCount?: pulumi.Input<number>;
+            /**
+             * NonReadyClusters is a list of cluster names that are not ready.
+             */
+            nonReadyClusters?: pulumi.Input<pulumi.Input<string>[]>;
+            resourceCounts?: pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupStatusResourceCounts>;
+            summary?: pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupStatusSummary>;
+        }
+
+        export interface ClusterGroupStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime?: pulumi.Input<string>;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime?: pulumi.Input<string>;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message?: pulumi.Input<string>;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason?: pulumi.Input<string>;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status?: pulumi.Input<string>;
+            /**
+             * Type of cluster condition.
+             */
+            type?: pulumi.Input<string>;
+        }
+
+        /**
+         * Display contains the number of ready, desiredready clusters and a
+         * summary state for the bundle's resources.
+         */
+        export interface ClusterGroupStatusDisplay {
+            /**
+             * ReadyBundles is a string in the form "%d/%d", that describes the
+             * number of bundles that are ready vs. the number of bundles desired
+             * to be ready.
+             */
+            readyBundles?: pulumi.Input<string>;
+            /**
+             * ReadyClusters is a string in the form "%d/%d", that describes the
+             * number of clusters that are ready vs. the number of clusters desired
+             * to be ready.
+             */
+            readyClusters?: pulumi.Input<string>;
+            /**
+             * State is a summary state for the cluster group, showing "NotReady" if
+             * there are non-ready resources.
+             */
+            state?: pulumi.Input<string>;
+        }
+
+        /**
+         * ResourceCounts contains the number of resources in each state over
+         * all bundles in the cluster group.
+         */
+        export interface ClusterGroupStatusResourceCounts {
+            /**
+             * DesiredReady is the number of resources that should be ready.
+             */
+            desiredReady?: pulumi.Input<number>;
+            /**
+             * Missing is the number of missing resources.
+             */
+            missing?: pulumi.Input<number>;
+            /**
+             * Modified is the number of resources that have been modified.
+             */
+            modified?: pulumi.Input<number>;
+            /**
+             * NotReady is the number of not ready resources. Resources are not
+             * ready if they do not match any other state.
+             */
+            notReady?: pulumi.Input<number>;
+            /**
+             * Orphaned is the number of orphaned resources.
+             */
+            orphaned?: pulumi.Input<number>;
+            /**
+             * Ready is the number of ready resources.
+             */
+            ready?: pulumi.Input<number>;
+            /**
+             * Unknown is the number of resources in an unknown state.
+             */
+            unknown?: pulumi.Input<number>;
+            /**
+             * WaitApplied is the number of resources that are waiting to be applied.
+             */
+            waitApplied?: pulumi.Input<number>;
+        }
+
+        /**
+         * Summary is a summary of the bundle deployments and their resources
+         * in the cluster group.
+         */
+        export interface ClusterGroupStatusSummary {
+            /**
+             * DesiredReady is the number of bundle deployments that should be
+             * ready.
+             */
+            desiredReady?: pulumi.Input<number>;
+            /**
+             * ErrApplied is the number of bundle deployments that have been synced
+             * from the Fleet controller and the downstream cluster, but with some
+             * errors when deploying the bundle.
+             */
+            errApplied?: pulumi.Input<number>;
+            /**
+             * Modified is the number of bundle deployments that have been deployed
+             * and for which all resources are ready, but where some changes from the
+             * Git repository have not yet been synced.
+             */
+            modified?: pulumi.Input<number>;
+            /**
+             * NonReadyClusters is a list of states, which is filled for a bundle
+             * that is not ready.
+             */
+            nonReadyResources?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupStatusSummaryNonReadyResources>[]>;
+            /**
+             * NotReady is the number of bundle deployments that have been deployed
+             * where some resources are not ready.
+             */
+            notReady?: pulumi.Input<number>;
+            /**
+             * OutOfSync is the number of bundle deployments that have been synced
+             * from Fleet controller, but not yet by the downstream agent.
+             */
+            outOfSync?: pulumi.Input<number>;
+            /**
+             * Pending is the number of bundle deployments that are being processed
+             * by Fleet controller.
+             */
+            pending?: pulumi.Input<number>;
+            /**
+             * Ready is the number of bundle deployments that have been deployed
+             * where all resources are ready.
+             */
+            ready?: pulumi.Input<number>;
+            /**
+             * WaitApplied is the number of bundle deployments that have been
+             * synced from Fleet controller and downstream cluster, but are waiting
+             * to be deployed.
+             */
+            waitApplied?: pulumi.Input<number>;
+        }
+
+        /**
+         * NonReadyResource contains information about a bundle that is not ready for a
+         * given state like "ErrApplied". It contains a list of non-ready or modified
+         * resources and their states.
+         */
+        export interface ClusterGroupStatusSummaryNonReadyResources {
+            /**
+             * State is the state of the resource, like e.g. "NotReady" or "ErrApplied".
+             */
+            bundleState?: pulumi.Input<string>;
+            /**
+             * Message contains information why the bundle is not ready.
+             */
+            message?: pulumi.Input<string>;
+            /**
+             * ModifiedStatus lists the state for each modified resource.
+             */
+            modifiedStatus?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupStatusSummaryNonReadyResourcesModifiedStatus>[]>;
+            /**
+             * Name is the name of the resource.
+             */
+            name?: pulumi.Input<string>;
+            /**
+             * NonReadyStatus lists the state for each non-ready resource.
+             */
+            nonReadyStatus?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupStatusSummaryNonReadyResourcesNonReadyStatus>[]>;
+        }
+
+        /**
+         * ModifiedStatus is used to report the status of a resource that is modified.
+         * It indicates if the modification was a create, a delete or a patch.
+         */
+        export interface ClusterGroupStatusSummaryNonReadyResourcesModifiedStatus {
+            apiVersion?: pulumi.Input<string>;
+            delete?: pulumi.Input<boolean>;
+            /**
+             * Exist is true if the resource exists but is not owned by us. This can happen if a resource was adopted by another bundle whereas the first bundle still exists and due to that reports that it does not own it.
+             */
+            exist?: pulumi.Input<boolean>;
+            kind?: pulumi.Input<string>;
+            missing?: pulumi.Input<boolean>;
+            name?: pulumi.Input<string>;
+            namespace?: pulumi.Input<string>;
+            patch?: pulumi.Input<string>;
+        }
+
+        /**
+         * NonReadyStatus is used to report the status of a resource that is not ready. It includes a summary.
+         */
+        export interface ClusterGroupStatusSummaryNonReadyResourcesNonReadyStatus {
+            apiVersion?: pulumi.Input<string>;
+            kind?: pulumi.Input<string>;
+            name?: pulumi.Input<string>;
+            namespace?: pulumi.Input<string>;
+            summary?: pulumi.Input<inputs.fleet.v1alpha1.ClusterGroupStatusSummaryNonReadyResourcesNonReadyStatusSummary>;
+            /**
+             * UID is a type that holds unique ID values, including UUIDs.  Because we
+             * don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+             * intent and helps make sure that UIDs and names do not get conflated.
+             */
+            uid?: pulumi.Input<string>;
+        }
+
+        export interface ClusterGroupStatusSummaryNonReadyResourcesNonReadyStatusSummary {
+            error?: pulumi.Input<boolean>;
+            message?: pulumi.Input<pulumi.Input<string>[]>;
+            state?: pulumi.Input<string>;
+            transitioning?: pulumi.Input<boolean>;
+        }
+
+        /**
+         * GitRepo describes a git repository that is watched by Fleet.
+         * The resource contains the necessary information to deploy the repo, or parts
+         * of it, to target clusters.
+         */
+        export interface GitRepo {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"fleet.cattle.io/v1alpha1">;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"GitRepo">;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            spec?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpec>;
+            status?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoStatus>;
+        }
+
+        export interface GitRepoSpec {
+            /**
+             * Branch The git branch to follow.
+             */
+            branch?: pulumi.Input<string>;
+            /**
+             * Bundles defines the paths of bundles to be read.
+             * This drives the fleet resource scanner that simply loads the specified folders
+             */
+            bundles?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecBundles>[]>;
+            /**
+             * CABundle is a PEM encoded CA bundle which will be used to validate the repo's certificate.
+             */
+            caBundle?: pulumi.Input<string>;
+            /**
+             * ClientSecretName is the name of the client secret to be used to connect to the repo
+             * It is expected the secret be of type "kubernetes.io/basic-auth" or "kubernetes.io/ssh-auth".
+             */
+            clientSecretName?: pulumi.Input<string>;
+            correctDrift?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecCorrectDrift>;
+            /**
+             * DeleteNamespace specifies if the namespace created must be deleted after deleting the GitRepo.
+             */
+            deleteNamespace?: pulumi.Input<boolean>;
+            /**
+             * Disables git polling. When enabled only webhooks will be used.
+             */
+            disablePolling?: pulumi.Input<boolean>;
+            /**
+             * Increment this number to force a redeployment of contents from Git.
+             */
+            forceSyncGeneration?: pulumi.Input<number>;
+            /**
+             * HelmRepoURLRegex Helm credentials will be used if the helm repo matches this regex
+             * Credentials will always be used if this is empty or not provided.
+             */
+            helmRepoURLRegex?: pulumi.Input<string>;
+            /**
+             * HelmSecretName contains the auth secret for a private Helm repository.
+             */
+            helmSecretName?: pulumi.Input<string>;
+            /**
+             * HelmSecretNameForPaths contains the auth secret for private Helm repository for each path.
+             */
+            helmSecretNameForPaths?: pulumi.Input<string>;
+            imageScanCommit?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecImageScanCommit>;
+            /**
+             * ImageScanInterval is the interval of syncing scanned images and writing back to git repo.
+             */
+            imageScanInterval?: pulumi.Input<string>;
+            /**
+             * InsecureSkipTLSverify will use insecure HTTPS to clone the repo.
+             */
+            insecureSkipTLSVerify?: pulumi.Input<boolean>;
+            /**
+             * KeepResources specifies if the resources created must be kept after deleting the GitRepo.
+             */
+            keepResources?: pulumi.Input<boolean>;
+            /**
+             * OCIRegistrySecret contains the name of the secret to be used for retrieving the OCI registry connection details.
+             */
+            ociRegistrySecret?: pulumi.Input<string>;
+            /**
+             * Paths is the directories relative to the git repo root that contain resources to be applied.
+             * Path globbing is supported, for example ["charts/*"] will match all folders as a subdirectory of charts/
+             * If empty, "/" is the default.
+             */
+            paths?: pulumi.Input<pulumi.Input<string>[]>;
+            /**
+             * Paused, when true, causes changes in Git not to be propagated down to the clusters but instead to mark
+             * resources as OutOfSync.
+             */
+            paused?: pulumi.Input<boolean>;
+            /**
+             * PollingInterval is how often to check git for new updates.
+             */
+            pollingInterval?: pulumi.Input<string>;
+            /**
+             * Repo is a URL to a git repo to clone and index.
+             */
+            repo?: pulumi.Input<string>;
+            /**
+             * Revision A specific commit or tag to operate on.
+             */
+            revision?: pulumi.Input<string>;
+            /**
+             * ServiceAccount used in the downstream cluster for deployment.
+             */
+            serviceAccount?: pulumi.Input<string>;
+            /**
+             * Ensure that all resources are created in this namespace
+             * Any cluster scoped resource will be rejected if this is set
+             * Additionally this namespace will be created on demand.
+             */
+            targetNamespace?: pulumi.Input<string>;
+            /**
+             * Targets is a list of targets this repo will deploy to.
+             */
+            targets?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecTargets>[]>;
+            /**
+             * WebhookSecret contains the name of the secret to use for webhook parsing
+             */
+            webhookSecret?: pulumi.Input<string>;
+        }
+
+        export interface GitRepoSpecBundles {
+            /**
+             * Base is the base path for the bundle resources
+             */
+            base?: pulumi.Input<string>;
+            /**
+             * Options is the path (relative to path above) that defines a fleet.yaml file to configure the bundle
+             */
+            options?: pulumi.Input<string>;
+        }
+
+        export interface GitRepoSpecBundlesPatch {
+            /**
+             * Base is the base path for the bundle resources
+             */
+            base?: pulumi.Input<string>;
+            /**
+             * Options is the path (relative to path above) that defines a fleet.yaml file to configure the bundle
+             */
+            options?: pulumi.Input<string>;
+        }
+
+        /**
+         * CorrectDrift specifies how drift correction should work.
+         */
+        export interface GitRepoSpecCorrectDrift {
+            /**
+             * Enabled correct drift if true.
+             */
+            enabled?: pulumi.Input<boolean>;
+            /**
+             * Force helm rollback with --force option will be used if true. This will try to recreate all resources in the release.
+             */
+            force?: pulumi.Input<boolean>;
+            /**
+             * KeepFailHistory keeps track of failed rollbacks in the helm history.
+             */
+            keepFailHistory?: pulumi.Input<boolean>;
+        }
+
+        /**
+         * CorrectDrift specifies how drift correction should work.
+         */
+        export interface GitRepoSpecCorrectDriftPatch {
+            /**
+             * Enabled correct drift if true.
+             */
+            enabled?: pulumi.Input<boolean>;
+            /**
+             * Force helm rollback with --force option will be used if true. This will try to recreate all resources in the release.
+             */
+            force?: pulumi.Input<boolean>;
+            /**
+             * KeepFailHistory keeps track of failed rollbacks in the helm history.
+             */
+            keepFailHistory?: pulumi.Input<boolean>;
+        }
+
+        /**
+         * Commit specifies how to commit to the git repo when a new image is scanned and written back to git repo.
+         */
+        export interface GitRepoSpecImageScanCommit {
+            /**
+             * AuthorEmail gives the email to provide when making a commit
+             */
+            authorEmail?: pulumi.Input<string>;
+            /**
+             * AuthorName gives the name to provide when making a commit
+             */
+            authorName?: pulumi.Input<string>;
+            /**
+             * MessageTemplate provides a template for the commit message,
+             * into which will be interpolated the details of the change made.
+             */
+            messageTemplate?: pulumi.Input<string>;
+        }
+
+        /**
+         * Commit specifies how to commit to the git repo when a new image is scanned and written back to git repo.
+         */
+        export interface GitRepoSpecImageScanCommitPatch {
+            /**
+             * AuthorEmail gives the email to provide when making a commit
+             */
+            authorEmail?: pulumi.Input<string>;
+            /**
+             * AuthorName gives the name to provide when making a commit
+             */
+            authorName?: pulumi.Input<string>;
+            /**
+             * MessageTemplate provides a template for the commit message,
+             * into which will be interpolated the details of the change made.
+             */
+            messageTemplate?: pulumi.Input<string>;
+        }
+
+        export interface GitRepoSpecPatch {
+            /**
+             * Branch The git branch to follow.
+             */
+            branch?: pulumi.Input<string>;
+            /**
+             * Bundles defines the paths of bundles to be read.
+             * This drives the fleet resource scanner that simply loads the specified folders
+             */
+            bundles?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecBundlesPatch>[]>;
+            /**
+             * CABundle is a PEM encoded CA bundle which will be used to validate the repo's certificate.
+             */
+            caBundle?: pulumi.Input<string>;
+            /**
+             * ClientSecretName is the name of the client secret to be used to connect to the repo
+             * It is expected the secret be of type "kubernetes.io/basic-auth" or "kubernetes.io/ssh-auth".
+             */
+            clientSecretName?: pulumi.Input<string>;
+            correctDrift?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecCorrectDriftPatch>;
+            /**
+             * DeleteNamespace specifies if the namespace created must be deleted after deleting the GitRepo.
+             */
+            deleteNamespace?: pulumi.Input<boolean>;
+            /**
+             * Disables git polling. When enabled only webhooks will be used.
+             */
+            disablePolling?: pulumi.Input<boolean>;
+            /**
+             * Increment this number to force a redeployment of contents from Git.
+             */
+            forceSyncGeneration?: pulumi.Input<number>;
+            /**
+             * HelmRepoURLRegex Helm credentials will be used if the helm repo matches this regex
+             * Credentials will always be used if this is empty or not provided.
+             */
+            helmRepoURLRegex?: pulumi.Input<string>;
+            /**
+             * HelmSecretName contains the auth secret for a private Helm repository.
+             */
+            helmSecretName?: pulumi.Input<string>;
+            /**
+             * HelmSecretNameForPaths contains the auth secret for private Helm repository for each path.
+             */
+            helmSecretNameForPaths?: pulumi.Input<string>;
+            imageScanCommit?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecImageScanCommitPatch>;
+            /**
+             * ImageScanInterval is the interval of syncing scanned images and writing back to git repo.
+             */
+            imageScanInterval?: pulumi.Input<string>;
+            /**
+             * InsecureSkipTLSverify will use insecure HTTPS to clone the repo.
+             */
+            insecureSkipTLSVerify?: pulumi.Input<boolean>;
+            /**
+             * KeepResources specifies if the resources created must be kept after deleting the GitRepo.
+             */
+            keepResources?: pulumi.Input<boolean>;
+            /**
+             * OCIRegistrySecret contains the name of the secret to be used for retrieving the OCI registry connection details.
+             */
+            ociRegistrySecret?: pulumi.Input<string>;
+            /**
+             * Paths is the directories relative to the git repo root that contain resources to be applied.
+             * Path globbing is supported, for example ["charts/*"] will match all folders as a subdirectory of charts/
+             * If empty, "/" is the default.
+             */
+            paths?: pulumi.Input<pulumi.Input<string>[]>;
+            /**
+             * Paused, when true, causes changes in Git not to be propagated down to the clusters but instead to mark
+             * resources as OutOfSync.
+             */
+            paused?: pulumi.Input<boolean>;
+            /**
+             * PollingInterval is how often to check git for new updates.
+             */
+            pollingInterval?: pulumi.Input<string>;
+            /**
+             * Repo is a URL to a git repo to clone and index.
+             */
+            repo?: pulumi.Input<string>;
+            /**
+             * Revision A specific commit or tag to operate on.
+             */
+            revision?: pulumi.Input<string>;
+            /**
+             * ServiceAccount used in the downstream cluster for deployment.
+             */
+            serviceAccount?: pulumi.Input<string>;
+            /**
+             * Ensure that all resources are created in this namespace
+             * Any cluster scoped resource will be rejected if this is set
+             * Additionally this namespace will be created on demand.
+             */
+            targetNamespace?: pulumi.Input<string>;
+            /**
+             * Targets is a list of targets this repo will deploy to.
+             */
+            targets?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecTargetsPatch>[]>;
+            /**
+             * WebhookSecret contains the name of the secret to use for webhook parsing
+             */
+            webhookSecret?: pulumi.Input<string>;
+        }
+
+        /**
+         * GitTarget is a cluster or cluster group to deploy to.
+         */
+        export interface GitRepoSpecTargets {
+            /**
+             * ClusterGroup is the name of a cluster group in the same namespace as the clusters.
+             */
+            clusterGroup?: pulumi.Input<string>;
+            clusterGroupSelector?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecTargetsClusterGroupSelector>;
+            /**
+             * ClusterName is the name of a cluster.
+             */
+            clusterName?: pulumi.Input<string>;
+            clusterSelector?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecTargetsClusterSelector>;
+            /**
+             * Name is the name of this target.
+             */
+            name?: pulumi.Input<string>;
+        }
+
+        /**
+         * ClusterGroupSelector is a label selector to select cluster groups.
+         */
+        export interface GitRepoSpecTargetsClusterGroupSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecTargetsClusterGroupSelectorMatchExpressions>[]>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface GitRepoSpecTargetsClusterGroupSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface GitRepoSpecTargetsClusterGroupSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        /**
+         * ClusterGroupSelector is a label selector to select cluster groups.
+         */
+        export interface GitRepoSpecTargetsClusterGroupSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecTargetsClusterGroupSelectorMatchExpressionsPatch>[]>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        /**
+         * ClusterSelector is a label selector to select clusters.
+         */
+        export interface GitRepoSpecTargetsClusterSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecTargetsClusterSelectorMatchExpressions>[]>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface GitRepoSpecTargetsClusterSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface GitRepoSpecTargetsClusterSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        /**
+         * ClusterSelector is a label selector to select clusters.
+         */
+        export interface GitRepoSpecTargetsClusterSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecTargetsClusterSelectorMatchExpressionsPatch>[]>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+        }
+
+        /**
+         * GitTarget is a cluster or cluster group to deploy to.
+         */
+        export interface GitRepoSpecTargetsPatch {
+            /**
+             * ClusterGroup is the name of a cluster group in the same namespace as the clusters.
+             */
+            clusterGroup?: pulumi.Input<string>;
+            clusterGroupSelector?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecTargetsClusterGroupSelectorPatch>;
+            /**
+             * ClusterName is the name of a cluster.
+             */
+            clusterName?: pulumi.Input<string>;
+            clusterSelector?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoSpecTargetsClusterSelectorPatch>;
+            /**
+             * Name is the name of this target.
+             */
+            name?: pulumi.Input<string>;
+        }
+
+        export interface GitRepoStatus {
+            /**
+             * Commit is the Git commit hash from the last git job run.
+             */
+            commit?: pulumi.Input<string>;
+            /**
+             * Conditions is a list of Wrangler conditions that describe the state
+             * of the resource.
+             */
+            conditions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoStatusConditions>[]>;
+            /**
+             * DesiredReadyClusters	is the number of clusters that should be ready for bundles of this resource.
+             */
+            desiredReadyClusters?: pulumi.Input<number>;
+            display?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoStatusDisplay>;
+            /**
+             * GitJobStatus is the status of the last Git job run, e.g. "Current" if there was no error.
+             */
+            gitJobStatus?: pulumi.Input<string>;
+            /**
+             * LastPollingTime is the last time the polling check was triggered
+             */
+            lastPollingTriggered?: pulumi.Input<string>;
+            /**
+             * LastSyncedImageScanTime is the time of the last image scan.
+             */
+            lastSyncedImageScanTime?: pulumi.Input<string>;
+            /**
+             * ObservedGeneration is the current generation of the resource in the cluster. It is copied from k8s
+             * metadata.Generation. The value is incremented for all changes, except for changes to .metadata or .status.
+             */
+            observedGeneration?: pulumi.Input<number>;
+            /**
+             * PerClusterResourceCounts contains the number of resources in each state over all bundles, per cluster.
+             */
+            perClusterResourceCounts?: pulumi.Input<{[key: string]: pulumi.Input<{[key: string]: pulumi.Input<string>}>}>;
+            /**
+             * ReadyClusters is the lowest number of clusters that are ready over
+             * all the bundles of this resource.
+             */
+            readyClusters?: pulumi.Input<number>;
+            resourceCounts?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoStatusResourceCounts>;
+            /**
+             * Resources contains metadata about the resources of each bundle.
+             */
+            resources?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoStatusResources>[]>;
+            summary?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoStatusSummary>;
+            /**
+             * Update generation is the force update generation if spec.forceSyncGeneration is set
+             */
+            updateGeneration?: pulumi.Input<number>;
+            /**
+             * WebhookCommit is the latest Git commit hash received from a webhook
+             */
+            webhookCommit?: pulumi.Input<string>;
+        }
+
+        export interface GitRepoStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime?: pulumi.Input<string>;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime?: pulumi.Input<string>;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message?: pulumi.Input<string>;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason?: pulumi.Input<string>;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status?: pulumi.Input<string>;
+            /**
+             * Type of cluster condition.
+             */
+            type?: pulumi.Input<string>;
+        }
+
+        /**
+         * Display contains a human readable summary of the status.
+         */
+        export interface GitRepoStatusDisplay {
+            /**
+             * Error is true if a message is present.
+             */
+            error?: pulumi.Input<boolean>;
+            /**
+             * Message contains the relevant message from the deployment conditions.
+             */
+            message?: pulumi.Input<string>;
+            /**
+             * ReadyBundleDeployments is a string in the form "%d/%d", that describes the
+             * number of ready bundledeployments over the total number of bundledeployments.
+             */
+            readyBundleDeployments?: pulumi.Input<string>;
+            /**
+             * State is the state of the resource, e.g. "GitUpdating" or the maximal
+             * BundleState according to StateRank.
+             */
+            state?: pulumi.Input<string>;
+        }
+
+        /**
+         * ResourceCounts contains the number of resources in each state over all bundles.
+         */
+        export interface GitRepoStatusResourceCounts {
+            /**
+             * DesiredReady is the number of resources that should be ready.
+             */
+            desiredReady?: pulumi.Input<number>;
+            /**
+             * Missing is the number of missing resources.
+             */
+            missing?: pulumi.Input<number>;
+            /**
+             * Modified is the number of resources that have been modified.
+             */
+            modified?: pulumi.Input<number>;
+            /**
+             * NotReady is the number of not ready resources. Resources are not
+             * ready if they do not match any other state.
+             */
+            notReady?: pulumi.Input<number>;
+            /**
+             * Orphaned is the number of orphaned resources.
+             */
+            orphaned?: pulumi.Input<number>;
+            /**
+             * Ready is the number of ready resources.
+             */
+            ready?: pulumi.Input<number>;
+            /**
+             * Unknown is the number of resources in an unknown state.
+             */
+            unknown?: pulumi.Input<number>;
+            /**
+             * WaitApplied is the number of resources that are waiting to be applied.
+             */
+            waitApplied?: pulumi.Input<number>;
+        }
+
+        /**
+         * Resource contains metadata about the resources of a bundle.
+         */
+        export interface GitRepoStatusResources {
+            /**
+             * APIVersion is the API version of the resource.
+             */
+            apiVersion?: pulumi.Input<string>;
+            /**
+             * Error is true if any Error in the PerClusterState is true.
+             */
+            error?: pulumi.Input<boolean>;
+            /**
+             * ID is the name of the resource, e.g. "namespace1/my-config" or "backingimagemanagers.storage.io".
+             */
+            id?: pulumi.Input<string>;
+            /**
+             * IncompleteState is true if a bundle summary has 10 or more non-ready
+             * resources or a non-ready resource has more 10 or more non-ready or
+             * modified states.
+             */
+            incompleteState?: pulumi.Input<boolean>;
+            /**
+             * Kind is the k8s kind of the resource.
+             */
+            kind?: pulumi.Input<string>;
+            /**
+             * Message is the first message from the PerClusterStates.
+             */
+            message?: pulumi.Input<string>;
+            /**
+             * Name of the resource.
+             */
+            name?: pulumi.Input<string>;
+            /**
+             * Namespace of the resource.
+             */
+            namespace?: pulumi.Input<string>;
+            perClusterState?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoStatusResourcesPerClusterState>;
+            /**
+             * State is the state of the resource, e.g. "Unknown", "WaitApplied", "ErrApplied" or "Ready".
+             */
+            state?: pulumi.Input<string>;
+            /**
+             * Transitioning is true if any Transitioning in the PerClusterState is true.
+             */
+            transitioning?: pulumi.Input<boolean>;
+            /**
+             * Type is the type of the resource, e.g. "apiextensions.k8s.io.customresourcedefinition" or "configmap".
+             */
+            type?: pulumi.Input<string>;
+        }
+
+        /**
+         * PerClusterState contains lists of cluster IDs for every State for this resource
+         */
+        export interface GitRepoStatusResourcesPerClusterState {
+            /**
+             * Missing is a list of cluster IDs for which this a resource is in Missing state
+             */
+            missing?: pulumi.Input<pulumi.Input<string>[]>;
+            /**
+             * Modified is a list of cluster IDs for which this a resource is in Modified state
+             */
+            modified?: pulumi.Input<pulumi.Input<string>[]>;
+            /**
+             * NotReady is a list of cluster IDs for which this a resource is in NotReady state
+             */
+            notReady?: pulumi.Input<pulumi.Input<string>[]>;
+            /**
+             * Orphaned is a list of cluster IDs for which this a resource is in Orphaned state
+             */
+            orphaned?: pulumi.Input<pulumi.Input<string>[]>;
+            /**
+             * Pending is a list of cluster IDs for which this a resource is in Pending state
+             */
+            pending?: pulumi.Input<pulumi.Input<string>[]>;
+            /**
+             * Ready is a list of cluster IDs for which this a resource is in Ready state
+             */
+            ready?: pulumi.Input<pulumi.Input<string>[]>;
+            /**
+             * Unknown is a list of cluster IDs for which this a resource is in Unknown state
+             */
+            unknown?: pulumi.Input<pulumi.Input<string>[]>;
+            /**
+             * WaitApplied is a list of cluster IDs for which this a resource is in WaitApplied state
+             */
+            waitApplied?: pulumi.Input<pulumi.Input<string>[]>;
+        }
+
+        /**
+         * Summary contains the number of bundle deployments in each state and a list of non-ready resources.
+         */
+        export interface GitRepoStatusSummary {
+            /**
+             * DesiredReady is the number of bundle deployments that should be
+             * ready.
+             */
+            desiredReady?: pulumi.Input<number>;
+            /**
+             * ErrApplied is the number of bundle deployments that have been synced
+             * from the Fleet controller and the downstream cluster, but with some
+             * errors when deploying the bundle.
+             */
+            errApplied?: pulumi.Input<number>;
+            /**
+             * Modified is the number of bundle deployments that have been deployed
+             * and for which all resources are ready, but where some changes from the
+             * Git repository have not yet been synced.
+             */
+            modified?: pulumi.Input<number>;
+            /**
+             * NonReadyClusters is a list of states, which is filled for a bundle
+             * that is not ready.
+             */
+            nonReadyResources?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoStatusSummaryNonReadyResources>[]>;
+            /**
+             * NotReady is the number of bundle deployments that have been deployed
+             * where some resources are not ready.
+             */
+            notReady?: pulumi.Input<number>;
+            /**
+             * OutOfSync is the number of bundle deployments that have been synced
+             * from Fleet controller, but not yet by the downstream agent.
+             */
+            outOfSync?: pulumi.Input<number>;
+            /**
+             * Pending is the number of bundle deployments that are being processed
+             * by Fleet controller.
+             */
+            pending?: pulumi.Input<number>;
+            /**
+             * Ready is the number of bundle deployments that have been deployed
+             * where all resources are ready.
+             */
+            ready?: pulumi.Input<number>;
+            /**
+             * WaitApplied is the number of bundle deployments that have been
+             * synced from Fleet controller and downstream cluster, but are waiting
+             * to be deployed.
+             */
+            waitApplied?: pulumi.Input<number>;
+        }
+
+        /**
+         * NonReadyResource contains information about a bundle that is not ready for a
+         * given state like "ErrApplied". It contains a list of non-ready or modified
+         * resources and their states.
+         */
+        export interface GitRepoStatusSummaryNonReadyResources {
+            /**
+             * State is the state of the resource, like e.g. "NotReady" or "ErrApplied".
+             */
+            bundleState?: pulumi.Input<string>;
+            /**
+             * Message contains information why the bundle is not ready.
+             */
+            message?: pulumi.Input<string>;
+            /**
+             * ModifiedStatus lists the state for each modified resource.
+             */
+            modifiedStatus?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoStatusSummaryNonReadyResourcesModifiedStatus>[]>;
+            /**
+             * Name is the name of the resource.
+             */
+            name?: pulumi.Input<string>;
+            /**
+             * NonReadyStatus lists the state for each non-ready resource.
+             */
+            nonReadyStatus?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.GitRepoStatusSummaryNonReadyResourcesNonReadyStatus>[]>;
+        }
+
+        /**
+         * ModifiedStatus is used to report the status of a resource that is modified.
+         * It indicates if the modification was a create, a delete or a patch.
+         */
+        export interface GitRepoStatusSummaryNonReadyResourcesModifiedStatus {
+            apiVersion?: pulumi.Input<string>;
+            delete?: pulumi.Input<boolean>;
+            /**
+             * Exist is true if the resource exists but is not owned by us. This can happen if a resource was adopted by another bundle whereas the first bundle still exists and due to that reports that it does not own it.
+             */
+            exist?: pulumi.Input<boolean>;
+            kind?: pulumi.Input<string>;
+            missing?: pulumi.Input<boolean>;
+            name?: pulumi.Input<string>;
+            namespace?: pulumi.Input<string>;
+            patch?: pulumi.Input<string>;
+        }
+
+        /**
+         * NonReadyStatus is used to report the status of a resource that is not ready. It includes a summary.
+         */
+        export interface GitRepoStatusSummaryNonReadyResourcesNonReadyStatus {
+            apiVersion?: pulumi.Input<string>;
+            kind?: pulumi.Input<string>;
+            name?: pulumi.Input<string>;
+            namespace?: pulumi.Input<string>;
+            summary?: pulumi.Input<inputs.fleet.v1alpha1.GitRepoStatusSummaryNonReadyResourcesNonReadyStatusSummary>;
+            /**
+             * UID is a type that holds unique ID values, including UUIDs.  Because we
+             * don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+             * intent and helps make sure that UIDs and names do not get conflated.
+             */
+            uid?: pulumi.Input<string>;
+        }
+
+        export interface GitRepoStatusSummaryNonReadyResourcesNonReadyStatusSummary {
+            error?: pulumi.Input<boolean>;
+            message?: pulumi.Input<pulumi.Input<string>[]>;
+            state?: pulumi.Input<string>;
+            transitioning?: pulumi.Input<boolean>;
+        }
+
+    }
+}
+
 export namespace management {
     export namespace v3 {
         export interface Cluster {
