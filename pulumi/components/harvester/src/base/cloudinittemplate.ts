@@ -23,15 +23,16 @@ const DefaultCloudInitTemplates: CloudInitTemplateArgs[] = [{
     ]
 }]
 
-export class CloudInitTemplate extends kubernetes.core.v1.Secret {
+export class CloudInitTemplate extends kubernetes.core.v1.ConfigMap {
     constructor(name: string, cloudInit: CloudInitArgs, opts?: pulumi.CustomResourceOptions) {
         super(name, {
             metadata: {
+                name: name,
                 labels: {
                     "harvesterhci.io/cloud-init-template": "user",
                 },
             },
-            stringData: {
+            data: {
                 cloudInit: renderCloudInit(cloudInit),
             }
         }, opts);

@@ -1,6 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import {fleet} from "@suse-tmm/rancher-crds";
 import { KubeWait, noProvider } from "@suse-tmm/utils";
+import * as kubernetes from "@pulumi/kubernetes";
 
 interface GitRepoConfig {
     url: string;
@@ -45,6 +46,10 @@ export function createFleetConfiguration(kubeconfig: pulumi.Input<string>, opts:
         name: "gitrepos.fleet.cattle.io",
         kubeconfig: kubeconfig,
     }, noProvider(opts));
+
+    // Need to refresh the provider to pick up the new CRDs
+    const newProvider = new kubernetes.Provider("refreshed-rancher-k8s", { kubeconfig: kubeconfig }, { dependsOn: [kw] });
+    opts = {...opts, provider: newProvider};
 
     const cg = new fleet.ClusterGroup("all-downstream-clusters", {
         metadata: {

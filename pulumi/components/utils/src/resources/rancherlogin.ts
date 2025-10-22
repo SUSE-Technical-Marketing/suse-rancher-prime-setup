@@ -1,18 +1,19 @@
 import *  as pulumi from "@pulumi/pulumi";
-import { loginToRancher } from "../functions/login";
-import { waitFor } from "../functions/waitfor";
+import { RancherClient, RancherServerConnectionDetails } from "../rancher-client";
 
 export interface RancherLoginInputs {
-    rancherServer: pulumi.Input<string>;
-    username: pulumi.Input<string>;
-    password: pulumi.Input<string>;
+    server: pulumi.Input<string>;
+    username?: pulumi.Input<string>;
+    password?: pulumi.Input<string>;
+    authToken?: pulumi.Input<string>;
     insecure?: pulumi.Input<boolean>;
 }
 
-interface RancherLoginProviderInputs {
-    rancherServer: string;
-    username: string;
-    password: string;
+export interface RancherLoginProviderInputs {
+    server: string;
+    username?: string;
+    password?: string;
+    authToken?: string;
     insecure?: boolean;
 }
 
@@ -22,28 +23,27 @@ interface RancherLoginProviderOutputs extends RancherLoginProviderInputs {
 }
 
 export interface RancherAuth {
-    rancherServer: pulumi.Output<string>;
+    server: pulumi.Output<string>;
     authToken: pulumi.Output<string>;
     insecure: pulumi.Output<boolean>;
 }
 
 class RancherLoginProvider implements pulumi.dynamic.ResourceProvider<RancherLoginProviderInputs, RancherLoginProviderOutputs> {
     async create(inputs: RancherLoginProviderInputs): Promise<pulumi.dynamic.CreateResult<RancherLoginProviderOutputs>> {
-        const token = await loginToRancher(inputs).catch(err => {
+        return RancherClient.fromServerConnectionArgs(inputs).catch(err => {
             pulumi.log.error(`Failed to login to Rancher: ${err.message}`);
             throw new Error(`Failed to login to Rancher: ${err.message}`);
+        }).then(client => {
+            pulumi.log.info(`Successfully logged in to Rancher server: "${inputs.server}" as user: "${inputs.username}"`);
+            return {
+                id: `${inputs.server}-login-${inputs.username}`,
+                outs: {
+                    ...inputs,
+                    authToken: (client.details as RancherServerConnectionDetails).token,
+                    insecure: inputs.insecure ?? false,
+                },
+            };
         });
-
-        pulumi.log.info(`Successfully logged in to Rancher server: "${inputs.rancherServer}" as user: "${inputs.username}"`);
-
-        return {
-            id: `${inputs.rancherServer}-login-${inputs.username}`,
-            outs: {
-                ...inputs,
-                insecure: inputs.insecure ?? false,
-                authToken: token,
-            },
-        };
     }
 
     async delete(): Promise<void> {
@@ -66,7 +66,7 @@ class RancherLoginProvider implements pulumi.dynamic.ResourceProvider<RancherLog
 
 export class RancherLogin extends pulumi.dynamic.Resource {
     public readonly authToken!: pulumi.Output<string>;
-    public readonly rancherServer!: pulumi.Output<string>;
+    public readonly server!: pulumi.Output<string>;
     public readonly insecure!: pulumi.Output<boolean>;
 
     constructor(name: string, inputs: RancherLoginInputs, opts?: pulumi.ComponentResourceOptions) {
@@ -77,7 +77,7 @@ export class RancherLogin extends pulumi.dynamic.Resource {
     getAuth(): RancherAuth {
         return {
             insecure: this.insecure,
-            rancherServer: this.rancherServer,
+            server: this.server,
             authToken: this.authToken,
         };
     }

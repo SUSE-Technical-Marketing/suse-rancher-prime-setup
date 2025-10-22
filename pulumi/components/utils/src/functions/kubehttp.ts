@@ -5,7 +5,6 @@ export interface KubeConfigHttpOutput {
     agent: https.Agent;
     headers: Record<string, string>;
     server: string;
-    insecure: boolean;
 }
 
 export function kubeConfigToHttp(kubeconfig: string): KubeConfigHttpOutput {
@@ -25,7 +24,6 @@ export function kubeConfigToHttp(kubeconfig: string): KubeConfigHttpOutput {
     // token takes precedence over basic auth
     const token = user.token
         || user["auth-provider"]?.config?.["access-token"];
-
     const basicUser = user.username;
     const basicPass = user.password;
 
@@ -49,7 +47,6 @@ export function kubeConfigToHttp(kubeconfig: string): KubeConfigHttpOutput {
         agent,
         headers,
         server,
-        insecure,
     };
 }
 

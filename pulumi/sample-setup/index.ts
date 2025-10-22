@@ -9,7 +9,7 @@ import { HarvesterCloudProvider } from "@suse-tmm/rancher/src/cloud/harvester";
 import * as versions from "./versions"
 import * as gitrepos from "./gitrepos";
 
-export function provisionHarvester(clusterNetwork:string, downloadSuseImage: boolean, kubeconfig: kubeconfig.RancherKubeconfig, sshUser: string, sshPubKey: string) : harvester.HarvesterBase {
+export function provisionHarvester(clusterNetwork:string, downloadSuseImage: boolean, kubeconfig: pulumi.Input<string>, sshUser: string, sshPubKey: string) : harvester.HarvesterBase {
     const images: VmImageArgs[] = []
     if (downloadSuseImage) {
         images.push({
@@ -20,7 +20,7 @@ export function provisionHarvester(clusterNetwork:string, downloadSuseImage: boo
     }
 
     const harvesterBase = new harvester.HarvesterBase("harvester-base", {
-        kubeconfig: kubeconfig.kubeconfig,
+        kubeconfig: kubeconfig,
         clusterNetwork: clusterNetwork,
         extraImages: images,
         sshUser: sshUser,
@@ -72,16 +72,16 @@ let imageDetails: {id: pulumi.Output<string>, storageClassName: pulumi.Output<st
 pulumi.log.info(`Lets Encrypt Environment: ${staging ? "Staging" : "Production"}, Email: ${letsEncryptEmail ? "Provided" : "Not Provided"}`);
 pulumi.log.info(`Cloudflare API Key: ${cloudFlareApiKey ? "Provided" : "Not Provided"}`);
 
-const harvesterKubeconfig = new kubeconfig.RancherKubeconfig("harvester-kubeconfig", {
-    url: harvesterUrl,
+const harvesterKubeconfig = new kubeconfig.HarvesterKubeconfig("harvester-kubeconfig", {
+    server: harvesterUrl,
     username: username,
     password: password,
-    clusterName: "local",
+    clusterId: "local",
     insecure: true, // Harvester normally has a self-signed cert
 });
 
 
-const harvBase = provisionHarvester(clusterNetwork, downloadSuseImage, harvesterKubeconfig, sshUser, sshPubKey);
+const harvBase = provisionHarvester(clusterNetwork, downloadSuseImage, harvesterKubeconfig.kubeconfig, sshUser, sshPubKey);
 const nw = harvBase.networks.get("backbone-vlan")!;
 
 if (downloadSuseImage) {
@@ -147,7 +147,7 @@ const repo = installUIPluginRepo({ provider: rancherK8sProvider, dependsOn: [ran
 const uiPlugin = new RancherUIPlugin("harvester", {
     chartName: "harvester",
     rancher: {
-        rancherServer: rancherManager.rancherUrl,
+        server: rancherManager.rancherUrl,
         username: "admin",
         password: rancherManager.rancherAdminPassword,
         insecure: staging,
@@ -160,11 +160,17 @@ new HarvesterCloudProvider("harvester-cloud", {
     rancherKubeconfig: rancherManager.kubeconfig,
     clusterName: harvesterName,
     harvester: {
-        rancherServer: harvesterUrl,
+        server: harvesterUrl,
         username: username,
         password: password,
         insecure: true, // Harvester normally has a self-signed cert
-    }
+    },
+    rancher: {
+        server: rancherManager.rancherUrl,
+        authToken: rancherManager.authToken,
+        insecure: staging,
+    },
+
 }, { provider: rancherK8sProvider, dependsOn: [uiPlugin] });
 
 gitrepos.createFleetConfiguration(rancherManager.kubeconfig, { provider: rancherK8sProvider, dependsOn: [rancherManager] });

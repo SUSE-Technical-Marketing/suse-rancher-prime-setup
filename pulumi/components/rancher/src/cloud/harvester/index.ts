@@ -5,12 +5,14 @@ import {harvesterhci} from "@suse-tmm/harvester-crds";
 import { ClusterRegistrationToken } from "./clusterregistrationtoken";
 import { KubeWait, noProvider, RancherLogin, RancherLoginInputs } from "@suse-tmm/utils";
 import { RancherSetting } from "../..//resources/setting";
+import { HarvesterCloudCredential } from "./cloudcredential";
 
 export interface HarvesterCloudArgs {
     clusterName: pulumi.Input<string>;
     rancherKubeconfig: pulumi.Input<string>; // Kubeconfig to access the Rancher cluster
 
     harvester: RancherLoginInputs;
+    rancher: RancherLoginInputs;
 }
 
 export class HarvesterCloudProvider extends pulumi.ComponentResource {
@@ -48,12 +50,12 @@ export class HarvesterCloudProvider extends pulumi.ComponentResource {
         // }, noProvider(myOpts));
         const harvesterAuthSetting = new HarvesterSetting("harvester-auth-setting", {
             ...harvesterAuth,
-            harvesterServer: harvesterAuth.rancherServer,
+            server: harvesterAuth.server,
             settingName: "cluster-registration-url",
             settingValue: token.token
         }, noProvider(myOpts));
 
-        new KubeWait("cluster-registration-wait", {
+        const kw = new KubeWait("cluster-registration-wait", {
             kubeconfig: args.rancherKubeconfig,
             apiVersion: "provisioning.cattle.io/v1",
             kind: "Cluster",
@@ -63,5 +65,11 @@ export class HarvesterCloudProvider extends pulumi.ComponentResource {
             timeoutSeconds: 600,
             pollSeconds: 10,
         }, noProvider({...myOpts, dependsOn: [harvesterAuthSetting] }));
+
+        new HarvesterCloudCredential("harvester-cloud-credential", {
+            rancher: args.rancher,
+            kubeconfig: args.rancherKubeconfig,
+            clusterName: args.clusterName,
+        }, {...myOpts, dependsOn: [kw] });
     }
 }

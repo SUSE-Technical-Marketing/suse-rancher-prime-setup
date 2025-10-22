@@ -18,7 +18,7 @@ export class RancherUIPlugin extends pulumi.ComponentResource {
         const login = new RancherLogin("rancher-login", args.rancher, myOpts);
 
         new RancherApp("ui-plugin", {
-            rancherServer: args.rancher.rancherServer,
+            rancherServer: args.rancher.server,
             authToken: login.authToken,
             repo: args.repoName,
             insecure: args.rancher.insecure,

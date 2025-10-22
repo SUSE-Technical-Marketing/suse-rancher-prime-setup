@@ -47,7 +47,7 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
             pulumi.log.info("Successfully fetched bootstrap token from Rancher API, going to login.");
             return {
                 bootstrapToken: token,
-                authToken: await loginToRancher({ rancherServer: inputs.rancherUrl, username: username, password: token, insecure: inputs.insecure }).catch(err => {
+                authToken: await loginToRancher({ server: inputs.rancherUrl, username: username, password: token, insecure: inputs.insecure }).catch(err => {
                     pulumi.log.error(`Failed to login to Rancher with bootstrap token: ${err.message}`);
                     throw new Error(`Failed to login to Rancher with bootstrap token: ${err.message}`);
                 })

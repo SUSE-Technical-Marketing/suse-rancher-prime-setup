@@ -56,7 +56,7 @@ class ClusterRegistrationTokenProvider implements pulumi.dynamic.ResourceProvide
             headers: httpConfig.headers,
             responseType: "json",
             timeout: { request: 10000 },
-            retry: { limit: 2 },
+            retry: { limit: 5, calculateDelay: () => 5000 },
         }).then((res) => {
             if (res.statusCode === 404) {
                 return undefined; // Resource not found

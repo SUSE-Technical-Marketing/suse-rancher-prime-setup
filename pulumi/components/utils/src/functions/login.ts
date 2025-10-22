@@ -1,7 +1,7 @@
 import got from "got";
 
 export interface RancherLoginArgs {
-    rancherServer: string; // URL of the Rancher server
+    server: string; // URL of the Rancher server
     username?: string; // Username for Rancher login
     password?: string; // Password for Rancher login
     token?: string; // Bearer token for Rancher login
@@ -11,7 +11,7 @@ export interface RancherLoginArgs {
 
 export async function loginToRancher(args: RancherLoginArgs): Promise<string> {
     if (args.token) {
-        console.log(`Using provided token to authenticate to Rancher at ${args.rancherServer}`);
+        console.log(`Using provided token to authenticate to Rancher at ${args.server}`);
         return args.token;
     }
 
@@ -20,7 +20,7 @@ export async function loginToRancher(args: RancherLoginArgs): Promise<string> {
     }
 
 
-    const url = `${args.rancherServer}/v3-public/localProviders/local?action=login`;
+    const url = `${args.server}/v3-public/localProviders/local?action=login`;
     console.log(`Logging in to Rancher at ${url} with username ${args.username}, password: ${args.password}, token: ${args.token}`);
 
     return got.post<{token: string}>(url, {

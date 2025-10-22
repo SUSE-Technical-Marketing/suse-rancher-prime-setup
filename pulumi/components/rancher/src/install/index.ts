@@ -30,6 +30,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
     public readonly kubeconfig: pulumi.Output<string>;
     public readonly rancherAdminPassword: pulumi.Output<string>;
     public readonly rancherUrl: pulumi.Output<string>;
+    public readonly authToken: pulumi.Output<string>;
 
     constructor(name: string, args: RancherInstallArgs, opts?: pulumi.ComponentResourceOptions) {
         super("suse-tmm:components:RancherManagerInstall", name, {}, opts);
@@ -77,10 +78,12 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         if (args.skipBootstrap) {
             pulumi.log.info("Skipping bootstrap for Rancher");
             this.rancherAdminPassword = pulumi.output("");
+            this.authToken = pulumi.output("");
             this.registerOutputs({
                 kubeconfig: this.kubeconfig,
                 rancherAdminPassword: this.rancherAdminPassword,
                 rancherUrl: this.rancherUrl,
+                authToken: this.authToken,
             });
             return;
         }
@@ -97,7 +100,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         this.rancherAdminPassword = bootstrapPassword.password;
 
         const authToken = new RancherLogin("rancher-login", {
-            rancherServer: url,
+            server: url,
             username: bootstrapPassword.username,
             password: this.rancherAdminPassword,
             insecure: args.tls.certManager?.staging || false,
@@ -118,11 +121,13 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         });
 
         this.rancherUrl = pulumi.output(url);
+        this.authToken = authToken.authToken;
 
         this.registerOutputs({
             kubeconfig: this.kubeconfig,
             rancherAdminPassword: this.rancherAdminPassword,
             rancherUrl: this.rancherUrl,
+            authToken: this.authToken,
         });
     }
 

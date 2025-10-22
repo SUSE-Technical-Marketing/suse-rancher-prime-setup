@@ -3,7 +3,7 @@ import got from "got";
 import https from "https";
 
 export interface HarvesterSettingInputs {
-    harvesterServer: pulumi.Input<string>;
+    server: pulumi.Input<string>;
     authToken: pulumi.Input<string>;
     insecure?: pulumi.Input<boolean>;
 
@@ -12,7 +12,7 @@ export interface HarvesterSettingInputs {
 }
 
 interface HarvesterSettingProviderInputs {
-    harvesterServer: string;
+    server: string;
     authToken: string;
     insecure?: boolean;
 
@@ -27,7 +27,7 @@ interface HarvesterSettingProviderOutputs extends HarvesterSettingProviderInputs
 // to avoid needing to read the existing value first and getting the `resourceVersion`.
 class HarvesterSettingProvider implements pulumi.dynamic.ResourceProvider<HarvesterSettingProviderInputs, HarvesterSettingProviderOutputs> {
     async create(inputs: HarvesterSettingProviderInputs): Promise<pulumi.dynamic.CreateResult<HarvesterSettingProviderOutputs>> {
-        let url = `${inputs.harvesterServer}/apis/harvesterhci.io/v1beta1/settings/${inputs.settingName}`;
+        let url = `${inputs.server}/apis/harvesterhci.io/v1beta1/settings/${inputs.settingName}`;
         pulumi.log.info(`Harvester setting URL: ${url}`);
         const body = [
             {
@@ -37,7 +37,7 @@ class HarvesterSettingProvider implements pulumi.dynamic.ResourceProvider<Harves
             }
         ];
 
-        pulumi.log.info(`Setting Harvester setting "${inputs.settingName}" to "${inputs.settingValue}" on server "${inputs.harvesterServer}"`);
+        pulumi.log.info(`Setting Harvester setting "${inputs.settingName}" to "${inputs.settingValue}" on server "${inputs.server}"`);
 
         const agent = new https.Agent({
             rejectUnauthorized: !inputs.insecure, // Allow self-signed certificates if insecure is true
@@ -61,7 +61,7 @@ class HarvesterSettingProvider implements pulumi.dynamic.ResourceProvider<Harves
         }
 
         return {
-            id: `${inputs.harvesterServer}/${inputs.settingName}`,
+            id: `${inputs.server}/${inputs.settingName}`,
             outs: inputs as HarvesterSettingProviderOutputs,
         };
     }

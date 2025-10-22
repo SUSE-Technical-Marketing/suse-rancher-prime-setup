@@ -1,27 +1,17 @@
 import * as pulumi from "@pulumi/pulumi";
 import { dynamic } from "@pulumi/pulumi";
-import got from "got";
-import https from "https";
-import * as yaml from "js-yaml";
 import { KubeConfig } from ".";
-import { loginToRancher } from "../../functions/login";
+import { RancherClient } from "../../rancher-client";
+import { RancherLoginInputs, RancherLoginProviderInputs } from "../rancherlogin";
 
-export interface RancherKubeconfigInputs {
-    url: pulumi.Input<string>;
-    username?: pulumi.Input<string>;
-    password?: pulumi.Input<string>;
-    token?: pulumi.Input<string>;
-    clusterName: pulumi.Input<string>;
-    insecure?: pulumi.Input<boolean>;
+export interface RancherKubeconfigInputs extends RancherLoginInputs {
+    rancherKubeconfig?: pulumi.Input<string>;
+    clusterId: pulumi.Input<string>;
 }
 
-interface RancherKubeconfigProviderInputs {
-    url: string;
-    username?: string;
-    password?: string;
-    token?: string;
-    clusterName: string;
-    insecure?: boolean;
+interface RancherKubeconfigProviderInputs extends RancherLoginProviderInputs {
+    rancherKubeconfig?: string;
+    clusterId: string;
 }
 
 interface RancherKubeconfigProviderOutputs extends RancherKubeconfigProviderInputs {
@@ -29,24 +19,35 @@ interface RancherKubeconfigProviderOutputs extends RancherKubeconfigProviderInpu
 }
 
 class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubeconfigProviderInputs, RancherKubeconfigProviderOutputs> {
+    private readonly path: string;
+    
+    constructor(path: string) { 
+        this.path = path;
+    }
 
     create(inputs: RancherKubeconfigProviderInputs): Promise<dynamic.CreateResult<RancherKubeconfigProviderOutputs>> {
-        const { url, username, password, token, clusterName, insecure } = inputs;
-        // Handle self-signed certs
-        const httpsAgent = new https.Agent({
-            rejectUnauthorized: false,
-        });
+        let client: Promise<RancherClient>;
+        if (inputs.rancherKubeconfig) {
+            client = RancherClient.fromKubeconfig(inputs.rancherKubeconfig);
+        } else {
+            client = RancherClient.fromUrl(inputs.server!, inputs.username, inputs.password, inputs.authToken, inputs.insecure);
+        }
 
-        return loginToRancher({ rancherServer: url, insecure, username, password, token, retryLimit: 5 }).then(token => {
-            pulumi.log.info(`Successfully logged in to Rancher at ${url} as ${username}, token: ${token.substring(0, 10)}...`);
-            return downloadKubeconfig(url, clusterName, token, httpsAgent);
-        }).then(kubeconfig => {
-            pulumi.log.info(`Successfully downloaded kubeconfig for cluster ${clusterName}`);
-            if (insecure) {
+        return client.then(client => {
+            pulumi.log.info(`Successfully logged in to Rancher`);
+            return this.downloadKubeconfig(client, inputs.clusterId).then(kubeconfig => {
+                return {
+                    client: client,
+                    kubeconfig: kubeconfig,
+                };
+            });
+        }).then(({ client, kubeconfig }) => {
+            pulumi.log.info(`Successfully downloaded kubeconfig for cluster ${inputs.clusterId}`);
+            if (client.details.insecure) {
                 kubeconfig = new KubeConfig(kubeconfig).insecure().kubeconfig;
             }
             pulumi.log.info(`Resulting kubeconfig = ${kubeconfig}`);
-            return { id: `${clusterName}-${Date.now()}`, outs: { ...inputs, kubeconfig: kubeconfig } };
+            return { id: `${inputs.clusterId}-${Date.now()}`, outs: { ...inputs, kubeconfig: kubeconfig } };
         }).catch(error => {
             console.error("Error creating Rancher kubeconfig:", error);
             throw error;
@@ -55,10 +56,11 @@ class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubec
 
     async diff(_id: string, _olds: RancherKubeconfigProviderOutputs, _news: RancherKubeconfigProviderInputs): Promise<dynamic.DiffResult> {
         return {
-            changes: _olds.url !== _news.url ||
+            changes: _olds.server !== _news.server ||
+                _olds.authToken !== _news.authToken ||
                 _olds.username !== _news.username ||
                 _olds.password !== _news.password ||
-                _olds.clusterName !== _news.clusterName ||
+                _olds.clusterId !== _news.clusterId ||
                 _olds.insecure !== _news.insecure
         }
     }
@@ -67,26 +69,32 @@ class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubec
         // For simplicity, re-run create logic.
         return this.create(news);
     }
+
+    downloadKubeconfig(client: RancherClient, clusterId: string): Promise<string> {
+        // return client.post(`/v1/management.cattle.io.clusters/${clusterId}`, { action: "generateKubeconfig" }).then(response => {
+        return client.post(`${this.path}/${clusterId}`, { action: "generateKubeconfig" }).then(response => {
+            return response.config;
+        }).catch(error => {
+            console.error("Error generating kubeconfig:", error);
+            throw error;
+        });
+    }
+
 }
 
 export class RancherKubeconfig extends dynamic.Resource {
     public readonly kubeconfig!: pulumi.Output<string>;
 
     constructor(name: string, args: RancherKubeconfigInputs, opts?: pulumi.ResourceOptions) {
-        super(new RancherKubeconfigProvider(), name, { kubeconfig: undefined, ...args }, { ...opts, additionalSecretOutputs: ["kubeconfig"] });
+        super(new RancherKubeconfigProvider("/v3/clusters"), name, { kubeconfig: undefined, ...args }, { ...opts, additionalSecretOutputs: ["kubeconfig"] });
 
     }
 }
+export class HarvesterKubeconfig extends dynamic.Resource {
+    public readonly kubeconfig!: pulumi.Output<string>;
 
-function downloadKubeconfig(url: string, clusterName: string, bearerToken: string, agent: https.Agent): Promise<string> {
-    return got.post<{ [key: string]: any }>(`${url}/v1/management.cattle.io.clusters/${clusterName}?action=generateKubeconfig`, {
-        agent: { https: agent },
-        headers: { Authorization: `Bearer ${bearerToken}` },
-        responseType: 'json'
-    }).then(response => {
-        return response.body.config;
-    }).catch(error => {
-        console.error("Error generating kubeconfig:", error);
-        throw error;
-    });
+    constructor(name: string, args: RancherKubeconfigInputs, opts?: pulumi.ResourceOptions) {
+        super(new RancherKubeconfigProvider("/v1/management.cattle.io.clusters"), name, { kubeconfig: undefined, ...args }, { ...opts, additionalSecretOutputs: ["kubeconfig"] });
+
+    }
 }
