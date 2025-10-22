@@ -1,12 +1,13 @@
 import {got, Got}  from "got";
 import * as https from "https";
 import { kubeConfigToHttp } from "./functions/kubehttp";
+import { PulumiCommand } from "@pulumi/pulumi/automation";
 
 export interface RancherServerConnectionArgs {
     server: string; // URL of the Rancher server
     username?: string; // Username for Rancher login
     password?: string; // Password for Rancher login
-    token?: string; // Bearer token for Rancher login
+    authToken?: string; // Bearer token for Rancher login
     insecure?: boolean; // Whether to skip TLS verification (default: false)
     retryLimit?: number; // Number of retry attempts for login (default: 2)
     retryDelayMs?: number; // Delay between retry attempts in milliseconds (default: 5000)
@@ -104,15 +105,20 @@ export class RancherClient {
         });
     }
 
-    async post(path: string, searchParams?: { [key: string]: any }): Promise<{ [key: string]: any }> {
+    async post(path: string, body: any, searchParams?: { [key: string]: any }): Promise<{ [key: string]: any }> {
         path = path.replace(/^\/+/, ""); // Remove leading slashes
         return this.rancherGot().post<{[key:string]: any}>(path, {
             searchParams: searchParams ? {
                 ...searchParams,
             } : undefined,
+            json: body,
+        }).catch((error) => {
+            console.error(`Error occurred while posting to ${path}: ${error.message}`);
+            console.error(`Error contents: ${JSON.stringify(error.response?.body)}`);
+            throw error;
         }).then((response) => {
             if (response.statusCode < 200 || response.statusCode >= 300) {
-                throw new Error(`Failed to GET ${path}: ${response.statusCode} ${response.statusMessage}`);
+                throw new Error(`Failed to POST ${path}: ${response.statusCode} ${response.statusMessage}`);
             }
             return response.body;
         });
@@ -124,8 +130,8 @@ export class RancherClient {
     }
 
     static async fromServerConnectionArgs(args: RancherServerConnectionArgs): Promise<RancherClient> {
-        if (args.token) {
-            return Promise.resolve(new RancherClient({ server: args.server, token: args.token, insecure: args.insecure ?? false }));
+        if (args.authToken) {
+            return Promise.resolve(new RancherClient({ server: args.server, token: args.authToken, insecure: args.insecure ?? false }));
         } else if (args.username && args.password) {
             return RancherClient.login(args);
         } else {
@@ -134,6 +140,6 @@ export class RancherClient {
     }
 
     static async fromUrl(server: string, username?: string, password?: string, authToken?: string, insecure: boolean = false): Promise<RancherClient> {
-        return RancherClient.fromServerConnectionArgs({ server, username, password, token: authToken, insecure });
+        return RancherClient.fromServerConnectionArgs({ server, username, password, authToken: authToken, insecure });
     }
 }

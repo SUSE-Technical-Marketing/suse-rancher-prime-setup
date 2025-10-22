@@ -1,10 +1,8 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as dynamic from "@pulumi/pulumi/dynamic";
-import got from "got";
 import { ClusterId } from "../../management/clusterid";
-import { KubeConfig, RancherKubeconfig } from "@suse-tmm/utils/src/resources/kubeconfig";
-import * as kubernetes from "@pulumi/kubernetes";
+import { RancherKubeconfig } from "@suse-tmm/utils/src/resources/kubeconfig";
 import { RancherLoginInputs } from "@suse-tmm/utils";
+import { CloudCredential } from "../../resources/cloudcredential"
 
 export interface HarvesterCloudCredentialArgs {
     kubeconfig: pulumi.Input<string>; // Kubeconfig to access the Rancher cluster
@@ -26,21 +24,14 @@ export class HarvesterCloudCredential extends pulumi.ComponentResource {
             ...args.rancher,
         }, { parent: this, dependsOn: [clusterId] });
 
-        new kubernetes.core.v1.Secret("harvester-cloud-credential", {
-            metadata: {
-                name: pulumi.interpolate`${args.clusterName}-cloud-credential`,
-                namespace: "cattle-global-data",
-                annotations: {
-                    "field.cattle.io/name": args.clusterName,
-                    "provisioning.cattle.io/driver": "harvester"
-                },
+        new CloudCredential("harvester-cloud-credential", {
+            credentialName: args.clusterName,
+            harvesterClusterId: clusterId.clusterId,
+            harvesterKubeconfig: downloadedKubeConfig.kubeconfig,
+            annotations: {
+                "provisioning.cattle.io/driver": "harvester",
             },
-            stringData: {
-                "harvesterCredentialConfig-kubeconfigContent": downloadedKubeConfig.kubeconfig,
-                "harvesterCredentialConfig-clusterId": clusterId.clusterId,
-                "harvesterCredentialConfig-clusterType": "imported",
-            },
-            type: "Opaque",
+            ...args.rancher,
         }, { parent: this, dependsOn: [downloadedKubeConfig] });
     }
 }

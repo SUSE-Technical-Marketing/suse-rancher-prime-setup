@@ -72,7 +72,7 @@ class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubec
 
     downloadKubeconfig(client: RancherClient, clusterId: string): Promise<string> {
         // return client.post(`/v1/management.cattle.io.clusters/${clusterId}`, { action: "generateKubeconfig" }).then(response => {
-        return client.post(`${this.path}/${clusterId}`, { action: "generateKubeconfig" }).then(response => {
+        return client.post(`${this.path}/${clusterId}`, "", { action: "generateKubeconfig" }).then(response => {
             return response.config;
         }).catch(error => {
             console.error("Error generating kubeconfig:", error);
