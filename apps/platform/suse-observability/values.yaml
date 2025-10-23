@@ -1,5 +1,6 @@
 global:
   imageRegistry: "registry.rancher.com"
+  storageClass: "longhorn-single"
 
 ingress:
   enabled: ${if hasKey .ClusterAnnotations "hosted-domain"}true${else}false${end}
