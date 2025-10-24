@@ -173,7 +173,7 @@ new HarvesterCloudProvider("harvester-cloud", {
 
 }, { provider: rancherK8sProvider, dependsOn: [uiPlugin] });
 
-gitrepos.createFleetConfiguration(rancherManager.kubeconfig, { provider: rancherK8sProvider, dependsOn: [rancherManager] });
+gitrepos.createFleetConfiguration(labConfig, rancherManager.kubeconfig, { provider: rancherK8sProvider, dependsOn: [rancherManager] });
 
 pulumi.all([harvesterKubeconfig.kubeconfig, rancherManager.kubeconfig]).apply(([harvkcfg, controlkcfg]) => {
     pulumi.log.info(`Harvester Kubeconfig: ${harvkcfg}`);

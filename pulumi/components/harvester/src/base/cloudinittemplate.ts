@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as kubernetes from "@pulumi/kubernetes";
-import { BashRcLocal, cloudInit, CloudInitArgs, CloudInitProcessor, DefaultUser, DisableIpv6, GuestAgent, IncreaseFileLimit, KubeFirewall, NewUser, Packages, PackageUpdate, renderCloudInit } from "@suse-tmm/utils";
+import { BashRcLocal, cloudInit, CloudInitArgs, CloudInitProcessor, DefaultUser, DisableIpv6, GuestAgent, IncreaseFileLimit, KubeFirewall, LonghornReqs, NewUser, Packages, PackageUpdate, renderCloudInit } from "@suse-tmm/utils";
 
 export interface CloudInitTemplateArgs {
     name: string;
@@ -18,6 +18,7 @@ const DefaultCloudInitTemplates: CloudInitTemplateArgs[] = [{
         DefaultUser,
         PackageUpdate,
         Packages("curl", "helm", "git-core", "bash-completion", "vim", "nano", "iputils", "wget", "mc", "tree", "btop", "kubernetes-client", "helm", "k9s", "cloud-init"),
+        LonghornReqs,
         GuestAgent,
         IncreaseFileLimit,
     ]
