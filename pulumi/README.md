@@ -1,7 +1,9 @@
 # Using Pulumi
 
 
-## Logging in to your local state directory:
+## First time setup:
+
+### Logging in to your local state directory:
 
 ```bash
 mkdir ./pulumi-state
@@ -13,8 +15,8 @@ export PULUMI_CONFIG_PASSPHRASE_FILE=~/.pulumi/config-passphrase
 
 
 ```
+### Creating a new stack:
 
-## Creating a new stack:
 ```bash
 cd sample-setup
 pulumi stack init -s dev
@@ -27,7 +29,7 @@ pulumi@60d2799eae2a:/workspaces/suse-rancher-prime-setup/pulumi/sample-setup> pu
 Created stack 'dev'
 ```
 
-## Configuring the stack:
+### Configuring the stack:
 ```bash
 pulumi config set cert-manager:cloudflareApiKey --secret "<your-cloudflare-api-key>"
 pulumi config set cert-manager:letsEncryptEmail "<your-email>"
@@ -47,8 +49,24 @@ pulumi config set vm:sshPubKey "$(cat ~/.ssh/id_rsa.pub)"
 cat ~/.ssh/id_rsa | pulumi config set vm:sshPrivKey --secret 
 ```
 
-## Creating the resources:
+### Initializing Pulumi and installing dependencies:
 ```bash
+pulumi install
+```
+
+## Deploying the infrastructure:
+
+If you've started a new terminal session, ensure you login to your local state directory again:
+
+```bash
+cd pulumi
+pulumi login file://$(pwd)/pulumi-state
+```
+
+Create/Update the infrastructure:
+```bash
+cd sample-setup
 pulumi up
 ```
+
 
