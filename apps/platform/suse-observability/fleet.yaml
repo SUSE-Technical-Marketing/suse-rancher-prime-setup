@@ -33,13 +33,13 @@ helm:
               nginx.ingress.kubernetes.io/proxy-body-size: "50m"
               kubernetes.io/ingress.class: "nginx"
             hosts:
-              - host: otlp-http-observability.${ .ClusterName }.lab.geeko.me
+              - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }otlp-http-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
                 paths:
                   - path: /
                     pathType: Prefix
                     port: 4318
             tls:
-              - hosts: ["otlp-http-observability.${ .ClusterName }.lab.geeko.me"]
+              - hosts: ${ if hasKey .ClusterAnnotations "hosted-domain" }[otlp-http-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }]${ else}[]${ end}
                 secretName: otel-http-ecc-tls
   valuesFiles:
     - sizing_values.yaml
