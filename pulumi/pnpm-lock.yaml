@@ -228,6 +228,9 @@ importers:
       '@suse-tmm/rancher':
         specifier: workspace:^
         version: link:../components/rancher
+      '@suse-tmm/rancher-crds':
+        specifier: workspace:^
+        version: link:../components/rancher-crds
       '@suse-tmm/utils':
         specifier: workspace:^
         version: link:../components/utils
