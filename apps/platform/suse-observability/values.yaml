@@ -32,6 +32,7 @@ stackstate:
 
   features:
     traces: true
+    dasboards: true
   deployment:
     mode: SelfHosted
     edition: "Prime"

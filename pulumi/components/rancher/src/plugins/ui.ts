@@ -15,16 +15,12 @@ export class RancherUIPlugin extends pulumi.ComponentResource {
         super("suse-tmm:rancher:UIPlugin", name, {}, opts);
 
         const myOpts = noProvider({ ...opts, parent: this });
-        const login = new RancherLogin("rancher-login", args.rancher, myOpts);
-
-        new RancherApp("ui-plugin", {
-            rancherServer: args.rancher.server,
-            authToken: login.authToken,
+        new RancherApp(`${name}-ui-plugin`, {
+            ...args.rancher,
             repo: args.repoName,
-            insecure: args.rancher.insecure,
             chartName: args.chartName,
             chartVersion: args.version,
             namespace: "cattle-ui-plugin-system"
-        }, myOpts);
+        }, {...opts, parent: this});
     }
 }

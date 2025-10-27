@@ -1,12 +1,10 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as dynamic from "@pulumi/pulumi/dynamic";
+import { RancherClient, RancherLoginInputs, RancherLoginProviderInputs } from "@suse-tmm/utils";
 import got from "got";
 import https from "https";
 
-export interface RancherAppInputs {
-    rancherServer: pulumi.Input<string>; // Rancher server URL
-    authToken: pulumi.Input<string>; // Rancher authentication token
-    insecure?: pulumi.Input<boolean>; // Whether to skip TLS verification
+export interface RancherAppInputs extends RancherLoginInputs{
     repo: pulumi.Input<string>; // URL of the Rancher app repository
     chartName: pulumi.Input<string>; // Name of the chart to install
     chartVersion: pulumi.Input<string>; // Version of the chart to install
@@ -14,10 +12,7 @@ export interface RancherAppInputs {
     values?: pulumi.Input<{ [key: string]: any }>; // Values to pass to the chart
 }
 
-interface RancherAppProviderInputs {
-    rancherServer: string; // Rancher server URL
-    authToken: string; // Rancher authentication token
-    insecure?: boolean; // Whether to skip TLS verification
+interface RancherAppProviderInputs extends RancherLoginProviderInputs {
     repo: string; // URL of the Rancher app repository
     chartName: string; // Name of the chart to install
     chartVersion: string; // Version of the chart to install
@@ -29,9 +24,9 @@ interface RancherAppProviderOutputs extends RancherAppProviderInputs { }
 
 class RancherAppProvider implements dynamic.ResourceProvider<RancherAppProviderInputs, RancherAppProviderOutputs> {
     async create(inputs: RancherAppProviderInputs): Promise<dynamic.CreateResult<RancherAppProviderOutputs>> {
-        const { rancherServer: server, authToken, repo, chartName, chartVersion, namespace, values } = inputs;
+        const { repo, chartName, chartVersion, namespace, values } = inputs;
 
-        const url = `${server}/v1/catalog.cattle.io.clusterrepos/${repo}?action=install`;
+        const url = `/v1/catalog.cattle.io.clusterrepos/${repo}?action=install`;
         const body = {
             charts: [{
                 chartName,
@@ -43,23 +38,11 @@ class RancherAppProvider implements dynamic.ResourceProvider<RancherAppProviderI
             namespace: namespace
         };
 
-        pulumi.log.info(`Installing Rancher app: ${chartName} in namespace: ${namespace} from repo: ${repo} on server: ${server}`);
+        pulumi.log.info(`Installing Rancher app: ${chartName} in namespace: ${namespace} from repo: ${repo} on server: ${inputs.server}`);
 
-        // 3️⃣ Make the HTTP request to install the app -----------------------------
-        return got.post(url, {
-            json: body,
-            https: {
-                rejectUnauthorized: !inputs.insecure,
-            },
-            headers: {
-                "Authorization": `Bearer ${authToken}`,
-            },
-            // timeout: { request: 120_000 },
-            responseType: "json",
+        return RancherClient.fromServerConnectionArgs(inputs).then(client => {
+            return client.post(url, body);
         }).then(response => {
-            if (response.statusCode < 200 || response.statusCode >= 300) {
-                throw new Error(`Failed to install Rancher app: ${response.statusMessage}`);
-            }
             pulumi.log.info(`Successfully installed Rancher app: ${chartName} in namespace: ${namespace}`);
             return {
                 id: `${namespace}/${chartName}`,
@@ -73,7 +56,10 @@ class RancherAppProvider implements dynamic.ResourceProvider<RancherAppProviderI
 
     async diff(id: pulumi.ID, olds: RancherAppProviderOutputs, news: RancherAppProviderInputs): Promise<pulumi.dynamic.DiffResult> {
         return {
-            changes: olds.rancherServer !== news.rancherServer ||
+            changes: olds.server !== news.server ||
+                olds.username !== news.username ||
+                olds.password !== news.password ||
+                // olds.authToken !== news.authToken || // Ignore authToken changes for diff, it may be rotated
                 olds.repo !== news.repo ||
                 olds.chartName !== news.chartName ||
                 olds.chartVersion !== news.chartVersion ||

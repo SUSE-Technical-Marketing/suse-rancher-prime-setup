@@ -143,17 +143,30 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
 });
 
 const rancherK8sProvider = new kubernetes.Provider("rancher-k8s", { kubeconfig: rancherManager.kubeconfig });
-const repo = installUIPluginRepo({ provider: rancherK8sProvider, dependsOn: [rancherManager] });
+const repos = installUIPluginRepo({ provider: rancherK8sProvider, dependsOn: [rancherManager] });
 const uiPlugin = new RancherUIPlugin("harvester", {
     chartName: "harvester",
     rancher: {
         server: rancherManager.rancherUrl,
         username: "admin",
         password: rancherManager.rancherAdminPassword,
+        authToken: rancherManager.authToken,
         insecure: staging,
     },
-    repoName: repo.metadata.name,
+    repoName: repos.get("rancher-ui-plugins")!.metadata.name,
     version: versions.HARVESTER_UIPLUGIN_VERSION
+});
+const virtualClusterPlugin = new RancherUIPlugin("virtual-clusters", {
+    chartName: "virtual-clusters",
+    rancher: {
+        server: rancherManager.rancherUrl,
+        username: "admin",
+        password: rancherManager.rancherAdminPassword,
+        authToken: rancherManager.authToken,
+        insecure: staging,
+    },
+    repoName: repos.get("virtual-clusters")!.metadata.name,
+    version: versions.VIRTUAL_CLUSTERS_UIPLUGIN_VERSION
 });
 
 new HarvesterCloudProvider("harvester-cloud", {

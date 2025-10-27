@@ -15,12 +15,12 @@ const DefaultCloudInitTemplates: CloudInitTemplateArgs[] = [{
         BashRcLocal,
         KubeFirewall,
         DisableIpv6,
+        IncreaseFileLimit,
         DefaultUser,
         PackageUpdate,
         Packages("curl", "helm", "git-core", "bash-completion", "vim", "nano", "iputils", "wget", "mc", "tree", "btop", "kubernetes-client", "helm", "k9s", "cloud-init"),
         LonghornReqs,
         GuestAgent,
-        IncreaseFileLimit,
     ]
 }]
 

@@ -57,7 +57,7 @@ class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubec
     async diff(_id: string, _olds: RancherKubeconfigProviderOutputs, _news: RancherKubeconfigProviderInputs): Promise<dynamic.DiffResult> {
         return {
             changes: _olds.server !== _news.server ||
-                _olds.authToken !== _news.authToken ||
+                // _olds.authToken !== _news.authToken || // Ignore authToken changes for diff, it may be rotated
                 _olds.username !== _news.username ||
                 _olds.password !== _news.password ||
                 _olds.clusterId !== _news.clusterId ||

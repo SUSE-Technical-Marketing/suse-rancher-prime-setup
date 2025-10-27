@@ -1,19 +1,42 @@
 import * as pulumi from "@pulumi/pulumi";
 import { ClusterRepo } from "@suse-tmm/rancher-crds";
 
-export function installUIPluginRepo(opts?: pulumi.ComponentResourceOptions): ClusterRepo {
-    const repo = new ClusterRepo("rancher-ui-plugins", {
-        metadata: {
-            name: "rancher-ui-plugins",
-            annotations: {
-                "pulumi.com/waitFor": "condition=Downloaded",
-            }
-        },
-        spec: {
-            gitRepo: "https://github.com/rancher/ui-plugin-charts",
-            gitBranch: "main"
-        }
-    }, opts);
+interface RepoConfig {
+    gitRepo?: string;
+    gitBranch?: string;
+    httpRepo?: string;
+}
 
-    return repo;
+const DefaultRepos: Record<string, RepoConfig> = {
+    "rancher-ui-plugins": {
+        gitRepo: "https://github.com/rancher/ui-plugin-charts",
+        gitBranch: "main",
+    },
+    "virtual-clusters": {
+        httpRepo: "https://rancher.github.io/virtual-clusters-ui",
+    },
+}
+
+export function installUIPluginRepo(opts?: pulumi.ComponentResourceOptions): Map<string, ClusterRepo> {
+    const repos = new Map<string, ClusterRepo>();
+
+    for (const [name, config] of Object.entries(DefaultRepos)) {
+        const repo = new ClusterRepo(name, {
+            metadata: {
+                name: name,
+                annotations: {
+                    "pulumi.com/waitFor": "condition=Downloaded",
+                }
+            },
+            spec: {
+                url: config.httpRepo,
+                gitRepo: config.gitRepo,
+                gitBranch: config.gitBranch
+            }
+        }, opts);
+
+        repos.set(name, repo);
+    }
+
+    return repos;
 }
