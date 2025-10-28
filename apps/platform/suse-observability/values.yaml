@@ -32,7 +32,7 @@ stackstate:
 
   features:
     traces: true
-    dasboards: true
+    dashboards: true
   deployment:
     mode: SelfHosted
     edition: "Prime"
@@ -47,7 +47,6 @@ stackstate:
           CONFIG_FORCE_stackstate_featureSwitches_monitorEnableExperimentalAPIs: "true"
     server:
       config: |
-        stackstate.webUIConfig.featureFlags.dashboards: true
         stackstate.webUIConfig.defaultTimeRange: "LAST_1_HOUR"
     e2es:
       retention: 1
