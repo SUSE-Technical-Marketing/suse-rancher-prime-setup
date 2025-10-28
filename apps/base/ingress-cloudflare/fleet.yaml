@@ -1,0 +1,19 @@
+defaultNamespace: cloudflare-tunnel-ingress-controller
+helm:
+  chart: cloudflare-tunnel-ingress-controller
+  repo: https://helm.strrl.dev
+  releaseName: cloudflare-tunnel-ingress-controller
+  valuesFrom:
+    - secretKeyRef:
+        name: fleet-secrets
+        namespace: kube-system
+        key: cloudflare-values.yaml
+  values:
+    cloudflare:
+      tunnelName: ${ .ClusterName }-tunnel
+labels:
+  app: cloudflare-tunnel-ingress-controller
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-ingress-cloudflare: true
