@@ -15,11 +15,11 @@ helm:
           attributes:
             - key: k8s.cluster.name
               action: upsert # Update or insert, some instrumentations add their own cluster name which may be different
-              value: {{ .ClusterName }}
+              value: "${ .ClusterName }"
     exporters:
       # Exporter for traces to traffic mirror (used by the common config)
       otlp/suseobservability:
-        endpoint: otlp-observability.{{ get .ClusterAnnotations "topology/suse-observability-host" }}.{{ get .ClusterAnnotations "hosted-domain" }}:443
+        endpoint: otlp-observability.${ get .ClusterAnnotations "topology/suse-observability-host" }.${ get .ClusterAnnotations "hosted-domain" }:443
 
 
 overrideTargets:
