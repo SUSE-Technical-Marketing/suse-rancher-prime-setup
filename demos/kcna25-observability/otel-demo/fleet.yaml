@@ -1,6 +1,7 @@
 defaultNamespace: otel-demo
 helm:
   chart: otel-demo
+  releaseName: otel-demo
   repo: https://helm-internal.stackstate.io
   version: 0.0.17
   valuesFiles:
