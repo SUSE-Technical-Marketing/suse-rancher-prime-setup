@@ -1,0 +1,11 @@
+defaultNamespace: sock-shop
+helm:
+  chart: sock-shop
+  repo: https://helm-internal.stackstate.io
+  version: 0.2.12
+  valuesFiles:
+    - values.yaml
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        demo: "kcna25-observability"

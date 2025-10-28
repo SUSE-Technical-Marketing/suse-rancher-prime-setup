@@ -1,0 +1,12 @@
+defaultNamespace: otel-demo-loadgen
+helm:
+  chart: otel-demo
+  releaseName: otel-demo-loadgen
+  repo: https://helm-internal.stackstate.io
+  version: 0.0.17
+  valuesFiles:
+    - values.yaml
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        demo: "kcna25-observability"

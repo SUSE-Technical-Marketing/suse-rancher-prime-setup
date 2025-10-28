@@ -1,0 +1,28 @@
+
+defaultNamespace: opentelemetry-collector
+helm:
+  chart: opentelemetry-collector
+  releaseName: opentelemetry-collector
+  repo: https://open-telemetry.github.io/opentelemetry-helm-charts
+  version: 0.85.0
+  valuesFiles:
+    - values.yaml
+  values:
+    config:
+      processors:
+        # Used in the 
+        resource/addk8scluster:
+          attributes:
+            - key: k8s.cluster.name
+              action: upsert # Update or insert, some instrumentations add their own cluster name which may be different
+              value: {{ .ClusterName }}
+    exporters:
+      # Exporter for traces to traffic mirror (used by the common config)
+      otlp/suseobservability:
+        endpoint: otlp-observability.{{ get .ClusterAnnotations "topology/suse-observability-host" }}.{{ get .ClusterAnnotations "hosted-domain" }}:443
+
+
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        demo: "kcna25-observability"

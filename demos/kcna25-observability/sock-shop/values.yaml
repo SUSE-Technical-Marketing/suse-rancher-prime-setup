@@ -1,0 +1,11 @@
+all:
+  securityCapabilitiesDisabled: true
+priority: 50
+loadgen:
+  enabled: true
+catalogue:
+  demoScenarioSimulation:
+    enabled: true
+  resources:
+    limits:
+      cpu: 200m

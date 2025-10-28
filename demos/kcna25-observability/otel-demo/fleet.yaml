@@ -1,0 +1,11 @@
+defaultNamespace: otel-demo
+helm:
+  chart: otel-demo
+  repo: https://helm-internal.stackstate.io
+  version: 0.0.17
+  valuesFiles:
+    - values.yaml
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        demo: "kcna25-observability"

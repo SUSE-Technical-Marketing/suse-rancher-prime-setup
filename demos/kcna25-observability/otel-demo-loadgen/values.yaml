@@ -1,0 +1,87 @@
+opentelemetry-demo:
+  default:
+    # List of environment variables applied to all components
+    env:
+    - name: OTEL_SERVICE_NAME
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: "metadata.labels['app.kubernetes.io/component']"
+    - name: OTEL_COLLECTOR_NAME
+      value: opentelemetry-collector.opentelemetry-collector.svc.cluster.local
+    - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+      value: cumulative
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo
+  components:
+    loadgenerator:
+      enabled: true
+      # Need to override whole env to modify one value (the LOCUST_HOST) because arrays don't merge in values.yaml files
+      env:
+        - name: LOCUST_WEB_PORT
+          value: "8089"
+        - name: LOCUST_USERS
+          value: "10"
+        - name: LOCUST_SPAWN_RATE
+          value: "1"
+        - name: LOCUST_HOST
+          value: 'http://od-frontendproxy.otel-demo.svc.cluster.local:8080'
+        - name: LOCUST_HEADLESS
+          value: "false"
+        - name: LOCUST_AUTOSTART
+          value: "true"
+        - name: LOCUST_BROWSER_TRAFFIC_ENABLED
+          value: "true"
+        - name: PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION
+          value: python
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://$(OTEL_COLLECTOR_NAME):4317
+    accountingService:
+      enabled: false
+    adService:
+      enabled: false
+    cartService:
+      enabled: false
+    checkoutService:
+      enabled: false
+    currencyService:
+      enabled: false
+    emailService:
+      enabled: false
+    featureflagService:
+      enabled: false
+    frauddetectionService:
+      enabled: false
+    frontend:
+      enabled: false
+    frontendProxy:
+      enabled: false
+    paymentService:
+      enabled: false
+    productCatalogService:
+      enabled: false
+    quoteService:
+      enabled: false
+    recommendationService:
+      enabled: false
+    shippingService:
+      enabled: false
+    ffsPostgres:
+      enabled: false
+    kafka:
+      enabled: false
+    redis:
+      enabled: false
+  jaeger:
+    enabled: false
+  prometheus:
+    enabled: false
+  grafana:
+    enabled: false
+  opensearch:
+    enabled: false
+  opentelemetry-collector:
+    enabled: false
+featureflags:
+  demoScenarioSimulation:
+    enabled: false
