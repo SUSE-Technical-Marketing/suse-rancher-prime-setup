@@ -1,0 +1,12 @@
+helm:
+  chart: ""
+  releaseName: cluster-repositories
+  values:
+    appcoRegistry: oci://dp.apps.rancher.io/charts
+    observabilityRegistry: https://charts.rancher.com/server-charts/prime/suse-observability
+labels:
+  provides: cluster-repositories
+dependsOn:
+  - selector:
+      matchLabels:
+        provides: application-collection

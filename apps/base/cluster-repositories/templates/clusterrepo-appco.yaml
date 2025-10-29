@@ -7,4 +7,4 @@ spec:
     name: {{ .Values.secret.name }}
     namespace: {{ .Values.secret.namespace }}
   insecurePlainHttp: false
-  url: {{ .Values.ociRegistry}}
+  url: {{ .Values.appcoRegistry }}

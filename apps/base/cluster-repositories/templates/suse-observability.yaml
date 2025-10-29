@@ -1,0 +1,7 @@
+apiVersion: catalog.cattle.io/v1
+kind: ClusterRepo
+metadata:
+  name: suse-observability
+spec:
+  insecurePlainHttp: false
+  url: {{ .Values.observabilityRegistry }}
