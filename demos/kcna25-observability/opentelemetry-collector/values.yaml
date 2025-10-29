@@ -12,7 +12,7 @@ config:
   extensions:
     bearertokenauth:
       scheme: SUSEObservability
-      token: "1234-abcd-5678-efgh"
+      token: "beTRIDqKh6xvXpCw6wkxIt9bvoyLwJGU"
   exporters:
     # Exporter for traces to traffic mirror (used by the common config)
     otlp/suseobservability:
