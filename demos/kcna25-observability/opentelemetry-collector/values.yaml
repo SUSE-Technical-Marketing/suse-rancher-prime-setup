@@ -5,9 +5,6 @@ presets:
     # You can also configure the preset to add all of the associated pod's labels and annotations to you telemetry.
     # The label/annotation name will become the resource attribute's key.
     extractAllPodLabels: true
-extraEnvsFrom:
-  - secretRef:
-      name: open-telemetry-collector
 image:
   # Temporary override for image tag, the helm chart has not been released yet
   tag: 0.97.0
@@ -15,7 +12,7 @@ config:
   extensions:
     bearertokenauth:
       scheme: SUSEObservability
-      token: "${`${env:API_KEY}`}"
+      token: "1234-abcd-5678-efgh"
   exporters:
     # Exporter for traces to traffic mirror (used by the common config)
     otlp/suseobservability:
