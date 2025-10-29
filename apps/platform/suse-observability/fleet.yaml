@@ -55,3 +55,11 @@ overrideTargets:
   - clusterSelector:
       matchLabels:
         needs-observability: "true"
+diff:
+  comparePatches:
+    - apiVersion: batch/v1
+      kind: Job
+      namespace: suse-observability
+      name: suse-observability-topic-create
+      operations:
+        - {"op": "ignore"}
