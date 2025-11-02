@@ -1,11 +1,9 @@
-# global:
-#   cattle:
-#     url: https://rancher.mars.lab.geeko.me
+global:
+  cattle:
+    url: ${ if hasKey .ClusterAnnotations "rancher-host" }https://rancher.${ get .ClusterAnnotations "rancher-host" }.${ get .ClusterAnnotations "hosted-domain" }${ end}
 registry: registry.rancher.com
 labels:
   catalog.cattle.io/cluster-repo-name: rancher-charts
-ranchersso:
-  enabled: true
 manager:
   ingress:
     enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${ else }false${ end}
@@ -26,13 +24,13 @@ controller:
   replicas: 1
   prime:
     enabled: true
+  ranchersso:
+    enabled: true
   federation:
     mastersvc:
       type: ClusterIP
   pvc:
     enabled: false
-  # ranchersso:
-  #   enabled: true
   configmap:
     enabled: true
     data:
@@ -84,4 +82,4 @@ cve:
 scanner:
   enabled: true
   replicas: 1
-# rbac: true
+rbac: true
