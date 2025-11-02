@@ -4,6 +4,8 @@
 registry: registry.rancher.com
 labels:
   catalog.cattle.io/cluster-repo-name: rancher-charts
+ranchersso:
+  enabled: true
 manager:
   ingress:
     enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${ else }false${ end}
@@ -83,4 +85,3 @@ scanner:
   enabled: true
   replicas: 1
 # rbac: true
-
