@@ -1,6 +1,6 @@
 defaultNamespace: authentik
 helm:
-  version: 1.12.0
+  version: 2025.10.2
   chart: authentik
   repo: https://charts.goauthentik.io
   releaseName: authentik
