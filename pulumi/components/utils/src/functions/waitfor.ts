@@ -21,16 +21,18 @@ export async function waitFor<T>(
     delayMs?: number;
   } = {},
 ): Promise<T> {
-  await new Promise(r => setTimeout(r, delayMs));
-  const deadline = Date.now() + timeoutMs;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const v = await probe();
-    if (v !== undefined && v !== null) return v;
+  // Delay before starting the first probe
+  return new Promise(r => setTimeout(r, delayMs)).then(async () => {
+    const deadline = Date.now() + timeoutMs;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const v = await probe();
+      if (v !== undefined && v !== null) return v;
 
-    if (Date.now() >= deadline) {
-      throw new Error("waitFor: timed out");
+      if (Date.now() >= deadline) {
+        throw new Error("waitFor: timed out");
+      }
+      await new Promise(r => setTimeout(r, intervalMs));
     }
-    await new Promise(r => setTimeout(r, intervalMs));
-  }
+  });
 }

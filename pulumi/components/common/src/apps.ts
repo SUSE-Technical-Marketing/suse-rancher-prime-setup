@@ -14,11 +14,18 @@ export const CertManager = (version: pulumi.Input<string>, opts: pulumi.Componen
         },
     }, opts);
 
-export const IngressNginx = (version: pulumi.Input<string>, opts?: pulumi.ComponentResourceOptions) => new HelmApp("ingress-nginx", {
-        chart: "ingress-nginx",
+export const Traefik = (version: pulumi.Input<string>, opts?: pulumi.ComponentResourceOptions) => new HelmApp("traefik", {
+        chart: "traefik",
         version: version,
-        repository: "https://kubernetes.github.io/ingress-nginx",
-        namespace: "ingress-nginx",
+        repository: "https://traefik.github.io/charts",
+        namespace: "traefik",
+        values: {
+            providers: {
+                kubernetesGateway: {
+                    enabled: true,
+                },
+            },
+        },
     }, opts);
 
 export const Sprouter = (opts?: pulumi.ComponentResourceOptions) => new HelmApp("sprouter", {

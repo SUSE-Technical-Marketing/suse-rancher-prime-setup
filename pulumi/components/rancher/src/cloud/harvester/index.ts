@@ -23,6 +23,7 @@ export class HarvesterCloudProvider extends pulumi.ComponentResource {
         const cluster = new provisioning.Cluster("harvester-cluster", {
             metadata: {
                 name: args.clusterName,
+                namespace: "fleet-default", // Important: If a cluster lands in another namespace, fleet will start doing weird things.
                 annotations: {
                     "pulumi.com/waitFor": "condition=Created"
                 },

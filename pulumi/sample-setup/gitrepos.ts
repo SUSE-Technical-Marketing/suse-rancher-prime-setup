@@ -10,6 +10,7 @@ interface GitRepoConfig {
     paths?: string[];
     helmSecretName?: string;
     clusterGroup?: string;
+    namespace?: string;
 }
 
 const DefaultGitRepos: Record<string, GitRepoConfig> = {
@@ -37,10 +38,16 @@ const DefaultGitRepos: Record<string, GitRepoConfig> = {
         branch: "main",
         paths: ["/apps/platform"],
     },
+    "lab-setup-local": {
+        url: "https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git",
+        branch: "main",
+        paths: ["/apps/local"],
+        namespace: "fleet-local",
+    }
 };
 
 export function createFleetConfiguration(labConfig: pulumi.Config, kubeconfig: pulumi.Input<string>, opts: pulumi.ResourceOptions) {
-    
+
     const kw = new KubeWait("fleet-crds-wait", {
         apiVersion: "apiextensions.k8s.io/v1",
         kind: "CustomResourceDefinition",
@@ -62,7 +69,7 @@ export function createFleetConfiguration(labConfig: pulumi.Config, kubeconfig: p
             username: labConfig.require("appcoUsername"),
             password: labConfig.requireSecret("appcoPassword"),
         },
-    }, opts);
+    }, {...opts, retainOnDelete: true});
 
     new Secret("scc-suse-basicauth", {
         metadata: {
@@ -74,7 +81,7 @@ export function createFleetConfiguration(labConfig: pulumi.Config, kubeconfig: p
             username: labConfig.require("sccUsername"),
             password: labConfig.requireSecret("sccPassword"),
         },
-    }, opts);
+    }, {...opts, retainOnDelete: true});
 
     const cg = new fleet.ClusterGroup("all-downstream-clusters", {
         metadata: {
@@ -92,13 +99,13 @@ export function createFleetConfiguration(labConfig: pulumi.Config, kubeconfig: p
                 ],
             }
         }
-    }, {...opts, dependsOn: [kw]});
+    }, {...opts, dependsOn: [kw], retainOnDelete: true});
 
     for (const [name, config] of Object.entries( DefaultGitRepos)) {
         const gitRepo = new fleet.GitRepo(name, {
             metadata: {
                 name: name,
-                namespace: "fleet-default",
+                namespace: config.namespace ?? "fleet-default",
             },
             spec: {
                 repo: config.url,
@@ -109,6 +116,6 @@ export function createFleetConfiguration(labConfig: pulumi.Config, kubeconfig: p
                     clusterGroup: config.clusterGroup,
                 }] : undefined,
             }
-        }, {... opts, dependsOn: [cg, kw]});
+        }, {... opts, dependsOn: [cg, kw], retainOnDelete: true});
     }
 }

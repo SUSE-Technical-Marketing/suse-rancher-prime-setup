@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi"
 import { helmInstallRancher } from "./rancher";
 import * as k8s from "@pulumi/kubernetes";
-import { IngressNginx, Sprouter, TLS, TLSArgs } from "@suse-tmm/common";
+import { Traefik, Sprouter, TLS, TLSArgs } from "@suse-tmm/common";
 import { provisionHarvesterVm } from "./harvester";
 import { HarvesterVmArgs } from "./harvester";
 import { kubeconfig as k8scfg, RancherLogin } from "@suse-tmm/utils";
@@ -23,7 +23,7 @@ export interface RancherInstallArgs {
     adminPassword?: pulumi.Input<string>; // Optional admin password for Rancher
     skipBootstrap?: pulumi.Input<boolean>; // Optional skip the bootstrap for Rancher
     rancherVersion: pulumi.Input<string>; // Optional Rancher version to install
-    ingressNginxVersion: pulumi.Input<string>; // Optional Ingress NGINX version to install
+    traefikVersion: pulumi.Input<string>; // Optional Traefik version to install
 }
 
 export class RancherManagerInstall extends pulumi.ComponentResource {
@@ -64,7 +64,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
 
             this.kubeconfig = kubeconfig.kubeconfig;
             myOpts = { ...myOpts, dependsOn: [kubeconfig, harvesterVm] };
-            installIngress = true; // We need to install Ingress NGINX on the new VM
+            installIngress = true; // We need to install Traefik on the new VM
         } else if (args.kubeconfig) {
             // We are installing Rancher on an existing cluster, no need to provision a new VM
             this.kubeconfig = pulumi.output(args.kubeconfig);
@@ -110,11 +110,13 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         });
 
         new RancherSetting("server-url", {
-            rancherServer: url,
-            authToken: authToken.authToken,
+            rancher: {
+                server: url,
+                authToken: authToken.authToken,
+                insecure: args.tls.certManager?.staging || false,
+            },
             settingName: "server-url",
             settingValue: url,
-            insecure: args.tls.certManager?.staging || false,
         }, {
             parent: this,
             dependsOn: [authToken],
@@ -142,8 +144,8 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         Sprouter(resOpts);
 
         if (installIngress) {
-            // Install NGINX Ingress Controller
-            IngressNginx(args.ingressNginxVersion, resOpts);
+            // Install Traefik Ingress Controller
+            Traefik(args.traefikVersion, resOpts);
         }
 
         // Create TLS
@@ -157,7 +159,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
             rancherValues = {
                 ...rancherValues,
                 ingress: {
-                    ingressClassName: "nginx",
+                    ingressClassName: "traefik",
                     tls: {
                         source: "secret",
                         secretName: tls.tlsSecret?.metadata.name
@@ -168,7 +170,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
             rancherValues = {
                 ...rancherValues,
                 ingress: {
-                    ingressClassName: "nginx",
+                    ingressClassName: "traefik",
                     tls: {
                         source: "secret",
                         secretName: tls.certificate.metadata.name
@@ -180,7 +182,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
             rancherValues = {
                 ...rancherValues,
                 ingress: {
-                    ingressClassName: "nginx",
+                    ingressClassName: "traefik",
                     tls: {
                         source: "secret",
                         secretName: "rancher-tls",

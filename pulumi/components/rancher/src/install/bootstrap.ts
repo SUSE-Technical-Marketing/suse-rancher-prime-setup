@@ -100,22 +100,19 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
     async fetchBootstrapToken(httpConfig: KubeConfigHttpOutput): Promise<string | undefined> {
         pulumi.log.info(`Fetching bootstrap token from Rancher API at ${httpConfig.server}`);
         const url = `${httpConfig.server}/api/v1/namespaces/cattle-system/secrets/bootstrap-secret`;
-        const res: any = await got.get(url, {
+        return got.get<{ [key: string]: any }>(url, {
             agent: { https: httpConfig.agent },
             headers: httpConfig.headers,
             responseType: "json",
             timeout: { request: 10000 },
-            retry: { limit: 2 },
+            retry: { limit: 10 },
+        }).then(res => {
+            if (res.statusCode !== 200) {
+                throw new Error(`Failed to fetch bootstrap token: ${res.statusCode} ${res.statusMessage}`);
+            }
+            const bootstrapToken = res.body?.data?.["bootstrapPassword"];
+            return bootstrapToken ? Buffer.from(bootstrapToken, "base64").toString("utf-8") : undefined;
         });
-
-        if (res.statusCode !== 200) {
-            throw new Error(`Failed to fetch bootstrap token: ${res.statusCode} ${res.statusMessage}`);
-        }
-
-        const bootstrapToken = res.body?.data?.["bootstrapPassword"];
-        const deBase64Token = bootstrapToken ? Buffer.from(bootstrapToken, "base64").toString("utf-8") : undefined;
-
-        return deBase64Token
     }
 
     async diff(id: pulumi.ID, olds: BootstrapAdminPasswordProviderOutputs, news: BootstrapAdminPasswordProviderInputs): Promise<pulumi.dynamic.DiffResult> {

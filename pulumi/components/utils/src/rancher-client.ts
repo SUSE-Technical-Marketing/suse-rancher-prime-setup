@@ -2,6 +2,7 @@ import {got, Got}  from "got";
 import * as https from "https";
 import { kubeConfigToHttp } from "./functions/kubehttp";
 import { PulumiCommand } from "@pulumi/pulumi/automation";
+import { waitFor } from "./functions/waitfor";
 
 export interface RancherServerConnectionArgs {
     server: string; // URL of the Rancher server
@@ -44,7 +45,7 @@ export class RancherClient {
 
     private buildGotFromKubeconfig(kubeconfig: string): Got {
         const outputs = kubeConfigToHttp(kubeconfig);
-        
+
         return got.extend({
             prefixUrl: outputs.server.replace(/\/$/, ""),
             agent: { https: outputs.agent },
@@ -133,7 +134,7 @@ export class RancherClient {
         if (args.authToken) {
             return Promise.resolve(new RancherClient({ server: args.server, token: args.authToken, insecure: args.insecure ?? false }));
         } else if (args.username && args.password) {
-            return RancherClient.login(args);
+            return waitFor(() => RancherClient.login(args), { intervalMs: args.retryDelayMs ?? 5000, timeoutMs: 10000 });
         } else {
             return Promise.reject(new Error("Either token or username and password must be provided"));
         }

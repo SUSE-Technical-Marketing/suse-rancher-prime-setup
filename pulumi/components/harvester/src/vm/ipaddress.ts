@@ -26,18 +26,18 @@ class VmIpAddressProvider implements dynamic.ResourceProvider<VmIpAddressProvide
     async create(inputs: VmIpAddressProviderInputs): Promise<pulumi.dynamic.CreateResult<VmIpAddressProviderOutputs>> {
         const { kubeconfig, namespace, name, networkName, timeout = 30 } = inputs;
 
-        const ip = await waitFor(() => this.getVmiIp(kubeconfig, namespace, name, networkName), {
+        return waitFor(() => this.getVmiIp(kubeconfig, namespace, name, networkName), {
             intervalMs: 5_000,
             timeoutMs: timeout * 1000,
         }).catch(err => {
             pulumi.log.error(`Failed to get IP for VMI ${namespace}/${name} ${networkName ? `interface ${networkName}` : ""}: ${err.message}`);
             throw new Error(`Failed to get IP for VMI ${namespace}/${name} ${networkName ? `interface ${networkName}` : ""}: ${err.message}`);
+        }).then(ip => {
+            return {
+                id: `${namespace}/${name}`,
+                outs: { ...inputs, ipAddress: ip },
+            };
         });
-
-        return {
-            id: `${namespace}/${name}`,
-            outs: { ...inputs, ipAddress: ip },
-        };
     }
 
     async update(id: string, olds: VmIpAddressProviderOutputs, news: VmIpAddressProviderInputs): Promise<pulumi.dynamic.UpdateResult<VmIpAddressProviderOutputs>> {
@@ -80,7 +80,7 @@ class VmIpAddressProvider implements dynamic.ResourceProvider<VmIpAddressProvide
         if (res.body?.status?.interfaces) {
             if (interfaceName) {
                 const iface = res.body.status.interfaces.find((i: any) => i.name === interfaceName);
-                
+
                 // If iface is set and iface.ipAddress is an IPv4 address, return it
                 if (iface && this.isIPv4Address(iface.ipAddress)) {
                     return iface.ipAddress;

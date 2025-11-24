@@ -8,6 +8,7 @@ import { kubeconfig } from "@suse-tmm/utils";
 import { HarvesterCloudProvider } from "@suse-tmm/rancher/src/cloud/harvester";
 import * as versions from "./versions"
 import * as gitrepos from "./gitrepos";
+import { RancherSetting } from "@suse-tmm/rancher/src/resources/setting";
 
 export function provisionHarvester(clusterNetwork:string, downloadSuseImage: boolean, kubeconfig: pulumi.Input<string>, sshUser: string, sshPubKey: string) : harvester.HarvesterBase {
     const images: VmImageArgs[] = []
@@ -126,7 +127,7 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
     domain: domain,
     hostname: rancherVmName,
     rancherVersion: versions.RANCHER_VERSION,
-    ingressNginxVersion: versions.INGRESS_NGINX_VERSION,
+    traefikVersion: versions.TRAEFIK_VERSION,
     tls: {
         certManager: cloudFlareApiKey && letsEncryptEmail ? {
             version: versions.CERT_MANAGER_VERSION,
@@ -187,6 +188,27 @@ new HarvesterCloudProvider("harvester-cloud", {
 }, { provider: rancherK8sProvider, dependsOn: [uiPlugin] });
 
 gitrepos.createFleetConfiguration(labConfig, rancherManager.kubeconfig, { provider: rancherK8sProvider, dependsOn: [rancherManager] });
+
+// Set to new UI
+[
+    { name: "ui-index", value: "https://releases.rancher.com/ui/kubecon-demo-dev/index.html" },
+    { name: "ui-dashboard-index", value: "https://releases.rancher.com/dashboard/kubecon-demo-dev/index.html" },
+    { name: "ui-offline-preferred", value: "false" }
+].forEach(setting =>
+    new RancherSetting(setting.name, {
+        rancher: {
+            server: rancherManager.rancherUrl,
+            authToken: rancherManager.authToken,
+            insecure: staging || false,
+        },
+        settingName: setting.name,
+        settingValue: setting.value,
+    }, {
+        dependsOn: [rancherManager],
+    })
+);
+
+
 
 pulumi.all([harvesterKubeconfig.kubeconfig, rancherManager.kubeconfig]).apply(([harvkcfg, controlkcfg]) => {
     pulumi.log.info(`Harvester Kubeconfig: ${harvkcfg}`);

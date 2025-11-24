@@ -110,11 +110,6 @@ export const InstallK3s: CloudInitProcessor = (cfg) => {
                 |INSTALL_K3S_CHANNEL="v1.31.5+k3s1" INSTALL_K3S_EXEC="--disable=traefik" sh get-k3s.sh
             `.stripMargin(),
             permissions: '0755'
-                // |export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-                // |until kubectl get --raw='/readyz?verbose'; do echo "Exit: $?"; sleep 2; done
-                // |until kubectl get nodes --no-headers &>/dev/null; do sleep 2; done
-                // |kubectl wait node --all --for=condition=Ready --timeout=120s
-                // |helm upgrade --install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --namespace ingress-nginx --create-namespace
         });
     cfg.templated = true;
     cfg.runcmd = cfg.runcmd.concat(
