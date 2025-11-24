@@ -4,6 +4,8 @@ helm:
   releaseName: suse-storage
   version: "1.10.1"
   values:
+    global:
+      imagePullSecrets: ["application-collection"]
     ingress:
       enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${ else }false${ end}
       host: ${ if hasKey .ClusterAnnotations "hosted-domain" }storage.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
