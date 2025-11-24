@@ -1,7 +1,7 @@
 defaultNamespace: longhorn-system
 helm:
-  chart: suse-storage
-  repo: oci://
+  chart: longhorn
+  repo: https://charts.longhorn.io
   releaseName: longhorn
   version: "1.8.1"
   values:
