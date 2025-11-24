@@ -4,10 +4,10 @@ helm:
   chart: authentik
   repo: https://charts.goauthentik.io
   releaseName: authentik
+  valuesFiles:
+    - values.yaml
 labels:
   app: authentik
-valuesFiles:
-  - values.yaml
 overrideTargets:
   - clusterSelector:
       matchLabels:
