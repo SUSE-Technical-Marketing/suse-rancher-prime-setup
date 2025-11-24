@@ -23,19 +23,19 @@ Currently supported add-ons include:
 
 - `needs-storage`  - Installs Longhorn and sets up a default storage class with 1 replica.
 - `needs-security` - Installs SUSE Security and configures autoscan. Reqires Longhorn is already installed
-- `needs-ingress-nginx` - Installs and configures ingress-nginx, required for all k3s clusters (to support certificates).
+- `needs-traefik` - Installs and configures traefik, required for all clusters (to support certificates).
 - `needs-private-registry` - Installs SUSE Private Registry and creates a proxy cache for the Application Collection and the six most common registries.
 
 ## BYO VMs - Instructions on installing and building the lab
 
 When you build a cluster, we rely on 3 key pieces of information
- 
+
   - `local-cluster-fleet.yaml` -  **Deployed on local** Contains Secrets to build clusters
-  - `downstream-cluster-fleet.yaml` - **Deployed on ALL downstream clusters** Contains including SCC Credential, Application Collection Credentials, Cloudflare Credentials, and SUSE Observability License 
+  - `downstream-cluster-fleet.yaml` - **Deployed on ALL downstream clusters** Contains including SCC Credential, Application Collection Credentials, Cloudflare Credentials, and SUSE Observability License
   - Annotation command on Cluster that tells us the `Hosted-domain` **Deployed on ALL Clusters
-    
+
     `kubectl annotate cluster.provisioning.cattle.io -n fleet-default hangar-bay "hosted-domain=dna-42.com"`
-    
+
 Full instructions with step by set commands
 
 [Full Install Instructions](README-Full-Instructions.md)

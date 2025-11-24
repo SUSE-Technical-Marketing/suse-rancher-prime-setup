@@ -6,16 +6,11 @@ ingress:
   enabled: ${if hasKey .ClusterAnnotations "hosted-domain"}true${else}false${end}
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    kubernetes.io/ingress.class: "nginx"
 opentelemetry-collector:
   ingress:
     enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${else}false${end}
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-      nginx.ingress.kubernetes.io/backend-protocol: GRPC
-      kubernetes.io/ingress.class: "nginx"
 opentelemetry:
   enabled: true
 

@@ -3,7 +3,7 @@ expose:
   ingress:
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
-    className: nginx
+    className: traefik
     hosts:
       core: ${ if hasKey .ClusterAnnotations "hosted-domain" }registry.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
   tls:

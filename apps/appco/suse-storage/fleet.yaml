@@ -1,14 +1,13 @@
 defaultNamespace: longhorn-system
 helm:
-  chart: longhorn
-  repo: https://charts.longhorn.io
-  releaseName: longhorn
-  version: "1.8.1"
+  chart: oci://dp.apps.rancher.io/charts/suse-storage
+  releaseName: suse-storage
+  version: "1.10.1"
   values:
     ingress:
       enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${ else }false${ end}
-      host: ${ if hasKey .ClusterAnnotations "hosted-domain" }longhorn.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
-      ingressClassName: nginx
+      host: ${ if hasKey .ClusterAnnotations "hosted-domain" }storage.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
+      ingressClassName: traefik
       tls: true
       tlsSecret: longhorn-ingress-tls
       annotations:

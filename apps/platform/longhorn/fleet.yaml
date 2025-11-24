@@ -1,0 +1,25 @@
+defaultNamespace: longhorn-system
+helm:
+  chart: suse-storage
+  repo: oci://
+  releaseName: longhorn
+  version: "1.8.1"
+  values:
+    ingress:
+      enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${ else }false${ end}
+      host: ${ if hasKey .ClusterAnnotations "hosted-domain" }longhorn.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
+      ingressClassName: traefik
+      tls: true
+      tlsSecret: longhorn-ingress-tls
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+    persistence:
+      migratable: true
+    longhornUI:
+      replicas: 1
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-longhorn: "true"
+labels:
+  provides: longhorn

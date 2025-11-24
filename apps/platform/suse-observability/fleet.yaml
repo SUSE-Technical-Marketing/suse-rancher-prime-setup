@@ -8,7 +8,7 @@ helm:
     stackstate:
       baseUrl: ${ if hasKey .ClusterAnnotations "hosted-domain" }https://observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
     ingress:
-      ingressClassName: nginx
+      ingressClassName: traefik
 
       hosts:
         - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
@@ -17,7 +17,7 @@ helm:
           secretName: tls-secret
     opentelemetry-collector:
       ingress:
-        ingressClassName: nginx
+        ingressClassName: traefik
         hosts:
           - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }otlp-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
             paths:
@@ -29,11 +29,9 @@ helm:
             secretName: otel-ecc-tls
         additionalIngresses:
           - name: otlp-http
-            ingressClassName: nginx
+            ingressClassName: traefik
             annotations:
               cert-manager.io/cluster-issuer: letsencrypt-prod
-              nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-              kubernetes.io/ingress.class: "nginx"
             hosts:
               - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }otlp-http-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
                 paths:

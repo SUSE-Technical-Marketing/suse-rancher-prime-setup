@@ -158,8 +158,8 @@ stringData:
         access_key: <your_appco_username>
         access_secret: <your_appco_token>
   suse-observability-values.yaml: |
-    stackstate: 
-        license: 
+    stackstate:
+        license:
           key: "xxxx-xxxx-xxxx"
 ```
 
@@ -183,14 +183,14 @@ kubectl annotate cluster.provisioning.cattle.io -n fleet-default hangar-bay "hos
 kubectl annotate cluster.provisioning.cattle.io -n fleet-default radar-station "hosted-domain=dna-42.com"
 ```
 
-## Configure Fleet to Install Nginx Ingress
+## Configure Fleet to Install Traefik Ingress on `radar-station`
 
-The k3s cluster `radar-station` does not yet have an ingress controller. Assign a label so Fleet can identify and install Nginx Ingress.
+The k3s cluster `radar-station` does not yet have an ingress controller. Assign a label so Fleet can identify and install Traefik Ingress.
 
 Run the following command in the Rancher UI terminal:
 
 ```bash
-kubectl label clusters.provisioning.cattle.io -n fleet-default radar-station needs-ingress-nginx=true
+kubectl label clusters.provisioning.cattle.io -n fleet-default radar-station needs-traefik=true
 ```
 
 # Start Cluster Deployment via Fleet
