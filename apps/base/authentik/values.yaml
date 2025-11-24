@@ -1,0 +1,21 @@
+authentik:
+    secret_key: "PleaseGenerateASecureKey"
+    # This sends anonymous usage-data, stack traces on errors and
+    # performance data to sentry.io, and is fully opt-in
+    error_reporting:
+        enabled: false
+    postgresql:
+        password: "ThisIsNotASecurePassword"
+
+server:
+    ingress:
+        # Specify kubernetes ingress controller class name
+        ingressClassName: traefik
+        enabled: ${if hasKey .ClusterAnnotations "hosted-domain"}true${else}false${end}
+        hosts:
+            - ${if hasKey .ClusterAnnotations "hosted-domain"}sso.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
+
+postgresql:
+    enabled: true
+    auth:
+        password: "ThisIsNotASecurePassword"

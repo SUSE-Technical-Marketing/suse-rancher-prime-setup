@@ -1,0 +1,14 @@
+defaultNamespace: authentik
+helm:
+  version: 1.12.0
+  chart: authentik
+  repo: https://charts.goauthentik.io
+  releaseName: authentik
+labels:
+  app: authentik
+valuesFiles:
+  - values.yaml
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-sso: true

@@ -1,6 +1,6 @@
 defaultNamespace: traefik
 helm:
-  version: 1.12.0
+  version: 37.4.0
   chart: traefik
   repo: https://traefik.github.io/charts
   releaseName: traefik
