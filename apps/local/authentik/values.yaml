@@ -13,7 +13,7 @@ server:
         ingressClassName: traefik
         enabled: ${if hasKey .ClusterAnnotations "hosted-domain"}true${else}false${end}
         hosts:
-            - ${if hasKey .ClusterAnnotations "hosted-domain"}sso.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
+            - ${if hasKey .ClusterAnnotations "hosted-domain"}sso.${if hasKey .ClusterAnnotations "cluster-name"}${get .ClusterAnnotations "cluster-name"}${else}${.ClusterName}${end}.${ get .ClusterAnnotations "hosted-domain" }${ end}
 
 postgresql:
     enabled: true
