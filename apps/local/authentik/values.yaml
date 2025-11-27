@@ -1,4 +1,8 @@
+
 authentik:
+    bootstrap_password: "!nfiniteP0wer"
+    bootstrap_token: "auth-token-1234-5678-90ab-cdef"
+    bootstrap_email: "admin@example.com"
     secret_key: "PleaseGenerateASecureKey"
     # This sends anonymous usage-data, stack traces on errors and
     # performance data to sentry.io, and is fully opt-in
