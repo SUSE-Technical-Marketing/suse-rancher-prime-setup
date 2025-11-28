@@ -1,20 +1,15 @@
 import * as pulumi from "@pulumi/pulumi";
-import got from "got";
-import https from "https";
+import { RancherClient, RancherLoginInputs, RancherLoginProviderInputs } from "@suse-tmm/utils";
 
 export interface HarvesterSettingInputs {
-    server: pulumi.Input<string>;
-    authToken: pulumi.Input<string>;
-    insecure?: pulumi.Input<boolean>;
+    harvester: RancherLoginInputs;
 
     settingName: pulumi.Input<string>;
     settingValue: pulumi.Input<string>;
 }
 
 interface HarvesterSettingProviderInputs {
-    server: string;
-    authToken: string;
-    insecure?: boolean;
+    harvester: RancherLoginProviderInputs;
 
     settingName: string;
     settingValue: string;
@@ -27,7 +22,7 @@ interface HarvesterSettingProviderOutputs extends HarvesterSettingProviderInputs
 // to avoid needing to read the existing value first and getting the `resourceVersion`.
 class HarvesterSettingProvider implements pulumi.dynamic.ResourceProvider<HarvesterSettingProviderInputs, HarvesterSettingProviderOutputs> {
     async create(inputs: HarvesterSettingProviderInputs): Promise<pulumi.dynamic.CreateResult<HarvesterSettingProviderOutputs>> {
-        let url = `${inputs.server}/apis/harvesterhci.io/v1beta1/settings/${inputs.settingName}`;
+        let url = `apis/harvesterhci.io/v1beta1/settings/${inputs.settingName}`;
         pulumi.log.info(`Harvester setting URL: ${url}`);
         const body = [
             {
@@ -37,33 +32,16 @@ class HarvesterSettingProvider implements pulumi.dynamic.ResourceProvider<Harves
             }
         ];
 
-        pulumi.log.info(`Setting Harvester setting "${inputs.settingName}" to "${inputs.settingValue}" on server "${inputs.server}"`);
+        pulumi.log.info(`Setting Harvester setting "${inputs.settingName}" to "${inputs.settingValue}" on server "${inputs.harvester.server}"`);
 
-        const agent = new https.Agent({
-            rejectUnauthorized: !inputs.insecure, // Allow self-signed certificates if insecure is true
+        return RancherClient.login(inputs.harvester).then(client => {
+            return client.patch(url, body);
+        }).then(resp => {
+            return {
+                id: `${inputs.harvester.server}/${inputs.settingName}`,
+                outs: inputs as HarvesterSettingProviderOutputs,
+            }
         });
-
-        const resp = await got.patch(url, {
-            agent: { https: agent },
-            
-            json: body,
-            headers: {
-                Authorization: `Bearer ${inputs.authToken}`,
-                "Content-Type": "application/json-patch+json",
-            },
-            responseType: "json",
-            timeout: { request: 10000 }, // 10 seconds timeout
-            retry: { limit: 2 }, // Retry on failure
-        });
-
-        if (resp.statusCode < 200 || resp.statusCode >= 300) {
-            throw new Error(`Failed to set Harvester setting ${inputs.settingName}: ${resp.statusMessage}`);
-        }
-
-        return {
-            id: `${inputs.server}/${inputs.settingName}`,
-            outs: inputs as HarvesterSettingProviderOutputs,
-        };
     }
 
     async delete(): Promise<void> {

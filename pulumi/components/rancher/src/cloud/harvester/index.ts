@@ -41,8 +41,7 @@ export class HarvesterCloudProvider extends pulumi.ComponentResource {
             rancherKubeconfig: args.rancherKubeconfig,
         }, noProvider(myOpts));
 
-        const harvesterAuth = new RancherLogin("harvester-auth", { ...args.harvester, insecure: true }, noProvider(myOpts)).getAuth();
-
+        // const harvesterAuth = new RancherLogin("harvester-auth", { ...args.harvester, insecure: true }, noProvider(myOpts)).getAuth();
         // const harvesterAuthSetting = new harvesterhci.v1beta1.Setting("harvester-cluster-url-setting", {
         //     metadata: {
         //         name: "cluster-registration-url"
@@ -50,8 +49,7 @@ export class HarvesterCloudProvider extends pulumi.ComponentResource {
         //     value: token.token
         // }, noProvider(myOpts));
         const harvesterAuthSetting = new HarvesterSetting("harvester-auth-setting", {
-            ...harvesterAuth,
-            server: harvesterAuth.server,
+            harvester: args.harvester,
             settingName: "cluster-registration-url",
             settingValue: token.token
         }, noProvider(myOpts));

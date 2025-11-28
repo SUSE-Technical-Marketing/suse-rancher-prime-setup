@@ -1,7 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import got from "got";
-import https from "https";
-import { RancherLoginInputs, RancherLoginProviderInputs } from "@suse-tmm/utils";
+import { RancherClient, RancherLoginInputs, RancherLoginProviderInputs } from "@suse-tmm/utils";
 
 export interface RancherSettingInputs {
     rancher: RancherLoginInputs;
@@ -24,9 +22,9 @@ interface RancherSettingProviderOutputs extends RancherSettingProviderInputs { }
 
 class RancherSettingProvider implements pulumi.dynamic.ResourceProvider<RancherSettingProviderInputs, RancherSettingProviderOutputs> {
     async create(inputs: RancherSettingProviderInputs): Promise<pulumi.dynamic.CreateResult<RancherSettingProviderOutputs>> {
-        let url = `${inputs.rancher.server}/v3/settings/${inputs.settingName}`;
+        let url = `v3/settings/${inputs.settingName}`;
         if (inputs.groupName) {
-            url = `${inputs.rancher.server}/apis/${inputs.groupName}/v1/settings/${inputs.settingName}`;
+            url = `apis/${inputs.groupName}/v1/settings/${inputs.settingName}`;
         }
 
         const body = {
@@ -38,28 +36,13 @@ class RancherSettingProvider implements pulumi.dynamic.ResourceProvider<RancherS
 
         pulumi.log.info(`Setting Rancher setting "${inputs.settingName}" to "${inputs.settingValue}" on server "${inputs.rancher.server}"`);
 
-        const agent = new https.Agent({
-            rejectUnauthorized: !inputs.rancher.insecure, // Allow self-signed certificates if insecure is true
-        });
-
-        return got.put<{[key: string]: any}>(url, {
-            agent: { https: agent },
-            json: body,
-            headers: {
-                Authorization: `Bearer ${inputs.rancher.authToken}`,
-            },
-            responseType: "json",
-            timeout: { request: 10000 }, // 10 seconds timeout
-            retry: { limit: 2 }, // Retry on failure
+        return RancherClient.login(inputs.rancher).then(client => {
+            return client.patch(url, body);
         }).then(resp => {
-            if (resp.statusCode < 200 || resp.statusCode >= 300) {
-                throw new Error(`Failed to set Rancher setting ${inputs.settingName}: ${resp.statusMessage}`);
-            }
-        }).then(_ => {
             return {
                 id: `${inputs.rancher.server}/${inputs.settingName}`,
                 outs: inputs as RancherSettingProviderOutputs,
-            };
+            }
         });
     }
 
