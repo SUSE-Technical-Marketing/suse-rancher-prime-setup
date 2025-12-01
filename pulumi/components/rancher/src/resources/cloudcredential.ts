@@ -2,14 +2,16 @@ import * as pulumi from "@pulumi/pulumi";
 import * as dynamic from "@pulumi/pulumi/dynamic";
 import { RancherClient, RancherLoginInputs, RancherLoginProviderInputs } from "@suse-tmm/utils";
 
-export interface CloudCredentialInputs extends RancherLoginInputs {
+export interface CloudCredentialInputs {
+    rancher: RancherLoginInputs;
     credentialName: pulumi.Input<string>;
     harvesterClusterId: pulumi.Input<string>;
     harvesterKubeconfig: pulumi.Input<string>;
     annotations?: pulumi.Input<{ [key: string]: string }>;
 }
 
-export interface CloudCredentialProviderInputs extends RancherLoginProviderInputs {
+export interface CloudCredentialProviderInputs {
+    rancher: RancherLoginProviderInputs;
     credentialName: string;
     harvesterClusterId: string;
     harvesterKubeconfig: string;
@@ -38,7 +40,7 @@ class CloudCredentialProvider implements dynamic.ResourceProvider<CloudCredentia
             }
         };
 
-        return RancherClient.fromServerConnectionArgs(inputs).then(async (rancherClient) => {
+        return RancherClient.fromServerConnectionArgs(inputs.rancher).then(async (rancherClient) => {
             return rancherClient.post(`/v3/cloudcredentials`, body).then((response) => {
                 return {
                     id: response.id,
@@ -48,6 +50,17 @@ class CloudCredentialProvider implements dynamic.ResourceProvider<CloudCredentia
                 };
             });
         });
+    }
+
+    async delete(id: pulumi.ID, props: CloudCredentialProviderOutputs): Promise<void> {
+    }
+
+    async update(id: pulumi.ID, olds: CloudCredentialProviderOutputs, news: CloudCredentialProviderInputs): Promise<dynamic.UpdateResult<CloudCredentialProviderOutputs>> {
+        return this.create(news);
+    }
+
+    async diff(id: pulumi.ID, olds: CloudCredentialProviderOutputs, news: CloudCredentialProviderInputs): Promise<dynamic.DiffResult> {
+        return { changes: JSON.stringify(olds) !== JSON.stringify(news) };
     }
 }
 

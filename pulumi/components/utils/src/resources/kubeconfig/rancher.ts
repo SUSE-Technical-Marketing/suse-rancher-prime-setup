@@ -4,13 +4,13 @@ import { KubeConfig } from ".";
 import { RancherClient } from "../../rancher-client";
 import { RancherLoginInputs, RancherLoginProviderInputs } from "../rancherlogin";
 
-export interface RancherKubeconfigInputs extends RancherLoginInputs {
-    rancherKubeconfig?: pulumi.Input<string>;
+export interface RancherKubeconfigInputs {
+    rancher: RancherLoginInputs;
     clusterId: pulumi.Input<string>;
 }
 
-interface RancherKubeconfigProviderInputs extends RancherLoginProviderInputs {
-    rancherKubeconfig?: string;
+interface RancherKubeconfigProviderInputs {
+    rancher: RancherLoginProviderInputs;
     clusterId: string;
 }
 
@@ -20,20 +20,14 @@ interface RancherKubeconfigProviderOutputs extends RancherKubeconfigProviderInpu
 
 class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubeconfigProviderInputs, RancherKubeconfigProviderOutputs> {
     private readonly path: string;
-    
-    constructor(path: string) { 
+
+    constructor(path: string) {
         this.path = path;
     }
 
     create(inputs: RancherKubeconfigProviderInputs): Promise<dynamic.CreateResult<RancherKubeconfigProviderOutputs>> {
-        let client: Promise<RancherClient>;
-        if (inputs.rancherKubeconfig) {
-            client = RancherClient.fromKubeconfig(inputs.rancherKubeconfig);
-        } else {
-            client = RancherClient.fromUrl(inputs.server!, inputs.username, inputs.password, inputs.authToken, inputs.insecure);
-        }
 
-        return client.then(client => {
+        return RancherClient.fromServerConnectionArgs(inputs.rancher).then(client => {
             pulumi.log.info(`Successfully logged in to Rancher`);
             return this.downloadKubeconfig(client, inputs.clusterId).then(kubeconfig => {
                 return {
@@ -56,12 +50,7 @@ class RancherKubeconfigProvider implements dynamic.ResourceProvider<RancherKubec
 
     async diff(_id: string, _olds: RancherKubeconfigProviderOutputs, _news: RancherKubeconfigProviderInputs): Promise<dynamic.DiffResult> {
         return {
-            changes: _olds.server !== _news.server ||
-                // _olds.authToken !== _news.authToken || // Ignore authToken changes for diff, it may be rotated
-                _olds.username !== _news.username ||
-                _olds.password !== _news.password ||
-                _olds.clusterId !== _news.clusterId ||
-                _olds.insecure !== _news.insecure
+            changes: JSON.stringify(_olds.rancher) !== JSON.stringify(_news.rancher),
         }
     }
 

@@ -137,6 +137,18 @@ export class RancherClient {
         });
     }
 
+    async put(path: string, body: any): Promise<{ [key: string]: any }> {
+        path = path.replace(/^\/+/, ""); // Remove leading slashes
+        return this.rancherGot().put<{[key:string]: any}>(path, {
+            json: body,
+        }).then((response) => {
+            if (response.statusCode < 200 || response.statusCode >= 300) {
+                throw new Error(`Failed to PUT ${path}: ${response.statusCode} ${response.statusMessage}`);
+            }
+            return response.body;
+        });
+    }
+
     static async fromKubeconfig(kubeconfig: string): Promise<RancherClient> {
         const outputs = kubeConfigToHttp(kubeconfig); // Read to extract server and security settings
         return Promise.resolve(new RancherClient({ server: outputs.server, kubeconfig, insecure: !outputs.agent.options.rejectUnauthorized }));

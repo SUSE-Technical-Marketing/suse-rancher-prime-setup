@@ -58,8 +58,10 @@ class RancherLoginProvider implements pulumi.dynamic.ResourceProvider<RancherLog
     async diff(id: pulumi.ID, olds: RancherLoginProviderOutputs, news: RancherLoginProviderInputs): Promise<pulumi.dynamic.DiffResult> {
         // For login, we can assume that any change in inputs requires a re-login
         return {
-            changes: true,
-            replaces: ["authToken"], // We will replace the authToken on update
+            changes: olds.server !== news.server ||
+                        olds.username !== news.username ||
+                        olds.password !== news.password ||
+                        olds.insecure !== news.insecure,
         };
     }
 }

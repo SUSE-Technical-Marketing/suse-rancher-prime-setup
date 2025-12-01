@@ -67,7 +67,6 @@ export class HarvesterCloudProvider extends pulumi.ComponentResource {
 
         new HarvesterCloudCredential("harvester-cloud-credential", {
             rancher: args.rancher,
-            kubeconfig: args.rancherKubeconfig,
             clusterName: args.clusterName,
         }, {...myOpts, dependsOn: [kw] });
     }

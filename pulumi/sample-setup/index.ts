@@ -74,11 +74,13 @@ pulumi.log.info(`Lets Encrypt Environment: ${staging ? "Staging" : "Production"}
 pulumi.log.info(`Cloudflare API Key: ${cloudFlareApiKey ? "Provided" : "Not Provided"}`);
 
 const harvesterKubeconfig = new kubeconfig.HarvesterKubeconfig("harvester-kubeconfig", {
-    server: harvesterUrl,
-    username: username,
-    password: password,
+    rancher: {
+        server: harvesterUrl,
+        username: username,
+        password: password,
+        insecure: true, // Harvester normally has a self-signed cert
+    },
     clusterId: "local",
-    insecure: true, // Harvester normally has a self-signed cert
 });
 
 

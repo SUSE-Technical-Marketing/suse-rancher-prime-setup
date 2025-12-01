@@ -36,8 +36,8 @@ class RancherSettingProvider implements pulumi.dynamic.ResourceProvider<RancherS
 
         pulumi.log.info(`Setting Rancher setting "${inputs.settingName}" to "${inputs.settingValue}" on server "${inputs.rancher.server}"`);
 
-        return RancherClient.login(inputs.rancher).then(client => {
-            return client.patch(url, body);
+        return RancherClient.fromServerConnectionArgs(inputs.rancher).then(client => {
+            return client.put(url, body);
         }).then(resp => {
             return {
                 id: `${inputs.rancher.server}/${inputs.settingName}`,

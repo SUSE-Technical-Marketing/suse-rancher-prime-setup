@@ -34,8 +34,8 @@ class HarvesterSettingProvider implements pulumi.dynamic.ResourceProvider<Harves
 
         pulumi.log.info(`Setting Harvester setting "${inputs.settingName}" to "${inputs.settingValue}" on server "${inputs.harvester.server}"`);
 
-        return RancherClient.login(inputs.harvester).then(client => {
-            return client.patch(url, body);
+        return RancherClient.fromServerConnectionArgs(inputs.harvester).then(client => {
+            return client.put(url, body);
         }).then(resp => {
             return {
                 id: `${inputs.harvester.server}/${inputs.settingName}`,
