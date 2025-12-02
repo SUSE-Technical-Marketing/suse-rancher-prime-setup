@@ -9,6 +9,7 @@
     },
     "dependencies": {
         "@pulumi/kubernetes": "^4.23.0",
+        "@suse-tmm/common": "workspace:^",
         "@suse-tmm/harvester": "workspace:^",
         "@suse-tmm/rancher": "workspace:^",
         "@suse-tmm/rancher-crds": "workspace:^",

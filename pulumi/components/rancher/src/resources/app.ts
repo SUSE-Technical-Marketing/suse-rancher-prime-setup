@@ -4,7 +4,8 @@ import { RancherClient, RancherLoginInputs, RancherLoginProviderInputs } from "@
 import got from "got";
 import https from "https";
 
-export interface RancherAppInputs extends RancherLoginInputs{
+export interface RancherAppInputs {
+    rancher: RancherLoginInputs;
     repo: pulumi.Input<string>; // URL of the Rancher app repository
     chartName: pulumi.Input<string>; // Name of the chart to install
     chartVersion: pulumi.Input<string>; // Version of the chart to install
@@ -12,7 +13,8 @@ export interface RancherAppInputs extends RancherLoginInputs{
     values?: pulumi.Input<{ [key: string]: any }>; // Values to pass to the chart
 }
 
-interface RancherAppProviderInputs extends RancherLoginProviderInputs {
+interface RancherAppProviderInputs {
+    rancher: RancherLoginProviderInputs;
     repo: string; // URL of the Rancher app repository
     chartName: string; // Name of the chart to install
     chartVersion: string; // Version of the chart to install
@@ -38,9 +40,9 @@ class RancherAppProvider implements dynamic.ResourceProvider<RancherAppProviderI
             namespace: namespace
         };
 
-        pulumi.log.info(`Installing Rancher app: ${chartName} in namespace: ${namespace} from repo: ${repo} on server: ${inputs.server}`);
+        pulumi.log.info(`Installing Rancher app: ${chartName} in namespace: ${namespace} from repo: ${repo} on server: ${inputs.rancher.server}`);
 
-        return RancherClient.fromServerConnectionArgs(inputs).then(client => {
+        return RancherClient.fromServerConnectionArgs(inputs.rancher).then(client => {
             return client.post(url, body);
         }).then(response => {
             pulumi.log.info(`Successfully installed Rancher app: ${chartName} in namespace: ${namespace}`);
@@ -56,9 +58,9 @@ class RancherAppProvider implements dynamic.ResourceProvider<RancherAppProviderI
 
     async diff(id: pulumi.ID, olds: RancherAppProviderOutputs, news: RancherAppProviderInputs): Promise<pulumi.dynamic.DiffResult> {
         return {
-            changes: olds.server !== news.server ||
-                olds.username !== news.username ||
-                olds.password !== news.password ||
+            changes: olds.rancher.server !== news.rancher.server ||
+                olds.rancher.username !== news.rancher.username ||
+                olds.rancher.password !== news.rancher.password ||
                 // olds.authToken !== news.authToken || // Ignore authToken changes for diff, it may be rotated
                 olds.repo !== news.repo ||
                 olds.chartName !== news.chartName ||

@@ -4,7 +4,7 @@ import { VmImageArgs } from "@suse-tmm/harvester/src/base/vmimage";
 import * as kubernetes from "@pulumi/kubernetes";
 import { RancherManagerInstall } from "@suse-tmm/rancher";
 import { installUIPluginRepo, RancherUIPlugin } from "@suse-tmm/rancher";
-import { kubeconfig } from "@suse-tmm/utils";
+import { kubeconfig, RancherLoginInputs } from "@suse-tmm/utils";
 import { HarvesterCloudProvider } from "@suse-tmm/rancher/src/cloud/harvester";
 import * as versions from "./versions"
 import * as gitrepos from "./gitrepos";
@@ -147,28 +147,25 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
 
 const rancherK8sProvider = new kubernetes.Provider("rancher-k8s", { kubeconfig: rancherManager.kubeconfig });
 const repos = installUIPluginRepo({ provider: rancherK8sProvider, dependsOn: [rancherManager] });
+
+const rancher: RancherLoginInputs = {
+    server: rancherManager.rancherUrl,
+    username: "admin",
+    password: rancherManager.rancherAdminPassword,
+    authToken: rancherManager.authToken,
+    insecure: staging,
+};
+
 const uiPlugin = new RancherUIPlugin("harvester", {
     chartName: "harvester",
-    rancher: {
-        server: rancherManager.rancherUrl,
-        username: "admin",
-        password: rancherManager.rancherAdminPassword,
-        authToken: rancherManager.authToken,
-        insecure: staging,
-    },
+    rancher: rancher,
     repoName: repos.get("rancher-ui-plugins")!.metadata.name,
     version: versions.HARVESTER_UIPLUGIN_VERSION
 });
 const virtualClusterPlugin = new RancherUIPlugin("virtual-clusters", {
     chartName: "virtual-clusters",
-    rancher: {
-        server: rancherManager.rancherUrl,
-        username: "admin",
-        password: rancherManager.rancherAdminPassword,
-        authToken: rancherManager.authToken,
-        insecure: staging,
-    },
-    repoName: repos.get("virtual-clusters")!.metadata.name,
+    rancher: rancher,
+    repoName: repos.get("rancher-ui-plugins")!.metadata.name,
     version: versions.VIRTUAL_CLUSTERS_UIPLUGIN_VERSION
 });
 
@@ -209,8 +206,6 @@ gitrepos.createFleetConfiguration(labConfig, rancherManager.kubeconfig, { provid
         dependsOn: [rancherManager],
     })
 );
-
-
 
 pulumi.all([harvesterKubeconfig.kubeconfig, rancherManager.kubeconfig]).apply(([harvkcfg, controlkcfg]) => {
     pulumi.log.info(`Harvester Kubeconfig: ${harvkcfg}`);

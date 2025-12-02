@@ -16,7 +16,7 @@ export class RancherUIPlugin extends pulumi.ComponentResource {
 
         const myOpts = noProvider({ ...opts, parent: this });
         new RancherApp(`${name}-ui-plugin`, {
-            ...args.rancher,
+            rancher: args.rancher,
             repo: args.repoName,
             chartName: args.chartName,
             chartVersion: args.version,
