@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as dynamic from "@pulumi/pulumi/dynamic";
+import {dynamic} from "@pulumi/pulumi";
 import { RancherClient, RancherLoginInputs, RancherLoginProviderInputs } from "@suse-tmm/utils";
 
 export interface CloudCredentialInputs {

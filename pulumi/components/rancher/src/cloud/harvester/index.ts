@@ -1,11 +1,10 @@
 import * as pulumi from "@pulumi/pulumi";
 import {provisioning, management } from "@suse-tmm/rancher-crds";
 import { HarvesterSetting } from "@suse-tmm/harvester";
-import {harvesterhci} from "@suse-tmm/harvester-crds";
 import { ClusterRegistrationToken } from "./clusterregistrationtoken";
-import { KubeWait, noProvider, RancherLogin, RancherLoginInputs } from "@suse-tmm/utils";
-import { RancherSetting } from "../..//resources/setting";
+import { KubeWait, noProvider, RancherClient, RancherLogin, RancherLoginInputs } from "@suse-tmm/utils";
 import { HarvesterCloudCredential } from "./cloudcredential";
+import { HarvesterCluster } from "./cluster";
 
 export interface HarvesterCloudArgs {
     clusterName: pulumi.Input<string>;
@@ -20,24 +19,14 @@ export class HarvesterCloudProvider extends pulumi.ComponentResource {
         super("suse-tmm:rancher:harvester-cloud-provider", name, {}, opts);
 
         const myOpts = { ...opts, parent: this };
-        const cluster = new provisioning.Cluster("harvester-cluster", {
-            metadata: {
-                name: args.clusterName,
-                namespace: "fleet-default", // Important: If a cluster lands in another namespace, fleet will start doing weird things.
-                annotations: {
-                    "pulumi.com/waitFor": "condition=Created"
-                },
-                labels: {
-                    "provider.cattle.io": "harvester"
-                }
-            },
-            spec: {
 
-            }
-        }, myOpts);
+        const cluster = new HarvesterCluster("harvester-cluster", {
+            rancher: args.rancher,
+            clusterName: args.clusterName
+        }, noProvider(myOpts));
 
         const token = new ClusterRegistrationToken("harvester-cluster-token", {
-            clusterName: cluster.status.clusterName,
+            clusterName: cluster.clusterId,
             rancherKubeconfig: args.rancherKubeconfig,
         }, noProvider(myOpts));
 
@@ -58,7 +47,7 @@ export class HarvesterCloudProvider extends pulumi.ComponentResource {
             kubeconfig: args.rancherKubeconfig,
             apiVersion: "provisioning.cattle.io/v1",
             kind: "Cluster",
-            name: args.clusterName,
+            name: cluster.clusterId,
             namespace: "fleet-default",
             condition: "Connected",
             timeoutSeconds: 600,
@@ -68,6 +57,7 @@ export class HarvesterCloudProvider extends pulumi.ComponentResource {
         new HarvesterCloudCredential("harvester-cloud-credential", {
             rancher: args.rancher,
             clusterName: args.clusterName,
+            clusterId: cluster.clusterId,
         }, {...myOpts, dependsOn: [kw] });
     }
 }

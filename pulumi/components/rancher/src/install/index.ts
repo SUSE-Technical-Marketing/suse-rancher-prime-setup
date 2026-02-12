@@ -4,7 +4,7 @@ import * as k8s from "@pulumi/kubernetes";
 import { Traefik, Sprouter, TLS, TLSArgs } from "@suse-tmm/common";
 import { provisionHarvesterVm } from "./harvester";
 import { HarvesterVmArgs } from "./harvester";
-import { kubeconfig as k8scfg, RancherLogin } from "@suse-tmm/utils";
+import { RemoteKubeconfig, RancherLogin } from "@suse-tmm/utils";
 import { BootstrapAdminPassword } from "./bootstrap";
 import { RancherSetting } from "../resources/setting";
 import * as command from "@pulumi/command";
@@ -52,7 +52,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
                 // This exits when cloud-init completes (or fails non-zero if it errors)
                 create: "sudo cloud-init status --wait",
             }, { ...myOpts, dependsOn: [harvesterVm] });
-            const kubeconfig = new k8scfg.RemoteKubeconfig("vm-kubeconfig", {
+            const kubeconfig = new RemoteKubeconfig("vm-kubeconfig", {
                 hostname: harvesterVm.vmIpAddress,
                 username: args.harvester.sshUser,
                 privKey: args.harvester.keypair.privateKey,

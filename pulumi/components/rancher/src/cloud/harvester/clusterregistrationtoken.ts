@@ -18,6 +18,7 @@ interface ClusterRegistrationTokenProviderOutputs extends ClusterRegistrationTok
 
 class ClusterRegistrationTokenProvider implements pulumi.dynamic.ResourceProvider<ClusterRegistrationTokenProviderInputs, ClusterRegistrationTokenProviderOutputs> {
     async create(inputs: ClusterRegistrationTokenProviderInputs): Promise<pulumi.dynamic.CreateResult<ClusterRegistrationTokenProviderOutputs>> {
+        pulumi.log.info(`Fetching cluster registration token for cluster ${inputs.clusterName}...`);
         return waitFor(() => this.fetchClusterRegistrationToken(inputs.rancherKubeconfig, inputs.clusterName).catch(err => {
             pulumi.log.error(`Failed to fetch cluster registration token for ${inputs.clusterName}: ${err.message}`);
             throw new Error(`Failed to fetch cluster registration token for ${inputs.clusterName}: ${err.message}`);
@@ -63,7 +64,7 @@ class ClusterRegistrationTokenProvider implements pulumi.dynamic.ResourceProvide
             } else if (res.statusCode < 200 || res.statusCode >= 300) {
                 throw new Error(`Failed to fetch cluster registration token: ${res.statusMessage}`);
             }
-            
+
             return res.body?.status?.manifestUrl;
         });
     }

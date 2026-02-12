@@ -1,8 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as dynamic from "@pulumi/pulumi/dynamic";
+import {dynamic} from "@pulumi/pulumi";
 import { RancherClient, RancherLoginInputs, RancherLoginProviderInputs } from "@suse-tmm/utils";
-import got from "got";
-import https from "https";
 
 export interface RancherAppInputs {
     rancher: RancherLoginInputs;

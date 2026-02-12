@@ -1,9 +1,9 @@
 import * as pulumi from "@pulumi/pulumi";
 import {fleet} from "@suse-tmm/rancher-crds";
-import { KubeWait, noProvider } from "@suse-tmm/utils";
+import { KubeWait, noProvider, RancherLoginInputs } from "@suse-tmm/utils";
 import * as kubernetes from "@pulumi/kubernetes";
 import { Secret } from "@pulumi/kubernetes/core/v1";
-
+import { FleetRepo } from "@suse-tmm/rancher";
 interface GitRepoConfig {
     url: string;
     branch?: string;
@@ -46,7 +46,7 @@ const DefaultGitRepos: Record<string, GitRepoConfig> = {
     }
 };
 
-export function createFleetConfiguration(labConfig: pulumi.Config, kubeconfig: pulumi.Input<string>, opts: pulumi.ResourceOptions) {
+export function createFleetConfiguration(labConfig: pulumi.Config, kubeconfig: pulumi.Input<string>, rancher: RancherLoginInputs, opts: pulumi.ResourceOptions) {
 
     const kw = new KubeWait("fleet-crds-wait", {
         apiVersion: "apiextensions.k8s.io/v1",
@@ -54,10 +54,6 @@ export function createFleetConfiguration(labConfig: pulumi.Config, kubeconfig: p
         name: "gitrepos.fleet.cattle.io",
         kubeconfig: kubeconfig,
     }, noProvider(opts));
-
-    // Need to refresh the provider to pick up the new CRDs
-    const newProvider = new kubernetes.Provider("refreshed-rancher-k8s", { kubeconfig: kubeconfig }, { dependsOn: [kw] });
-    opts = {...opts, provider: newProvider};
 
     new Secret("application-collection-basicauth", {
         metadata: {
@@ -83,6 +79,10 @@ export function createFleetConfiguration(labConfig: pulumi.Config, kubeconfig: p
         },
     }, {...opts, retainOnDelete: true});
 
+    // Need to refresh the provider to pick up the new CRDs
+    const newProvider = new kubernetes.Provider("refreshed-rancher-k8s", { kubeconfig: kubeconfig }, { dependsOn: [kw] });
+    opts = {...opts, provider: newProvider};
+
     const cg = new fleet.ClusterGroup("all-downstream-clusters", {
         metadata: {
             name: "all-downstream-clusters",
@@ -101,21 +101,16 @@ export function createFleetConfiguration(labConfig: pulumi.Config, kubeconfig: p
         }
     }, {...opts, dependsOn: [kw], retainOnDelete: true});
 
-    for (const [name, config] of Object.entries( DefaultGitRepos)) {
-        const gitRepo = new fleet.GitRepo(name, {
-            metadata: {
-                name: name,
-                namespace: config.namespace ?? "fleet-default",
-            },
-            spec: {
-                repo: config.url,
-                branch: config.branch,
-                paths: config.paths,
-                helmSecretName: config.helmSecretName,
-                targets: config.clusterGroup ? [{
-                    clusterGroup: config.clusterGroup,
-                }] : undefined,
-            }
-        }, {... opts, dependsOn: [cg, kw], retainOnDelete: true});
-    }
+    new FleetRepo("fleet-git-repos", {
+        rancher: rancher,
+        repos: Object.entries(DefaultGitRepos).map(([name, cfg]) => ({
+            name: name,
+            url: cfg.url,
+            branch: cfg.branch,
+            paths: cfg.paths,
+            helmSecretName: cfg.helmSecretName,
+            clusterGroup: cfg.clusterGroup,
+            namespace: cfg.namespace,
+        })),
+    }, {...noProvider(opts), dependsOn: [kw, cg] });
 }

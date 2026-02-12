@@ -22,20 +22,19 @@ interface HarvesterSettingProviderOutputs extends HarvesterSettingProviderInputs
 // to avoid needing to read the existing value first and getting the `resourceVersion`.
 class HarvesterSettingProvider implements pulumi.dynamic.ResourceProvider<HarvesterSettingProviderInputs, HarvesterSettingProviderOutputs> {
     async create(inputs: HarvesterSettingProviderInputs): Promise<pulumi.dynamic.CreateResult<HarvesterSettingProviderOutputs>> {
-        let url = `apis/harvesterhci.io/v1beta1/settings/${inputs.settingName}`;
+        // let url=`apis/harvesterhci.io/v1beta1/settings/${inputs.settingName}`;
+        let url = `v1/harvester/harvesterhci.io.settings/${inputs.settingName}`;
         pulumi.log.info(`Harvester setting URL: ${url}`);
-        const body = [
-            {
+        const body =
+            [{
                 op: "replace",
                 path: "/value",
                 value: inputs.settingValue
-            }
-        ];
-
+            }];
         pulumi.log.info(`Setting Harvester setting "${inputs.settingName}" to "${inputs.settingValue}" on server "${inputs.harvester.server}"`);
 
         return RancherClient.fromServerConnectionArgs(inputs.harvester).then(client => {
-            return client.put(url, body);
+            return client.patch(url, body);
         }).then(resp => {
             return {
                 id: `${inputs.harvester.server}/${inputs.settingName}`,

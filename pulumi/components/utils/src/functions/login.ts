@@ -23,7 +23,7 @@ export async function loginToRancher(args: RancherLoginArgs): Promise<string> {
     const url = `${args.server}/v3-public/localProviders/local?action=login`;
     console.log(`Logging in to Rancher at ${url} with username ${args.username}, password: ${args.password}, token: ${args.token}`);
 
-    return got.post<{token: string}>(url, {
+    return got.post<{[key: string]: any}>(url, {
         https: {
             rejectUnauthorized: !args.insecure, // Skip TLS verification if insecure is true
         },
@@ -33,7 +33,7 @@ export async function loginToRancher(args: RancherLoginArgs): Promise<string> {
         },
         responseType: "json",
         timeout: { request: 10000 },
-        
+
         retry: { limit: 2, calculateDelay: () => 5000 }
     }).then(res => {
         if (res.statusCode < 200 || res.statusCode >= 300) {

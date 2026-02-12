@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as dynamic from "@pulumi/pulumi/dynamic";
-import got from "got";
-import { waitFor, kubeConfigToHttp } from "@suse-tmm/utils";
+import { waitFor } from "@suse-tmm/utils";
+import { RancherClient } from "@suse-tmm/utils";
 export interface VmIpAddressProviderInputs {
     kubeconfig: string; // Kubeconfig to access the Kubernetes cluster
     namespace: string;
@@ -64,42 +64,36 @@ class VmIpAddressProvider implements dynamic.ResourceProvider<VmIpAddressProvide
 
 
     async getVmiIp(kubeconfigYaml: string, namespace: string, vmName: string, interfaceName?: string): Promise<string | undefined> {
-
-        // parse the kubeconfig -------------------------------------------------
-        const httpConfig = kubeConfigToHttp(kubeconfigYaml);
         // call the VMI endpoint ------------------------------------------------
-        const url = `${httpConfig.server}/apis/kubevirt.io/v1/namespaces/${namespace}/virtualmachineinstances/${vmName}`;
+        const url = `apis/kubevirt.io/v1/namespaces/${namespace}/virtualmachineinstances/${vmName}`;
 
-        const res: any = await got.get(url, {
-            agent: { https: httpConfig.agent },
-            headers: httpConfig.headers,
-            responseType: "json",
-            timeout: { request: 10000 },
-            retry: { limit: 2 },
-        });
-        if (res.body?.status?.interfaces) {
-            if (interfaceName) {
-                const iface = res.body.status.interfaces.find((i: any) => i.name === interfaceName);
+        return RancherClient.fromKubeconfig(kubeconfigYaml).then(async (client) => {
+            return client.get(url);
+        }).then(res => {
+            if (res.status?.interfaces) {
+                if (interfaceName) {
+                    const iface = res.status.interfaces.find((i: any) => i.name === interfaceName);
 
-                // If iface is set and iface.ipAddress is an IPv4 address, return it
-                if (iface && this.isIPv4Address(iface.ipAddress)) {
-                    return iface.ipAddress;
+                    // If iface is set and iface.ipAddress is an IPv4 address, return it
+                    if (iface && this.isIPv4Address(iface.ipAddress)) {
+                        return iface.ipAddress;
+                    } else {
+                        return undefined;
+                    }
                 } else {
-                    return undefined;
+                    const iface = res.body.status.interfaces[0];
+                    // If iface is set and iface.ipAddress is an IPv4 address, return it
+                    if (iface && this.isIPv4Address(iface.ipAddress)) {
+                        pulumi.log.info(`Found IP address ${iface.ipAddress} for VMI ${namespace}/${vmName} on interface ${iface.name}`);
+                        return iface.ipAddress;
+                    } else {
+                        return undefined;
+                    }
                 }
             } else {
-                const iface = res.body.status.interfaces[0];
-                // If iface is set and iface.ipAddress is an IPv4 address, return it
-                if (iface && this.isIPv4Address(iface.ipAddress)) {
-                    pulumi.log.info(`Found IP address ${iface.ipAddress} for VMI ${namespace}/${vmName} on interface ${iface.name}`);
-                    return iface.ipAddress;
-                } else {
-                    return undefined;
-                }
+                return undefined;
             }
-        } else {
-            return undefined;
-        }
+        });
     }
 }
 

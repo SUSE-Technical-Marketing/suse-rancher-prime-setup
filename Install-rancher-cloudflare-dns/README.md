@@ -167,7 +167,7 @@ helm install rancher rancher-latest/rancher \
   --namespace cattle-system \
   --set hostname=$RANCHER_HOSTNAME \
   --set ingress.tls.source=secret \
-  --set ingress.ingressClassName=nginx \
+  --set ingress.ingressClassName=traefik \
   --set privateCA=false \
   --set replicas=1 \
   --set global.cattle.psp.enabled=false \

@@ -1,6 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { ClusterRepo } from "@suse-tmm/rancher-crds";
-import { noProvider, RancherLogin, RancherLoginInputs } from "@suse-tmm/utils";
+import { noProvider, RancherLoginInputs } from "@suse-tmm/utils";
 import { RancherApp } from "../resources/app";
 
 export interface RancherUIPluginArgs {

@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as dynamic from "@pulumi/pulumi/dynamic";
+import {dynamic} from "@pulumi/pulumi";
 import got from "got";
 import { kubeConfigToHttp } from "../functions/kubehttp";
 import { waitFor } from "../functions/waitfor";

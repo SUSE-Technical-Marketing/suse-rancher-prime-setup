@@ -1,5 +1,4 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as k8s from "@pulumi/kubernetes";
 import { deepMerge } from "@suse-tmm/utils";
 import { HelmApp } from "@suse-tmm/common/src/helmapp";
 

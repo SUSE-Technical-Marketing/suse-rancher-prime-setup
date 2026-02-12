@@ -42,11 +42,12 @@ pulumi config set lab:sccUsername "<your-scc-username>"
 pulumi config set lab:sccPassword --secret "<your-scc-password>"
 pulumi config set lab:appcoUsername "<your-appco-username>"
 pulumi config set lab:appcoPassword --secret "<your-appco-password>"
+pulumi config set lab:ssoEnabled "true"
 pulumi config set rancher:adminPassword --secret "<your-rancher-admin-password>"
 pulumi config set rancher:vmName "<rancher-machine-name>" // Not the URL/FQDN, that will be constructed as "rancher.<rancher:vmName>.<lab:domain>"
 pulumi config set vm:sshUser "<you>"
 pulumi config set vm:sshPubKey "$(cat ~/.ssh/id_rsa.pub)"
-cat ~/.ssh/id_rsa | pulumi config set vm:sshPrivKey --secret 
+cat ~/.ssh/id_rsa | pulumi config set vm:sshPrivKey --secret
 ```
 
 ### Initializing Pulumi and installing dependencies:
@@ -68,5 +69,3 @@ Create/Update the infrastructure:
 cd sample-setup
 pulumi up
 ```
-
-

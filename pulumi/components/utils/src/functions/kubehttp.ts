@@ -1,5 +1,5 @@
 import https from 'https';
-import { load, dump } from 'js-yaml';
+import { load } from 'js-yaml';
 
 export interface KubeConfigHttpOutput {
     agent: https.Agent;

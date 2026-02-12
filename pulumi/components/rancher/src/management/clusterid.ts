@@ -1,7 +1,6 @@
 import { dynamic } from "@pulumi/pulumi";
 import * as pulumi from "@pulumi/pulumi";
 import { RancherLoginInputs, RancherLoginProviderInputs, waitFor, RancherClient } from "@suse-tmm/utils";
-import got from "got";
 
 export interface ClusterIdArgs {
     rancher: RancherLoginInputs;

@@ -6,7 +6,7 @@ import { createNetworks } from "./network";
 import { createCloudInitTemplates } from "./cloudinittemplate";
 import { harvesterhci } from "@suse-tmm/harvester-crds";
 import { k8s as k8scrds } from "@suse-tmm/harvester-crds";
-import { StorageClass } from "@pulumi/kubernetes/storage/v1";
+import { storage } from "@pulumi/kubernetes";
 
 export interface HarvesterBaseArgs {
     kubeconfig: pulumi.Input<string>;
@@ -19,7 +19,7 @@ export interface HarvesterBaseArgs {
 export class HarvesterBase extends pulumi.ComponentResource {
     public images: Map<string, harvesterhci.v1beta1.VirtualMachineImage>;
     public networks: Map<string, k8scrds.v1.NetworkAttachmentDefinition>;
-    public storageClass: StorageClass;
+    public storageClass: storage.v1.StorageClass;
 
     constructor(name: string, args: HarvesterBaseArgs, opts?: pulumi.ComponentResourceOptions) {
         super("suse-tmm:harvester:base", name, {}, opts);
@@ -39,4 +39,3 @@ export class HarvesterBase extends pulumi.ComponentResource {
         });
     }
 };
-

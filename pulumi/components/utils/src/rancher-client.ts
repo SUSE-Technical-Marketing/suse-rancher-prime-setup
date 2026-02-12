@@ -1,7 +1,5 @@
-import {got, Got}  from "got";
-import * as https from "https";
+import {got, Got, Response}  from "got";
 import { kubeConfigToHttp } from "./functions/kubehttp";
-import { PulumiCommand } from "@pulumi/pulumi/automation";
 import { waitFor } from "./functions/waitfor";
 
 export interface RancherServerConnectionArgs {
@@ -43,6 +41,16 @@ export class RancherClient {
         }
     }
 
+    private static checkStatusCode(method: string): (resp: Response<{ [key: string]: any }>) => { [key: string]: any } {
+        return (response) => {
+            if (response.statusCode < 200 || response.statusCode >= 300) {
+                throw new Error(`Failed to ${method} ${response.url}: ${response.statusCode} ${JSON.stringify(response.body)}`);
+            }
+            return response.body;
+        };
+    }
+
+
     private buildGotFromKubeconfig(kubeconfig: string): Got {
         const outputs = kubeConfigToHttp(kubeconfig);
 
@@ -57,6 +65,7 @@ export class RancherClient {
     }
 
     private buildGotFromUrl(url: string, token: string, insecure: boolean): Got {
+        console.log(`Building Got instance for URL: ${url} with token: ${token} and insecure: ${insecure}`);
         return got.extend({
             prefixUrl: url.replace(/\/$/, ""),
             https: {
@@ -77,7 +86,7 @@ export class RancherClient {
                 rejectUnauthorized: !args.insecure,
             },
             responseType: "json",
-            timeout: { request: 10000 },
+            timeout: {},
             retry: { limit: args.retryLimit ?? 2, calculateDelay: () => args.retryDelayMs ?? 5000 },
             json: {
                 username: args.username,
@@ -85,30 +94,29 @@ export class RancherClient {
             },
         }).then((response) => {
             if (response.statusCode < 200 || response.statusCode >= 300) {
-                throw new Error(`Failed to login to Rancher at ${args.server}: ${response.statusCode} ${response.statusMessage}`);
+                throw new Error(`Failed to login to Rancher at ${args.server}: ${response.statusCode} ${JSON.stringify(response.body)}`);
             }
             const token = response.body.token;
             return new RancherClient({ server: args.server, token, insecure: args.insecure ?? false });
+        }).catch(err => {
+            console.error(`Rancher login failed for server "${args.server}" and user "${args.username}": ${err.message}`);
+            throw err;
         });
     }
 
     async get(path: string, searchParams?: { [key: string]: any }): Promise<{ [key: string]: any }> {
         path = path.replace(/^\/+/, ""); // Remove leading slashes
-        return this.rancherGot().get<{[key:string]: any}>(path, {
+        return this.rancherGot().get<{ [key: string]: any }>(path, {
             searchParams: searchParams ? {
                 ...searchParams,
             } : undefined,
-        }).then((response) => {
-            if (response.statusCode < 200 || response.statusCode >= 300) {
-                throw new Error(`Failed to GET ${path}: ${response.statusCode} ${response.statusMessage}`);
-            }
-            return response.body;
-        });
+        }).then(RancherClient.checkStatusCode("GET"));
     }
 
     async post(path: string, body: any, searchParams?: { [key: string]: any }): Promise<{ [key: string]: any }> {
         path = path.replace(/^\/+/, ""); // Remove leading slashes
-        return this.rancherGot().post<{[key:string]: any}>(path, {
+        console.log(`Posting to Rancher path: ${path} with body: ${JSON.stringify(body)}`);
+        return this.rancherGot().post<{ [key: string]: any }>(path, {
             searchParams: searchParams ? {
                 ...searchParams,
             } : undefined,
@@ -117,36 +125,28 @@ export class RancherClient {
             console.error(`Error occurred while posting to ${path}: ${error.message}`);
             console.error(`Error contents: ${JSON.stringify(error.response?.body)}`);
             throw error;
-        }).then((response) => {
-            if (response.statusCode < 200 || response.statusCode >= 300) {
-                throw new Error(`Failed to POST ${path}: ${response.statusCode} ${response.statusMessage}`);
-            }
-            return response.body;
-        });
+        }).then(RancherClient.checkStatusCode("POST"));
     }
 
     async patch(path: string, body: any): Promise<{ [key: string]: any }> {
         path = path.replace(/^\/+/, ""); // Remove leading slashes
-        return this.rancherGot().patch<{[key:string]: any}>(path, {
+        return this.rancherGot().patch<{ [key: string]: any }>(path, {
             json: body,
-        }).then((response) => {
-            if (response.statusCode < 200 || response.statusCode >= 300) {
-                throw new Error(`Failed to PATCH ${path}: ${response.statusCode} ${response.statusMessage}`);
-            }
-            return response.body;
-        });
+            headers: {
+                "Content-Type": "application/json-patch+json",
+            },
+        }).catch((error) => {
+            console.error(`Error occurred while PATCH-ing ${path}: ${error.message}`);
+            console.error(`Error contents: ${JSON.stringify(error.response?.body)}`);
+            throw error;
+        }).then(RancherClient.checkStatusCode("PATCH"));
     }
 
     async put(path: string, body: any): Promise<{ [key: string]: any }> {
         path = path.replace(/^\/+/, ""); // Remove leading slashes
-        return this.rancherGot().put<{[key:string]: any}>(path, {
+        return this.rancherGot().put<{ [key: string]: any }>(path, {
             json: body,
-        }).then((response) => {
-            if (response.statusCode < 200 || response.statusCode >= 300) {
-                throw new Error(`Failed to PUT ${path}: ${response.statusCode} ${response.statusMessage}`);
-            }
-            return response.body;
-        });
+        }).then(RancherClient.checkStatusCode("PUT"));
     }
 
     static async fromKubeconfig(kubeconfig: string): Promise<RancherClient> {

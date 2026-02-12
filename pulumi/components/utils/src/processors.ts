@@ -91,7 +91,11 @@ export const IncreaseFileLimit: CloudInitProcessor = (cfg) => {
     return cfg;
 }
 
-export const InstallK3s: CloudInitProcessor = (cfg) => {
+export const InstallK3s = (useTraefik: boolean, version: string): CloudInitProcessor => (cfg) => {
+    let installVar=``;
+    if (!useTraefik) {
+        installVar=`INSTALL_K3S_EXEC="--disable=traefik"`;
+    }
     cfg.writeFiles = cfg.writeFiles.concat(
         {
             path: "/etc/rancher/k3s/config.yaml",
@@ -107,7 +111,7 @@ export const InstallK3s: CloudInitProcessor = (cfg) => {
                 |#!/bin/bash
                 |set -e
                 |curl -sfL https://get.k3s.io -o get-k3s.sh
-                |INSTALL_K3S_CHANNEL="v1.31.5+k3s1" INSTALL_K3S_EXEC="--disable=traefik" sh get-k3s.sh
+                |INSTALL_K3S_SKIP_SELINUX_RPM=true INSTALL_K3S_CHANNEL="${version}" ${installVar} sh get-k3s.sh
             `.stripMargin(),
             permissions: '0755'
         });

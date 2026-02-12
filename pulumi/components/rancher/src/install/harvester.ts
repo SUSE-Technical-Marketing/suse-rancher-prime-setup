@@ -41,7 +41,7 @@ export function provisionHarvesterVm(args: HarvesterVmArgs, kubeconfig: pulumi.I
             namespace: args.vmNamespace || "harvester-public",
             networkName: args.network.name,
             resources: {
-                cpu: args.vmResources?.cpu || 2, 
+                cpu: args.vmResources?.cpu || 2,
                 memory: args.vmResources?.memory || "6Gi"
             },
             network: {
@@ -74,7 +74,7 @@ export function provisionHarvesterVm(args: HarvesterVmArgs, kubeconfig: pulumi.I
                 DhcpInterface("eth0"),
                 DhcpInterface("eth1"),
 
-                InstallK3s
+                InstallK3s(false, "v1.34.3+k3s3"),
             ),
         }
     }, opts);

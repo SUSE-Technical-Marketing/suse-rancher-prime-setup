@@ -10,4 +10,4 @@ export * from "./src/opts";
 export * from "./src/resources/kubewait";
 export * from "./src/resources/rancherlogin";
 export * from "./src/rancher-client";
-export * as kubeconfig from "./src/resources/kubeconfig";
+export * from "./src/resources/kubeconfig";
