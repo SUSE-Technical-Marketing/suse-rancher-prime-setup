@@ -7,7 +7,7 @@ import { installUIPluginRepo, RancherUIPlugin } from "@suse-tmm/rancher";
 import { HarvesterKubeconfig, RancherLoginInputs } from "@suse-tmm/utils";
 import { HarvesterCloudProvider } from "@suse-tmm/rancher/src/cloud/harvester";
 import * as versions from "./versions"
-import * as gitrepos from "./gitrepos";
+import * as fleet from "./fleet";
 import { RancherSetting } from "@suse-tmm/rancher/src/resources/setting";
 
 export function provisionHarvester(clusterNetwork:string, downloadSuseImage: boolean, kubeconfig: pulumi.Input<string>, sshUser: string, sshPubKey: string) : harvester.HarvesterBase {
@@ -189,7 +189,7 @@ new HarvesterCloudProvider("harvester-cloud", {
 
 }, { provider: rancherK8sProvider, dependsOn: [uiPlugin] });
 
-gitrepos.createFleetConfiguration(labConfig, rancherManager.kubeconfig, rancher, { provider: rancherK8sProvider, dependsOn: [rancherManager] });
+fleet.createFleetConfiguration(rancherManager.kubeconfig, rancher, { provider: rancherK8sProvider, dependsOn: [rancherManager] });
 
 // Set to new UI
 // [

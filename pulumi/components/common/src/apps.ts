@@ -32,6 +32,14 @@ export const Sprouter = (opts?: pulumi.ComponentResourceOptions) => new HelmApp(
         chart: "oci://ghcr.io/hierynomus/sprouter/charts/sprouter",
     }, opts);
 
+export const Outrider = (opts?: pulumi.ComponentResourceOptions) => new HelmApp("outrider", {
+        chart: "oci://ghcr.io/hierynomus/outrider/charts/outrider",
+        values: {
+            defaultTargetNamespace: "default",
+            logLevel: "info",
+        },
+    }, opts);
+
 
 export interface SsoOpts {
     hostname: pulumi.Input<string>;

@@ -1,3 +1,4 @@
+import "@suse-tmm/utils";
 import * as pulumi from "@pulumi/pulumi";
 import {fleet} from "@suse-tmm/rancher-crds";
 import { KubeWait, noProvider, RancherLoginInputs } from "@suse-tmm/utils";
@@ -46,7 +47,9 @@ const DefaultGitRepos: Record<string, GitRepoConfig> = {
     }
 };
 
-export function createFleetConfiguration(labConfig: pulumi.Config, kubeconfig: pulumi.Input<string>, rancher: RancherLoginInputs, opts: pulumi.ResourceOptions) {
+export function createFleetConfiguration(kubeconfig: pulumi.Input<string>, rancher: RancherLoginInputs, opts: pulumi.ResourceOptions) {
+    const labConfig = new pulumi.Config("lab");
+    const certManagerConfig = new pulumi.Config("cert-manager");
 
     const kw = new KubeWait("fleet-crds-wait", {
         apiVersion: "apiextensions.k8s.io/v1",
@@ -78,6 +81,49 @@ export function createFleetConfiguration(labConfig: pulumi.Config, kubeconfig: p
             password: labConfig.requireSecret("sccPassword"),
         },
     }, {...opts, retainOnDelete: true});
+
+    new Secret("fleet-secrets", {
+        metadata: {
+            name: "fleet-secrets",
+            namespace: "fleet-default",
+            annotations: {
+                "outrider.geeko.me/enabled": "true",
+                "outrider.geeko.me/namespace": "kube-system",
+            },
+        },
+        stringData: {
+          "appco-values.yaml": `
+            |username: ${labConfig.require("appcoUsername")}
+            |token: ${labConfig.require("appcoPassword")}
+          `.stripMargin(),
+          "suse-registry-values.yaml": `
+            |username: ${labConfig.require("sccUsername")}
+            |token: ${labConfig.require("sccPassword")}
+          `.stripMargin(),
+          "cert-manager-values.yaml": `
+            |email: ${certManagerConfig.require("letsEncryptEmail")}
+            |cloudflare:
+            |  token: ${certManagerConfig.require("cloudflareApiKey")}
+          `.stripMargin(),
+          "cloudflare-values.yaml": `
+            |cloudflare:
+            |  apiToken: ${labConfig.require("cloudflareApiToken")}
+            |  accountId: ${labConfig.require("cloudflareAccountId")}
+          `.stripMargin(),
+          "harbor-values.yaml": `
+            |registry:
+            |  credential:
+            |    access_key: ${labConfig.require("appcoUsername")}
+            |    access_secret: ${labConfig.require("appcoPassword")}
+          `.stripMargin(),
+          "suse-observability-values.yaml": `
+            |stackstate:
+            |  license:
+            |    key: ${labConfig.require("stackstateLicenseKey")}
+          `.stripMargin(),
+        },
+    }, {...opts, retainOnDelete: true
+    })
 
     // Need to refresh the provider to pick up the new CRDs
     const newProvider = new kubernetes.Provider("refreshed-rancher-k8s", { kubeconfig: kubeconfig }, { dependsOn: [kw] });

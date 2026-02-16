@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi"
 import { helmInstallRancher } from "./rancher";
 import * as k8s from "@pulumi/kubernetes";
-import { Traefik, Sprouter, TLS, TLSArgs } from "@suse-tmm/common";
+import { Traefik, Sprouter, TLS, TLSArgs, Outrider } from "@suse-tmm/common";
 import { provisionHarvesterVm } from "./harvester";
 import { HarvesterVmArgs } from "./harvester";
 import { RemoteKubeconfig, RancherLogin } from "@suse-tmm/utils";
@@ -142,11 +142,13 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
 
         // We use sprouter to copy the certificates to all the required namespaces
         Sprouter(resOpts);
+        // We use outrider to propagate secrets to downstream clusters
+        Outrider(resOpts);
 
-        if (installIngress) {
-            // Install Traefik Ingress Controller
-            Traefik(args.traefikVersion, resOpts);
-        }
+        // if (installIngress) {
+        //     // Install Traefik Ingress Controller
+        //     Traefik(args.traefikVersion, resOpts);
+        // }
 
         // Create TLS
         const tls = new TLS("rancher-tls", args.tls, resOpts);
