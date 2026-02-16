@@ -13,6 +13,6 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-    - *.{{ .Values.wildcard.domain }}
-    - {{ .Values.wildcard.domain }}
+    - "*.{{ .Values.wildcard.domain }}"
+    - "{{ .Values.wildcard.domain }}"
 {{- end }}
