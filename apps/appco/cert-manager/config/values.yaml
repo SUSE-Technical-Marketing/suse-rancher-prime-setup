@@ -3,5 +3,6 @@ cloudflare:
 letsencrypt:
   prod:
     email: ""
-wildcard-certificate:
-  domains: []
+wildcard:
+  enabled: false
+  domain: ""

@@ -1,0 +1,5 @@
+defaultNamespace: longhorn-system
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-storage: "true"

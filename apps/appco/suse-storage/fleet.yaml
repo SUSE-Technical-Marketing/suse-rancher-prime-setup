@@ -2,7 +2,7 @@ defaultNamespace: longhorn-system
 helm:
   chart: oci://dp.apps.rancher.io/charts/suse-storage
   releaseName: suse-storage
-  version: "1.10.1"
+  version: "1.10.2"
   values:
     global:
       imagePullSecrets: ["application-collection"]
@@ -11,13 +11,15 @@ helm:
       host: ${ if hasKey .ClusterAnnotations "hosted-domain" }storage.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
       ingressClassName: traefik
       tls: true
-      tlsSecret: longhorn-ingress-tls
-      annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-prod
+      tlsSecret: wildcard-tls
+      # annotations:
+      #   cert-manager.io/cluster-issuer: letsencrypt-prod
     persistence:
       migratable: true
+      defaultClassReplicaCount: 3
     longhornUI:
       replicas: 1
+
 overrideTargets:
   - clusterSelector:
       matchLabels:

@@ -1,4 +1,4 @@
-{{- if .Values.wildcard-certificate.enabled }}
+{{- if .Values.wildcard.enabled }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -8,10 +8,11 @@ spec:
   secretTemplate:
     annotations:
       sprouter.geeko.me/enabled: "true"
-  secretName: wildcard-cert-tls
+  secretName: wildcard-tls
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-    {{ .Values.wildcard-certificate.domains | toYaml | indent 4 }}
+    - *.{{ .Values.wildcard.domain }}
+    - {{ .Values.wildcard.domain }}
 {{- end }}

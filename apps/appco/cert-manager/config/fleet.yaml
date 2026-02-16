@@ -2,11 +2,9 @@ helm:
   chart: ""
   releaseName: cert-manager-config
   values:
-    wildcard-certificate:
+    wildcard:
       enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${ else }false${ end }
-      domains:
-        - ${ if hasKey .ClusterAnnotations "hosted-domain" }*.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else }*.${ .ClusterName }.cluster.local${ end }
-        - ${ if hasKey .ClusterAnnotations "hosted-domain" }${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else }${ .ClusterName }.cluster.local${ end }
+      domain: ${ if hasKey .ClusterAnnotations "hosted-domain" }${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end }
   valuesFrom:
     - secretKeyRef:
         name: fleet-secrets
