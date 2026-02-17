@@ -7,9 +7,11 @@ ingress:
 opentelemetry-collector:
   ingress:
     enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${else}false${end}
+  service:
+    annotations:
+      traefik.ingress.kubernetes.io/service.serversscheme: h2c
 opentelemetry:
   enabled: true
-
 
 stackstate:
   authentication:
