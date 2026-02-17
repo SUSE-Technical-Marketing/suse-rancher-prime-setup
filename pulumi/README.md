@@ -33,22 +33,28 @@ Created stack 'dev'
 ```bash
 pulumi config set cert-manager:cloudflareApiKey --secret "<your-cloudflare-api-key>"
 pulumi config set cert-manager:letsEncryptEmail "<your-email>"
-pulumi config set cert-manager:staging true
+pulumi config set cert-manager:staging false
 pulumi config set harvester:name "<harvester-machine-name>" // Not the URL/FQDN, that will be constructed as "harvester.<harvester:name>.<lab:domain>"
 pulumi config set --secret harvester:password "<password>"
 pulumi config set harvester:username "<username>"
 pulumi config set lab:domain "<your-domain>" // e.g. "geeko.me"
-pulumi config set lab:sccUsername "<your-scc-username>"
-pulumi config set lab:sccPassword --secret "<your-scc-password>"
 pulumi config set lab:appcoUsername "<your-appco-username>"
 pulumi config set lab:appcoPassword --secret "<your-appco-password>"
-pulumi config set lab:ssoEnabled "true"
+pulumi config set lab:cloudflareApiToken --secret "<your-cloudflare-api-token>"
+pulumi config set lab:cloudflareAccountId "<your-cloudflare-account-id>"
+pulumi config set lab:sccUsername "<your-scc-username>"
+pulumi config set lab:sccPassword --secret "<your-scc-password>"
+pulumi config set lab:stackstateLicenseKey --secret "<your-suse-observability-license-key>"
+pulumi config set lab:ssoEnabled "true" // Not yet used
 pulumi config set rancher:adminPassword --secret "<your-rancher-admin-password>"
 pulumi config set rancher:vmName "<rancher-machine-name>" // Not the URL/FQDN, that will be constructed as "rancher.<rancher:vmName>.<lab:domain>"
 pulumi config set vm:sshUser "<you>"
 pulumi config set vm:sshPubKey "$(cat ~/.ssh/id_rsa.pub)"
 cat ~/.ssh/id_rsa | pulumi config set vm:sshPrivKey --secret
 ```
+
+> [!NOTE]
+> Change `cert-manager:staging` to `true` if you want to use the Let's Encrypt staging environment, which is recommended for testing purposes to avoid hitting rate limits.
 
 ### Initializing Pulumi and installing dependencies:
 ```bash
