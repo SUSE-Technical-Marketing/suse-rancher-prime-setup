@@ -11,10 +11,9 @@ manager:
     env:
       ssl: true
     annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
       kubernetes.io/ingress.class: traefik
     host: ${ if hasKey .ClusterAnnotations "hosted-domain" }security.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
-    secretName: neuvector-tls
+    secretName: wildcard-tls
   svc:
     type: ClusterIP
 k3s:

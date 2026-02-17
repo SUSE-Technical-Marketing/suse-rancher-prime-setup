@@ -9,12 +9,11 @@ helm:
       baseUrl: ${ if hasKey .ClusterAnnotations "hosted-domain" }https://observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
     ingress:
       ingressClassName: traefik
-
       hosts:
         - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
       tls:
         - hosts: ${ if hasKey .ClusterAnnotations "hosted-domain" }[observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }]${ else}[]${ end}
-          secretName: tls-secret
+          secretName: wildcard-tls
     opentelemetry-collector:
       ingress:
         ingressClassName: traefik
@@ -26,12 +25,10 @@ helm:
                 port: 4317
         tls:
           - hosts: ${ if hasKey .ClusterAnnotations "hosted-domain" }[otlp-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }]${ else}[]${ end}
-            secretName: otel-ecc-tls
+            secretName: wildcard-tls
         additionalIngresses:
           - name: otlp-http
             ingressClassName: traefik
-            annotations:
-              cert-manager.io/cluster-issuer: letsencrypt-prod
             hosts:
               - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }otlp-http-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
                 paths:
@@ -40,7 +37,7 @@ helm:
                     port: 4318
             tls:
               - hosts: ${ if hasKey .ClusterAnnotations "hosted-domain" }[otlp-http-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }]${ else}[]${ end}
-                secretName: otel-http-ecc-tls
+                secretName: wildcard-tls
   valuesFiles:
     - sizing_values.yaml
     - values.yaml

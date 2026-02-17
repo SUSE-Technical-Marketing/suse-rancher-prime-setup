@@ -4,13 +4,9 @@ global:
 
 ingress:
   enabled: ${if hasKey .ClusterAnnotations "hosted-domain"}true${else}false${end}
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
 opentelemetry-collector:
   ingress:
     enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${else}false${end}
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
 opentelemetry:
   enabled: true
 
