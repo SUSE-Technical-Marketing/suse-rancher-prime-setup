@@ -11,12 +11,12 @@ helm:
     gateway:
       enabled: true
     listeners:
-      web:
+      - name: web
         port: 8000
         hostname: ${ if hasKey .ClusterAnnotations "hosted-domain" }*.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end }
         namespacePolicy:
           from: All
-      websecure:
+      - name: websecure
         hostname: ${ if hasKey .ClusterAnnotations "hosted-domain" }*.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end }
         port: 8443
         protocol: HTTPS
