@@ -4,10 +4,10 @@ helm:
   chart: traefik
   repo: https://traefik.github.io/charts
   releaseName: traefik
-values:
-  providers:
-    kubernetesGateway:
-      enabled: true
+  values:
+    providers:
+      kubernetesGateway:
+        enabled: true
 labels:
   app: traefik
 overrideTargets:
