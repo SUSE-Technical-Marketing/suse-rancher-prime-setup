@@ -10,22 +10,19 @@ helm:
         enabled: true
     gateway:
       enabled: true
-    listeners:
-      web:
-        port: 8000
-        hostname: ${ if hasKey .ClusterAnnotations "hosted-domain" }*.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end }
-        namespacePolicy:
-          from: All
-      websecure:
-        hostname: ${ if hasKey .ClusterAnnotations "hosted-domain" }*.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end }
-        port: 8443
-        protocol: HTTPS
-        namespacePolicy:
-          from: All
-        mode: Terminate
-        certificateRefs:
-          - name: wildcard-tls
-            kind: Secret
+      listeners:
+        web:
+          port: 8000
+          hostname: *.sirius.lab.geeko.me
+          namespacePolicy:
+            from: All
+        websecure:
+          hostname: *.sirius.lab.geeko.me
+          port: 8443
+          protocol: HTTPS
+          namespacePolicy:
+            from: All
+          mode: Terminate
 labels:
   app: traefik
 overrideTargets:
