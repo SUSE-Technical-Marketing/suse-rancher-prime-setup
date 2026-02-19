@@ -8,6 +8,23 @@ helm:
     providers:
       kubernetesGateway:
         enabled: true
+    gateway:
+      enabled: true
+    listeners:
+      web:
+        port: 8000
+        hostname: ${ if hasKey .ClusterAnnotations "hosted-domain" }*.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end }
+        namespacePolicy:
+          from: All
+      websecure:
+        hostname: ${ if hasKey .ClusterAnnotations "hosted-domain" }*.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end }
+        port: 8443
+        protocol: HTTPS
+        namespacePolicy:
+          from: All
+        certificateRefs:
+          name: wildcard-tls
+          kind: Secret
 labels:
   app: traefik
 overrideTargets:
