@@ -10,6 +10,12 @@ helm:
         enabled: true
     gateway:
       enabled: true
+      listeners:
+        web:
+          port: 8000
+          hostname: ${ if hasKey .ClusterAnnotations "hosted-domain" }*.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else }""${ end }
+          namespacePolicy:
+            from: All
 labels:
   app: traefik
 overrideTargets:
