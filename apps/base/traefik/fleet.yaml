@@ -22,9 +22,10 @@ helm:
         protocol: HTTPS
         namespacePolicy:
           from: All
+        mode: Terminate
         certificateRefs:
-          name: wildcard-tls
-          kind: Secret
+          - name: wildcard-tls
+            kind: Secret
 labels:
   app: traefik
 overrideTargets:
