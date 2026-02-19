@@ -9,7 +9,6 @@ import { k8s as k8scrds } from "@suse-tmm/harvester-crds";
 import { storage } from "@pulumi/kubernetes";
 
 export interface HarvesterBaseArgs {
-    kubeconfig: pulumi.Input<string>;
     extraImages?: VmImageArgs[];
     clusterNetwork?: string;
     sshUser: string;
@@ -24,13 +23,11 @@ export class HarvesterBase extends pulumi.ComponentResource {
     constructor(name: string, args: HarvesterBaseArgs, opts?: pulumi.ComponentResourceOptions) {
         super("suse-tmm:harvester:base", name, {}, opts);
 
-        const harvesterK8sProvider = new k8s.Provider("harvester-k8s", {
-            kubeconfig: args.kubeconfig,
-        }, { parent: this });
-        this.storageClass = createSingleReplicaStorageClass({ provider: harvesterK8sProvider, parent: this });
-        this.networks = createNetworks(args.clusterNetwork || "mgmt", { provider: harvesterK8sProvider, parent: this });
-        createCloudInitTemplates(args.sshUser, args.sshPublicKey, { provider: harvesterK8sProvider, parent: this });
-        this.images = createImages(args.extraImages || [], this.storageClass.metadata.name, { provider: harvesterK8sProvider, dependsOn: [this.storageClass], parent: this });
+        const myOpts = { ...opts, parent: this };
+        this.storageClass = createSingleReplicaStorageClass(myOpts);
+        this.networks = createNetworks(args.clusterNetwork || "mgmt", myOpts);
+        createCloudInitTemplates(args.sshUser, args.sshPublicKey, myOpts);
+        this.images = createImages(args.extraImages || [], this.storageClass.metadata.name, { ...myOpts, dependsOn: [this.storageClass] });
 
         this.registerOutputs({
             images: this.images,

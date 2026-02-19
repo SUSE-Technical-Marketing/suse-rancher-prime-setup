@@ -39,4 +39,3 @@ export class HarvesterVm extends pulumi.ComponentResource {
 ;
     }
 };
-

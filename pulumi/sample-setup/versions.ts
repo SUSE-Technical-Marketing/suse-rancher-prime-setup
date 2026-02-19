@@ -1,6 +1,6 @@
-export const RANCHER_VERSION = "v2.13.1";
+export const RANCHER_VERSION = "v2.13.2";
 export const HARVESTER_UIPLUGIN_VERSION = "1.7.1";
-export const VIRTUAL_CLUSTERS_UIPLUGIN_VERSION = "1.0.0";
+export const VIRTUAL_CLUSTERS_UIPLUGIN_VERSION = "1.0.2";
 export const CERT_MANAGER_VERSION = "v1.18.1";
 export const TRAEFIK_VERSION = "39.0.0";
 export const AUTHENTIK_VERSION = "2025.10.0";

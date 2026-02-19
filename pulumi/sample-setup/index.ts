@@ -10,7 +10,7 @@ import * as versions from "./versions"
 import * as fleet from "./fleet";
 import { RancherSetting } from "@suse-tmm/rancher/src/resources/setting";
 
-export function provisionHarvester(clusterNetwork:string, downloadSuseImage: boolean, kubeconfig: pulumi.Input<string>, sshUser: string, sshPubKey: string) : harvester.HarvesterBase {
+export function provisionHarvester(clusterNetwork:string, downloadSuseImage: boolean, harvesterK8sProvider: kubernetes.Provider, sshUser: string, sshPubKey: string) : harvester.HarvesterBase {
     const images: VmImageArgs[] = []
     if (downloadSuseImage) {
         images.push({
@@ -24,12 +24,11 @@ export function provisionHarvester(clusterNetwork:string, downloadSuseImage: boo
         });
     }
     const harvesterBase = new harvester.HarvesterBase("harvester-base", {
-        kubeconfig: kubeconfig,
         clusterNetwork: clusterNetwork,
         extraImages: images,
         sshUser: sshUser,
         sshPublicKey: sshPubKey,
-    });
+    }, { provider: harvesterK8sProvider });
 
     return harvesterBase;
 }
@@ -87,7 +86,11 @@ const harvesterKubeconfig = new HarvesterKubeconfig("harvester-kubeconfig", {
 });
 
 
-const harvBase = provisionHarvester(clusterNetwork, downloadSuseImage, harvesterKubeconfig.kubeconfig, sshUser, sshPubKey);
+const harvesterK8sProvider = new kubernetes.Provider("harvester-k8s", {
+    kubeconfig: harvesterKubeconfig.kubeconfig,
+});
+
+const harvBase = provisionHarvester(clusterNetwork, downloadSuseImage, harvesterK8sProvider, sshUser, sshPubKey);
 const nw = harvBase.networks.get("backbone-vlan")!;
 
 if (downloadSuseImage) {
