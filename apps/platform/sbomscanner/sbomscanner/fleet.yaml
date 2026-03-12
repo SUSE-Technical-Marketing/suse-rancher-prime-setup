@@ -1,0 +1,18 @@
+defaultNamespace: sbomscanner
+helm:
+  chart: sbomscanner
+  repo: https://charts.kubewarden.io
+  version: 0.10.0
+  releaseName: sbomscanner
+  valuesFiles:
+    - values.yaml
+labels:
+  provides: sbomscanner
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-sbomscanner: "true"
+dependsOn:
+  - selector:
+      matchLabels:
+        provides: cnpg

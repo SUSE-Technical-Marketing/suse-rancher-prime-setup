@@ -1,0 +1,12 @@
+defaultNamespace: cnpg-system
+helm:
+  chart: cloudnative-pg
+  version: 0.27.1
+  repo: https://cloudnative-pg.github.io/charts
+  releaseName: cnpg
+labels:
+  provides: cnpg
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-sbomscanner: "true"
