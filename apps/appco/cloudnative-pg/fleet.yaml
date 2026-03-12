@@ -1,6 +1,8 @@
 defaultNamespace: cnpg-system
 helm:
-  chart: oci://dp.apps.rancher.io/charts/cloudnative-pg
+  chart: cloudnative-pg
+  repo: https://cloudnative-pg.github.io/charts
+  # chart: oci://dp.apps.rancher.io/charts/cloudnative-pg
   version: 0.27.1
   releaseName: cnpg
 labels:
