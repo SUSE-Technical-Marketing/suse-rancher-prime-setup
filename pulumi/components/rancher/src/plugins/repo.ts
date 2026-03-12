@@ -12,6 +12,10 @@ const DefaultRepos: Record<string, RepoConfig> = {
         gitRepo: "https://github.com/rancher/ui-plugin-charts",
         gitBranch: "main",
     },
+    "security-ui": {
+        gitRepo: "https://github.com/neuvector/security-ui-exts.git",
+        gitBranch: "gh-pages",
+    },
     "virtual-clusters": {
         httpRepo: "https://rancher.github.io/virtual-clusters-ui",
     },
