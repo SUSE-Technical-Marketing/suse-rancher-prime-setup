@@ -117,9 +117,9 @@ export function createFleetConfiguration(kubeconfig: pulumi.Input<string>, ranch
             |    access_secret: ${labConfig.require("appcoPassword")}
           `.stripMargin(),
           "suse-observability-values.yaml": `
-            |stackstate:
-            |  license:
-            |    key: ${labConfig.require("stackstateLicenseKey")}
+            |global:
+            |  suseObservability:
+            |    license: ${labConfig.require("stackstateLicenseKey")}
           `.stripMargin(),
         },
     }, {...opts, retainOnDelete: true

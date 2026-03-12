@@ -1,34 +1,60 @@
 global:
-  imageRegistry: "registry.rancher.com"
   storageClass: "longhorn-single"
+  suseObservability:
+    baseUrl: ${ if hasKey .ClusterAnnotations "hosted-domain" }https://observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
+    sizing:
+      profile: trial
+    adminPassword: '!nfiniteP0wer'
 
 ingress:
   enabled: ${if hasKey .ClusterAnnotations "hosted-domain"}true${else}false${end}
-opentelemetry-collector:
-  ingress:
-    enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${else}false${end}
-  service:
-    annotations:
-      traefik.ingress.kubernetes.io/service.serversscheme: h2c
+  ingressClassName: traefik
+  hosts:
+    - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
+  tls:
+    - hosts: ${ if hasKey .ClusterAnnotations "hosted-domain" }[observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }]${ else}[]${ end}
+      secretName: wildcard-tls
+
 opentelemetry:
   enabled: true
 
+opentelemetry-collector:
+  service:
+    annotations:
+      traefik.ingress.kubernetes.io/service.serversscheme: h2c
+  ingress:
+    enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${else}false${end}
+    ingressClassName: traefik
+    hosts:
+      - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }otlp-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
+        paths:
+          - path: /
+            pathType: Prefix
+            port: 4317
+    tls:
+      - hosts: ${ if hasKey .ClusterAnnotations "hosted-domain" }[otlp-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }]${ else}[]${ end}
+        secretName: wildcard-tls
+    additionalIngresses:
+      - name: otlp-http
+        ingressClassName: traefik
+        hosts:
+          - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }otlp-http-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
+            paths:
+              - path: /
+                pathType: Prefix
+                port: 4318
+        tls:
+          - hosts: ${ if hasKey .ClusterAnnotations "hosted-domain" }[otlp-http-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }]${ else}[]${ end}
+            secretName: wildcard-tls
+
 stackstate:
+  apiKey:
+    key: "beTRIDqKh6xvXpCw6wkxIt9bvoyLwJGU"
   authentication:
     serviceToken:
       bootstrap:
         token: 1234-abcd-5678-efgh
         roles: ["stackstate-k8s-troubleshooter", "stackstate-admin", "stackstate-k8s-admin"]
-    adminPassword: "$2a$10$1XyTg9cAAeRlMaCnNmeQ4OSikJhRj6oW1BOSc/A44HGrubQcreS.e" # !nfiniteP0wer
-  apiKey:
-    key: "beTRIDqKh6xvXpCw6wkxIt9bvoyLwJGU"
-
-  features:
-    traces: true
-    dashboards: true
-  deployment:
-    mode: SelfHosted
-    edition: "Prime"
   components:
     all:
       deploymentStrategy:
@@ -46,25 +72,34 @@ stackstate:
     receiver:
       extraEnv:
         open:
-          CONFIG_FORCE_stackstate_receiver_processAgent_maxConnectionObservationsPerHost: "150000"
-          CONFIG_FORCE_stackstate_receiver_processAgent_maxComponentsPerHost: "10000"
-          CONFIG_FORCE_stackstate_receiver_processAgent_maxRelationsPerHost: "10000"
-          CONFIG_FORCE_stackstate_receiver_processAgent_maxNewRelationsHourlyPerHost: "10000"
-          CONFIG_FORCE_stackstate_receiver_processAgent_maxNewComponentsHourlyPerHost: "10000"
+          CONFIG_FORCE_stackstate_receiver_processAgent_maxConnectionObservationsPerHost: "15000000"
+          CONFIG_FORCE_stackstate_receiver_processAgent_maxComponentsPerHost: "1000000"
+          CONFIG_FORCE_stackstate_receiver_processAgent_maxRelationsPerHost: "1000000"
+          CONFIG_FORCE_stackstate_receiver_processAgent_maxNewRelationsHourlyPerHost: "1000000"
+          CONFIG_FORCE_stackstate_receiver_processAgent_maxNewComponentsHourlyPerHost: "1000000"
       retention: 1
+      # The receiver has by default an unavailability of 0, meaning that the new one should be present before killing the old one, this breaks in our tiny setup.
       poddisruptionbudget:
         maxUnavailable: 1
-
     state:
       config: |
         stackstate.stateService.defaultPropagation = Transparent
+  deployment:
+    mode: SelfHosted
+    edition: "Prime"
+  features:
+    traces: true
+    dashboards: true
+
 victoria-metrics-0:
   backup:
     enabled: false
+
 clickhouse:
   enabled: true
   backup:
     enabled: false
+
 backup:
   enabled: false
   configuration:

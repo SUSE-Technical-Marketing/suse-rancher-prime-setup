@@ -2,44 +2,9 @@ defaultNamespace: suse-observability
 helm:
   chart: suse-observability
   repo: https://charts.rancher.com/server-charts/prime/suse-observability
-  version: 2.7.0
+  version: 2.8.0
   releaseName: suse-observability
-  values:
-    stackstate:
-      baseUrl: ${ if hasKey .ClusterAnnotations "hosted-domain" }https://observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
-    ingress:
-      ingressClassName: traefik
-      hosts:
-        - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
-      tls:
-        - hosts: ${ if hasKey .ClusterAnnotations "hosted-domain" }[observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }]${ else}[]${ end}
-          secretName: wildcard-tls
-    opentelemetry-collector:
-      ingress:
-        ingressClassName: traefik
-        hosts:
-          - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }otlp-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
-            paths:
-              - path: /
-                pathType: Prefix
-                port: 4317
-        tls:
-          - hosts: ${ if hasKey .ClusterAnnotations "hosted-domain" }[otlp-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }]${ else}[]${ end}
-            secretName: wildcard-tls
-        additionalIngresses:
-          - name: otlp-http
-            ingressClassName: traefik
-            hosts:
-              - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }otlp-http-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end}
-                paths:
-                  - path: /
-                    pathType: Prefix
-                    port: 4318
-            tls:
-              - hosts: ${ if hasKey .ClusterAnnotations "hosted-domain" }[otlp-http-observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }]${ else}[]${ end}
-                secretName: wildcard-tls
   valuesFiles:
-    - sizing_values.yaml
     - values.yaml
   valuesFrom:
     - secretKeyRef:
