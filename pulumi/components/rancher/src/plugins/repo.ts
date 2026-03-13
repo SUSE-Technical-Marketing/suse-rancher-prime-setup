@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import { ClusterRepo } from "@suse-tmm/rancher-crds";
 
-interface RepoConfig {
+export interface RepoConfig {
     gitRepo?: string;
     gitBranch?: string;
     httpRepo?: string;
@@ -21,26 +21,28 @@ const DefaultRepos: Record<string, RepoConfig> = {
     },
 }
 
-export function installUIPluginRepo(opts?: pulumi.ComponentResourceOptions): Map<string, ClusterRepo> {
+export function defaultUIPluginRepos(opts?: pulumi.ComponentResourceOptions): Map<string, ClusterRepo> {
     const repos = new Map<string, ClusterRepo>();
-
     for (const [name, config] of Object.entries(DefaultRepos)) {
-        const repo = new ClusterRepo(name, {
-            metadata: {
-                name: name,
-                annotations: {
-                    "pulumi.com/waitFor": "condition=Downloaded",
-                }
-            },
-            spec: {
-                url: config.httpRepo,
-                gitRepo: config.gitRepo,
-                gitBranch: config.gitBranch
-            }
-        }, opts);
-
+        const repo = installUIPluginRepo(name, config, opts);
         repos.set(name, repo);
     }
-
     return repos;
+}
+
+export function installUIPluginRepo(name: string, config: RepoConfig, opts?: pulumi.ComponentResourceOptions): ClusterRepo {
+    const repo = new ClusterRepo(name, {
+        metadata: {
+            name: name,
+            annotations: {
+                "pulumi.com/waitFor": "condition=Downloaded",
+            }
+        },
+        spec: {
+            url: config.httpRepo,
+            gitRepo: config.gitRepo,
+            gitBranch: config.gitBranch
+        }
+    }, opts);
+    return repo;
 }
