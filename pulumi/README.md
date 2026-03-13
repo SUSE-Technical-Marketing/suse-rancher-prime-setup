@@ -48,6 +48,7 @@ pulumi config set lab:stackstateLicenseKey --secret "<your-suse-observability-li
 pulumi config set lab:ssoEnabled "true" // Not yet used
 pulumi config set rancher:adminPassword --secret "<your-rancher-admin-password>"
 pulumi config set rancher:vmName "<rancher-machine-name>" // Not the URL/FQDN, that will be constructed as "rancher.<rancher:vmName>.<lab:domain>"
+pulumi config set rancher:lizEnabled "true" // Enable or Disable the Rancher AI UI (Liz)
 pulumi config set vm:sshUser "<you>"
 pulumi config set vm:sshPubKey "$(cat ~/.ssh/id_rsa.pub)"
 cat ~/.ssh/id_rsa | pulumi config set vm:sshPrivKey --secret
