@@ -14,7 +14,9 @@ nats:
     jetstream:
       filestore:
         pvc:
+          size: 2Gi
           storageClassName: longhorn-single
     resolver:
       pvc:
+        size: 2Gi
         storageClassName: longhorn-single
