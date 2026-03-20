@@ -16,7 +16,8 @@ helm:
       #   cert-manager.io/cluster-issuer: letsencrypt-prod
     persistence:
       migratable: true
-      defaultClassReplicaCount: 3
+      # This is optimized to run on a single node cluster, for production use it is recommended to have at least 3 replicas and 3 nodes
+      defaultClassReplicaCount: 1
     longhornUI:
       replicas: 1
 

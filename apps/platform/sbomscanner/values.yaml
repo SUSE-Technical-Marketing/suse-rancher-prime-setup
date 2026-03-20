@@ -4,6 +4,17 @@ storage:
   replicas: 1
   postgres:
     cnpg:
+      storage:
+        storageClass: longhorn-single
       instances: 1
 worker:
   replicas: 1
+nats:
+  config:
+    jetstream:
+      filestore:
+        pvc:
+          storageClassName: longhorn-single
+    resolver:
+      pvc:
+        storageClassName: longhorn-single
