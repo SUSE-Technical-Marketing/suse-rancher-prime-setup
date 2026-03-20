@@ -1,0 +1,15 @@
+defaultNamespace: cve-demo
+namespaceLabels:
+  sbomscanner.kubewarden.io/workloadscan: "true"
+helm:
+  chart: oci://ghcr.io/suse-technical-marketing/mission-control-demo/charts/satellite-uplink
+  releaseName: satellite-uplink
+  version: "0.7.0"
+  values:
+    nginx:
+      ingress:
+        host: ${ if hasKey .ClusterAnnotations "hosted-domain" }https://uplink.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-cve-demo: "true"
