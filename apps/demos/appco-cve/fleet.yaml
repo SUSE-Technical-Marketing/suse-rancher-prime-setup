@@ -2,13 +2,13 @@ defaultNamespace: cve-demo
 namespaceLabels:
   sbomscanner.kubewarden.io/workloadscan: "true"
 helm:
-  chart: oci://ghcr.io/suse-technical-marketing/mission-control-demo/charts/satellite-uplink
+  chart: oci://ghcr.io/suse-technical-marketing/mission-control-demo/charts/aria
   releaseName: satellite-uplink
   version: "0.7.0"
   values:
     nginx:
       ingress:
-        host: ${ if hasKey .ClusterAnnotations "hosted-domain" }https://uplink.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
+        host: ${ if hasKey .ClusterAnnotations "hosted-domain" }https://aria.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
 overrideTargets:
   - clusterSelector:
       matchLabels:
