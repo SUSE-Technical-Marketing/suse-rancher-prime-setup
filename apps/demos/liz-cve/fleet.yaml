@@ -1,0 +1,10 @@
+defaultNamespace: cve-demo
+namespaceLabels:
+  sbomscanner.kubewarden.io/workloadscan: "true"
+helm:
+  chart: oci://registry-1.docker.io/bitnamicharts/redis
+  releaseName: redis
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-cve-demo: "true"
