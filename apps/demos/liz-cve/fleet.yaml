@@ -2,8 +2,9 @@ defaultNamespace: cve-demo
 namespaceLabels:
   sbomscanner.kubewarden.io/workloadscan: "true"
 helm:
-  chart: oci://registry-1.docker.io/bitnamicharts/redis
-  releaseName: redis
+  repo: https://apache.github.io/apisix-helm-chart
+  chart: apisix
+  releaseName: apisix
 overrideTargets:
   - clusterSelector:
       matchLabels:
