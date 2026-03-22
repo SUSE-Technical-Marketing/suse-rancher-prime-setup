@@ -1,0 +1,16 @@
+defaultNamespace: sattrack
+helm:
+  chart: oci://ghcr.io/suse-technical-marketing/mission-control-demo/charts/sattrack
+  releaseName: sattrack
+  version: "0.8.0"
+  values:
+    ingress:
+      host: ${ if hasKey .ClusterAnnotations "hosted-domain" }sattrack.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
+    telemetryStore:
+      frameValidation: true
+    frameValidationToggler:
+      enabled: true
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-obs-demo: "true"
