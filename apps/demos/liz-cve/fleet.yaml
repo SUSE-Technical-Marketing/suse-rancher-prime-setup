@@ -5,6 +5,9 @@ helm:
   repo: https://apache.github.io/apisix-helm-chart
   chart: apisix
   releaseName: apisix
+  values:
+    global:
+      defaultStorageClass: "longhorn-single"
 overrideTargets:
   - clusterSelector:
       matchLabels:
