@@ -10,6 +10,8 @@ helm:
       frameValidation: true
     frameValidationToggler:
       enabled: true
+    otel:
+      enabled: false
 overrideTargets:
   - clusterSelector:
       matchLabels:
