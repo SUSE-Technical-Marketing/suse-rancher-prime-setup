@@ -1,0 +1,178 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: harvesterconfigs.rke-machine-config.cattle.io
+spec:
+  conversion:
+    strategy: None
+  group: rke-machine-config.cattle.io
+  names:
+    kind: HarvesterConfig
+    listKind: HarvesterConfigList
+    plural: harvesterconfigs
+    singular: harvesterconfig
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: HarvesterConfig represents the desired configuration of each
+          machine provisioned within a machine pool associated with a provisioning.cattle.io
+          cluster.
+        properties:
+          cloudConfig:
+            default: ""
+            description: just keep it empty, this value will be filled by rancher-machine
+            nullable: true
+            type: string
+          clusterId:
+            default: ""
+            description: harvester cluster id
+            nullable: true
+            type: string
+          clusterName:
+            default: ""
+            description: harvester cluster name
+            nullable: true
+            type: string
+          clusterType:
+            default: ""
+            description: harvester cluster type
+            nullable: true
+            type: string
+          cpuCount:
+            default: "2"
+            description: number of CPUs for machine
+            nullable: true
+            type: string
+          cpuPinning:
+            default: false
+            description: enable vm cpu pinning, please ensure the harvester cluster
+              has cpu manager enabled in at least one node
+            type: boolean
+          diskBus:
+            default: ""
+            description: bus of disk for machine
+            nullable: true
+            type: string
+          diskInfo:
+            default: ""
+            description: harvester disk info
+            nullable: true
+            type: string
+          diskSize:
+            default: "0"
+            description: size of disk for machine (in GiB)
+            nullable: true
+            type: string
+          enableEfi:
+            default: false
+            description: enable vm efi
+            type: boolean
+          enableSecureBoot:
+            default: false
+            description: enable vm secure boot, only works when enable efi
+            type: boolean
+          enableTpm:
+            default: false
+            description: enable vm TPM
+            type: boolean
+          imageName:
+            default: ""
+            description: harvester image name
+            nullable: true
+            type: string
+          isolateEmulatorThread:
+            default: false
+            description: enable vm isolatated emulator thread
+            type: boolean
+          keyPairName:
+            default: ""
+            description: harvester key pair name
+            nullable: true
+            type: string
+          kubeconfigContent:
+            default: ""
+            description: contents of kubeconfig file for harvester cluster, base64
+              is supported
+            nullable: true
+            type: string
+          memorySize:
+            default: "4"
+            description: size of memory for machine (in GiB)
+            nullable: true
+            type: string
+          networkData:
+            default: ""
+            description: networkData content of cloud-init for machine, base64 is
+              supported
+            nullable: true
+            type: string
+          networkInfo:
+            default: ""
+            description: harvester network info
+            nullable: true
+            type: string
+          networkModel:
+            default: ""
+            description: harvester network model
+            nullable: true
+            type: string
+          networkName:
+            default: ""
+            description: harvester network name
+            nullable: true
+            type: string
+          networkType:
+            default: ""
+            description: harvester network type
+            nullable: true
+            type: string
+          reservedMemorySize:
+            default: "-1"
+            description: size of reserved memory for machine (in MiB, integer value)
+            nullable: true
+            type: string
+          sshPassword:
+            default: ""
+            description: SSH password
+            nullable: true
+            type: string
+          sshPort:
+            default: "22"
+            description: SSH port
+            nullable: true
+            type: string
+          sshPrivateKeyPath:
+            default: ""
+            description: 'SSH private key path '
+            nullable: true
+            type: string
+          sshUser:
+            default: root
+            description: SSH username
+            nullable: true
+            type: string
+          userData:
+            default: ""
+            description: userData content of cloud-init for machine, base64 is supported
+            nullable: true
+            type: string
+          vgpuInfo:
+            default: ""
+            description: harvester-vgpu-info
+            nullable: true
+            type: string
+          vmAffinity:
+            default: ""
+            description: harvester vm affinity, base64 is supported
+            nullable: true
+            type: string
+          vmNamespace:
+            default: default
+            description: harvester vm namespace
+            nullable: true
+            type: string
+        type: object
+    served: true
+    storage: true

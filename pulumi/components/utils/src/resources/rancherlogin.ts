@@ -30,11 +30,12 @@ export interface RancherAuth {
 
 class RancherLoginProvider implements pulumi.dynamic.ResourceProvider<RancherLoginProviderInputs, RancherLoginProviderOutputs> {
     async create(inputs: RancherLoginProviderInputs): Promise<pulumi.dynamic.CreateResult<RancherLoginProviderOutputs>> {
-        return RancherClient.fromServerConnectionArgs(inputs).catch(err => {
-            pulumi.log.error(`Failed to login to Rancher: ${err.message}`);
-            throw new Error(`Failed to login to Rancher: ${err.message}`);
-        }).then(client => {
-            pulumi.log.info(`Successfully logged in to Rancher server: "${inputs.server}" as user: "${inputs.username}"`);
+        pulumi.log.info(`[RancherLoginProvider] Attempting login to "${inputs.server}" as "${inputs.username} / ${inputs.password}" ...`);
+        const start = Date.now();
+
+        return RancherClient.fromServerConnectionArgs(inputs).then(client => {
+            const elapsed = Date.now() - start;
+            pulumi.log.info(`[RancherLoginProvider] Login succeeded in ${elapsed}ms for "${inputs.server}"`);
             return {
                 id: `${inputs.server}-login-${inputs.username}`,
                 outs: {
@@ -43,6 +44,12 @@ class RancherLoginProvider implements pulumi.dynamic.ResourceProvider<RancherLog
                     insecure: inputs.insecure ?? false,
                 },
             };
+        }).catch(err => {
+            const elapsed = Date.now() - start;
+            pulumi.log.error(`[RancherLoginProvider] Login failed after ${elapsed}ms: ${err.message}`);
+            if (err.code) pulumi.log.error(`[RancherLoginProvider] Error code: ${err.code}`);
+            if (err.timings) pulumi.log.error(`[RancherLoginProvider] Timings: ${JSON.stringify(err.timings)}`);
+            throw new Error(`Failed to login to Rancher at "${inputs.server}": ${err.message}`);
         });
     }
 

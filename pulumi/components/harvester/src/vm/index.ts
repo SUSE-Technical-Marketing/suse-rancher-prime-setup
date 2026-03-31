@@ -14,7 +14,7 @@ export class HarvesterVm extends pulumi.ComponentResource {
     constructor(name: string, args: HarvesterVmArgs, opts?: pulumi.ComponentResourceOptions) {
         super("suse-tmm:harvester:virtualmachine", name, {}, opts);
 
-        const harvesterK8sProvider = new k8s.Provider("harvester-k8s", {
+        const harvesterK8sProvider = new k8s.Provider(`${name}-k8s`, {
             kubeconfig: args.kubeconfig,
         }, { parent: this });
 
@@ -36,6 +36,5 @@ export class HarvesterVm extends pulumi.ComponentResource {
         this.registerOutputs({
             vmIpAddress: this.vmIpAddress,
         });
-;
     }
-};
+}

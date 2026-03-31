@@ -7,6 +7,71 @@ import * as outputs from "../types/output";
 
 export namespace harvesterhci {
     export namespace v1beta1 {
+        export interface Addon {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"harvesterhci.io/v1beta1">;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"Addon">;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            spec?: pulumi.Input<inputs.harvesterhci.v1beta1.AddonSpec>;
+            status?: pulumi.Input<inputs.harvesterhci.v1beta1.AddonStatus>;
+        }
+
+        export interface AddonSpec {
+            chart?: pulumi.Input<string>;
+            enabled?: pulumi.Input<boolean>;
+            repo?: pulumi.Input<string>;
+            valuesContent?: pulumi.Input<string>;
+            version?: pulumi.Input<string>;
+        }
+
+        export interface AddonSpecPatch {
+            chart?: pulumi.Input<string>;
+            enabled?: pulumi.Input<boolean>;
+            repo?: pulumi.Input<string>;
+            valuesContent?: pulumi.Input<string>;
+            version?: pulumi.Input<string>;
+        }
+
+        export interface AddonStatus {
+            conditions?: pulumi.Input<pulumi.Input<inputs.harvesterhci.v1beta1.AddonStatusConditions>[]>;
+            status?: pulumi.Input<string>;
+        }
+
+        export interface AddonStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime?: pulumi.Input<string>;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime?: pulumi.Input<string>;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message?: pulumi.Input<string>;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason?: pulumi.Input<string>;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status?: pulumi.Input<string>;
+            /**
+             * Type of the condition.
+             */
+            type?: pulumi.Input<string>;
+        }
+
         export interface KeyPair {
             /**
              * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
@@ -30701,6 +30766,128 @@ export namespace meta {
              * UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids
              */
             uid?: pulumi.Input<string>;
+        }
+
+    }
+}
+
+export namespace network {
+    export namespace v1alpha1 {
+        export interface IPPool {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"network.harvesterhci.io/v1alpha1">;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"IPPool">;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            spec?: pulumi.Input<inputs.network.v1alpha1.IPPoolSpec>;
+            status?: pulumi.Input<inputs.network.v1alpha1.IPPoolStatus>;
+        }
+
+        export interface IPPoolSpec {
+            ipv4Config?: pulumi.Input<inputs.network.v1alpha1.IPPoolSpecIpv4Config>;
+            networkName?: pulumi.Input<string>;
+            paused?: pulumi.Input<boolean>;
+        }
+
+        export interface IPPoolSpecIpv4Config {
+            cidr?: pulumi.Input<string>;
+            dns?: pulumi.Input<pulumi.Input<string>[]>;
+            domainName?: pulumi.Input<string>;
+            domainSearch?: pulumi.Input<pulumi.Input<string>[]>;
+            leaseTime?: pulumi.Input<number>;
+            ntp?: pulumi.Input<pulumi.Input<string>[]>;
+            pool?: pulumi.Input<inputs.network.v1alpha1.IPPoolSpecIpv4ConfigPool>;
+            router?: pulumi.Input<string>;
+            serverIP?: pulumi.Input<string>;
+        }
+
+        export interface IPPoolSpecIpv4ConfigPatch {
+            cidr?: pulumi.Input<string>;
+            dns?: pulumi.Input<pulumi.Input<string>[]>;
+            domainName?: pulumi.Input<string>;
+            domainSearch?: pulumi.Input<pulumi.Input<string>[]>;
+            leaseTime?: pulumi.Input<number>;
+            ntp?: pulumi.Input<pulumi.Input<string>[]>;
+            pool?: pulumi.Input<inputs.network.v1alpha1.IPPoolSpecIpv4ConfigPoolPatch>;
+            router?: pulumi.Input<string>;
+            serverIP?: pulumi.Input<string>;
+        }
+
+        export interface IPPoolSpecIpv4ConfigPool {
+            end?: pulumi.Input<string>;
+            exclude?: pulumi.Input<pulumi.Input<string>[]>;
+            start?: pulumi.Input<string>;
+        }
+
+        export interface IPPoolSpecIpv4ConfigPoolPatch {
+            end?: pulumi.Input<string>;
+            exclude?: pulumi.Input<pulumi.Input<string>[]>;
+            start?: pulumi.Input<string>;
+        }
+
+        export interface IPPoolSpecPatch {
+            ipv4Config?: pulumi.Input<inputs.network.v1alpha1.IPPoolSpecIpv4ConfigPatch>;
+            networkName?: pulumi.Input<string>;
+            paused?: pulumi.Input<boolean>;
+        }
+
+        export interface IPPoolStatus {
+            agentPodRef?: pulumi.Input<inputs.network.v1alpha1.IPPoolStatusAgentPodRef>;
+            conditions?: pulumi.Input<pulumi.Input<inputs.network.v1alpha1.IPPoolStatusConditions>[]>;
+            ipv4?: pulumi.Input<inputs.network.v1alpha1.IPPoolStatusIpv4>;
+            lastUpdate?: pulumi.Input<string>;
+        }
+
+        export interface IPPoolStatusAgentPodRef {
+            image?: pulumi.Input<string>;
+            name?: pulumi.Input<string>;
+            namespace?: pulumi.Input<string>;
+            /**
+             * UID is a type that holds unique ID values, including UUIDs.  Because we
+             * don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+             * intent and helps make sure that UIDs and names do not get conflated.
+             */
+            uid?: pulumi.Input<string>;
+        }
+
+        export interface IPPoolStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime?: pulumi.Input<string>;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime?: pulumi.Input<string>;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message?: pulumi.Input<string>;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason?: pulumi.Input<string>;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status?: pulumi.Input<string>;
+            /**
+             * Type of cluster condition.
+             */
+            type?: pulumi.Input<string>;
+        }
+
+        export interface IPPoolStatusIpv4 {
+            allocated?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            available?: pulumi.Input<number>;
+            used?: pulumi.Input<number>;
         }
 
     }

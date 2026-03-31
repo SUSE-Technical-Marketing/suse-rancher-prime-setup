@@ -62,6 +62,11 @@ class CloudCredentialProvider implements dynamic.ResourceProvider<CloudCredentia
     async diff(id: pulumi.ID, olds: CloudCredentialProviderOutputs, news: CloudCredentialProviderInputs): Promise<dynamic.DiffResult> {
         return { changes: JSON.stringify(olds) !== JSON.stringify(news) };
     }
+
+    async read(id: pulumi.ID, props?: CloudCredentialProviderOutputs): Promise<dynamic.ReadResult<CloudCredentialProviderOutputs>> {
+        if (!props) return { id, props: {} as CloudCredentialProviderOutputs };
+        return { id, props };
+    }
 }
 
 export class CloudCredential extends dynamic.Resource {

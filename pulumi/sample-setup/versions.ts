@@ -5,4 +5,5 @@ export const KUBEWARDEN_UIPLUGIN_VERSION = "4.0.3";
 export const SBOMSCANNER_UIPLUGIN_VERSION = "0.5.0";
 export const CERT_MANAGER_VERSION = "v1.19.4";
 export const TRAEFIK_VERSION = "39.0.5";
+export const K3S_VERSION = "v1.34.3+k3s3";
 export const AUTHENTIK_VERSION = "2025.10.0";

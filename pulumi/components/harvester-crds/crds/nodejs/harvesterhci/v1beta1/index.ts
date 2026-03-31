@@ -5,6 +5,21 @@ import * as pulumi from "@pulumi/pulumi";
 import * as utilities from "../../utilities";
 
 // Export members:
+export { AddonArgs } from "./addon";
+export type Addon = import("./addon").Addon;
+export const Addon: typeof import("./addon").Addon = null as any;
+utilities.lazyLoad(exports, ["Addon"], () => require("./addon"));
+
+export { AddonListArgs } from "./addonList";
+export type AddonList = import("./addonList").AddonList;
+export const AddonList: typeof import("./addonList").AddonList = null as any;
+utilities.lazyLoad(exports, ["AddonList"], () => require("./addonList"));
+
+export { AddonPatchArgs } from "./addonPatch";
+export type AddonPatch = import("./addonPatch").AddonPatch;
+export const AddonPatch: typeof import("./addonPatch").AddonPatch = null as any;
+utilities.lazyLoad(exports, ["AddonPatch"], () => require("./addonPatch"));
+
 export { KeyPairArgs } from "./keyPair";
 export type KeyPair = import("./keyPair").KeyPair;
 export const KeyPair: typeof import("./keyPair").KeyPair = null as any;
@@ -55,6 +70,12 @@ const _module = {
     version: utilities.getVersion(),
     construct: (name: string, type: string, urn: string): pulumi.Resource => {
         switch (type) {
+            case "kubernetes:harvesterhci.io/v1beta1:Addon":
+                return new Addon(name, <any>undefined, { urn })
+            case "kubernetes:harvesterhci.io/v1beta1:AddonList":
+                return new AddonList(name, <any>undefined, { urn })
+            case "kubernetes:harvesterhci.io/v1beta1:AddonPatch":
+                return new AddonPatch(name, <any>undefined, { urn })
             case "kubernetes:harvesterhci.io/v1beta1:KeyPair":
                 return new KeyPair(name, <any>undefined, { urn })
             case "kubernetes:harvesterhci.io/v1beta1:KeyPairList":

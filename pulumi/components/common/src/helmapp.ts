@@ -2,6 +2,8 @@ import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 
 export interface HelmAppArgs {
+    createNamespace?: boolean;
+    retainOnDelete?: boolean;
     namespace?: pulumi.Input<string>;
     chart: pulumi.Input<string>;
     version?: pulumi.Input<string>;
@@ -17,14 +19,18 @@ export class HelmApp extends pulumi.ComponentResource {
         // Default namespace to release name if not provided, don't use chart name as it may be an OCI URL
         this.namespaceName = pulumi.output(args.namespace || name);
 
-        const resourceOpts = { ...opts, parent: this, retainOnDelete: true };
+        const resourceOpts = { ...opts, parent: this, retainOnDelete: args.retainOnDelete ?? true };
 
-        const ns = new k8s.core.v1.Namespace(name, {
-                metadata: {
-                    name: this.namespaceName,
-                },
-            }, resourceOpts);
-        
+        let deps = [];
+        if (args.createNamespace) {
+            const ns = new k8s.core.v1.Namespace(name, {
+                    metadata: {
+                        name: this.namespaceName,
+                    },
+                }, resourceOpts);
+            deps.push(ns);
+        }
+
         // In case of OCI charts, repository is not needed
         const repoOpts = args.repository ? {
             repo: args.repository,
@@ -33,11 +39,11 @@ export class HelmApp extends pulumi.ComponentResource {
         new k8s.helm.v3.Release(name, {
             name: name,
             chart: args.chart,
-            namespace: ns.metadata.name,
+            namespace: this.namespaceName,
             version: args.version,
             repositoryOpts: repoOpts,
             values: args.values,
-        }, { ...resourceOpts, dependsOn: [ns] });
+        }, { ...resourceOpts, dependsOn: deps });
 
         this.registerOutputs({
             namespaceName: this.namespaceName,

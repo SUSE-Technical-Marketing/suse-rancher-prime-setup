@@ -47,12 +47,28 @@ class HarvesterSettingProvider implements pulumi.dynamic.ResourceProvider<Harves
         // No specific cleanup needed for setting
     }
 
+    async read(id: pulumi.ID, props?: HarvesterSettingProviderOutputs): Promise<pulumi.dynamic.ReadResult<HarvesterSettingProviderOutputs>> {
+        if (!props) return { id, props: {} as HarvesterSettingProviderOutputs };
+        const url = `v1/harvester/harvesterhci.io.settings/${props.settingName}`;
+        return RancherClient.fromServerConnectionArgs(props.harvester).then(client => {
+            return client.get(url);
+        }).then((resp: any) => {
+            return {
+                id,
+                props: {
+                    ...props,
+                    settingValue: resp.value ?? props.settingValue,
+                },
+            };
+        });
+    }
+
     async update(id: pulumi.ID, olds: HarvesterSettingProviderOutputs, news: HarvesterSettingProviderInputs): Promise<pulumi.dynamic.UpdateResult<HarvesterSettingProviderOutputs>> {
         return this.create(news);
     }
 
     async diff(id: pulumi.ID, olds: HarvesterSettingProviderOutputs, news: HarvesterSettingProviderInputs): Promise<pulumi.dynamic.DiffResult> {
-        return { changes: olds.settingValue !== news.settingValue, replaces: ["settingValue"] };
+        return { changes: olds.settingValue !== news.settingValue };
     }
 }
 

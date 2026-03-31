@@ -20,6 +20,6 @@ export class RancherUIPlugin extends pulumi.ComponentResource {
             chartName: args.chartName,
             chartVersion: args.version,
             namespace: "cattle-ui-plugin-system"
-        }, {...opts, parent: this});
+        }, myOpts);
     }
 }

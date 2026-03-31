@@ -1,19 +1,26 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 
-export function createSingleReplicaStorageClass(opts: pulumi.CustomResourceOptions) {
-    return new k8s.storage.v1.StorageClass("longhorn-single", {
-        metadata: {
-            name: "longhorn-single",
-        },
-        provisioner: "driver.longhorn.io",
-        parameters: {
-            "numberOfReplicas": "1",
-            "migratable": "true",
-            "staleReplicaTimeout": "30",
-        },
-        volumeBindingMode: "Immediate",
-        reclaimPolicy: "Delete",
-        allowVolumeExpansion: true
-    }, opts);
+export interface StorageClassArgs {
+    name: string;
+    provisioner: string;
+    parameters?: Record<string, string>;
+    volumeBindingMode?: string;
+    reclaimPolicy?: string;
+    allowVolumeExpansion?: boolean;
+}
+
+export function createStorageClasses(storageClasses: StorageClassArgs[], opts: pulumi.CustomResourceOptions): Record<string, k8s.storage.v1.StorageClass> {
+    const result: Record<string, k8s.storage.v1.StorageClass> = {};
+    for (const sc of storageClasses) {
+        result[sc.name] = new k8s.storage.v1.StorageClass(sc.name, {
+            metadata: { name: sc.name },
+            provisioner: sc.provisioner,
+            parameters: sc.parameters,
+            volumeBindingMode: sc.volumeBindingMode ?? "Immediate",
+            reclaimPolicy: sc.reclaimPolicy ?? "Delete",
+            allowVolumeExpansion: sc.allowVolumeExpansion ?? true,
+        }, opts);
+    }
+    return result;
 }

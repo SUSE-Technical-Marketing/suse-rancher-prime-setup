@@ -7,6 +7,103 @@ import * as outputs from "../types/output";
 
 export namespace harvesterhci {
     export namespace v1beta1 {
+        export interface Addon {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "harvesterhci.io/v1beta1";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "Addon";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.harvesterhci.v1beta1.AddonSpec;
+            status: outputs.harvesterhci.v1beta1.AddonStatus;
+        }
+
+        export interface AddonSpec {
+            chart: string;
+            enabled: boolean;
+            repo: string;
+            valuesContent: string;
+            version: string;
+        }
+
+        export interface AddonSpecPatch {
+            chart: string;
+            enabled: boolean;
+            repo: string;
+            valuesContent: string;
+            version: string;
+        }
+
+        export interface AddonStatus {
+            conditions: outputs.harvesterhci.v1beta1.AddonStatusConditions[];
+            status: string;
+        }
+
+        export interface AddonStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of the condition.
+             */
+            type: string;
+        }
+
+        export interface AddonStatusConditionsPatch {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of the condition.
+             */
+            type: string;
+        }
+
+        export interface AddonStatusPatch {
+            conditions: outputs.harvesterhci.v1beta1.AddonStatusConditionsPatch[];
+            status: string;
+        }
+
         export interface KeyPair {
             /**
              * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
@@ -33101,6 +33198,180 @@ export namespace meta {
              * UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids
              */
             uid: string;
+        }
+
+    }
+}
+
+export namespace network {
+    export namespace v1alpha1 {
+        export interface IPPool {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "network.harvesterhci.io/v1alpha1";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "IPPool";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.network.v1alpha1.IPPoolSpec;
+            status: outputs.network.v1alpha1.IPPoolStatus;
+        }
+
+        export interface IPPoolSpec {
+            ipv4Config: outputs.network.v1alpha1.IPPoolSpecIpv4Config;
+            networkName: string;
+            paused: boolean;
+        }
+
+        export interface IPPoolSpecIpv4Config {
+            cidr: string;
+            dns: string[];
+            domainName: string;
+            domainSearch: string[];
+            leaseTime: number;
+            ntp: string[];
+            pool: outputs.network.v1alpha1.IPPoolSpecIpv4ConfigPool;
+            router: string;
+            serverIP: string;
+        }
+
+        export interface IPPoolSpecIpv4ConfigPatch {
+            cidr: string;
+            dns: string[];
+            domainName: string;
+            domainSearch: string[];
+            leaseTime: number;
+            ntp: string[];
+            pool: outputs.network.v1alpha1.IPPoolSpecIpv4ConfigPoolPatch;
+            router: string;
+            serverIP: string;
+        }
+
+        export interface IPPoolSpecIpv4ConfigPool {
+            end: string;
+            exclude: string[];
+            start: string;
+        }
+
+        export interface IPPoolSpecIpv4ConfigPoolPatch {
+            end: string;
+            exclude: string[];
+            start: string;
+        }
+
+        export interface IPPoolSpecPatch {
+            ipv4Config: outputs.network.v1alpha1.IPPoolSpecIpv4ConfigPatch;
+            networkName: string;
+            paused: boolean;
+        }
+
+        export interface IPPoolStatus {
+            agentPodRef: outputs.network.v1alpha1.IPPoolStatusAgentPodRef;
+            conditions: outputs.network.v1alpha1.IPPoolStatusConditions[];
+            ipv4: outputs.network.v1alpha1.IPPoolStatusIpv4;
+            lastUpdate: string;
+        }
+
+        export interface IPPoolStatusAgentPodRef {
+            image: string;
+            name: string;
+            namespace: string;
+            /**
+             * UID is a type that holds unique ID values, including UUIDs.  Because we
+             * don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+             * intent and helps make sure that UIDs and names do not get conflated.
+             */
+            uid: string;
+        }
+
+        export interface IPPoolStatusAgentPodRefPatch {
+            image: string;
+            name: string;
+            namespace: string;
+            /**
+             * UID is a type that holds unique ID values, including UUIDs.  Because we
+             * don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+             * intent and helps make sure that UIDs and names do not get conflated.
+             */
+            uid: string;
+        }
+
+        export interface IPPoolStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of cluster condition.
+             */
+            type: string;
+        }
+
+        export interface IPPoolStatusConditionsPatch {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of cluster condition.
+             */
+            type: string;
+        }
+
+        export interface IPPoolStatusIpv4 {
+            allocated: {[key: string]: string};
+            available: number;
+            used: number;
+        }
+
+        export interface IPPoolStatusIpv4Patch {
+            allocated: {[key: string]: string};
+            available: number;
+            used: number;
+        }
+
+        export interface IPPoolStatusPatch {
+            agentPodRef: outputs.network.v1alpha1.IPPoolStatusAgentPodRefPatch;
+            conditions: outputs.network.v1alpha1.IPPoolStatusConditionsPatch[];
+            ipv4: outputs.network.v1alpha1.IPPoolStatusIpv4Patch;
+            lastUpdate: string;
         }
 
     }

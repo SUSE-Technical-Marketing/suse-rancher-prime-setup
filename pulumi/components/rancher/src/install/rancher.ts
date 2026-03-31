@@ -24,6 +24,7 @@ export function helmInstallRancher(name: string, args: HelmArgs, opts?: pulumi.C
     const values = deepMerge(DefaultValues, args.values);
 
     return new HelmApp(name, {
+        createNamespace: true,
         chart: "rancher",
         version: args.rancherVersion,
         namespace: "cattle-system",

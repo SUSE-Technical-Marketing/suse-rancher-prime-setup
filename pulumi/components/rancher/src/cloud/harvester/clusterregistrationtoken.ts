@@ -46,6 +46,15 @@ class ClusterRegistrationTokenProvider implements pulumi.dynamic.ResourceProvide
         // No action needed for deletion
     }
 
+    async read(id: pulumi.ID, props?: ClusterRegistrationTokenProviderOutputs): Promise<pulumi.dynamic.ReadResult<ClusterRegistrationTokenProviderOutputs>> {
+        if (!props) return { id, props: {} as ClusterRegistrationTokenProviderOutputs };
+        const token = await this.fetchClusterRegistrationToken(props.rancherKubeconfig, props.clusterName).catch(() => props.token);
+        return {
+            id,
+            props: { ...props, token: token ?? props.token },
+        };
+    }
+
     async fetchClusterRegistrationToken(kubeconfigYaml: string, namespace: string): Promise<string | undefined> {
         // 2️⃣  parse the kubeconfig -------------------------------------------------
         const httpConfig = kubeConfigToHttp(kubeconfigYaml);

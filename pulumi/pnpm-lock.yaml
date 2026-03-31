@@ -114,9 +114,6 @@ importers:
 
   components/rancher:
     dependencies:
-      '@pulumi/command':
-        specifier: ^1.1.2
-        version: 1.1.2(ts-node@10.9.2(@types/node@22.18.7)(typescript@5.9.2))(typescript@5.9.2)
       '@pulumi/kubernetes':
         specifier: ^4.23.0
         version: 4.23.0(ts-node@10.9.2(@types/node@22.18.7)(typescript@5.9.2))(typescript@5.9.2)
@@ -219,6 +216,9 @@ importers:
 
   sample-setup:
     dependencies:
+      '@pulumi/command':
+        specifier: ^1.1.2
+        version: 1.1.2(ts-node@10.9.2(@types/node@22.18.7)(typescript@5.9.2))(typescript@5.9.2)
       '@pulumi/kubernetes':
         specifier: ^4.23.0
         version: 4.23.0(ts-node@10.9.2(@types/node@22.18.7)(typescript@5.9.2))(typescript@5.9.2)

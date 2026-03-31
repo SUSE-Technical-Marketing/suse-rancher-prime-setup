@@ -21,11 +21,10 @@ const DefaultRepos: Record<string, RepoConfig> = {
     },
 }
 
-export function defaultUIPluginRepos(opts?: pulumi.ComponentResourceOptions): Map<string, ClusterRepo> {
-    const repos = new Map<string, ClusterRepo>();
+export function defaultUIPluginRepos(opts?: pulumi.ComponentResourceOptions): Record<string, ClusterRepo> {
+    const repos: Record<string, ClusterRepo> = {};
     for (const [name, config] of Object.entries(DefaultRepos)) {
-        const repo = installUIPluginRepo(name, config, opts);
-        repos.set(name, repo);
+        repos[name] = installUIPluginRepo(name, config, opts);
     }
     return repos;
 }

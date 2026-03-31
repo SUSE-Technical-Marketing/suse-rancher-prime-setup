@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "outDir": "bin",
-        "target": "es2016",
+        "target": "ES2020",
         "module": "commonjs",
         "moduleResolution": "node",
         "declaration": true,
@@ -14,6 +14,9 @@
     },
     "files": [
         "harvesterhci/index.ts",
+        "harvesterhci/v1beta1/addon.ts",
+        "harvesterhci/v1beta1/addonList.ts",
+        "harvesterhci/v1beta1/addonPatch.ts",
         "harvesterhci/v1beta1/index.ts",
         "harvesterhci/v1beta1/keyPair.ts",
         "harvesterhci/v1beta1/keyPairList.ts",
@@ -45,6 +48,11 @@
         "kubevirt/v1alpha3/virtualMachineInstancePatch.ts",
         "kubevirt/v1alpha3/virtualMachineList.ts",
         "kubevirt/v1alpha3/virtualMachinePatch.ts",
+        "network/index.ts",
+        "network/v1alpha1/index.ts",
+        "network/v1alpha1/ippool.ts",
+        "network/v1alpha1/ippoolList.ts",
+        "network/v1alpha1/ippoolPatch.ts",
         "provider.ts",
         "types/index.ts",
         "types/input.ts",

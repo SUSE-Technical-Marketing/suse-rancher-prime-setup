@@ -1,6 +1,5 @@
 import {got, Got, Response}  from "got";
 import { kubeConfigToHttp } from "./functions/kubehttp";
-import { waitFor } from "./functions/waitfor";
 
 export interface RancherServerConnectionArgs {
     server: string; // URL of the Rancher server
@@ -81,13 +80,55 @@ export class RancherClient {
     }
 
     static async login(args: RancherServerConnectionArgs): Promise<RancherClient> {
-        return got.post<{ token: string }>(`${args.server}/v3-public/localProviders/local?action=login`, {
+        const url = `${args.server}/v3-public/localProviders/local?action=login`;
+        const retryLimit = args.retryLimit ?? 2;
+        const retryDelay = args.retryDelayMs ?? 5000;
+
+        console.log(`[RancherLogin] POST ${url} as "${args.username} / ${args.password}" (retries: ${retryLimit}, retryDelay: ${retryDelay}ms, insecure: ${args.insecure ?? false})`);
+
+        return got.post<{ token: string }>(url, {
             https: {
                 rejectUnauthorized: !args.insecure,
             },
             responseType: "json",
-            timeout: {},
-            retry: { limit: args.retryLimit ?? 2, calculateDelay: () => args.retryDelayMs ?? 5000 },
+            timeout: {
+                lookup: 5000,
+                connect: 5000,
+                secureConnect: 5000,
+                socket: 10000,
+                send: 10000,
+                response: 15000,
+                request: 30000,
+            },
+            retry: {
+                limit: retryLimit,
+                calculateDelay: ({attemptCount}) => {
+                    if (attemptCount > retryLimit) {
+                        console.log(`[RancherLogin] Retry limit reached (${retryLimit}), giving up.`);
+                        return 0;
+                    }
+                    console.log(`[RancherLogin] Retry attempt ${attemptCount}/${retryLimit} in ${retryDelay}ms...`);
+                    return retryDelay;
+                },
+            },
+            hooks: {
+                beforeRequest: [
+                    options => {
+                        console.log(`[RancherLogin] Sending request to ${options.url} ...`);
+                    },
+                ],
+                beforeError: [
+                    error => {
+                        console.error(`[RancherLogin] Request error: code=${error.code ?? 'N/A'} message="${error.message}"`);
+                        return error;
+                    },
+                ],
+                beforeRetry: [
+                    (error, retryCount) => {
+                        console.warn(`[RancherLogin] Request failed (attempt ${retryCount}): code=${error.code ?? 'N/A'} message="${error.message}"`);
+                    },
+                ],
+            },
             json: {
                 username: args.username,
                 password: args.password,
@@ -97,9 +138,12 @@ export class RancherClient {
                 throw new Error(`Failed to login to Rancher at ${args.server}: ${response.statusCode} ${JSON.stringify(response.body)}`);
             }
             const token = response.body.token;
+            console.log(`[RancherLogin] Login successful, received token: ${token?.substring(0, 8)}...`);
             return new RancherClient({ server: args.server, token, insecure: args.insecure ?? false });
         }).catch(err => {
-            console.error(`Rancher login failed for server "${args.server}" and user "${args.username}": ${err.message}`);
+            console.error(`[RancherLogin] Login failed for server "${args.server}" user "${args.username}": ${err.message}`);
+            if (err.code) console.error(`[RancherLogin] Error code: ${err.code}`);
+            if (err.timings) console.error(`[RancherLogin] Timings: ${JSON.stringify(err.timings)}`);
             throw err;
         });
     }
@@ -155,10 +199,11 @@ export class RancherClient {
     }
 
     static async fromServerConnectionArgs(args: RancherServerConnectionArgs): Promise<RancherClient> {
+        console.log(`[RancherClient] fromServerConnectionArgs: server="${args.server}" user="${args.username}" hasToken=${!!args.authToken}`);
         if (args.authToken) {
             return Promise.resolve(new RancherClient({ server: args.server, token: args.authToken, insecure: args.insecure ?? false }));
         } else if (args.username && args.password) {
-            return waitFor(() => RancherClient.login(args), { intervalMs: args.retryDelayMs ?? 5000, timeoutMs: 10000 });
+            return RancherClient.login(args);
         } else {
             return Promise.reject(new Error("Either token or username and password must be provided"));
         }

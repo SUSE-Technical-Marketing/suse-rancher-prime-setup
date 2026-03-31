@@ -2,6 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import { HelmApp } from "./helmapp";
 
 export const CertManager = (version: pulumi.Input<string>, opts: pulumi.ComponentResourceOptions) => new HelmApp("cert-manager", {
+        createNamespace: true,
         chart: "cert-manager",
         version: version,
         repository: "https://charts.jetstack.io",
@@ -15,6 +16,7 @@ export const CertManager = (version: pulumi.Input<string>, opts: pulumi.Componen
     }, opts);
 
 export const Traefik = (version: pulumi.Input<string>, opts?: pulumi.ComponentResourceOptions) => new HelmApp("traefik", {
+        createNamespace: true,
         chart: "traefik",
         version: version,
         repository: "https://traefik.github.io/charts",
@@ -29,10 +31,12 @@ export const Traefik = (version: pulumi.Input<string>, opts?: pulumi.ComponentRe
     }, opts);
 
 export const Sprouter = (opts?: pulumi.ComponentResourceOptions) => new HelmApp("sprouter", {
+        createNamespace: true,
         chart: "oci://ghcr.io/hierynomus/sprouter/charts/sprouter",
     }, opts);
 
 export const Outrider = (opts?: pulumi.ComponentResourceOptions) => new HelmApp("outrider", {
+        createNamespace: true,
         chart: "oci://ghcr.io/hierynomus/outrider/charts/outrider",
         values: {
             defaultTargetNamespace: "default",
@@ -46,6 +50,7 @@ export interface SsoOpts {
 }
 
 export const Authentik = (version: pulumi.Input<string>, ssoOpts: SsoOpts, opts?: pulumi.ComponentResourceOptions) => new HelmApp("authentik", {
+        createNamespace: true,
         chart: "authentik",
         version: version,
         repository: "https://charts.goauthentik.io",
@@ -73,6 +78,4 @@ export const Authentik = (version: pulumi.Input<string>, ssoOpts: SsoOpts, opts?
                 }
             }
         },
-
-
     }, opts);

@@ -44,16 +44,16 @@ export class NetworkAttachmentDefinitionPatch extends pulumi.CustomResource {
     /**
      * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
      */
-    public readonly apiVersion!: pulumi.Output<"k8s.cni.cncf.io/v1">;
+    declare public readonly apiVersion: pulumi.Output<"k8s.cni.cncf.io/v1">;
     /**
      * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
      */
-    public readonly kind!: pulumi.Output<"NetworkAttachmentDefinition">;
+    declare public readonly kind: pulumi.Output<"NetworkAttachmentDefinition">;
     /**
      * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
      */
-    public readonly metadata!: pulumi.Output<outputs.meta.v1.ObjectMetaPatch>;
-    public readonly spec!: pulumi.Output<outputs.k8s.v1.NetworkAttachmentDefinitionSpecPatch>;
+    declare public readonly metadata: pulumi.Output<outputs.meta.v1.ObjectMetaPatch>;
+    declare public readonly spec: pulumi.Output<outputs.k8s.v1.NetworkAttachmentDefinitionSpecPatch>;
 
     /**
      * Create a NetworkAttachmentDefinitionPatch resource with the given unique name, arguments, and options.
@@ -68,8 +68,8 @@ export class NetworkAttachmentDefinitionPatch extends pulumi.CustomResource {
         if (!opts.id) {
             resourceInputs["apiVersion"] = "k8s.cni.cncf.io/v1";
             resourceInputs["kind"] = "NetworkAttachmentDefinition";
-            resourceInputs["metadata"] = args ? args.metadata : undefined;
-            resourceInputs["spec"] = args ? args.spec : undefined;
+            resourceInputs["metadata"] = args?.metadata;
+            resourceInputs["spec"] = args?.spec;
         } else {
             resourceInputs["apiVersion"] = undefined /*out*/;
             resourceInputs["kind"] = undefined /*out*/;

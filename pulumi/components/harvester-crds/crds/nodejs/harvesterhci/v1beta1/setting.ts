@@ -36,20 +36,20 @@ export class Setting extends pulumi.CustomResource {
     /**
      * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
      */
-    public readonly apiVersion!: pulumi.Output<"harvesterhci.io/v1beta1">;
-    public readonly customized!: pulumi.Output<boolean>;
-    public readonly default!: pulumi.Output<string>;
+    declare public readonly apiVersion: pulumi.Output<"harvesterhci.io/v1beta1">;
+    declare public readonly customized: pulumi.Output<boolean>;
+    declare public readonly default: pulumi.Output<string>;
     /**
      * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
      */
-    public readonly kind!: pulumi.Output<"Setting">;
+    declare public readonly kind: pulumi.Output<"Setting">;
     /**
      * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
      */
-    public readonly metadata!: pulumi.Output<outputs.meta.v1.ObjectMeta>;
-    public readonly source!: pulumi.Output<string>;
-    public /*out*/ readonly status!: pulumi.Output<outputs.harvesterhci.v1beta1.SettingStatus>;
-    public readonly value!: pulumi.Output<string>;
+    declare public readonly metadata: pulumi.Output<outputs.meta.v1.ObjectMeta>;
+    declare public readonly source: pulumi.Output<string>;
+    declare public /*out*/ readonly status: pulumi.Output<outputs.harvesterhci.v1beta1.SettingStatus>;
+    declare public readonly value: pulumi.Output<string>;
 
     /**
      * Create a Setting resource with the given unique name, arguments, and options.
@@ -63,12 +63,12 @@ export class Setting extends pulumi.CustomResource {
         opts = opts || {};
         if (!opts.id) {
             resourceInputs["apiVersion"] = "harvesterhci.io/v1beta1";
-            resourceInputs["customized"] = args ? args.customized : undefined;
-            resourceInputs["default"] = args ? args.default : undefined;
+            resourceInputs["customized"] = args?.customized;
+            resourceInputs["default"] = args?.default;
             resourceInputs["kind"] = "Setting";
-            resourceInputs["metadata"] = args ? args.metadata : undefined;
-            resourceInputs["source"] = args ? args.source : undefined;
-            resourceInputs["value"] = args ? args.value : undefined;
+            resourceInputs["metadata"] = args?.metadata;
+            resourceInputs["source"] = args?.source;
+            resourceInputs["value"] = args?.value;
             resourceInputs["status"] = undefined /*out*/;
         } else {
             resourceInputs["apiVersion"] = undefined /*out*/;

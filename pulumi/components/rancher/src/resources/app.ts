@@ -59,13 +59,17 @@ class RancherAppProvider implements dynamic.ResourceProvider<RancherAppProviderI
             changes: olds.rancher.server !== news.rancher.server ||
                 olds.rancher.username !== news.rancher.username ||
                 olds.rancher.password !== news.rancher.password ||
-                // olds.authToken !== news.authToken || // Ignore authToken changes for diff, it may be rotated
                 olds.repo !== news.repo ||
                 olds.chartName !== news.chartName ||
                 olds.chartVersion !== news.chartVersion ||
                 olds.namespace !== news.namespace ||
                 JSON.stringify(olds.values) !== JSON.stringify(news.values),
         }
+    }
+
+    async read(id: pulumi.ID, props?: RancherAppProviderOutputs): Promise<pulumi.dynamic.ReadResult<RancherAppProviderOutputs>> {
+        if (!props) return { id, props: {} as RancherAppProviderOutputs };
+        return { id, props };
     }
 }
 

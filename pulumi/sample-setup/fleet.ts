@@ -5,6 +5,8 @@ import { KubeWait, noProvider, RancherLoginInputs } from "@suse-tmm/utils";
 import * as kubernetes from "@pulumi/kubernetes";
 import { Secret } from "@pulumi/kubernetes/core/v1";
 import { FleetRepo } from "@suse-tmm/rancher";
+import { CertManagerConfig, LabConfig } from "./config";
+
 interface GitRepoConfig {
     url: string;
     branch?: string;
@@ -12,6 +14,11 @@ interface GitRepoConfig {
     helmSecretName?: string;
     clusterGroup?: string;
     namespace?: string;
+}
+
+export interface FleetConfigurationArgs {
+    lab: LabConfig;
+    certManager: CertManagerConfig;
 }
 
 const DefaultGitRepos: Record<string, GitRepoConfig> = {
@@ -47,9 +54,13 @@ const DefaultGitRepos: Record<string, GitRepoConfig> = {
     }
 };
 
-export function createFleetConfiguration(kubeconfig: pulumi.Input<string>, rancher: RancherLoginInputs, opts: pulumi.ResourceOptions) {
-    const labConfig = new pulumi.Config("lab");
-    const certManagerConfig = new pulumi.Config("cert-manager");
+export function createFleetConfiguration(
+    args: FleetConfigurationArgs,
+    kubeconfig: pulumi.Input<string>,
+    rancher: RancherLoginInputs,
+    opts: pulumi.ResourceOptions,
+) {
+    const { lab, certManager } = args;
 
     const kw = new KubeWait("fleet-crds-wait", {
         apiVersion: "apiextensions.k8s.io/v1",
@@ -65,8 +76,8 @@ export function createFleetConfiguration(kubeconfig: pulumi.Input<string>, ranch
         },
         type: "kubernetes.io/basic-auth",
         stringData: {
-            username: labConfig.require("appcoUsername"),
-            password: labConfig.requireSecret("appcoPassword"),
+            username: lab.appcoUsername,
+            password: lab.appcoPassword,
         },
     }, {...opts, retainOnDelete: true});
 
@@ -77,8 +88,8 @@ export function createFleetConfiguration(kubeconfig: pulumi.Input<string>, ranch
         },
         type: "kubernetes.io/basic-auth",
         stringData: {
-            username: labConfig.require("sccUsername"),
-            password: labConfig.requireSecret("sccPassword"),
+            username: lab.sccUsername,
+            password: lab.sccPassword,
         },
     }, {...opts, retainOnDelete: true});
 
@@ -93,33 +104,33 @@ export function createFleetConfiguration(kubeconfig: pulumi.Input<string>, ranch
         },
         stringData: {
           "appco-values.yaml": `
-            |username: ${labConfig.require("appcoUsername")}
-            |token: ${labConfig.require("appcoPassword")}
+            |username: ${lab.appcoUsername}
+            |token: ${lab.appcoPassword}
           `.stripMargin(),
           "suse-registry-values.yaml": `
-            |username: ${labConfig.require("sccUsername")}
-            |token: ${labConfig.require("sccPassword")}
+            |username: ${lab.sccUsername}
+            |token: ${lab.sccPassword}
           `.stripMargin(),
           "cert-manager-values.yaml": `
-            |email: ${certManagerConfig.require("letsEncryptEmail")}
+            |email: ${certManager.letsEncryptEmail}
             |cloudflare:
-            |  token: ${certManagerConfig.require("cloudflareApiKey")}
+            |  token: ${certManager.cloudflareApiKey}
           `.stripMargin(),
           "cloudflare-values.yaml": `
             |cloudflare:
-            |  apiToken: ${labConfig.require("cloudflareApiToken")}
-            |  accountId: ${labConfig.require("cloudflareAccountId")}
+            |  apiToken: ${lab.cloudflareApiToken}
+            |  accountId: ${lab.cloudflareAccountId}
           `.stripMargin(),
           "harbor-values.yaml": `
             |registry:
             |  credential:
-            |    access_key: ${labConfig.require("appcoUsername")}
-            |    access_secret: ${labConfig.require("appcoPassword")}
+            |    access_key: ${lab.appcoUsername}
+            |    access_secret: ${lab.appcoPassword}
           `.stripMargin(),
           "suse-observability-values.yaml": `
             |global:
             |  suseObservability:
-            |    license: ${labConfig.require("stackstateLicenseKey")}
+            |    license: ${lab.stackstateLicenseKey}
           `.stripMargin(),
         },
     }, {...opts, retainOnDelete: true

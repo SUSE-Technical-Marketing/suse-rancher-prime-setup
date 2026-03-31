@@ -52,8 +52,15 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
                     throw new Error(`Failed to login to Rancher with bootstrap token: ${err.message}`);
                 })
             };
+        }).then(async obj => {
+            pulumi.log.info("Successfully logged in to Rancher with bootstrap token, wait for Rancher to settle.");
+            return {
+                bootstrapToken: obj.bootstrapToken,
+                authToken: await new Promise(resolve => setTimeout(resolve, 5000)).then(() => obj.authToken)
+            }
         }).then(obj => {
-            pulumi.log.info("Successfully logged in to Rancher with bootstrap token, going to update password.");
+            // Wait a bit before updating the password to ensure that Rancher is fully ready to accept the password change
+            pulumi.log.info(`Attempting to update password for Rancher admin user, bootstrap token ${obj.bootstrapToken}, new password: ${password}, insecure: ${inputs.insecure}`);
             this.updatePassword(inputs.rancherUrl, username, obj.authToken, obj.bootstrapToken, password, inputs.insecure).catch(err => {
                 pulumi.log.error(`Failed to update password for user ${username}: ${err.message}`);
                 throw new Error(`Failed to update password for user ${username}: ${err.message}`);
@@ -62,6 +69,7 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
             pulumi.log.error(`Failed to complete password setup: ${err.message}`);
             throw new Error(`Failed to complete password setup: ${err.message}`);
         }).then(() => {
+            pulumi.log.info("Successfully updated password for Rancher admin user.");
             return {
                 id: `cattle-system/bootstrap-password-${new Date().toISOString()}`,
                 outs: {
@@ -89,9 +97,19 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
             },
             responseType: "json",
             timeout: { request: 10000 },
-            retry: { limit: 2 },
+            retry: {
+                calculateDelay: ({ attemptCount }) => {
+                    pulumi.log.warn(`Attempt ${attemptCount} to update password for user ${username} failed, retrying...`);
+                    if (attemptCount >= 2) {
+                        pulumi.log.error(`Reached maximum retry attempts to update password for user ${username} (${attemptCount}), giving up.`);
+                        return 0;
+                    }
+                    return 5000; // Retry after 5 seconds
+                }
+            }
         });
 
+        pulumi.log.info(`Password update response for user ${username}: ${res.statusCode} ${res.statusMessage}`);
         if (res.statusCode < 200 || res.statusCode >= 300) {
             throw new Error(`Failed to update password for user ${username}: ${res.statusCode} ${res.statusMessage}`);
         }
@@ -105,7 +123,16 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
             headers: httpConfig.headers,
             responseType: "json",
             timeout: { request: 10000 },
-            retry: { limit: 10 },
+            retry: {
+                calculateDelay: ({ attemptCount }) => {
+                    pulumi.log.warn(`Attempt ${attemptCount} to fetch bootstrap token from Rancher API failed, retrying...`);
+                    if (attemptCount >= 5) {
+                        pulumi.log.error(`Reached maximum retry attempts to fetch bootstrap token from Rancher API (${attemptCount}), giving up.`);
+                        return 0;
+                    }
+                    return 5000; // Retry after 5 seconds
+                }
+            }
         }).then(res => {
             if (res.statusCode !== 200) {
                 throw new Error(`Failed to fetch bootstrap token: ${res.statusCode} ${res.statusMessage}`);

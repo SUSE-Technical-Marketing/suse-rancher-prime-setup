@@ -86,6 +86,17 @@ export class FleetRepoProvider implements dynamic.ResourceProvider<FleetRepoProv
     async delete(id: pulumi.ID, props: FleetRepoProviderOutputs): Promise<void> {
         // No action needed for deletion
     }
+
+    async read(id: pulumi.ID, props?: FleetRepoProviderOutputs): Promise<dynamic.ReadResult<FleetRepoProviderOutputs>> {
+        if (!props) return { id, props: {} as FleetRepoProviderOutputs };
+        return { id, props };
+    }
+
+    async diff(id: pulumi.ID, olds: FleetRepoProviderOutputs, news: FleetRepoProviderInputs): Promise<pulumi.dynamic.DiffResult> {
+        return {
+            changes: JSON.stringify(olds.repos) !== JSON.stringify(news.repos),
+        };
+    }
 }
 
 export class FleetRepo extends pulumi.dynamic.Resource {

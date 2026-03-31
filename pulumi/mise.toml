@@ -1,0 +1,3 @@
+[tools]
+pnpm = "latest"
+pulumi = "latest"

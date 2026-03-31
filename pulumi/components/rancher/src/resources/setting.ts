@@ -50,12 +50,31 @@ class RancherSettingProvider implements pulumi.dynamic.ResourceProvider<RancherS
         // No specific cleanup needed for setting
     }
 
+    async read(id: pulumi.ID, props?: RancherSettingProviderOutputs): Promise<pulumi.dynamic.ReadResult<RancherSettingProviderOutputs>> {
+        if (!props) return { id, props: {} as RancherSettingProviderOutputs };
+        let url = `v3/settings/${props.settingName}`;
+        if (props.groupName) {
+            url = `apis/${props.groupName}/v1/settings/${props.settingName}`;
+        }
+        return RancherClient.fromServerConnectionArgs(props.rancher).then(client => {
+            return client.get(url);
+        }).then((resp: any) => {
+            return {
+                id,
+                props: {
+                    ...props,
+                    settingValue: resp.value ?? props.settingValue,
+                },
+            };
+        });
+    }
+
     async update(id: pulumi.ID, olds: RancherSettingProviderOutputs, news: RancherSettingProviderInputs): Promise<pulumi.dynamic.UpdateResult<RancherSettingProviderOutputs>> {
         return this.create(news);
     }
 
     async diff(id: pulumi.ID, olds: RancherSettingProviderOutputs, news: RancherSettingProviderInputs): Promise<pulumi.dynamic.DiffResult> {
-        return { changes: olds.settingValue !== news.settingValue, replaces: ["settingValue"] };
+        return { changes: olds.settingValue !== news.settingValue };
     }
 }
 

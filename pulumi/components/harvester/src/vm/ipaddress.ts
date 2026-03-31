@@ -40,6 +40,16 @@ class VmIpAddressProvider implements dynamic.ResourceProvider<VmIpAddressProvide
         });
     }
 
+    async read(id: pulumi.ID, props?: VmIpAddressProviderOutputs): Promise<pulumi.dynamic.ReadResult<VmIpAddressProviderOutputs>> {
+        if (!props) return { id, props: {} as VmIpAddressProviderOutputs };
+        const ip = await this.getVmiIp(props.kubeconfig, props.namespace, props.name, props.networkName)
+            .catch(() => props.ipAddress);
+        return {
+            id,
+            props: { ...props, ipAddress: ip ?? props.ipAddress },
+        };
+    }
+
     async update(id: string, olds: VmIpAddressProviderOutputs, news: VmIpAddressProviderInputs): Promise<pulumi.dynamic.UpdateResult<VmIpAddressProviderOutputs>> {
         return this.create(news);
     }

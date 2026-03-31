@@ -45,6 +45,15 @@ export class ClusterIdProvider implements dynamic.ResourceProvider<ClusterIdProv
         // No action needed for deletion
     }
 
+    async read(id: pulumi.ID, props?: ClusterIdProviderOutputs): Promise<dynamic.ReadResult<ClusterIdProviderOutputs>> {
+        if (!props) return { id, props: {} as ClusterIdProviderOutputs };
+        const clusterId = await this.fetchClusterId(props.rancher, props.clusterName).catch(() => props.clusterId);
+        return {
+            id,
+            props: { ...props, clusterId: clusterId ?? props.clusterId },
+        };
+    }
+
     async fetchClusterId(rancher: RancherLoginProviderInputs, clusterName: string): Promise<string | undefined> {
         return RancherClient.fromServerConnectionArgs(rancher).then(client => {
             return client.get(`/apis/management.cattle.io/v3/clusters?displayName=${clusterName}`);
