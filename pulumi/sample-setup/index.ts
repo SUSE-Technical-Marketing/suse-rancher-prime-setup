@@ -41,6 +41,9 @@ const harvBase = provisionHarvester({
 
 const imageDetails = resolveImage(harvBase, cfg.vm);
 
+const networkName = cfg.vlan.enabled ? "vlan10" : "default";
+
+
 // Provision VM with K3s on Harvester
 const { vm, kubeconfig: k3sKubeconfig } = provisionK3sOnHarvester({
     harvesterKubeconfig: harvesterKubeconfig.kubeconfig,
@@ -50,7 +53,7 @@ const { vm, kubeconfig: k3sKubeconfig } = provisionK3sOnHarvester({
     vmImage: imageDetails,
     network: {
         namespace: "default",
-        name: harvBase.networks["vlan10"].metadata.name,
+        name: harvBase.networks[networkName].metadata.name,
         macAddress: cfg.vm.macAddress,
     },
     k3sVersion: versions.K3S_VERSION,

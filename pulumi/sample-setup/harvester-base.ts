@@ -30,14 +30,6 @@ function defaultNetworks(clusterNetwork: string): harvester.NetworkArgs[] {
             "network.harvesterhci.io/type": "UntaggedNetwork",
         },
         config: `{"cniVersion":"0.3.1","name":"backbone","type":"bridge","bridge":"${clusterNetwork}-br","promiscMode":true,"ipam":{}}`,
-    }, {
-        name: "vlan10",
-        annotations: {
-            "network.harvesterhci.io/clusternetwork": clusterNetwork,
-            "network.harvesterhci.io/ready": "true",
-            "network.harvesterhci.io/type": "L2VlanNetwork",
-        },
-        config: `{"cniVersion":"0.3.1","name":"vlan10","type":"bridge","bridge":"${clusterNetwork}-br","vlan":10,"promiscMode":true,"ipam":{}}`,
     }];
 }
 
@@ -83,11 +75,22 @@ export function provisionHarvester(
 ): harvester.HarvesterBase {
     const storageClasses = defaultStorageClasses();
     const images = defaultImages(cfg.downloadImages);
+    const networks = defaultNetworks(cfg.clusterNetwork);
     const addons: harvester.HarvesterAddonInputs[] = [];
     const pools: harvester.PoolArgs[] = [];
 
     let deps = [];
     if (cfg.vlan) {
+        networks.push({
+            name: "vlan10",
+            annotations: {
+                "network.harvesterhci.io/clusternetwork": cfg.clusterNetwork,
+                "network.harvesterhci.io/ready": "true",
+                "network.harvesterhci.io/type": "L2VlanNetwork",
+            },
+            config: `{"cniVersion":"0.3.1","name":"vlan10","type":"bridge","bridge":"${cfg.clusterNetwork}-br","vlan":10,"promiscMode":true,"ipam":{}}`,
+        });
+
         addons.push({
             addonName: "harvester-vm-dhcp-controller",
             chart: "harvester-vm-dhcp-controller",
@@ -135,7 +138,7 @@ export function provisionHarvester(
 
     return new harvester.HarvesterBase("harvester-base", {
         storageClasses,
-        networks: defaultNetworks(cfg.clusterNetwork),
+        networks,
         images: images.length > 0 ? {
             definitions: images,
             storageClassName: storageClasses[0].name,
