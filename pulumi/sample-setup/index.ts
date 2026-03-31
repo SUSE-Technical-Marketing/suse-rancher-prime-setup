@@ -41,7 +41,7 @@ const harvBase = provisionHarvester({
 
 const imageDetails = resolveImage(harvBase, cfg.vm);
 
-const networkName = cfg.vlan.enabled ? "vlan10" : "default";
+const networkName = cfg.vlan.enabled ? "vlan10" : "backbone-vlan";
 
 
 // Provision VM with K3s on Harvester
