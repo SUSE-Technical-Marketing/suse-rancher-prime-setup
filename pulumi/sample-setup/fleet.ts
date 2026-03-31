@@ -7,6 +7,9 @@ import { Secret } from "@pulumi/kubernetes/core/v1";
 import { FleetRepo } from "@suse-tmm/rancher";
 import { CertManagerConfig, LabConfig } from "./config";
 
+const sm = (t: TemplateStringsArray, ...v: pulumi.Input<string>[]) =>
+    pulumi.interpolate(t, ...v).apply(s => s.stripMargin());
+
 interface GitRepoConfig {
     url: string;
     branch?: string;
@@ -103,35 +106,35 @@ export function createFleetConfiguration(
             },
         },
         stringData: {
-          "appco-values.yaml": `
+          "appco-values.yaml": sm`
             |username: ${lab.appcoUsername}
             |token: ${lab.appcoPassword}
-          `.stripMargin(),
-          "suse-registry-values.yaml": `
+          `,
+          "suse-registry-values.yaml": sm`
             |username: ${lab.sccUsername}
             |token: ${lab.sccPassword}
-          `.stripMargin(),
-          "cert-manager-values.yaml": `
-            |email: ${certManager.letsEncryptEmail}
+          `,
+          "cert-manager-values.yaml": sm`
+            |email: ${certManager.letsEncryptEmail ?? ""}
             |cloudflare:
-            |  token: ${certManager.cloudflareApiKey}
-          `.stripMargin(),
-          "cloudflare-values.yaml": `
+            |  token: ${certManager.cloudflareApiKey ?? ""}
+          `,
+          "cloudflare-values.yaml": sm`
             |cloudflare:
             |  apiToken: ${lab.cloudflareApiToken}
             |  accountId: ${lab.cloudflareAccountId}
-          `.stripMargin(),
-          "harbor-values.yaml": `
+          `,
+          "harbor-values.yaml": sm`
             |registry:
             |  credential:
             |    access_key: ${lab.appcoUsername}
             |    access_secret: ${lab.appcoPassword}
-          `.stripMargin(),
-          "suse-observability-values.yaml": `
+          `,
+          "suse-observability-values.yaml": sm`
             |global:
             |  suseObservability:
             |    license: ${lab.stackstateLicenseKey}
-          `.stripMargin(),
+          `,
         },
     }, {...opts, retainOnDelete: true
     })
