@@ -1,0 +1,13 @@
+defaultNamespace: "metallb-system",
+helm:
+  chart: oci://dp.apps.rancher.io/charts/metallb
+  releaseName: metallb
+  version: "0.15.3"
+
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-metallb: "true"
+
+labels:
+  provides: load-balancer
