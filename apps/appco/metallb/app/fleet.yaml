@@ -3,6 +3,9 @@ helm:
   chart: oci://dp.apps.rancher.io/charts/metallb
   releaseName: metallb
   version: "0.15.3"
+  values:
+    global:
+      imagePullSecrets: ["application-collection"]
 
 overrideTargets:
   - clusterSelector:
