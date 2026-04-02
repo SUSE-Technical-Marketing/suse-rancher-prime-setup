@@ -3,6 +3,24 @@ helm:
   chart: oci://dp.apps.rancher.io/charts/ollama
   releaseName: ollama
   version: "1.38.0"
+  values:
+    ollama:
+    gpu:
+      # -- Enable GPU integration
+      enabled: true
+
+      # -- GPU type: 'nvidia' or 'amd'
+      type: 'nvidia'
+
+      # -- Specify the number of GPU to 1
+      number: 1
+    ingress:
+      enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${ else }false${ end }
+      hosts:
+      - host: ${ if hasKey .ClusterAnnotations "hosted-domain" }ollama.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ end }
+        paths:
+          - path: /
+            pathType: Prefix
 overrideTargets:
   - clusterSelector:
       matchLabels:
