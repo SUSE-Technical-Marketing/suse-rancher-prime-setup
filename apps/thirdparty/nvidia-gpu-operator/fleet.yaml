@@ -5,10 +5,10 @@ helm:
   releaseName: gpu-operator
   version: "26.3.0"
   values:
-    driver:
-      enabled: false
     toolkit:
-      enabled: false
+      env:
+      - name: CONTAINERD_SOCKET
+        value: /run/k3s/containerd/containerd.sock
 
 overrideTargets:
   - clusterSelector:
