@@ -1,4 +1,4 @@
-defaultNamespace: "metallb-system",
+defaultNamespace: metallb-system
 helm:
   chart: oci://dp.apps.rancher.io/charts/metallb
   releaseName: metallb
