@@ -1,85 +1,32 @@
 import * as pulumi from "@pulumi/pulumi";
-import { RancherClient, RancherLoginInputs, RancherLoginProviderInputs } from "@suse-tmm/utils";
+import { management } from "@suse-tmm/rancher-crds";
 
 export interface RancherSettingInputs {
-    rancher: RancherLoginInputs;
-
-    groupName?: pulumi.Input<"harvesterhci.io">; // Optional, not set for Rancher settings, but needed for Harvester settings
-
-    settingName: pulumi.Input<string>;
+    settingName: string;
     settingValue: pulumi.Input<string>;
 }
 
-interface RancherSettingProviderInputs {
-    rancher: RancherLoginProviderInputs;
+export class RancherSetting extends pulumi.ComponentResource {
+    public readonly setting: management.SettingPatch;
 
-    groupName?: "harvesterhci.io"; // Optional, not set for Rancher settings, but needed for Harvester settings
-    settingName: string;
-    settingValue: string;
-}
+    constructor(name: string, args: RancherSettingInputs, opts: pulumi.ComponentResourceOptions) {
+        super("suse-tmm:rancher:Setting", name, {}, opts);
 
-interface RancherSettingProviderOutputs extends RancherSettingProviderInputs { }
-
-class RancherSettingProvider implements pulumi.dynamic.ResourceProvider<RancherSettingProviderInputs, RancherSettingProviderOutputs> {
-    async create(inputs: RancherSettingProviderInputs): Promise<pulumi.dynamic.CreateResult<RancherSettingProviderOutputs>> {
-        let url = `v3/settings/${inputs.settingName}`;
-        if (inputs.groupName) {
-            url = `apis/${inputs.groupName}/v1/settings/${inputs.settingName}`;
-        }
-
-        const body = {
+        this.setting = new management.SettingPatch(name, {
             metadata: {
-                name: inputs.settingName,
-            },
-            value: inputs.settingValue
-        };
-
-        pulumi.log.info(`Setting Rancher setting "${inputs.settingName}" to "${inputs.settingValue}" on server "${inputs.rancher.server}"`);
-
-        return RancherClient.fromServerConnectionArgs(inputs.rancher).then(client => {
-            return client.put(url, body);
-        }).then(resp => {
-            return {
-                id: `${inputs.rancher.server}/${inputs.settingName}`,
-                outs: inputs as RancherSettingProviderOutputs,
-            }
-        });
-    }
-
-    async delete(): Promise<void> {
-        // No specific cleanup needed for setting
-    }
-
-    async read(id: pulumi.ID, props?: RancherSettingProviderOutputs): Promise<pulumi.dynamic.ReadResult<RancherSettingProviderOutputs>> {
-        if (!props) return { id, props: {} as RancherSettingProviderOutputs };
-        let url = `v3/settings/${props.settingName}`;
-        if (props.groupName) {
-            url = `apis/${props.groupName}/v1/settings/${props.settingName}`;
-        }
-        return RancherClient.fromServerConnectionArgs(props.rancher).then(client => {
-            return client.get(url);
-        }).then((resp: any) => {
-            return {
-                id,
-                props: {
-                    ...props,
-                    settingValue: resp.value ?? props.settingValue,
+                name: args.settingName,
+                annotations: {
+                    "pulumi.com/patchForce": "true",
                 },
-            };
+            },
+
+            value: args.settingValue,
+        }, {
+            ...opts,
+            parent: this,
+            retainOnDelete: true,
         });
-    }
 
-    async update(id: pulumi.ID, olds: RancherSettingProviderOutputs, news: RancherSettingProviderInputs): Promise<pulumi.dynamic.UpdateResult<RancherSettingProviderOutputs>> {
-        return this.create(news);
-    }
-
-    async diff(id: pulumi.ID, olds: RancherSettingProviderOutputs, news: RancherSettingProviderInputs): Promise<pulumi.dynamic.DiffResult> {
-        return { changes: olds.settingValue !== news.settingValue };
-    }
-}
-
-export class RancherSetting extends pulumi.dynamic.Resource {
-    constructor(name: string, inputs: RancherSettingInputs, opts?: pulumi.ComponentResourceOptions) {
-        super(new RancherSettingProvider(), name, inputs, opts);
+        this.registerOutputs({ setting: this.setting });
     }
 }

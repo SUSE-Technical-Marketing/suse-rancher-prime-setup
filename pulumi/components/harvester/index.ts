@@ -3,6 +3,7 @@ export { StorageClassArgs } from "./src/base/storageclass";
 export { NetworkArgs } from "./src/base/network";
 export { VmImageArgs } from "./src/base/vmimage";
 export { PoolArgs } from "./src/base/ippool";
+export { KeyPairArgs } from "./src/base/keypair";
 export { CloudInitTemplate, CloudInitTemplateArgs } from "./src/base/cloudinittemplate";
 export { HarvesterVm, HarvesterVmArgs } from "./src/vm";
 export { HarvesterSetting, HarvesterSettingInputs } from "./src/resources/setting";

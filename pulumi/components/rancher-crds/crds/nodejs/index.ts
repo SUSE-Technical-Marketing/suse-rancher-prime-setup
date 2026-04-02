@@ -16,6 +16,7 @@ import * as catalog from "./catalog";
 import * as fleet from "./fleet";
 import * as management from "./management";
 import * as provisioning from "./provisioning";
+import * as rke_machine_config from "./rke_machine_config";
 import * as types from "./types";
 
 export {
@@ -23,6 +24,7 @@ export {
     fleet,
     management,
     provisioning,
+    rke_machine_config,
     types,
 };
 pulumi.runtime.registerResourcePackage("crds", {

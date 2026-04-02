@@ -3,6 +3,7 @@ import { createStorageClasses, StorageClassArgs } from "./storageclass";
 import { createImages, VmImageArgs } from "./vmimage";
 import { createNetworks, NetworkArgs } from "./network";
 import { PoolArgs, createIpPool } from "./ippool";
+import { createKeyPairs, KeyPairArgs } from "./keypair";
 import { createCloudInitTemplates, CloudInitTemplateArgs } from "./cloudinittemplate";
 import { HarvesterAddon, HarvesterAddonInputs } from "../resources/addon";
 import { harvesterhci } from "@suse-tmm/harvester-crds";
@@ -19,6 +20,7 @@ export interface HarvesterBaseArgs {
     cloudInitTemplates?: CloudInitTemplateArgs[];
     ipPools?: PoolArgs[];
     addons?: HarvesterAddonInputs[];
+    keypairs?: KeyPairArgs[];
 }
 
 export class HarvesterBase extends pulumi.ComponentResource {
@@ -26,6 +28,7 @@ export class HarvesterBase extends pulumi.ComponentResource {
     public images: Record<string, harvesterhci.v1beta1.VirtualMachineImage>;
     public networks: Record<string, k8scrds.v1.NetworkAttachmentDefinition>;
     public addons: Record<string, HarvesterAddon>;
+    public keypairs: Record<string, harvesterhci.v1beta1.KeyPair>;
 
     constructor(name: string, args: HarvesterBaseArgs, opts?: pulumi.ComponentResourceOptions) {
         super("suse-tmm:harvester:base", name, {}, opts);
@@ -43,6 +46,8 @@ export class HarvesterBase extends pulumi.ComponentResource {
             createCloudInitTemplates(args.cloudInitTemplates, myOpts);
         }
 
+        this.keypairs = createKeyPairs(args.keypairs ?? [], myOpts);
+
         const storageDeps = Object.values(this.storageClasses);
         this.images = args.images
             ? createImages(args.images.definitions, args.images.storageClassName, { ...myOpts, dependsOn: storageDeps })
@@ -57,6 +62,7 @@ export class HarvesterBase extends pulumi.ComponentResource {
             images: this.images,
             networks: this.networks,
             addons: this.addons,
+            keypairs: this.keypairs,
         });
     }
 }

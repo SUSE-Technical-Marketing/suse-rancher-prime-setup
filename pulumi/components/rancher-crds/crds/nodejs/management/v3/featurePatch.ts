@@ -14,31 +14,31 @@ import * as utilities from "../../utilities";
  * [Server-Side Apply Docs](https://www.pulumi.com/registry/packages/kubernetes/how-to-guides/managing-resources-with-server-side-apply/) for
  * additional information about using Server-Side Apply to manage Kubernetes resources with Pulumi.
  */
-export class ClusterPatch extends pulumi.CustomResource {
+export class FeaturePatch extends pulumi.CustomResource {
     /**
-     * Get an existing ClusterPatch resource's state with the given name, ID, and optional extra
+     * Get an existing FeaturePatch resource's state with the given name, ID, and optional extra
      * properties used to qualify the lookup.
      *
      * @param name The _unique_ name of the resulting resource.
      * @param id The _unique_ provider ID of the resource to lookup.
      * @param opts Optional settings to control the behavior of the CustomResource.
      */
-    public static get(name: string, id: pulumi.Input<pulumi.ID>, opts?: pulumi.CustomResourceOptions): ClusterPatch {
-        return new ClusterPatch(name, undefined as any, { ...opts, id: id });
+    public static get(name: string, id: pulumi.Input<pulumi.ID>, opts?: pulumi.CustomResourceOptions): FeaturePatch {
+        return new FeaturePatch(name, undefined as any, { ...opts, id: id });
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'kubernetes:management.cattle.io/v3:ClusterPatch';
+    public static readonly __pulumiType = 'kubernetes:management.cattle.io/v3:FeaturePatch';
 
     /**
-     * Returns true if the given object is an instance of ClusterPatch.  This is designed to work even
+     * Returns true if the given object is an instance of FeaturePatch.  This is designed to work even
      * when multiple copies of the Pulumi SDK have been loaded into the same process.
      */
-    public static isInstance(obj: any): obj is ClusterPatch {
+    public static isInstance(obj: any): obj is FeaturePatch {
         if (obj === undefined || obj === null) {
             return false;
         }
-        return obj['__pulumiType'] === ClusterPatch.__pulumiType;
+        return obj['__pulumiType'] === FeaturePatch.__pulumiType;
     }
 
     /**
@@ -48,27 +48,27 @@ export class ClusterPatch extends pulumi.CustomResource {
     /**
      * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
      */
-    declare public readonly kind: pulumi.Output<"Cluster">;
+    declare public readonly kind: pulumi.Output<"Feature">;
     /**
      * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
      */
     declare public readonly metadata: pulumi.Output<outputs.meta.v1.ObjectMetaPatch>;
-    declare public readonly spec: pulumi.Output<outputs.management.v3.ClusterSpecPatch>;
-    declare public /*out*/ readonly status: pulumi.Output<outputs.management.v3.ClusterStatusPatch>;
+    declare public readonly spec: pulumi.Output<outputs.management.v3.FeatureSpecPatch>;
+    declare public /*out*/ readonly status: pulumi.Output<outputs.management.v3.FeatureStatusPatch>;
 
     /**
-     * Create a ClusterPatch resource with the given unique name, arguments, and options.
+     * Create a FeaturePatch resource with the given unique name, arguments, and options.
      *
      * @param name The _unique_ name of the resource.
      * @param args The arguments to use to populate this resource's properties.
      * @param opts A bag of options that control this resource's behavior.
      */
-    constructor(name: string, args?: ClusterPatchArgs, opts?: pulumi.CustomResourceOptions) {
+    constructor(name: string, args?: FeaturePatchArgs, opts?: pulumi.CustomResourceOptions) {
         let resourceInputs: pulumi.Inputs = {};
         opts = opts || {};
         if (!opts.id) {
             resourceInputs["apiVersion"] = "management.cattle.io/v3";
-            resourceInputs["kind"] = "Cluster";
+            resourceInputs["kind"] = "Feature";
             resourceInputs["metadata"] = args?.metadata;
             resourceInputs["spec"] = args?.spec;
             resourceInputs["status"] = undefined /*out*/;
@@ -80,16 +80,14 @@ export class ClusterPatch extends pulumi.CustomResource {
             resourceInputs["status"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
-        const aliasOpts = { aliases: [{ type: "kubernetes:provisioning.cattle.io/v1:ClusterPatch" }] };
-        opts = pulumi.mergeOptions(opts, aliasOpts);
-        super(ClusterPatch.__pulumiType, name, resourceInputs, opts);
+        super(FeaturePatch.__pulumiType, name, resourceInputs, opts);
     }
 }
 
 /**
- * The set of arguments for constructing a ClusterPatch resource.
+ * The set of arguments for constructing a FeaturePatch resource.
  */
-export interface ClusterPatchArgs {
+export interface FeaturePatchArgs {
     /**
      * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
      */
@@ -97,10 +95,10 @@ export interface ClusterPatchArgs {
     /**
      * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
      */
-    kind?: pulumi.Input<"Cluster">;
+    kind?: pulumi.Input<"Feature">;
     /**
      * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
      */
     metadata?: pulumi.Input<inputs.meta.v1.ObjectMetaPatch>;
-    spec?: pulumi.Input<inputs.management.v3.ClusterSpecPatch>;
+    spec?: pulumi.Input<inputs.management.v3.FeatureSpecPatch>;
 }

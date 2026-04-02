@@ -7,69 +7,69 @@ import * as outputs from "../../types/output";
 import * as utilities from "../../utilities";
 
 /**
- * ClusterList is a list of Cluster
+ * HarvesterConfigList is a list of HarvesterConfig
  */
-export class ClusterList extends pulumi.CustomResource {
+export class HarvesterConfigList extends pulumi.CustomResource {
     /**
-     * Get an existing ClusterList resource's state with the given name, ID, and optional extra
+     * Get an existing HarvesterConfigList resource's state with the given name, ID, and optional extra
      * properties used to qualify the lookup.
      *
      * @param name The _unique_ name of the resulting resource.
      * @param id The _unique_ provider ID of the resource to lookup.
      * @param opts Optional settings to control the behavior of the CustomResource.
      */
-    public static get(name: string, id: pulumi.Input<pulumi.ID>, opts?: pulumi.CustomResourceOptions): ClusterList {
-        return new ClusterList(name, undefined as any, { ...opts, id: id });
+    public static get(name: string, id: pulumi.Input<pulumi.ID>, opts?: pulumi.CustomResourceOptions): HarvesterConfigList {
+        return new HarvesterConfigList(name, undefined as any, { ...opts, id: id });
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'kubernetes:provisioning.cattle.io/v1:ClusterList';
+    public static readonly __pulumiType = 'kubernetes:rke-machine-config.cattle.io/v1:HarvesterConfigList';
 
     /**
-     * Returns true if the given object is an instance of ClusterList.  This is designed to work even
+     * Returns true if the given object is an instance of HarvesterConfigList.  This is designed to work even
      * when multiple copies of the Pulumi SDK have been loaded into the same process.
      */
-    public static isInstance(obj: any): obj is ClusterList {
+    public static isInstance(obj: any): obj is HarvesterConfigList {
         if (obj === undefined || obj === null) {
             return false;
         }
-        return obj['__pulumiType'] === ClusterList.__pulumiType;
+        return obj['__pulumiType'] === HarvesterConfigList.__pulumiType;
     }
 
     /**
      * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
      */
-    declare public readonly apiVersion: pulumi.Output<"provisioning.cattle.io/v1">;
+    declare public readonly apiVersion: pulumi.Output<"rke-machine-config.cattle.io/v1">;
     /**
-     * List of clusters. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md
+     * List of harvesterconfigs. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md
      */
-    declare public readonly items: pulumi.Output<outputs.provisioning.v1.Cluster[]>;
+    declare public readonly items: pulumi.Output<outputs.rke_machine_config.v1.HarvesterConfig[]>;
     /**
      * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
      */
-    declare public readonly kind: pulumi.Output<"ClusterList">;
+    declare public readonly kind: pulumi.Output<"HarvesterConfigList">;
     /**
      * Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
      */
     declare public readonly metadata: pulumi.Output<outputs.meta.v1.ListMeta>;
 
     /**
-     * Create a ClusterList resource with the given unique name, arguments, and options.
+     * Create a HarvesterConfigList resource with the given unique name, arguments, and options.
      *
      * @param name The _unique_ name of the resource.
      * @param args The arguments to use to populate this resource's properties.
      * @param opts A bag of options that control this resource's behavior.
      */
-    constructor(name: string, args?: ClusterListArgs, opts?: pulumi.CustomResourceOptions) {
+    constructor(name: string, args?: HarvesterConfigListArgs, opts?: pulumi.CustomResourceOptions) {
         let resourceInputs: pulumi.Inputs = {};
         opts = opts || {};
         if (!opts.id) {
             if (args?.items === undefined && !opts.urn) {
                 throw new Error("Missing required property 'items'");
             }
-            resourceInputs["apiVersion"] = "provisioning.cattle.io/v1";
+            resourceInputs["apiVersion"] = "rke-machine-config.cattle.io/v1";
             resourceInputs["items"] = args?.items;
-            resourceInputs["kind"] = "ClusterList";
+            resourceInputs["kind"] = "HarvesterConfigList";
             resourceInputs["metadata"] = args?.metadata;
         } else {
             resourceInputs["apiVersion"] = undefined /*out*/;
@@ -78,26 +78,26 @@ export class ClusterList extends pulumi.CustomResource {
             resourceInputs["metadata"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
-        super(ClusterList.__pulumiType, name, resourceInputs, opts);
+        super(HarvesterConfigList.__pulumiType, name, resourceInputs, opts);
     }
 }
 
 /**
- * The set of arguments for constructing a ClusterList resource.
+ * The set of arguments for constructing a HarvesterConfigList resource.
  */
-export interface ClusterListArgs {
+export interface HarvesterConfigListArgs {
     /**
      * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
      */
-    apiVersion?: pulumi.Input<"provisioning.cattle.io/v1">;
+    apiVersion?: pulumi.Input<"rke-machine-config.cattle.io/v1">;
     /**
-     * List of clusters. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md
+     * List of harvesterconfigs. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md
      */
-    items: pulumi.Input<pulumi.Input<inputs.provisioning.v1.Cluster>[]>;
+    items: pulumi.Input<pulumi.Input<inputs.rke_machine_config.v1.HarvesterConfig>[]>;
     /**
      * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
      */
-    kind?: pulumi.Input<"ClusterList">;
+    kind?: pulumi.Input<"HarvesterConfigList">;
     /**
      * Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
      */

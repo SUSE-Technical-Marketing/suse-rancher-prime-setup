@@ -1,10 +1,9 @@
 import "@suse-tmm/utils";
 import * as pulumi from "@pulumi/pulumi";
 import {fleet} from "@suse-tmm/rancher-crds";
-import { KubeWait, noProvider, RancherLoginInputs } from "@suse-tmm/utils";
+import { KubeWait, noProvider } from "@suse-tmm/utils";
 import * as kubernetes from "@pulumi/kubernetes";
 import { Secret } from "@pulumi/kubernetes/core/v1";
-import { FleetRepo } from "@suse-tmm/rancher";
 import { CertManagerConfig, LabConfig } from "./config";
 
 const sm = (t: TemplateStringsArray, ...v: pulumi.Input<string>[]) =>
@@ -60,7 +59,6 @@ const DefaultGitRepos: Record<string, GitRepoConfig> = {
 export function createFleetConfiguration(
     args: FleetConfigurationArgs,
     kubeconfig: pulumi.Input<string>,
-    rancher: RancherLoginInputs,
     opts: pulumi.ResourceOptions,
 ) {
     const { lab, certManager } = args;
@@ -70,6 +68,7 @@ export function createFleetConfiguration(
         kind: "CustomResourceDefinition",
         name: "gitrepos.fleet.cattle.io",
         kubeconfig: kubeconfig,
+        condition: "Established",
     }, noProvider(opts));
 
     new Secret("application-collection-basicauth", {
@@ -161,16 +160,24 @@ export function createFleetConfiguration(
         }
     }, {...opts, dependsOn: [kw], retainOnDelete: true});
 
-    new FleetRepo("fleet-git-repos", {
-        rancher: rancher,
-        repos: Object.entries(DefaultGitRepos).map(([name, cfg]) => ({
-            name: name,
-            url: cfg.url,
-            branch: cfg.branch,
-            paths: cfg.paths,
-            helmSecretName: cfg.helmSecretName,
-            clusterGroup: cfg.clusterGroup,
-            namespace: cfg.namespace,
-        })),
-    }, {...noProvider(opts), dependsOn: [kw, cg] });
+    Object.entries(DefaultGitRepos).forEach(([name, cfg]) => {
+        new fleet.GitRepo(name, {
+            metadata: {
+                name,
+                namespace: cfg.namespace ?? "fleet-default",
+            },
+            spec: {
+                repo: cfg.url,
+                branch: cfg.branch ?? "main",
+                paths: cfg.paths,
+                helmSecretName: cfg.helmSecretName,
+                correctDrift: { enabled: false },
+                pollingInterval: "60s",
+                insecureSkipTLSVerify: false,
+                targets: cfg.clusterGroup
+                    ? [{ clusterGroup: cfg.clusterGroup }]
+                    : [],
+            },
+        }, { ...opts, dependsOn: [kw, cg], retainOnDelete: true });
+    });
 }

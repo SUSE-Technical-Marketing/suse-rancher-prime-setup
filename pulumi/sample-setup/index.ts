@@ -86,7 +86,6 @@ const rancher: RancherLoginInputs = {
     server: rancherManager.rancherUrl,
     username: "admin",
     password: rancherManager.rancherAdminPassword,
-    authToken: rancherManager.authToken,
     insecure: cfg.certManager.staging,
 };
 
@@ -103,18 +102,13 @@ new HarvesterCloudProvider("harvester-cloud", {
         password: cfg.harvester.password,
         insecure: true,
     },
-    rancher: {
-        server: rancherManager.rancherUrl,
-        authToken: rancherManager.authToken,
-        insecure: cfg.certManager.staging,
-    },
+    rancher,
 }, { provider: rancherK8sProvider, dependsOn: plugins });
 
 // Fleet GitOps
 createFleetConfiguration(
     { lab: cfg.lab, certManager: cfg.certManager },
     rancherManager.kubeconfig,
-    rancher,
     rancherOpts,
 );
 

@@ -63,13 +63,8 @@ class RancherLoginProvider implements pulumi.dynamic.ResourceProvider<RancherLog
     }
 
     async diff(id: pulumi.ID, olds: RancherLoginProviderOutputs, news: RancherLoginProviderInputs): Promise<pulumi.dynamic.DiffResult> {
-        // For login, we can assume that any change in inputs requires a re-login
-        return {
-            changes: olds.server !== news.server ||
-                        olds.username !== news.username ||
-                        olds.password !== news.password ||
-                        olds.insecure !== news.insecure,
-        };
+        // Always re-login — tokens are ephemeral and expire after a TTL
+        return { changes: true };
     }
 }
 

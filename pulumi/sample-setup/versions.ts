@@ -1,8 +1,9 @@
-export const RANCHER_VERSION = "v2.13.3";
+export const RANCHER_VERSION = "v2.13.4";
 export const HARVESTER_UIPLUGIN_VERSION = "1.7.1";
 export const VIRTUAL_CLUSTERS_UIPLUGIN_VERSION = "1.0.2";
-export const KUBEWARDEN_UIPLUGIN_VERSION = "4.0.3";
-export const SBOMSCANNER_UIPLUGIN_VERSION = "0.5.0";
+export const KUBEWARDEN_UIPLUGIN_VERSION = "4.1.1";
+export const SBOMSCANNER_UIPLUGIN_VERSION = "0.7.1";
+export const AI_UIPLUGIN_VERSION = "0.1.45";
 export const CERT_MANAGER_VERSION = "v1.19.4";
 export const TRAEFIK_VERSION = "39.0.5";
 export const K3S_VERSION = "v1.34.3+k3s3";

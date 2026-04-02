@@ -2,7 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import {provisioning, management } from "@suse-tmm/rancher-crds";
 import { HarvesterSetting } from "@suse-tmm/harvester";
 import { ClusterRegistrationToken } from "./clusterregistrationtoken";
-import { KubeWait, noProvider, RancherClient, RancherLogin, RancherLoginInputs } from "@suse-tmm/utils";
+import { KubeWait, noProvider, RancherLoginInputs } from "@suse-tmm/utils";
 import { HarvesterCloudCredential } from "./cloudcredential";
 import { HarvesterCluster } from "./cluster";
 

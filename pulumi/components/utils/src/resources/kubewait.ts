@@ -40,17 +40,19 @@ class KubeWaitProvider implements dynamic.ResourceProvider<KubeWaitProviderInput
             : `/apis/${i.apiVersion}/${i.kind.toLowerCase()}s/${i.name}`;
 
         const url = `${httpConfig.server}${path}`;        // tiny JSONPath helper
-        const reached = waitFor(() => got.get(url, {
+        return waitFor(() => got.get(url, {
             agent: { https: httpConfig.agent },
             headers: httpConfig.headers,
             responseType: "json",
+            throwHttpErrors: false,
             timeout: { request: 10000 },
-            retry: { limit: 2 },
+            retry: { limit: 0 },
         }).then(res => {
             if (res.statusCode === 404) {
                 return undefined; // Resource not found, will retry
             } else if (res.statusCode < 200 || res.statusCode >= 300) {
-                throw new Error(`Failed to fetch ${i.kind}/${i.name}: ${res.statusMessage}`);
+                pulumi.log.warn(`KubeWait: ${i.kind}/${i.name} returned ${res.statusCode}, retrying...`);
+                return undefined;
             } else {
                 if (!i.condition) {
                     return true; // Resource exists
@@ -62,19 +64,19 @@ class KubeWaitProvider implements dynamic.ResourceProvider<KubeWaitProviderInput
                     return undefined; // Will retry
                 }
             }
+        }).catch(err => {
+            pulumi.log.warn(`KubeWait: ${i.kind}/${i.name} fetch failed (${err.code ?? err.message}), retrying...`);
+            return undefined; // Network error, let waitFor retry
         }), {
             intervalMs: (i.pollSeconds ?? 5) * 1000,
             timeoutMs: (i.timeoutSeconds ?? 300) * 1000,
-        }).catch(err => {
+        }).then(reached => ({
+            id: `${i.namespace ?? "_cluster"}/${i.name}/${i.condition}`,
+            outs: { ...i, reached },
+        })).catch(err => {
             pulumi.log.error(`Failed to fetch ${i.kind}/${i.name}: ${err.message}`);
             throw new Error(`Failed to fetch ${i.kind}/${i.name}: ${err.message}`);
-        }
-        );
-
-        return {
-            id: `${i.namespace ?? "_cluster"}/${i.name}/${i.condition}`,
-            outs: { ...i, reached: true },
-        };
+        });
     }
 
     /**

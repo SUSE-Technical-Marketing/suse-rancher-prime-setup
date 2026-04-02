@@ -2,9 +2,9 @@ import * as pulumi from "@pulumi/pulumi"
 import { helmInstallRancher } from "./rancher";
 import * as k8s from "@pulumi/kubernetes";
 import { Sprouter, TLS, TLSArgs, Outrider } from "@suse-tmm/common";
-import { RancherLogin } from "@suse-tmm/utils";
 import { BootstrapAdminPassword } from "./bootstrap";
 import { RancherSetting } from "../resources/setting";
+import { setFeatureFlag } from "../resources/feature";
 
 export interface RancherInstallArgs {
     kubeconfig: pulumi.Input<string>; // Kubeconfig for the cluster to install Rancher on
@@ -20,26 +20,27 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
     public readonly kubeconfig: pulumi.Output<string>;
     public readonly rancherAdminPassword: pulumi.Output<string>;
     public readonly rancherUrl: pulumi.Output<string>;
-    public readonly authToken: pulumi.Output<string>;
 
     constructor(name: string, args: RancherInstallArgs, opts?: pulumi.ComponentResourceOptions) {
         super("suse-tmm:components:RancherManagerInstall", name, {}, opts);
 
         this.kubeconfig = pulumi.output(args.kubeconfig);
 
-        const myOpts = { ...opts, parent: this };
+        const provider = new k8s.Provider("rancher-install-k8s", {
+            kubeconfig: this.kubeconfig,
+        }, { parent: this });
+
+        const myOpts = { ...opts, provider, parent: this };
         const { release, url } = this.installRancher(this.kubeconfig, args, myOpts);
 
         this.rancherUrl = pulumi.output(url);
         if (args.skipBootstrap) {
             pulumi.log.info("Skipping bootstrap for Rancher");
             this.rancherAdminPassword = pulumi.output("");
-            this.authToken = pulumi.output("");
             this.registerOutputs({
                 kubeconfig: this.kubeconfig,
                 rancherAdminPassword: this.rancherAdminPassword,
                 rancherUrl: this.rancherUrl,
-                authToken: this.authToken,
             });
             return;
         }
@@ -55,54 +56,34 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         });
         this.rancherAdminPassword = bootstrapPassword.password;
 
-        const authToken = new RancherLogin("rancher-login", {
-            server: url,
-            username: bootstrapPassword.username,
-            password: this.rancherAdminPassword,
-            insecure: args.tls.certManager?.staging || false,
-        }, {
-            parent: this,
-            dependsOn: [bootstrapPassword]
-        });
-
         new RancherSetting("server-url", {
-            rancher: {
-                server: url,
-                authToken: authToken.authToken,
-                insecure: args.tls.certManager?.staging || false,
-            },
             settingName: "server-url",
             settingValue: url,
         }, {
-            parent: this,
-            dependsOn: [authToken],
+            ...myOpts,
+            dependsOn: [release],
         });
 
+        setFeatureFlag({ featureName: "harvester-baremetal-container-workload", featureValue: true }, { ...myOpts, dependsOn: [release] });
+
         this.rancherUrl = pulumi.output(url);
-        this.authToken = authToken.authToken;
 
         this.registerOutputs({
             kubeconfig: this.kubeconfig,
             rancherAdminPassword: this.rancherAdminPassword,
             rancherUrl: this.rancherUrl,
-            authToken: this.authToken,
         });
     }
 
     installRancher(kubeconfig: pulumi.Input<string>, args: RancherInstallArgs, opts?: pulumi.ComponentResourceOptions) {
-        const provider = new k8s.Provider("rancher-install-k8s", {
-            kubeconfig: kubeconfig,
-        }, { parent: this });
-
-        let resOpts = { ...opts, provider: provider, parent: this };
 
         // We use sprouter to copy the certificates to all the required namespaces
-        Sprouter(resOpts);
+        Sprouter(opts);
         // We use outrider to propagate secrets to downstream clusters
-        Outrider(resOpts);
+        Outrider(opts);
 
         // Create TLS
-        const tls = new TLS("rancher-tls", args.tls, resOpts);
+        const tls = new TLS("rancher-tls", args.tls, opts);
 
         let rancherValues: { [key: string]: any } = {
             hostname: `rancher.${args.hostname}.${args.domain}`,
@@ -150,7 +131,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         const rancherRelease = helmInstallRancher("rancher", {
             rancherVersion: args.rancherVersion,
             values: rancherValues
-        }, resOpts);
+        }, opts);
 
         return {
             release: rancherRelease,

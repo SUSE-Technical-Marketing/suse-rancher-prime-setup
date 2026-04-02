@@ -20,6 +20,36 @@ export type ClusterPatch = import("./clusterPatch").ClusterPatch;
 export const ClusterPatch: typeof import("./clusterPatch").ClusterPatch = null as any;
 utilities.lazyLoad(exports, ["ClusterPatch"], () => require("./clusterPatch"));
 
+export { FeatureArgs } from "./feature";
+export type Feature = import("./feature").Feature;
+export const Feature: typeof import("./feature").Feature = null as any;
+utilities.lazyLoad(exports, ["Feature"], () => require("./feature"));
+
+export { FeatureListArgs } from "./featureList";
+export type FeatureList = import("./featureList").FeatureList;
+export const FeatureList: typeof import("./featureList").FeatureList = null as any;
+utilities.lazyLoad(exports, ["FeatureList"], () => require("./featureList"));
+
+export { FeaturePatchArgs } from "./featurePatch";
+export type FeaturePatch = import("./featurePatch").FeaturePatch;
+export const FeaturePatch: typeof import("./featurePatch").FeaturePatch = null as any;
+utilities.lazyLoad(exports, ["FeaturePatch"], () => require("./featurePatch"));
+
+export { SettingArgs } from "./setting";
+export type Setting = import("./setting").Setting;
+export const Setting: typeof import("./setting").Setting = null as any;
+utilities.lazyLoad(exports, ["Setting"], () => require("./setting"));
+
+export { SettingListArgs } from "./settingList";
+export type SettingList = import("./settingList").SettingList;
+export const SettingList: typeof import("./settingList").SettingList = null as any;
+utilities.lazyLoad(exports, ["SettingList"], () => require("./settingList"));
+
+export { SettingPatchArgs } from "./settingPatch";
+export type SettingPatch = import("./settingPatch").SettingPatch;
+export const SettingPatch: typeof import("./settingPatch").SettingPatch = null as any;
+utilities.lazyLoad(exports, ["SettingPatch"], () => require("./settingPatch"));
+
 
 const _module = {
     version: utilities.getVersion(),
@@ -31,6 +61,18 @@ const _module = {
                 return new ClusterList(name, <any>undefined, { urn })
             case "kubernetes:management.cattle.io/v3:ClusterPatch":
                 return new ClusterPatch(name, <any>undefined, { urn })
+            case "kubernetes:management.cattle.io/v3:Feature":
+                return new Feature(name, <any>undefined, { urn })
+            case "kubernetes:management.cattle.io/v3:FeatureList":
+                return new FeatureList(name, <any>undefined, { urn })
+            case "kubernetes:management.cattle.io/v3:FeaturePatch":
+                return new FeaturePatch(name, <any>undefined, { urn })
+            case "kubernetes:management.cattle.io/v3:Setting":
+                return new Setting(name, <any>undefined, { urn })
+            case "kubernetes:management.cattle.io/v3:SettingList":
+                return new SettingList(name, <any>undefined, { urn })
+            case "kubernetes:management.cattle.io/v3:SettingPatch":
+                return new SettingPatch(name, <any>undefined, { urn })
             default:
                 throw new Error(`unknown resource type ${type}`);
         }

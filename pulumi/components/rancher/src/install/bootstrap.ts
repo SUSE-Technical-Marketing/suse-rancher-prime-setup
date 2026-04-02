@@ -35,54 +35,62 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
         }
 
         const httpConfig = kubeConfigToHttp(inputs.kubeconfig);
+        const start = Date.now();
 
         // Fetch the bootstrap token from the Rancher API
-        return await waitFor(() => this.fetchBootstrapToken(httpConfig).catch(err => {
-            pulumi.log.error(`Failed to fetch bootstrap token: ${err.message}`);
-            throw new Error(`Failed to fetch bootstrap token: ${err.message}`);
-        }), {
+        return waitFor(() => this.fetchBootstrapToken(httpConfig), {
             intervalMs: 5_000,
             timeoutMs: 300_000, // 5 minutes
-        }).then(async token => {
-            pulumi.log.info("Successfully fetched bootstrap token from Rancher API, going to login.");
-            return {
-                bootstrapToken: token,
-                authToken: await loginToRancher({ server: inputs.rancherUrl, username: username, password: token, insecure: inputs.insecure }).catch(err => {
-                    pulumi.log.error(`Failed to login to Rancher with bootstrap token: ${err.message}`);
-                    throw new Error(`Failed to login to Rancher with bootstrap token: ${err.message}`);
-                })
-            };
-        }).then(async obj => {
-            pulumi.log.info("Successfully logged in to Rancher with bootstrap token, wait for Rancher to settle.");
-            return {
-                bootstrapToken: obj.bootstrapToken,
-                authToken: await new Promise(resolve => setTimeout(resolve, 5000)).then(() => obj.authToken)
-            }
-        }).then(obj => {
-            // Wait a bit before updating the password to ensure that Rancher is fully ready to accept the password change
-            pulumi.log.info(`Attempting to update password for Rancher admin user, bootstrap token ${obj.bootstrapToken}, new password: ${password}, insecure: ${inputs.insecure}`);
-            this.updatePassword(inputs.rancherUrl, username, obj.authToken, obj.bootstrapToken, password, inputs.insecure).catch(err => {
-                pulumi.log.error(`Failed to update password for user ${username}: ${err.message}`);
-                throw new Error(`Failed to update password for user ${username}: ${err.message}`);
-            });
         }).catch(err => {
-            pulumi.log.error(`Failed to complete password setup: ${err.message}`);
-            throw new Error(`Failed to complete password setup: ${err.message}`);
+            pulumi.log.error(`[Bootstrap] Failed to fetch bootstrap token after ${Date.now() - start}ms: ${err.message}`);
+            throw err;
+        }).then(bootstrapToken => {
+            pulumi.log.info(`[Bootstrap] Fetched bootstrap token in ${Date.now() - start}ms, logging in...`);
+            return loginToRancher({
+                server: inputs.rancherUrl,
+                username: username,
+                password: bootstrapToken,
+                insecure: inputs.insecure,
+            }).catch(err => {
+                pulumi.log.error(`[Bootstrap] Failed to login with bootstrap token: ${err.message}`);
+                throw err;
+            }).then(authToken => ({ bootstrapToken, authToken }));
+        }).then(({ bootstrapToken, authToken }) => {
+            pulumi.log.info("[Bootstrap] Login successful, waiting 5s for Rancher to settle...");
+            return new Promise<void>(resolve => setTimeout(resolve, 5000))
+                .then(() => ({ bootstrapToken, authToken }));
+        }).then(({ bootstrapToken, authToken }) => {
+            pulumi.log.info(`[Bootstrap] Updating password for user "${username}"...`);
+            return this.updatePassword(inputs.rancherUrl, username, authToken, bootstrapToken, password!, inputs.insecure);
+        }).then(() =>{
+            pulumi.log.info(`[Bootstrap] Password update complete, logging in with new password to verify...`);
+            return loginToRancher({
+                server: inputs.rancherUrl,
+                username: username,
+                password: password!,
+                insecure: inputs.insecure,
+            }).catch(err => {
+                pulumi.log.error(`[Bootstrap] Failed to login with new password: ${err.message}`);
+                throw err;
+            })
         }).then(() => {
-            pulumi.log.info("Successfully updated password for Rancher admin user.");
+            pulumi.log.info(`[Bootstrap] Password updated successfully in ${Date.now() - start}ms total.`);
             return {
                 id: `cattle-system/bootstrap-password-${new Date().toISOString()}`,
                 outs: {
                     ...inputs,
                     username: username,
-                    password: password,
+                    password: password!,
                 }
-            }
+            };
         });
     }
 
     async updatePassword(server: string, username: string, token: string, password: string, newPassword: string, insecure?: boolean): Promise<void> {
         const url = `${server}/v3/users?action=changepassword`;
+        const retryLimit = 3;
+
+        pulumi.log.info(`[Bootstrap] POST ${url} (changepassword for "${username}")`);
 
         const res = await got.post(url, {
             headers: {
@@ -95,44 +103,82 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
                 currentPassword: password,
                 newPassword: newPassword,
             },
+            throwHttpErrors: false,
             responseType: "json",
-            timeout: { request: 10000 },
+            timeout: {
+                lookup: 5000,
+                connect: 5000,
+                secureConnect: 5000,
+                request: 30000,
+            },
             retry: {
+                limit: retryLimit,
                 calculateDelay: ({ attemptCount }) => {
-                    pulumi.log.warn(`Attempt ${attemptCount} to update password for user ${username} failed, retrying...`);
-                    if (attemptCount >= 2) {
-                        pulumi.log.error(`Reached maximum retry attempts to update password for user ${username} (${attemptCount}), giving up.`);
+                    if (attemptCount > retryLimit) {
+                        pulumi.log.error(`[Bootstrap] Password update: retry limit reached (${retryLimit}), giving up.`);
                         return 0;
                     }
-                    return 5000; // Retry after 5 seconds
+                    pulumi.log.warn(`[Bootstrap] Password update: retry ${attemptCount}/${retryLimit} in 5s...`);
+                    return 5000;
                 }
-            }
+            },
+            hooks: {
+                beforeRequest: [
+                    options => { pulumi.log.info(`[Bootstrap] Sending password update to ${options.url}`); },
+                ],
+                beforeError: [
+                    error => {
+                        pulumi.log.error(`[Bootstrap] Password update error: code=${error.code ?? 'N/A'} message="${error.message}"`);
+                        return error;
+                    },
+                ],
+            },
         });
 
-        pulumi.log.info(`Password update response for user ${username}: ${res.statusCode} ${res.statusMessage}`);
+        pulumi.log.info(`[Bootstrap] Password update response: ${res.statusCode} ${res.statusMessage}`);
         if (res.statusCode < 200 || res.statusCode >= 300) {
             throw new Error(`Failed to update password for user ${username}: ${res.statusCode} ${res.statusMessage}`);
         }
     }
 
     async fetchBootstrapToken(httpConfig: KubeConfigHttpOutput): Promise<string | undefined> {
-        pulumi.log.info(`Fetching bootstrap token from Rancher API at ${httpConfig.server}`);
         const url = `${httpConfig.server}/api/v1/namespaces/cattle-system/secrets/bootstrap-secret`;
+        const retryLimit = 5;
+
+        pulumi.log.info(`[Bootstrap] GET ${url}`);
+
         return got.get<{ [key: string]: any }>(url, {
             agent: { https: httpConfig.agent },
             headers: httpConfig.headers,
             responseType: "json",
-            timeout: { request: 10000 },
+            timeout: {
+                lookup: 5000,
+                connect: 5000,
+                secureConnect: 5000,
+                request: 15000,
+            },
             retry: {
+                limit: retryLimit,
                 calculateDelay: ({ attemptCount }) => {
-                    pulumi.log.warn(`Attempt ${attemptCount} to fetch bootstrap token from Rancher API failed, retrying...`);
-                    if (attemptCount >= 5) {
-                        pulumi.log.error(`Reached maximum retry attempts to fetch bootstrap token from Rancher API (${attemptCount}), giving up.`);
+                    if (attemptCount > retryLimit) {
+                        pulumi.log.error(`[Bootstrap] Fetch bootstrap token: retry limit reached (${retryLimit}), giving up.`);
                         return 0;
                     }
-                    return 5000; // Retry after 5 seconds
+                    pulumi.log.warn(`[Bootstrap] Fetch bootstrap token: retry ${attemptCount}/${retryLimit} in 5s...`);
+                    return 5000;
                 }
-            }
+            },
+            hooks: {
+                beforeRequest: [
+                    options => { pulumi.log.info(`[Bootstrap] Sending request to ${options.url}`); },
+                ],
+                beforeError: [
+                    error => {
+                        pulumi.log.error(`[Bootstrap] Fetch token error: code=${error.code ?? 'N/A'} message="${error.message}"`);
+                        return error;
+                    },
+                ],
+            },
         }).then(res => {
             if (res.statusCode !== 200) {
                 throw new Error(`Failed to fetch bootstrap token: ${res.statusCode} ${res.statusMessage}`);

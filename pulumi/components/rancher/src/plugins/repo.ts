@@ -42,6 +42,6 @@ export function installUIPluginRepo(name: string, config: RepoConfig, opts?: pul
             gitRepo: config.gitRepo,
             gitBranch: config.gitBranch
         }
-    }, opts);
+    }, {...opts, retainOnDelete: true});
     return repo;
 }

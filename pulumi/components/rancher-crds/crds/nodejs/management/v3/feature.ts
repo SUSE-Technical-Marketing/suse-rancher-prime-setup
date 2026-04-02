@@ -6,100 +6,91 @@ import * as inputs from "../../types/input";
 import * as outputs from "../../types/output";
 import * as utilities from "../../utilities";
 
-/**
- * ClusterList is a list of Cluster
- */
-export class ClusterList extends pulumi.CustomResource {
+export class Feature extends pulumi.CustomResource {
     /**
-     * Get an existing ClusterList resource's state with the given name, ID, and optional extra
+     * Get an existing Feature resource's state with the given name, ID, and optional extra
      * properties used to qualify the lookup.
      *
      * @param name The _unique_ name of the resulting resource.
      * @param id The _unique_ provider ID of the resource to lookup.
      * @param opts Optional settings to control the behavior of the CustomResource.
      */
-    public static get(name: string, id: pulumi.Input<pulumi.ID>, opts?: pulumi.CustomResourceOptions): ClusterList {
-        return new ClusterList(name, undefined as any, { ...opts, id: id });
+    public static get(name: string, id: pulumi.Input<pulumi.ID>, opts?: pulumi.CustomResourceOptions): Feature {
+        return new Feature(name, undefined as any, { ...opts, id: id });
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'kubernetes:provisioning.cattle.io/v1:ClusterList';
+    public static readonly __pulumiType = 'kubernetes:management.cattle.io/v3:Feature';
 
     /**
-     * Returns true if the given object is an instance of ClusterList.  This is designed to work even
+     * Returns true if the given object is an instance of Feature.  This is designed to work even
      * when multiple copies of the Pulumi SDK have been loaded into the same process.
      */
-    public static isInstance(obj: any): obj is ClusterList {
+    public static isInstance(obj: any): obj is Feature {
         if (obj === undefined || obj === null) {
             return false;
         }
-        return obj['__pulumiType'] === ClusterList.__pulumiType;
+        return obj['__pulumiType'] === Feature.__pulumiType;
     }
 
     /**
      * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
      */
-    declare public readonly apiVersion: pulumi.Output<"provisioning.cattle.io/v1">;
-    /**
-     * List of clusters. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md
-     */
-    declare public readonly items: pulumi.Output<outputs.provisioning.v1.Cluster[]>;
+    declare public readonly apiVersion: pulumi.Output<"management.cattle.io/v3">;
     /**
      * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
      */
-    declare public readonly kind: pulumi.Output<"ClusterList">;
+    declare public readonly kind: pulumi.Output<"Feature">;
     /**
-     * Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+     * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
      */
-    declare public readonly metadata: pulumi.Output<outputs.meta.v1.ListMeta>;
+    declare public readonly metadata: pulumi.Output<outputs.meta.v1.ObjectMeta>;
+    declare public readonly spec: pulumi.Output<outputs.management.v3.FeatureSpec>;
+    declare public /*out*/ readonly status: pulumi.Output<outputs.management.v3.FeatureStatus>;
 
     /**
-     * Create a ClusterList resource with the given unique name, arguments, and options.
+     * Create a Feature resource with the given unique name, arguments, and options.
      *
      * @param name The _unique_ name of the resource.
      * @param args The arguments to use to populate this resource's properties.
      * @param opts A bag of options that control this resource's behavior.
      */
-    constructor(name: string, args?: ClusterListArgs, opts?: pulumi.CustomResourceOptions) {
+    constructor(name: string, args?: FeatureArgs, opts?: pulumi.CustomResourceOptions) {
         let resourceInputs: pulumi.Inputs = {};
         opts = opts || {};
         if (!opts.id) {
-            if (args?.items === undefined && !opts.urn) {
-                throw new Error("Missing required property 'items'");
-            }
-            resourceInputs["apiVersion"] = "provisioning.cattle.io/v1";
-            resourceInputs["items"] = args?.items;
-            resourceInputs["kind"] = "ClusterList";
+            resourceInputs["apiVersion"] = "management.cattle.io/v3";
+            resourceInputs["kind"] = "Feature";
             resourceInputs["metadata"] = args?.metadata;
+            resourceInputs["spec"] = args?.spec;
+            resourceInputs["status"] = undefined /*out*/;
         } else {
             resourceInputs["apiVersion"] = undefined /*out*/;
-            resourceInputs["items"] = undefined /*out*/;
             resourceInputs["kind"] = undefined /*out*/;
             resourceInputs["metadata"] = undefined /*out*/;
+            resourceInputs["spec"] = undefined /*out*/;
+            resourceInputs["status"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
-        super(ClusterList.__pulumiType, name, resourceInputs, opts);
+        super(Feature.__pulumiType, name, resourceInputs, opts);
     }
 }
 
 /**
- * The set of arguments for constructing a ClusterList resource.
+ * The set of arguments for constructing a Feature resource.
  */
-export interface ClusterListArgs {
+export interface FeatureArgs {
     /**
      * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
      */
-    apiVersion?: pulumi.Input<"provisioning.cattle.io/v1">;
-    /**
-     * List of clusters. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md
-     */
-    items: pulumi.Input<pulumi.Input<inputs.provisioning.v1.Cluster>[]>;
+    apiVersion?: pulumi.Input<"management.cattle.io/v3">;
     /**
      * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
      */
-    kind?: pulumi.Input<"ClusterList">;
+    kind?: pulumi.Input<"Feature">;
     /**
-     * Standard list metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+     * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
      */
-    metadata?: pulumi.Input<inputs.meta.v1.ListMeta>;
+    metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+    spec?: pulumi.Input<inputs.management.v3.FeatureSpec>;
 }

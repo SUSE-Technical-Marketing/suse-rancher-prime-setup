@@ -40,8 +40,8 @@ export function installLizExtension(
         chartName: "rancher-ai-ui",
         rancher: rancher,
         repoName: lizRepo.metadata.name,
-        version: "0.1.40",
-    });
+        version: versions.AI_UIPLUGIN_VERSION,
+    }, { ...opts, dependsOn: [lizRepo] });
 
     [
         { name: "ui-index", value: "https://releases.rancher.com/ui/ai-extension-shell-api-compatible-dev/index.html" },
@@ -49,10 +49,10 @@ export function installLizExtension(
         { name: "ui-offline-preferred", value: "false" },
     ].forEach(setting =>
         new RancherSetting(setting.name, {
-            rancher: rancher,
             settingName: setting.name,
             settingValue: setting.value,
         }, {
+            ...opts,
             dependsOn: [rancherManager],
         })
     );

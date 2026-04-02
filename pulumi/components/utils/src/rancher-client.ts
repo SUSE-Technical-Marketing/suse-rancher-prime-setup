@@ -49,48 +49,9 @@ export class RancherClient {
         };
     }
 
-
-    private buildGotFromKubeconfig(kubeconfig: string): Got {
-        const outputs = kubeConfigToHttp(kubeconfig);
-
+    private static baseGot(fnName: string): Got {
+        const retryLimit = 2;
         return got.extend({
-            prefixUrl: outputs.server.replace(/\/$/, ""),
-            agent: { https: outputs.agent },
-            headers: outputs.headers,
-            responseType: "json",
-            timeout: { request: 10000 },
-            retry: { limit: 2 },
-        });
-    }
-
-    private buildGotFromUrl(url: string, token: string, insecure: boolean): Got {
-        console.log(`Building Got instance for URL: ${url} with token: ${token} and insecure: ${insecure}`);
-        return got.extend({
-            prefixUrl: url.replace(/\/$/, ""),
-            https: {
-                rejectUnauthorized: !insecure,
-            },
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-            responseType: "json",
-            timeout: { request: 10000 },
-            retry: { limit: 2 },
-        });
-    }
-
-    static async login(args: RancherServerConnectionArgs): Promise<RancherClient> {
-        const url = `${args.server}/v3-public/localProviders/local?action=login`;
-        const retryLimit = args.retryLimit ?? 2;
-        const retryDelay = args.retryDelayMs ?? 5000;
-
-        console.log(`[RancherLogin] POST ${url} as "${args.username} / ${args.password}" (retries: ${retryLimit}, retryDelay: ${retryDelay}ms, insecure: ${args.insecure ?? false})`);
-
-        return got.post<{ token: string }>(url, {
-            https: {
-                rejectUnauthorized: !args.insecure,
-            },
-            responseType: "json",
             timeout: {
                 lookup: 5000,
                 connect: 5000,
@@ -104,31 +65,73 @@ export class RancherClient {
                 limit: retryLimit,
                 calculateDelay: ({attemptCount}) => {
                     if (attemptCount > retryLimit) {
-                        console.log(`[RancherLogin] Retry limit reached (${retryLimit}), giving up.`);
+                        console.error(`[${fnName}] Retry limit reached, giving up.`);
                         return 0;
                     }
-                    console.log(`[RancherLogin] Retry attempt ${attemptCount}/${retryLimit} in ${retryDelay}ms...`);
-                    return retryDelay;
-                },
+                    console.warn(`[${fnName}] request failed (attempt ${attemptCount}), retrying...`);
+                    return 5000;
+                }
             },
             hooks: {
                 beforeRequest: [
                     options => {
-                        console.log(`[RancherLogin] Sending request to ${options.url} ...`);
+                        console.log(`[${fnName}] Sending request to ${options.url} ...`);
                     },
                 ],
                 beforeError: [
                     error => {
-                        console.error(`[RancherLogin] Request error: code=${error.code ?? 'N/A'} message="${error.message}"`);
+                        console.error(`[${fnName}] Request error: code=${error.code ?? 'N/A'} message="${error.message}"`);
                         return error;
                     },
                 ],
                 beforeRetry: [
                     (error, retryCount) => {
-                        console.warn(`[RancherLogin] Request failed (attempt ${retryCount}): code=${error.code ?? 'N/A'} message="${error.message}"`);
+                        console.warn(`[${fnName}] Request failed (attempt ${retryCount}): code=${error.code ?? 'N/A'} message="${error.message}"`);
                     },
                 ],
+
             },
+        });
+    }
+
+
+    private buildGotFromKubeconfig(kubeconfig: string): Got {
+        const outputs = kubeConfigToHttp(kubeconfig);
+
+        return RancherClient.baseGot("RancherClientFromKubeconfig").extend({
+            prefixUrl: outputs.server.replace(/\/$/, ""),
+            agent: { https: outputs.agent },
+            headers: outputs.headers,
+            responseType: "json",
+        });
+    }
+
+    private buildGotFromUrl(url: string, token: string, insecure: boolean): Got {
+        console.log(`Building Got instance for URL: ${url} with token: ${token} and insecure: ${insecure}`);
+        return RancherClient.baseGot("RancherClientFromUrl").extend({
+            prefixUrl: url.replace(/\/$/, ""),
+            https: {
+                rejectUnauthorized: !insecure,
+            },
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            responseType: "json",
+        });
+    }
+
+    static async login(args: RancherServerConnectionArgs): Promise<RancherClient> {
+        const url = `${args.server}/v3-public/localProviders/local?action=login`;
+        const retryLimit = args.retryLimit ?? 2;
+        const retryDelay = args.retryDelayMs ?? 5000;
+
+        console.log(`[RancherLogin] POST ${url} as "${args.username} / ${args.password}" (retries: ${retryLimit}, retryDelay: ${retryDelay}ms, insecure: ${args.insecure ?? false})`);
+
+        return RancherClient.baseGot("RancherLogin").post<{ token: string }>(url, {
+            https: {
+                rejectUnauthorized: !args.insecure,
+            },
+            responseType: "json",
             json: {
                 username: args.username,
                 password: args.password,

@@ -2280,6 +2280,64 @@ export namespace management {
             conditions: outputs.management.v3.ClusterStatusConditionsPatch[];
         }
 
+        export interface Feature {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "management.cattle.io/v3";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "Feature";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.management.v3.FeatureSpec;
+            status: outputs.management.v3.FeatureStatus;
+        }
+
+        export interface FeatureSpec {
+            value: boolean;
+        }
+
+        export interface FeatureSpecPatch {
+            value: boolean;
+        }
+
+        export interface FeatureStatus {
+            default: boolean;
+            description: string;
+            dynamic: boolean;
+            lockedValue: boolean;
+        }
+
+        export interface FeatureStatusPatch {
+            default: boolean;
+            description: string;
+            dynamic: boolean;
+            lockedValue: boolean;
+        }
+
+        export interface Setting {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "management.cattle.io/v3";
+            customized: boolean;
+            default: string;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "Setting";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            source: string;
+            value: string;
+        }
+
     }
 }
 
@@ -4169,6 +4227,153 @@ export namespace provisioning {
             fleetWorkspaceName: string;
             observedGeneration: number;
             ready: boolean;
+        }
+
+    }
+}
+
+export namespace rke_machine_config {
+    export namespace v1 {
+        /**
+         * HarvesterConfig represents the desired configuration of each machine provisioned within a machine pool associated with a provisioning.cattle.io cluster.
+         */
+        export interface HarvesterConfig {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "rke-machine-config.cattle.io/v1";
+            /**
+             * just keep it empty, this value will be filled by rancher-machine
+             */
+            cloudConfig: string;
+            /**
+             * harvester cluster id
+             */
+            clusterId: string;
+            /**
+             * harvester cluster name
+             */
+            clusterName: string;
+            /**
+             * harvester cluster type
+             */
+            clusterType: string;
+            /**
+             * number of CPUs for machine
+             */
+            cpuCount: string;
+            /**
+             * enable vm cpu pinning, please ensure the harvester cluster has cpu manager enabled in at least one node
+             */
+            cpuPinning: boolean;
+            /**
+             * bus of disk for machine
+             */
+            diskBus: string;
+            /**
+             * harvester disk info
+             */
+            diskInfo: string;
+            /**
+             * size of disk for machine (in GiB)
+             */
+            diskSize: string;
+            /**
+             * enable vm efi
+             */
+            enableEfi: boolean;
+            /**
+             * enable vm secure boot, only works when enable efi
+             */
+            enableSecureBoot: boolean;
+            /**
+             * enable vm TPM
+             */
+            enableTpm: boolean;
+            /**
+             * harvester image name
+             */
+            imageName: string;
+            /**
+             * enable vm isolatated emulator thread
+             */
+            isolateEmulatorThread: boolean;
+            /**
+             * harvester key pair name
+             */
+            keyPairName: string;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "HarvesterConfig";
+            /**
+             * contents of kubeconfig file for harvester cluster, base64 is supported
+             */
+            kubeconfigContent: string;
+            /**
+             * size of memory for machine (in GiB)
+             */
+            memorySize: string;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            /**
+             * networkData content of cloud-init for machine, base64 is supported
+             */
+            networkData: string;
+            /**
+             * harvester network info
+             */
+            networkInfo: string;
+            /**
+             * harvester network model
+             */
+            networkModel: string;
+            /**
+             * harvester network name
+             */
+            networkName: string;
+            /**
+             * harvester network type
+             */
+            networkType: string;
+            /**
+             * size of reserved memory for machine (in MiB, integer value)
+             */
+            reservedMemorySize: string;
+            /**
+             * SSH password
+             */
+            sshPassword: string;
+            /**
+             * SSH port
+             */
+            sshPort: string;
+            /**
+             * SSH private key path 
+             */
+            sshPrivateKeyPath: string;
+            /**
+             * SSH username
+             */
+            sshUser: string;
+            /**
+             * userData content of cloud-init for machine, base64 is supported
+             */
+            userData: string;
+            /**
+             * harvester-vgpu-info
+             */
+            vgpuInfo: string;
+            /**
+             * harvester vm affinity, base64 is supported
+             */
+            vmAffinity: string;
+            /**
+             * harvester vm namespace
+             */
+            vmNamespace: string;
         }
 
     }

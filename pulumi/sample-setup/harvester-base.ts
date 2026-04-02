@@ -69,6 +69,13 @@ function defaultCloudInitTemplates(sshUser: string, sshPubKey: string): harveste
     }];
 }
 
+function defaultKeyPairs(sshUser: string, sshPubKey: string): harvester.KeyPairArgs[] {
+    return [{
+        name: sshUser,
+        publicKey: sshPubKey,
+    }];
+}
+
 export function provisionHarvester(
     cfg: { clusterNetwork: string; sshUser: string; sshPubKey: string; downloadImages: boolean, vlan: boolean },
     provider: kubernetes.Provider,
@@ -78,6 +85,7 @@ export function provisionHarvester(
     const networks = defaultNetworks(cfg.clusterNetwork);
     const addons: harvester.HarvesterAddonInputs[] = [];
     const pools: harvester.PoolArgs[] = [];
+    const keypairs: harvester.KeyPairArgs[] = defaultKeyPairs(cfg.sshUser, cfg.sshPubKey);
 
     let deps = [];
     if (cfg.vlan) {
@@ -110,7 +118,7 @@ export function provisionHarvester(
             rangeStart: "10.29.10.10",
             rangeEnd: "10.29.10.50",
             gateway: "10.29.10.1",
-            dnsServers: ["10.29.20.1", "8.8.8.8", "8.8.4.4"],
+            dnsServers: ["10.29.10.1", "8.8.8.8", "8.8.4.4"],
             domain: "lab.geeko.me",
             networkName: "vlan10",
             networkNamespace: "default",
@@ -119,7 +127,7 @@ export function provisionHarvester(
         const dns = new HelmApp("harvester-dns-controller", {
             retainOnDelete: false,
             chart: "oci://ghcr.io/hierynomus/harvester-dns-controller/charts/harvester-dns-controller",
-            version: "0.2.0",
+            version: "0.3.0",
             namespace: "harvester-system",
             values: {
                 dns: {
@@ -146,6 +154,7 @@ export function provisionHarvester(
         cloudInitTemplates: defaultCloudInitTemplates(cfg.sshUser, cfg.sshPubKey),
         addons,
         ipPools: pools,
+        keypairs,
     }, { provider, dependsOn: deps });
 }
 

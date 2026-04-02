@@ -1584,6 +1584,57 @@ export namespace management {
             type?: pulumi.Input<string>;
         }
 
+        export interface Feature {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"management.cattle.io/v3">;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"Feature">;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            spec?: pulumi.Input<inputs.management.v3.FeatureSpec>;
+            status?: pulumi.Input<inputs.management.v3.FeatureStatus>;
+        }
+
+        export interface FeatureSpec {
+            value?: pulumi.Input<boolean>;
+        }
+
+        export interface FeatureSpecPatch {
+            value?: pulumi.Input<boolean>;
+        }
+
+        export interface FeatureStatus {
+            default?: pulumi.Input<boolean>;
+            description?: pulumi.Input<string>;
+            dynamic?: pulumi.Input<boolean>;
+            lockedValue?: pulumi.Input<boolean>;
+        }
+
+        export interface Setting {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"management.cattle.io/v3">;
+            customized?: pulumi.Input<boolean>;
+            default?: pulumi.Input<string>;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"Setting">;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            source?: pulumi.Input<string>;
+            value?: pulumi.Input<string>;
+        }
+
     }
 }
 
@@ -3454,6 +3505,153 @@ export namespace provisioning {
             reason?: pulumi.Input<string>;
             status?: pulumi.Input<string>;
             type?: pulumi.Input<string>;
+        }
+
+    }
+}
+
+export namespace rke_machine_config {
+    export namespace v1 {
+        /**
+         * HarvesterConfig represents the desired configuration of each machine provisioned within a machine pool associated with a provisioning.cattle.io cluster.
+         */
+        export interface HarvesterConfig {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"rke-machine-config.cattle.io/v1">;
+            /**
+             * just keep it empty, this value will be filled by rancher-machine
+             */
+            cloudConfig?: pulumi.Input<string>;
+            /**
+             * harvester cluster id
+             */
+            clusterId?: pulumi.Input<string>;
+            /**
+             * harvester cluster name
+             */
+            clusterName?: pulumi.Input<string>;
+            /**
+             * harvester cluster type
+             */
+            clusterType?: pulumi.Input<string>;
+            /**
+             * number of CPUs for machine
+             */
+            cpuCount?: pulumi.Input<string>;
+            /**
+             * enable vm cpu pinning, please ensure the harvester cluster has cpu manager enabled in at least one node
+             */
+            cpuPinning?: pulumi.Input<boolean>;
+            /**
+             * bus of disk for machine
+             */
+            diskBus?: pulumi.Input<string>;
+            /**
+             * harvester disk info
+             */
+            diskInfo?: pulumi.Input<string>;
+            /**
+             * size of disk for machine (in GiB)
+             */
+            diskSize?: pulumi.Input<string>;
+            /**
+             * enable vm efi
+             */
+            enableEfi?: pulumi.Input<boolean>;
+            /**
+             * enable vm secure boot, only works when enable efi
+             */
+            enableSecureBoot?: pulumi.Input<boolean>;
+            /**
+             * enable vm TPM
+             */
+            enableTpm?: pulumi.Input<boolean>;
+            /**
+             * harvester image name
+             */
+            imageName?: pulumi.Input<string>;
+            /**
+             * enable vm isolatated emulator thread
+             */
+            isolateEmulatorThread?: pulumi.Input<boolean>;
+            /**
+             * harvester key pair name
+             */
+            keyPairName?: pulumi.Input<string>;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"HarvesterConfig">;
+            /**
+             * contents of kubeconfig file for harvester cluster, base64 is supported
+             */
+            kubeconfigContent?: pulumi.Input<string>;
+            /**
+             * size of memory for machine (in GiB)
+             */
+            memorySize?: pulumi.Input<string>;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            /**
+             * networkData content of cloud-init for machine, base64 is supported
+             */
+            networkData?: pulumi.Input<string>;
+            /**
+             * harvester network info
+             */
+            networkInfo?: pulumi.Input<string>;
+            /**
+             * harvester network model
+             */
+            networkModel?: pulumi.Input<string>;
+            /**
+             * harvester network name
+             */
+            networkName?: pulumi.Input<string>;
+            /**
+             * harvester network type
+             */
+            networkType?: pulumi.Input<string>;
+            /**
+             * size of reserved memory for machine (in MiB, integer value)
+             */
+            reservedMemorySize?: pulumi.Input<string>;
+            /**
+             * SSH password
+             */
+            sshPassword?: pulumi.Input<string>;
+            /**
+             * SSH port
+             */
+            sshPort?: pulumi.Input<string>;
+            /**
+             * SSH private key path 
+             */
+            sshPrivateKeyPath?: pulumi.Input<string>;
+            /**
+             * SSH username
+             */
+            sshUser?: pulumi.Input<string>;
+            /**
+             * userData content of cloud-init for machine, base64 is supported
+             */
+            userData?: pulumi.Input<string>;
+            /**
+             * harvester-vgpu-info
+             */
+            vgpuInfo?: pulumi.Input<string>;
+            /**
+             * harvester vm affinity, base64 is supported
+             */
+            vmAffinity?: pulumi.Input<string>;
+            /**
+             * harvester vm namespace
+             */
+            vmNamespace?: pulumi.Input<string>;
         }
 
     }

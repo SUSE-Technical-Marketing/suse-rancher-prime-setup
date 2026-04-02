@@ -125,9 +125,18 @@ export function loadConfig(): Config {
             enabled: sso.getBoolean("ssoEnabled") ?? false,
             hostname: sso.get("ssoHostname"),
         },
-        vlan: {
-            enabled: harvester.getBoolean("vlanEnabled") ?? false,
-            vlanId: harvester.get("vlanId") ?? "10",
-        },
+        vlan: buildVlanConfig(),
     };
+
+    function buildVlanConfig(): VlanConfig {
+        const enabled = harvester.getBoolean("vlanEnabled") ?? false;
+        if (!enabled) {
+            return { enabled: false, vlanId: "" };
+        }
+
+        return {
+            enabled: true,
+            vlanId: harvester.require("vlanId"),
+        };
+    }
 }
