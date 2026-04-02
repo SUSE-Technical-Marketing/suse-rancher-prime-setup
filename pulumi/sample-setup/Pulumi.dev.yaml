@@ -1,6 +1,0 @@
-encryptionsalt: v1:uPVJ4WhlcKo=:v1:HH74kwjjMpgxQtja:ZegPpGH5h1KXDo+WTxtUjrHtwLs7/Q==
-config:
-  harvester:url: https://harvester.flightdeck.lab.geeko.me
-  harvester:username: admin
-  harvester:password:
-    secure: v1:mcqEArRPwiwOrud+:8FErEOyuROYZMCvDnFSjKCx8uTeST0N1etyZB2c=

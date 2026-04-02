@@ -1,0 +1,18 @@
+defaultNamespace: "gpu-operator"
+helm:
+  repo: https://helm.ngc.nvidia.com/nvidia
+  chart: gpu-operator
+  releaseName: gpu-operator
+  version: "26.3.0"
+  values:
+    driver:
+      enabled: false
+    toolkit:
+      enabled: false
+
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-gpu-operator: "true"
+labels:
+  provides: nvidia-gpu-operator

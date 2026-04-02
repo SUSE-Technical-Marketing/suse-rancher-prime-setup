@@ -53,7 +53,12 @@ const DefaultGitRepos: Record<string, GitRepoConfig> = {
         branch: "main",
         paths: ["/apps/local"],
         namespace: "fleet-local",
-    }
+    },
+    "lab-setup-thirdparty": {
+        url: "https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git",
+        branch: "main",
+        paths: ["/apps/thirdparty"],
+    },
 };
 
 export function createFleetConfiguration(

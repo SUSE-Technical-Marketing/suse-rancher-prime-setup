@@ -7,19 +7,18 @@ export interface RancherFeatureInputs {
 }
 
 export function setFeatureFlag(args: RancherFeatureInputs, opts?: pulumi.CustomResourceOptions): management.FeaturePatch {
-        return new management.FeaturePatch(args.featureName, {
-            metadata: {
-                name: args.featureName,
-                annotations: {
-                    "pulumi.com/patchForce": "true",
-                },
+    return new management.FeaturePatch(args.featureName, {
+        metadata: {
+            name: args.featureName,
+            annotations: {
+                "pulumi.com/patchForce": "true",
             },
-            spec: {
-                value: args.featureValue,
-            },
-        }, {
-            ...opts,
-            retainOnDelete: true,
-        });
-    }
+        },
+        spec: {
+            value: args.featureValue,
+        },
+    }, {
+        ...opts,
+        retainOnDelete: true,
+    });
 }

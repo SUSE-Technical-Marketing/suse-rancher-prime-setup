@@ -1,0 +1,11 @@
+defaultNamespace: ollama
+helm:
+  chart: oci://dp.apps.rancher.io/charts/ollama
+  releaseName: ollama
+  version: "1.38.0"
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-ollama: "true"
+labels:
+  provides: ollama
