@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as kubernetes from "@pulumi/kubernetes";
-import { RancherManagerInstall } from "@suse-tmm/rancher";
-import { HarvesterKubeconfig, RancherLoginInputs } from "@suse-tmm/utils";
+import { RancherManagerInstall, BootstrapAdminPassword } from "@suse-tmm/rancher";
+import { HarvesterKubeconfig, KubeWait, noProvider, RancherLoginInputs } from "@suse-tmm/utils";
 import { HarvesterCloudProvider } from "@suse-tmm/rancher/src/cloud/harvester";
 import * as versions from "./versions";
 import { loadConfig } from "./config";
@@ -82,15 +82,32 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
 const rancherK8sProvider = new kubernetes.Provider("rancher-k8s", { kubeconfig: rancherManager.kubeconfig });
 const rancherOpts: pulumi.ResourceOptions = { provider: rancherK8sProvider, dependsOn: [rancherManager] };
 
+const kw = new KubeWait("wait-for-rancherinstallation", {
+    apiVersion: "apiextensions.k8s.io/v1",
+    kind: "CustomResourceDefinition",
+    name: "gitrepos.fleet.cattle.io",
+    kubeconfig: rancherManager.kubeconfig,
+    condition: "Established",
+}, noProvider(rancherOpts));
+
+const bootstrapPassword = new BootstrapAdminPassword("rancher-bootstrap-password", {
+    kubeconfig: rancherManager.kubeconfig,
+    adminPassword: cfg.rancher.adminPassword,
+    rancherUrl: rancherManager.rancherUrl,
+    insecure: cfg.certManager.staging || false,
+}, {
+    dependsOn: [kw],
+});
+
 const rancher: RancherLoginInputs = {
     server: rancherManager.rancherUrl,
     username: "admin",
-    password: rancherManager.rancherAdminPassword,
+    password: bootstrapPassword.password,
     insecure: cfg.certManager.staging,
 };
 
 // UI Plugins
-const plugins = installPlugins(rancher, rancherOpts);
+const plugins = installPlugins(rancher, {...rancherOpts, dependsOn: [bootstrapPassword]});
 
 // Harvester Cloud Provider
 new HarvesterCloudProvider("harvester-cloud", {
@@ -109,12 +126,12 @@ new HarvesterCloudProvider("harvester-cloud", {
 createFleetConfiguration(
     { lab: cfg.lab, certManager: cfg.certManager },
     rancherManager.kubeconfig,
-    rancherOpts,
+    {...rancherOpts, dependsOn: [bootstrapPassword]},
 );
 
 // Liz AI Extension (optional)
 if (cfg.rancher.lizEnabled) {
-    installLizExtension(rancher, rancherManager, rancherOpts);
+    installLizExtension(rancher, rancherManager, {...rancherOpts, dependsOn: [bootstrapPassword]});
 }
 
 // Stack outputs

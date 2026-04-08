@@ -4,6 +4,7 @@ import { RancherLoginInputs } from "@suse-tmm/utils";
 import { RancherSetting } from "@suse-tmm/rancher/src/resources/setting";
 import { RancherManagerInstall } from "@suse-tmm/rancher";
 import * as versions from "./versions";
+import { HelmApp } from "@suse-tmm/common";
 
 export function installPlugins(
     rancher: RancherLoginInputs,
@@ -31,29 +32,30 @@ export function installLizExtension(
     rancherManager: RancherManagerInstall,
     opts: pulumi.ResourceOptions,
 ) {
-    const lizRepo = installUIPluginRepo("rancher-ai-liz", {
-        gitRepo: "https://github.com/torchiaf/rancher-ai-ui",
-        gitBranch: "gh-pages",
-    }, opts);
+    new HelmApp("rancher-ai-agent", {
+        namespace: "cattle-ai-agent-system",
+        createNamespace: true,
+        chart: "oci://registry.suse.com/rancher/charts/rancher-ai-agent",
+    }, { ...opts, dependsOn: [rancherManager] });
 
     new RancherUIPlugin("rancher-ai-ui", {
         chartName: "rancher-ai-ui",
         rancher: rancher,
-        repoName: lizRepo.metadata.name,
+        repoName: "rancher-ui-plugins",
         version: versions.AI_UIPLUGIN_VERSION,
-    }, { ...opts, dependsOn: [lizRepo] });
+    }, { ...opts, dependsOn: [rancherManager] });
 
-    [
-        { name: "ui-index", value: "https://releases.rancher.com/ui/ai-extension-shell-api-compatible-dev/index.html" },
-        { name: "ui-dashboard-index", value: "https://releases.rancher.com/dashboard/ai-extension-shell-api-compatible-dev/index.html" },
-        { name: "ui-offline-preferred", value: "false" },
-    ].forEach(setting =>
-        new RancherSetting(setting.name, {
-            settingName: setting.name,
-            settingValue: setting.value,
-        }, {
-            ...opts,
-            dependsOn: [rancherManager],
-        })
-    );
+    // [
+    //     { name: "ui-index", value: "https://releases.rancher.com/ui/ai-extension-shell-api-compatible-dev/index.html" },
+    //     { name: "ui-dashboard-index", value: "https://releases.rancher.com/dashboard/ai-extension-shell-api-compatible-dev/index.html" },
+    //     { name: "ui-offline-preferred", value: "false" },
+    // ].forEach(setting =>
+    //     new RancherSetting(setting.name, {
+    //         settingName: setting.name,
+    //         settingValue: setting.value,
+    //     }, {
+    //         ...opts,
+    //         dependsOn: [rancherManager],
+    //     })
+    // );
 }

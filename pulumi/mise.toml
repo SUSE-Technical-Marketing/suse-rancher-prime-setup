@@ -1,3 +1,4 @@
 [tools]
+node = "latest"
 pnpm = "latest"
 pulumi = "latest"
