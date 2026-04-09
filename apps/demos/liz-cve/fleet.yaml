@@ -2,9 +2,9 @@ defaultNamespace: cve-demo
 namespaceLabels:
   sbomscanner.kubewarden.io/workloadscan: "true"
 helm:
-  repo: https://apache.github.io/apisix-helm-chart
-  chart: apisix
-  releaseName: apisix
+  repo: https://argoproj.github.io/argo-helm
+  chart: argo-cd
+  releaseName: argo-cd
   values:
     global:
       defaultStorageClass: "longhorn-single"
