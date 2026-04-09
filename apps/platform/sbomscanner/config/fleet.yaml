@@ -1,0 +1,9 @@
+defaultNamespace: sbomscanner
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-sbomscanner: "true"
+dependsOn:
+  - selector:
+      matchLabels:
+        provides: sbomscanner
