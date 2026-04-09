@@ -1,0 +1,14 @@
+apiVersion: sbomscanner.kubewarden.io/v1alpha1
+kind: WorkloadScanConfiguration
+metadata:
+  name: default
+spec:
+  namespaceSelector:
+    matchLabels:
+      sbomscanner.kubewarden.io/workloadscan: "true"
+  artifactsNamespace: sbomscanner
+  scanOnChange: true
+  scanInterval: 1h
+  platforms:
+    - arch: amd64
+      os: linux
