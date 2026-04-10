@@ -10,4 +10,7 @@ labels:
 overrideTargets:
   - clusterSelector:
       matchLabels:
+        needs-cnpg: "true"
+  - clusterSelector:
+      matchLabels:
         needs-sbomscanner: "true"
