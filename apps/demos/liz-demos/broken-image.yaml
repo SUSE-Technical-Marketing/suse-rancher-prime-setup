@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: broken-image-deployment
+  labels:
+    app.kubernetes.io/name: broken-image
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: broken-image
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: broken-image
+    spec:
+      containers:
+      - name: nginx
+        # ERROR: This image tag does not exist in the official Docker Hub
+        image: nginx:this-tag-does-not-exist
+        ports:
+        - containerPort: 80

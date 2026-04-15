@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: missing-config-deployment
+  labels:
+    app.kubernetes.io/name: missing-config
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: missing-config
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: missing-config
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        envFrom:
+        # ERROR: This ConfigMap must exist BEFORE the pod starts.
+        # Since 'my-app-config' doesn't exist, the container creation fails immediately.
+        - configMapRef:
+            name: my-app-config

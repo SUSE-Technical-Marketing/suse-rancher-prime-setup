@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: readonly-write-deployment
+  labels:
+    app.kubernetes.io/name: readonly-write
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: readonly-write
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: readonly-write
+    spec:
+      containers:
+      - name: writer
+        image: alpine:latest
+        # ERROR: We are trying to write to /app/data/test.txt,
+        # but the volume is mounted as read-only.
+        command: ["/bin/sh", "-c", "touch /app/data/test.txt && sleep 3600"]
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+          readOnly: true
+      volumes:
+      - name: data-volume
+        emptyDir: {}

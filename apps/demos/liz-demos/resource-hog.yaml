@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resource-hog-deployment
+  labels:
+    app.kubernetes.io/name: resource-hog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: resource-hog
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: resource-hog
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        resources:
+          # RESOURCE REQUESTS:
+          # This tells Kubernetes: "Do not schedule me unless you can guarantee
+          # I have this much capacity reserved just for me."
+          requests:
+            cpu: "2000m"  # 1 Full Core (Overkill for idle Nginx)
+            memory: "2Gi" # 1 Gigabyte (Overkill for idle Nginx)
+
+          # RESOURCE LIMITS:
+          # This tells Kubernetes: "Kill me if I try to go above this amount."
+          limits:
+            cpu: "2000m"
+            memory: "2Gi"
+        ports:
+        - containerPort: 80

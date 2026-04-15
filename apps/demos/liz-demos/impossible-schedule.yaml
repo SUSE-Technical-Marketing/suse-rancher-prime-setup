@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: impossible-schedule-deployment
+  labels:
+    app.kubernetes.io/name: impossible-schedule
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: impossible-schedule
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: impossible-schedule
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+      # ERROR: This forces the scheduler to look for a node with the label "disk=ssd".
+      # If no node has this label, the pod will sit in "Pending" forever.
+      nodeSelector:
+        disk: ssd

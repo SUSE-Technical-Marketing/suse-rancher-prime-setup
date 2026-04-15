@@ -1,0 +1,5 @@
+defaultNamespace: liz-demos
+overrideTargets:
+  - clusterSelector:
+      matchLabels:
+        needs-liz-demos: "true"

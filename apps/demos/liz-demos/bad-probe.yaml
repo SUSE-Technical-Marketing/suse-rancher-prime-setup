@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-probe-deployment
+  labels:
+    app.kubernetes.io/name: bad-probe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: bad-probe
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: bad-probe
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        # ERROR: Nginx listens on port 80, but we are checking port 8080.
+        # This will fail every time.
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5

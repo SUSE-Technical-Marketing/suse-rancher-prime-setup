@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crash-loop-deployment
+  labels:
+    app.kubernetes.io/name: crash-loop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: crash-loop
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: crash-loop
+    spec:
+      containers:
+      - name: alpine-sleeper
+        image: alpine:latest
+        # ERROR: This command finishes immediately.
+        # A container needs a long-running process (like a web server) to stay alive.
+        command: ["/bin/sh", "-c", "echo 'I finished my job and now I exit!'"]
