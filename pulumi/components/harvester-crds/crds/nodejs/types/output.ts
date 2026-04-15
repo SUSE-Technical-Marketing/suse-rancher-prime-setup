@@ -32888,6 +32888,156 @@ export namespace kubevirt {
     }
 }
 
+export namespace loadbalancer {
+    export namespace v1beta1 {
+        export interface IPPool {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "loadbalancer.harvesterhci.io/v1beta1";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "IPPool";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.loadbalancer.v1beta1.IPPoolSpec;
+            status: outputs.loadbalancer.v1beta1.IPPoolStatus;
+        }
+
+        export interface IPPoolSpec {
+            description: string;
+            ranges: outputs.loadbalancer.v1beta1.IPPoolSpecRanges[];
+            selector: outputs.loadbalancer.v1beta1.IPPoolSpecSelector;
+        }
+
+        export interface IPPoolSpecPatch {
+            description: string;
+            ranges: outputs.loadbalancer.v1beta1.IPPoolSpecRangesPatch[];
+            selector: outputs.loadbalancer.v1beta1.IPPoolSpecSelectorPatch;
+        }
+
+        /**
+         * Range refers to github.com/containernetworking/plugins/plugins/ipam/host-local/backend/allocator.Range
+         */
+        export interface IPPoolSpecRanges {
+            gateway: string;
+            rangeEnd: string;
+            rangeStart: string;
+            subnet: string;
+        }
+
+        /**
+         * Range refers to github.com/containernetworking/plugins/plugins/ipam/host-local/backend/allocator.Range
+         */
+        export interface IPPoolSpecRangesPatch {
+            gateway: string;
+            rangeEnd: string;
+            rangeStart: string;
+            subnet: string;
+        }
+
+        export interface IPPoolSpecSelector {
+            network: string;
+            priority: number;
+            scope: outputs.loadbalancer.v1beta1.IPPoolSpecSelectorScope[];
+        }
+
+        export interface IPPoolSpecSelectorPatch {
+            network: string;
+            priority: number;
+            scope: outputs.loadbalancer.v1beta1.IPPoolSpecSelectorScopePatch[];
+        }
+
+        export interface IPPoolSpecSelectorScope {
+            guestCluster: string;
+            namespace: string;
+            project: string;
+        }
+
+        export interface IPPoolSpecSelectorScopePatch {
+            guestCluster: string;
+            namespace: string;
+            project: string;
+        }
+
+        export interface IPPoolStatus {
+            allocated: {[key: string]: string};
+            allocatedHistory: {[key: string]: string};
+            available: number;
+            conditions: outputs.loadbalancer.v1beta1.IPPoolStatusConditions[];
+            lastAllocated: string;
+            total: number;
+        }
+
+        export interface IPPoolStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of the condition.
+             */
+            type: string;
+        }
+
+        export interface IPPoolStatusConditionsPatch {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of the condition.
+             */
+            type: string;
+        }
+
+        export interface IPPoolStatusPatch {
+            allocated: {[key: string]: string};
+            allocatedHistory: {[key: string]: string};
+            available: number;
+            conditions: outputs.loadbalancer.v1beta1.IPPoolStatusConditionsPatch[];
+            lastAllocated: string;
+            total: number;
+        }
+
+    }
+}
+
 export namespace meta {
     export namespace v1 {
         /**

@@ -15,6 +15,7 @@ utilities.lazyLoad(exports, ["Provider"], () => require("./provider"));
 import * as harvesterhci from "./harvesterhci";
 import * as k8s from "./k8s";
 import * as kubevirt from "./kubevirt";
+import * as loadbalancer from "./loadbalancer";
 import * as network from "./network";
 import * as types from "./types";
 
@@ -22,6 +23,7 @@ export {
     harvesterhci,
     k8s,
     kubevirt,
+    loadbalancer,
     network,
     types,
 };

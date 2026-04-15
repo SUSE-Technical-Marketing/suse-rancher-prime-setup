@@ -30456,6 +30456,120 @@ export namespace kubevirt {
     }
 }
 
+export namespace loadbalancer {
+    export namespace v1beta1 {
+        export interface IPPool {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"loadbalancer.harvesterhci.io/v1beta1">;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"IPPool">;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta>;
+            spec?: pulumi.Input<inputs.loadbalancer.v1beta1.IPPoolSpec>;
+            status?: pulumi.Input<inputs.loadbalancer.v1beta1.IPPoolStatus>;
+        }
+
+        export interface IPPoolSpec {
+            description?: pulumi.Input<string>;
+            ranges?: pulumi.Input<pulumi.Input<inputs.loadbalancer.v1beta1.IPPoolSpecRanges>[]>;
+            selector?: pulumi.Input<inputs.loadbalancer.v1beta1.IPPoolSpecSelector>;
+        }
+
+        export interface IPPoolSpecPatch {
+            description?: pulumi.Input<string>;
+            ranges?: pulumi.Input<pulumi.Input<inputs.loadbalancer.v1beta1.IPPoolSpecRangesPatch>[]>;
+            selector?: pulumi.Input<inputs.loadbalancer.v1beta1.IPPoolSpecSelectorPatch>;
+        }
+
+        /**
+         * Range refers to github.com/containernetworking/plugins/plugins/ipam/host-local/backend/allocator.Range
+         */
+        export interface IPPoolSpecRanges {
+            gateway?: pulumi.Input<string>;
+            rangeEnd?: pulumi.Input<string>;
+            rangeStart?: pulumi.Input<string>;
+            subnet?: pulumi.Input<string>;
+        }
+
+        /**
+         * Range refers to github.com/containernetworking/plugins/plugins/ipam/host-local/backend/allocator.Range
+         */
+        export interface IPPoolSpecRangesPatch {
+            gateway?: pulumi.Input<string>;
+            rangeEnd?: pulumi.Input<string>;
+            rangeStart?: pulumi.Input<string>;
+            subnet?: pulumi.Input<string>;
+        }
+
+        export interface IPPoolSpecSelector {
+            network?: pulumi.Input<string>;
+            priority?: pulumi.Input<number>;
+            scope?: pulumi.Input<pulumi.Input<inputs.loadbalancer.v1beta1.IPPoolSpecSelectorScope>[]>;
+        }
+
+        export interface IPPoolSpecSelectorPatch {
+            network?: pulumi.Input<string>;
+            priority?: pulumi.Input<number>;
+            scope?: pulumi.Input<pulumi.Input<inputs.loadbalancer.v1beta1.IPPoolSpecSelectorScopePatch>[]>;
+        }
+
+        export interface IPPoolSpecSelectorScope {
+            guestCluster?: pulumi.Input<string>;
+            namespace?: pulumi.Input<string>;
+            project?: pulumi.Input<string>;
+        }
+
+        export interface IPPoolSpecSelectorScopePatch {
+            guestCluster?: pulumi.Input<string>;
+            namespace?: pulumi.Input<string>;
+            project?: pulumi.Input<string>;
+        }
+
+        export interface IPPoolStatus {
+            allocated?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            allocatedHistory?: pulumi.Input<{[key: string]: pulumi.Input<string>}>;
+            available?: pulumi.Input<number>;
+            conditions?: pulumi.Input<pulumi.Input<inputs.loadbalancer.v1beta1.IPPoolStatusConditions>[]>;
+            lastAllocated?: pulumi.Input<string>;
+            total?: pulumi.Input<number>;
+        }
+
+        export interface IPPoolStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime?: pulumi.Input<string>;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime?: pulumi.Input<string>;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message?: pulumi.Input<string>;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason?: pulumi.Input<string>;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status?: pulumi.Input<string>;
+            /**
+             * Type of the condition.
+             */
+            type?: pulumi.Input<string>;
+        }
+
+    }
+}
+
 export namespace meta {
     export namespace v1 {
         /**

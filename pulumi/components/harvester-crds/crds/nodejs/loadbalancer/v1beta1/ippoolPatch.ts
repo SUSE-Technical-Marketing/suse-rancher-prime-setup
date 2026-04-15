@@ -28,7 +28,7 @@ export class IPPoolPatch extends pulumi.CustomResource {
     }
 
     /** @internal */
-    public static readonly __pulumiType = 'kubernetes:network.harvesterhci.io/v1alpha1:IPPoolPatch';
+    public static readonly __pulumiType = 'kubernetes:loadbalancer.harvesterhci.io/v1beta1:IPPoolPatch';
 
     /**
      * Returns true if the given object is an instance of IPPoolPatch.  This is designed to work even
@@ -44,7 +44,7 @@ export class IPPoolPatch extends pulumi.CustomResource {
     /**
      * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
      */
-    declare public readonly apiVersion: pulumi.Output<"network.harvesterhci.io/v1alpha1">;
+    declare public readonly apiVersion: pulumi.Output<"loadbalancer.harvesterhci.io/v1beta1">;
     /**
      * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
      */
@@ -53,8 +53,8 @@ export class IPPoolPatch extends pulumi.CustomResource {
      * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
      */
     declare public readonly metadata: pulumi.Output<outputs.meta.v1.ObjectMetaPatch>;
-    declare public readonly spec: pulumi.Output<outputs.network.v1alpha1.IPPoolSpecPatch>;
-    declare public /*out*/ readonly status: pulumi.Output<outputs.network.v1alpha1.IPPoolStatusPatch>;
+    declare public readonly spec: pulumi.Output<outputs.loadbalancer.v1beta1.IPPoolSpecPatch>;
+    declare public /*out*/ readonly status: pulumi.Output<outputs.loadbalancer.v1beta1.IPPoolStatusPatch>;
 
     /**
      * Create a IPPoolPatch resource with the given unique name, arguments, and options.
@@ -67,7 +67,7 @@ export class IPPoolPatch extends pulumi.CustomResource {
         let resourceInputs: pulumi.Inputs = {};
         opts = opts || {};
         if (!opts.id) {
-            resourceInputs["apiVersion"] = "network.harvesterhci.io/v1alpha1";
+            resourceInputs["apiVersion"] = "loadbalancer.harvesterhci.io/v1beta1";
             resourceInputs["kind"] = "IPPool";
             resourceInputs["metadata"] = args?.metadata;
             resourceInputs["spec"] = args?.spec;
@@ -80,7 +80,7 @@ export class IPPoolPatch extends pulumi.CustomResource {
             resourceInputs["status"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
-        const aliasOpts = { aliases: [{ type: "kubernetes:loadbalancer.harvesterhci.io/v1beta1:IPPoolPatch" }] };
+        const aliasOpts = { aliases: [{ type: "kubernetes:network.harvesterhci.io/v1alpha1:IPPoolPatch" }] };
         opts = pulumi.mergeOptions(opts, aliasOpts);
         super(IPPoolPatch.__pulumiType, name, resourceInputs, opts);
     }
@@ -93,7 +93,7 @@ export interface IPPoolPatchArgs {
     /**
      * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
      */
-    apiVersion?: pulumi.Input<"network.harvesterhci.io/v1alpha1">;
+    apiVersion?: pulumi.Input<"loadbalancer.harvesterhci.io/v1beta1">;
     /**
      * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
      */
@@ -102,5 +102,5 @@ export interface IPPoolPatchArgs {
      * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
      */
     metadata?: pulumi.Input<inputs.meta.v1.ObjectMetaPatch>;
-    spec?: pulumi.Input<inputs.network.v1alpha1.IPPoolSpecPatch>;
+    spec?: pulumi.Input<inputs.loadbalancer.v1beta1.IPPoolSpecPatch>;
 }
