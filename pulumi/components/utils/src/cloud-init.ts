@@ -213,5 +213,3 @@ export function createNetworkConfig(interfaces: NetworkInterface[], version: 1 |
         config: interfaces
     };
 }
-
-

@@ -59,6 +59,11 @@ const DefaultGitRepos: Record<string, GitRepoConfig> = {
         branch: "main",
         paths: ["/apps/thirdparty"],
     },
+    "lab-setup-demos": {
+        url: "https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git",
+        branch: "main",
+        paths: ["/apps/demos"],
+    },
 };
 
 export function createFleetConfiguration(
@@ -183,6 +188,6 @@ export function createFleetConfiguration(
                     ? [{ clusterGroup: cfg.clusterGroup }]
                     : [],
             },
-        }, { ...opts, dependsOn: [kw, cg], retainOnDelete: true });
+        }, { ...opts, dependsOn: [kw, cg], retainOnDelete: true, ignoreChanges: ["spec.pollingInterval"] });
     });
 }

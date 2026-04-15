@@ -6,7 +6,7 @@ import {
     IncreaseFileLimit, KubeFirewall, LonghornReqs, NewUser,
     Packages, PackageUpdate,
 } from "@suse-tmm/utils";
-import { VmConfig } from "./config";
+import { VlanConfig, VmConfig } from "./config";
 import { HelmApp } from "@suse-tmm/common";
 
 function defaultStorageClasses(): harvester.StorageClassArgs[] {
@@ -77,85 +77,90 @@ function defaultKeyPairs(sshUser: string, sshPubKey: string): harvester.KeyPairA
 }
 
 export function provisionHarvester(
-    cfg: { clusterNetwork: string; sshUser: string; sshPubKey: string; downloadImages: boolean, vlan: boolean },
+    cfg: { clusterNetwork: string; sshUser: string; sshPubKey: string; downloadImages: boolean, vlan: VlanConfig },
     provider: kubernetes.Provider,
 ): harvester.HarvesterBase {
-    const storageClasses = defaultStorageClasses();
+    const args = {} as harvester.HarvesterBaseArgs;
+    args.storageClasses = defaultStorageClasses();
+    args.networks = defaultNetworks(cfg.clusterNetwork);
     const images = defaultImages(cfg.downloadImages);
-    const networks = defaultNetworks(cfg.clusterNetwork);
+    args.images = images.length > 0 ? {
+            definitions: images,
+            storageClassName: args.storageClasses[0].name,
+        } : undefined,
+    args.cloudInitTemplates = defaultCloudInitTemplates(cfg.sshUser, cfg.sshPubKey);
+    args.keypairs = defaultKeyPairs(cfg.sshUser, cfg.sshPubKey);
     const addons: harvester.HarvesterAddonInputs[] = [];
     const pools: harvester.PoolArgs[] = [];
-    const keypairs: harvester.KeyPairArgs[] = defaultKeyPairs(cfg.sshUser, cfg.sshPubKey);
 
-    let deps = [];
-    if (cfg.vlan) {
-        networks.push({
-            name: "vlan10",
-            annotations: {
-                "network.harvesterhci.io/clusternetwork": cfg.clusterNetwork,
-                "network.harvesterhci.io/ready": "true",
-                "network.harvesterhci.io/type": "L2VlanNetwork",
-            },
-            config: `{"cniVersion":"0.3.1","name":"vlan10","type":"bridge","bridge":"${cfg.clusterNetwork}-br","vlan":10,"promiscMode":true,"ipam":{}}`,
-        });
-
-        addons.push({
-            addonName: "harvester-vm-dhcp-controller",
-            chart: "harvester-vm-dhcp-controller",
-            repo: "https://charts.harvesterhci.io",
-            version: "1.7.1",
-            enabled: true,
-            labels: {
-                "addon.harvesterhci.io/experimental": "true",
-            },
-        });
-
-        pools.push({
-            name: "vlan10-pool",
-            namespace: "default",
-            serverIp: "10.29.10.2",
-            cidr: "10.29.10.0/24",
-            rangeStart: "10.29.10.10",
-            rangeEnd: "10.29.10.50",
-            gateway: "10.29.10.1",
-            dnsServers: ["10.29.10.1", "8.8.8.8", "8.8.4.4"],
-            domain: "lab.geeko.me",
-            networkName: "vlan10",
-            networkNamespace: "default",
-        });
-
-        const dns = new HelmApp("harvester-dns-controller", {
-            retainOnDelete: false,
-            chart: "oci://ghcr.io/hierynomus/harvester-dns-controller/charts/harvester-dns-controller",
-            version: "0.3.0",
-            namespace: "harvester-system",
-            values: {
-                dns: {
-                    backend: "routeros",
-                    host: "10.29.10.1",
-                    username: "admin",
-                    password: '!nfiniteP0wer',
-                    useTls: false,
-                    tlsVerify: false,
-                    domain: "lab.geeko.me"
-                }
-            }
-        }, { provider });
-        deps.push(dns);
+    let opts = { provider };
+    let deps: pulumi.Resource[] = [];
+    if (cfg.vlan.enabled) {
+        deps = addVlanSupport(args, cfg, opts);
     }
 
-    return new harvester.HarvesterBase("harvester-base", {
-        storageClasses,
-        networks,
-        images: images.length > 0 ? {
-            definitions: images,
-            storageClassName: storageClasses[0].name,
-        } : undefined,
-        cloudInitTemplates: defaultCloudInitTemplates(cfg.sshUser, cfg.sshPubKey),
-        addons,
-        ipPools: pools,
-        keypairs,
-    }, { provider, dependsOn: deps });
+    return new harvester.HarvesterBase("harvester-base", args, { provider, dependsOn: deps });
+}
+
+function addVlanSupport(args: harvester.HarvesterBaseArgs, cfg: { clusterNetwork: string; vlan: VlanConfig }, opts: pulumi.ComponentResourceOptions): pulumi.Resource[] {
+    if (!cfg.vlan.enabled) return [];
+    args.networks = args.networks ?? [];
+    args.networks.push({
+        name: `vlan${cfg.vlan.vlanId}`,
+        annotations: {
+            "network.harvesterhci.io/clusternetwork": cfg.clusterNetwork,
+            "network.harvesterhci.io/ready": "true",
+            "network.harvesterhci.io/type": "L2VlanNetwork",
+        },
+        config: `{"cniVersion":"0.3.1","name":"vlan${cfg.vlan.vlanId}","type":"bridge","bridge":"${cfg.clusterNetwork}-br","vlan":${cfg.vlan.vlanId},"promiscMode":true,"ipam":{}}`,
+    });
+
+    args.addons = args.addons ?? [];
+    args.addons.push({
+        addonName: "harvester-vm-dhcp-controller",
+        chart: "harvester-vm-dhcp-controller",
+        repo: "https://charts.harvesterhci.io",
+        version: "1.7.1",
+        enabled: true,
+        labels: {
+            "addon.harvesterhci.io/experimental": "true",
+        },
+    });
+
+    args.ipPools = args.ipPools ?? [];
+    args.ipPools.push({
+        name: `vlan${cfg.vlan.vlanId}-pool`,
+        namespace: "default",
+        serverIp: `10.29.${cfg.vlan.vlanId}.2`,
+        cidr: `10.29.${cfg.vlan.vlanId}.0/24`,
+        rangeStart: `10.29.${cfg.vlan.vlanId}.10`,
+        rangeEnd: `10.29.${cfg.vlan.vlanId}.50`,
+        gateway: `10.29.${cfg.vlan.vlanId}.1`,
+        dnsServers: [`10.29.${cfg.vlan.vlanId}.1`],
+        domain: "lab.geeko.me",
+        networkName: `vlan${cfg.vlan.vlanId}`,
+        networkNamespace: "default",
+    });
+
+    const dns = new HelmApp("harvester-dns-controller", {
+        retainOnDelete: false,
+        chart: "oci://ghcr.io/hierynomus/harvester-dns-controller/charts/harvester-dns-controller",
+        version: "0.3.0",
+        namespace: "harvester-system",
+        values: {
+            dns: {
+                backend: "routeros",
+                host: `10.29.${cfg.vlan.vlanId}.1`,
+                username: "admin",
+                password: '!nfiniteP0wer',
+                useTls: false,
+                tlsVerify: false,
+                domain: "lab.geeko.me"
+            }
+        }
+    }, opts);
+
+    return [dns];
 }
 
 export function resolveImage(

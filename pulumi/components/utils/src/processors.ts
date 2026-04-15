@@ -122,6 +122,68 @@ export const InstallK3s = (useTraefik: boolean, version: string): CloudInitProce
     return cfg;
 }
 
+export const InstallRke2 = (useIngress: boolean, version: string, useHarvesterCloudProvider: boolean = false): CloudInitProcessor => (cfg) => {
+    let disableIngress = '';
+    if (!useIngress) {
+        disableIngress = `|disable:
+                |- rke2-ingress-nginx`;
+    }
+    let cloudProvider = '';
+    if (useHarvesterCloudProvider) {
+        cloudProvider = `|cloud-provider-name: harvester
+                |cloud-provider-config: /var/lib/rancher/rke2/etc/config-files/cloud-provider-config`;
+    }
+    cfg.writeFiles = cfg.writeFiles.concat(
+        {
+            path: "/etc/rancher/rke2/config.yaml",
+            content: `
+                |write-kubeconfig-mode: "0644"
+                |tls-san:
+                |- {{ ds.meta_data.local_hostname }}.lab.geeko.me
+                ${disableIngress}
+                ${cloudProvider}
+            `.stripMargin(),
+        },
+        {
+            path: "/tmp/install_rke2.sh",
+            content: `
+                |#!/bin/bash
+                |set -e
+                |curl -sfL https://get.rke2.io -o get-rke2.sh
+                |INSTALL_RKE2_CHANNEL="${version}" sh get-rke2.sh
+                |systemctl enable --now rke2-server.service
+            `.stripMargin(),
+            permissions: '0755'
+        });
+    cfg.templated = true;
+    cfg.runcmd = cfg.runcmd.concat(
+        "sudo /tmp/install_rke2.sh"
+    );
+    return cfg;
+}
+
+export function HarvesterCloudProvider(kubeconfig: string, vmNamespace: string = "harvester-public"): CloudInitProcessor {
+    return (cfg) => {
+        cfg.writeFiles = cfg.writeFiles.concat(
+            {
+                path: "/var/lib/rancher/rke2/etc/config-files/cloud-provider-config",
+                content: kubeconfig,
+                permissions: '0600'
+            },
+            {
+                // RKE2 config drop-in for Harvester node labels
+                path: "/etc/rancher/rke2/config.yaml.d/harvester-cloud-provider.yaml",
+                content: `
+                    |# Harvester cloud provider node labels
+                    |kubelet-arg:
+                    |  - "node-labels=harvesterhci.io/host-namespace=${vmNamespace}"
+                `.stripMargin(),
+            }
+        );
+        return cfg;
+    };
+}
+
 export const LonghornReqs: CloudInitProcessor = (cfg) => {
     cfg.packages = cfg.packages.concat("open-iscsi", "cryptsetup");
     cfg.runcmd = cfg.runcmd.concat(

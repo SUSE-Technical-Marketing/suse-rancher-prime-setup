@@ -12,11 +12,11 @@ export interface HarvesterConfig {
 export interface VlanConfig {
     enabled: boolean;
     vlanId: string;
+    vlanDhcpIpPrefix?: string;
     vlanDhcpGateway?: string;
     vlanDhcpRangeStart?: string;
     vlanDhcpRangeEnd?: string;
     vlanDhcpDnsServers?: string[];
-    vlanDhcpIpPrefix?: string;
 }
 
 export interface VmConfig {
@@ -133,10 +133,12 @@ export function loadConfig(): Config {
         if (!enabled) {
             return { enabled: false, vlanId: "" };
         }
+        const vlanId = harvester.require("vlanId");
+        const vlanPrefix = harvester.get("vlanPrefix") ?? `10.29.${vlanId}`;
 
         return {
             enabled: true,
-            vlanId: harvester.require("vlanId"),
+            vlanId: vlanId,
         };
     }
 }

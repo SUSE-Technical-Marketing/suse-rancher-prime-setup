@@ -6,7 +6,7 @@ import { HarvesterCloudProvider } from "@suse-tmm/rancher/src/cloud/harvester";
 import * as versions from "./versions";
 import { loadConfig } from "./config";
 import { provisionHarvester, resolveImage } from "./harvester-base";
-import { provisionK3sOnHarvester } from "./infrastructure";
+import { provisionVmOnHarvester } from "./infrastructure";
 import { installPlugins, installLizExtension } from "./rancher-plugins";
 import { createFleetConfiguration } from "./fleet";
 
@@ -35,17 +35,17 @@ const harvBase = provisionHarvester({
     clusterNetwork: cfg.harvester.clusterNetwork,
     sshUser: cfg.vm.sshUser,
     sshPubKey: cfg.vm.sshPubKey,
-    vlan: cfg.vlan.enabled,
+    vlan: cfg.vlan,
     downloadImages,
 }, harvesterK8sProvider);
 
 const imageDetails = resolveImage(harvBase, cfg.vm);
 
-const networkName = cfg.vlan.enabled ? "vlan10" : "backbone-vlan";
+const networkName = cfg.vlan.enabled ? `vlan${cfg.vlan.vlanId}` : "backbone-vlan";
 
 
-// Provision VM with K3s on Harvester
-const { vm, kubeconfig: k3sKubeconfig } = provisionK3sOnHarvester({
+// Provision VM on Harvester
+const { vm, kubeconfig: vmKubeconfig } = provisionVmOnHarvester({
     harvesterKubeconfig: harvesterKubeconfig.kubeconfig,
     vmName: cfg.rancher.vmName,
     vmNamespace: "harvester-public",
@@ -57,15 +57,17 @@ const { vm, kubeconfig: k3sKubeconfig } = provisionK3sOnHarvester({
         macAddress: cfg.vm.macAddress,
     },
     k3sVersion: versions.K3S_VERSION,
+    // rke2Version: versions.RKE2_VERSION,
     insecure: cfg.certManager.staging,
 }, { dependsOn: [harvBase] });
 
-// Install Rancher Manager on the K3s cluster
+// Install Rancher Manager on the cluster
 const rancherManager = new RancherManagerInstall("rancher-manager", {
-    kubeconfig: k3sKubeconfig,
+    kubeconfig: vmKubeconfig,
     domain: cfg.lab.domain,
     hostname: cfg.rancher.vmName,
     rancherVersion: cfg.rancher.version,
+    traefikVersion: versions.TRAEFIK_VERSION,
     tls: {
         certManager: cfg.certManager.cloudflareApiKey && cfg.certManager.letsEncryptEmail ? {
             version: cfg.certManager.version,
@@ -131,7 +133,7 @@ createFleetConfiguration(
 
 // Liz AI Extension (optional)
 if (cfg.rancher.lizEnabled) {
-    installLizExtension(rancher, rancherManager, {...rancherOpts, dependsOn: [bootstrapPassword]});
+    installLizExtension(rancher, {...rancherOpts, dependsOn: [bootstrapPassword]});
 }
 
 // Stack outputs

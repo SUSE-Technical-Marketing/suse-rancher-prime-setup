@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as harvester from "@suse-tmm/harvester";
 import * as command from "@pulumi/command";
-import { RemoteKubeconfig } from "@suse-tmm/utils";
+import { CloudInitProcessor, InstallRke2, RemoteKubeconfig, HarvesterCloudProvider } from "@suse-tmm/utils";
 import {
     BashRcLocal, cloudInit, DefaultUser, DisableIpv6, GuestAgent,
     IncreaseFileLimit, InstallK3s, KubeFirewall, NewUser, Packages,
@@ -23,7 +23,8 @@ export interface HarvesterVmInfraArgs {
         name: pulumi.Input<string>;
         macAddress?: string;
     };
-    k3sVersion: string;
+    k3sVersion?: string;
+    rke2Version?: string;
     insecure: boolean;
 }
 
@@ -32,14 +33,51 @@ export interface HarvesterVmInfraResult {
     kubeconfig: pulumi.Output<string>;
 }
 
-export function provisionK3sOnHarvester(
+export function provisionVmOnHarvester(
     args: HarvesterVmInfraArgs,
     opts?: pulumi.ResourceOptions,
 ): HarvesterVmInfraResult {
+    let kubeProcessor: CloudInitProcessor;
+    if (args.k3sVersion) {
+        kubeProcessor = InstallK3s(false, args.k3sVersion);
+    } else if (args.rke2Version) {
+        kubeProcessor = InstallRke2(false, args.rke2Version, true);
+    } else {
+        throw new Error("Either k3sVersion or rke2Version must be provided");
+    }
+
+    const vmNamespace = args.vmNamespace || "harvester-public";
+
+    const buildCloudInit = (harvesterKc?: string) => cloudInit(
+        BashRcLocal,
+        KubeFirewall,
+        DisableIpv6,
+        DefaultUser,
+        NewUser({
+            name: args.vmConfig.sshUser,
+            password: "$2y$10$M8ZamcBlJG4xMooQSI7M2eAy2vrDrFx4WOG79SrPKjZUU/kDpsRE6",
+            sudo: "ALL=(ALL) NOPASSWD:ALL",
+            sshAuthorizedKeys: [args.vmConfig.sshPubKey],
+        }),
+        PackageUpdate,
+        Packages("curl", "helm", "git-core", "bash-completion", "vim", "nano", "iputils", "wget", "mc", "tree", "btop", "kubernetes-client", "helm", "k9s", "cloud-init"),
+        GuestAgent,
+        IncreaseFileLimit,
+        DhcpInterface("eth0"),
+        DhcpInterface("eth1"),
+        kubeProcessor,
+        // ...(harvesterKc ? [HarvesterCloudProvider(harvesterKc, vmNamespace)] : []),
+    );
+
+    // If using RKE2, we need the kubeconfig resolved for HarvesterCloudProvider
+    const cloudInitArgs = args.rke2Version
+        ? pulumi.output(args.harvesterKubeconfig).apply(kc => buildCloudInit(kc))
+        : buildCloudInit();
+
     const vm = new harvester.HarvesterVm(args.vmName, {
         kubeconfig: args.harvesterKubeconfig,
         virtualMachine: {
-            namespace: args.vmNamespace || "harvester-public",
+            namespace: vmNamespace,
             networkName: args.network.name,
             resources: {
                 cpu: args.vmConfig.cpu,
@@ -56,25 +94,7 @@ export function provisionK3sOnHarvester(
                 imageId: args.vmImage.id,
                 storageClassName: args.vmImage.storageClassName,
             },
-            cloudInit: cloudInit(
-                BashRcLocal,
-                KubeFirewall,
-                DisableIpv6,
-                DefaultUser,
-                NewUser({
-                    name: args.vmConfig.sshUser,
-                    password: "$2y$10$M8ZamcBlJG4xMooQSI7M2eAy2vrDrFx4WOG79SrPKjZUU/kDpsRE6",
-                    sudo: "ALL=(ALL) NOPASSWD:ALL",
-                    sshAuthorizedKeys: [args.vmConfig.sshPubKey],
-                }),
-                PackageUpdate,
-                Packages("curl", "helm", "git-core", "bash-completion", "vim", "nano", "iputils", "wget", "mc", "tree", "btop", "kubernetes-client", "helm", "k9s", "cloud-init"),
-                GuestAgent,
-                IncreaseFileLimit,
-                DhcpInterface("eth0"),
-                DhcpInterface("eth1"),
-                InstallK3s(true, args.k3sVersion),
-            ),
+            cloudInit: cloudInitArgs,
         },
     }, opts);
 

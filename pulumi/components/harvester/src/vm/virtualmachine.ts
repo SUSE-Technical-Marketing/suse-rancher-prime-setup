@@ -15,7 +15,7 @@ export interface ResourcesArgs {
 export interface NetworkArgs {
     name: pulumi.Input<string>;
     namespace: pulumi.Input<string>;
-    macAddress?: pulumi.Input<string>; 
+    macAddress?: pulumi.Input<string>;
 }
 
 export interface DiskArgs {
@@ -28,7 +28,7 @@ export interface DiskArgs {
 export interface VirtualMachineArgs {
     namespace: pulumi.Input<string>;
     resources: ResourcesArgs;
-    cloudInit?: CloudInitArgs;
+    cloudInit?: pulumi.Input<CloudInitArgs>;
     networkName?: pulumi.Input<string>;
     network: NetworkArgs;
     disk: DiskArgs;
@@ -54,7 +54,9 @@ export function createVirtualMachine(name: string, args: VirtualMachineArgs, opt
     });
 
     if (args.cloudInit) {
-        const cloudinitSecret = createCloudInitSecret(name, args.namespace, args.cloudInit, opts);
+        const cloudinitSecret = pulumi.output(args.cloudInit).apply(ci =>
+            createCloudInitSecret(name, args.namespace, ci, opts)
+        );
         volumes.push({
             name: "cloudinitdisk",
             cloudInitNoCloud: {

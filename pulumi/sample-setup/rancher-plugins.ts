@@ -29,33 +29,20 @@ export function installPlugins(
 
 export function installLizExtension(
     rancher: RancherLoginInputs,
-    rancherManager: RancherManagerInstall,
     opts: pulumi.ResourceOptions,
 ) {
     new HelmApp("rancher-ai-agent", {
         namespace: "cattle-ai-agent-system",
         createNamespace: true,
         chart: "oci://registry.suse.com/rancher/charts/rancher-ai-agent",
-    }, { ...opts, dependsOn: [rancherManager] });
+        version: versions.AI_AGENT_VERSION,
+    }, opts);
 
     new RancherUIPlugin("rancher-ai-ui", {
         chartName: "rancher-ai-ui",
         rancher: rancher,
         repoName: "rancher-ui-plugins",
         version: versions.AI_UIPLUGIN_VERSION,
-    }, { ...opts, dependsOn: [rancherManager] });
+    }, opts);
 
-    // [
-    //     { name: "ui-index", value: "https://releases.rancher.com/ui/ai-extension-shell-api-compatible-dev/index.html" },
-    //     { name: "ui-dashboard-index", value: "https://releases.rancher.com/dashboard/ai-extension-shell-api-compatible-dev/index.html" },
-    //     { name: "ui-offline-preferred", value: "false" },
-    // ].forEach(setting =>
-    //     new RancherSetting(setting.name, {
-    //         settingName: setting.name,
-    //         settingValue: setting.value,
-    //     }, {
-    //         ...opts,
-    //         dependsOn: [rancherManager],
-    //     })
-    // );
 }

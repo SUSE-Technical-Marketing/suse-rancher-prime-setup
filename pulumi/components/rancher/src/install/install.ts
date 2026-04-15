@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi"
 import { helmInstallRancher } from "./rancher";
 import * as k8s from "@pulumi/kubernetes";
-import { Sprouter, TLS, TLSArgs, Outrider } from "@suse-tmm/common";
+import { Sprouter, TLS, TLSArgs, Outrider, Traefik } from "@suse-tmm/common";
 import { RancherSetting } from "../resources/setting";
 import { setFeatureFlag } from "../resources/feature";
 
@@ -13,6 +13,7 @@ export interface RancherInstallArgs {
     adminPassword?: pulumi.Input<string>; // Optional admin password for Rancher
     skipBootstrap?: pulumi.Input<boolean>; // Optional skip the bootstrap for Rancher
     rancherVersion: pulumi.Input<string>; // Rancher version to install
+    traefikVersion: pulumi.Input<string>; // Traefik version to install, if not provided, the default version will be used
 }
 
 export class RancherManagerInstall extends pulumi.ComponentResource {
@@ -65,6 +66,8 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         Sprouter(opts);
         // We use outrider to propagate secrets to downstream clusters
         Outrider(opts);
+        // Treafik is required for the Rancher ingress
+        Traefik(args.traefikVersion, opts);
 
         // Create TLS
         const tls = new TLS("rancher-tls", args.tls, opts);
