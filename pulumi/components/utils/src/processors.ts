@@ -31,6 +31,34 @@ export const DisableIpv6: CloudInitProcessor = (args) => {
     return args;
 };
 
+export const Leap16Repos: CloudInitProcessor = (args) => {
+    args.writeFiles = args.writeFiles.concat([{
+        path: "/etc/zypp/repos.d/openSUSE-Leap-16.0-Oss.repo",
+        permissions: "0644",
+        content: `
+        |[repo-oss]
+        |name=repo-oss (16.0)
+        |enabled=1
+        |autorefresh=1
+        |baseurl=http://download.opensuse.org/distribution/leap/16.0/repo/oss/
+        |type=rpm-md
+        |gpgcheck=1
+        |gpgkey=http://download.opensuse.org/distribution/leap/16.0/repo/oss/repodata/repomd.xml.key`.stripMargin()
+    }, {
+        path: "/etc/zypp/repos.d/devel-kubic.repo",
+        permissions: "0644",
+        content: `
+        |[devel-kubic]
+        |name=devel-kubic (16.0)
+        |enabled=1
+        |autorefresh=1
+        |baseurl=http://download.opensuse.org/repositories/devel:kubic/16.0/
+        |type=rpm-md
+        |gpgcheck=0`.stripMargin()
+    }]);
+    return args;
+};
+
 export const BashRcLocal: CloudInitProcessor = (args) => {
     args.packages = args.packages.concat("fastfetch");
     args.writeFiles = args.writeFiles.concat({
@@ -63,6 +91,7 @@ export const DefaultUser: CloudInitProcessor = (cfg) => {
 export function NewUser(args: CloudInitUser): CloudInitProcessor {
     return (cfg) => {
         cfg.users = cfg.users.concat(args);
+        cfg.chpasswd.users.push({ name: args.name, password: args.password });
         return cfg;
     }
 }
@@ -91,11 +120,15 @@ export const IncreaseFileLimit: CloudInitProcessor = (cfg) => {
     return cfg;
 }
 
-export const InstallK3s = (useTraefik: boolean, version: string): CloudInitProcessor => (cfg) => {
+export const InstallK3s = (useTraefik: boolean, seLinux: boolean, version: string): CloudInitProcessor => (cfg) => {
     let installVar=``;
     if (!useTraefik) {
         installVar=`INSTALL_K3S_EXEC="--disable=traefik"`;
     }
+    if (seLinux) {
+        installVar += ` INSTALL_K3S_SKIP_START=true INSTALL_K3S_SKIP_ENABLE=true `;
+    }
+
     cfg.writeFiles = cfg.writeFiles.concat(
         {
             path: "/etc/rancher/k3s/config.yaml",
@@ -119,6 +152,14 @@ export const InstallK3s = (useTraefik: boolean, version: string): CloudInitProce
     cfg.runcmd = cfg.runcmd.concat(
         "sudo /tmp/install_k3s.sh"
     );
+
+    if (seLinux) {
+        cfg.runcmd = cfg.runcmd.concat(
+            "restorecon -Rv /usr/local/bin/k3s /usr/local/bin/crictl /usr/local/bin/ctr",
+            "systemctl enable --now k3s.service",
+        );
+    }
+
     return cfg;
 }
 

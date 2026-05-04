@@ -5,6 +5,7 @@ import {
     BashRcLocal, DefaultUser, DisableIpv6, GuestAgent,
     IncreaseFileLimit, KubeFirewall, LonghornReqs, NewUser,
     Packages, PackageUpdate,
+    Leap16Repos
 } from "@suse-tmm/utils";
 import { VlanConfig, VmConfig } from "./config";
 import { HelmApp } from "@suse-tmm/common";
@@ -47,10 +48,8 @@ function defaultImages(downloadImages: boolean): harvester.VmImageArgs[] {
 }
 
 function defaultCloudInitTemplates(sshUser: string, sshPubKey: string): harvester.CloudInitTemplateArgs[] {
-    return [{
-        name: "opensuse-full-node",
-        cloudInit: [
-            BashRcLocal,
+    const baseCloudInit = [
+        BashRcLocal,
             KubeFirewall,
             DisableIpv6,
             IncreaseFileLimit,
@@ -61,11 +60,17 @@ function defaultCloudInitTemplates(sshUser: string, sshPubKey: string): harveste
             GuestAgent,
             NewUser({
                 name: sshUser,
-                sudo: "ALL=(ALL) NOPASSWD:ALL",
+                sudo: ["ALL=(ALL) NOPASSWD:ALL"],
                 sshAuthorizedKeys: [sshPubKey],
                 password: "$2y$10$M8ZamcBlJG4xMooQSI7M2eAy2vrDrFx4WOG79SrPKjZUU/kDpsRE6",
             }),
-        ],
+    ];
+    return [{
+        name: "opensuse-leap-15.6",
+        cloudInit: baseCloudInit,
+    }, {
+        name: "opensuse-leap-16.0",
+        cloudInit: [Leap16Repos, Packages("firewalld"), ...baseCloudInit],
     }];
 }
 
@@ -173,7 +178,7 @@ export function resolveImage(
             storageClassName: pulumi.output(vmConfig.imageStorageClass),
         };
     }
-    const image = harvBase.images["opensuse-leap-15.6"];
+    const image = harvBase.images["opensuse-leap-16.0"];
     return {
         id: image.id,
         storageClassName: image.status.storageClassName,

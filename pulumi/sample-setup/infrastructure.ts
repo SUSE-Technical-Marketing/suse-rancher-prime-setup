@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as harvester from "@suse-tmm/harvester";
 import * as command from "@pulumi/command";
-import { CloudInitProcessor, InstallRke2, RemoteKubeconfig, HarvesterCloudProvider } from "@suse-tmm/utils";
+import { CloudInitProcessor, InstallRke2, RemoteKubeconfig, HarvesterCloudProvider, Leap16Repos } from "@suse-tmm/utils";
 import {
     BashRcLocal, cloudInit, DefaultUser, DisableIpv6, GuestAgent,
     IncreaseFileLimit, InstallK3s, KubeFirewall, NewUser, Packages,
@@ -39,7 +39,7 @@ export function provisionVmOnHarvester(
 ): HarvesterVmInfraResult {
     let kubeProcessor: CloudInitProcessor;
     if (args.k3sVersion) {
-        kubeProcessor = InstallK3s(false, args.k3sVersion);
+        kubeProcessor = InstallK3s(false, true, args.k3sVersion);
     } else if (args.rke2Version) {
         kubeProcessor = InstallRke2(false, args.rke2Version, true);
     } else {
@@ -48,24 +48,20 @@ export function provisionVmOnHarvester(
 
     const vmNamespace = args.vmNamespace || "harvester-public";
 
+    let cloudInitProcessors = [BashRcLocal, KubeFirewall, DisableIpv6, DefaultUser, NewUser({
+        name: args.vmConfig.sshUser,
+        password: "$2y$10$M8ZamcBlJG4xMooQSI7M2eAy2vrDrFx4WOG79SrPKjZUU/kDpsRE6",
+        sudo: ["ALL=(ALL) NOPASSWD:ALL"],
+        sshAuthorizedKeys: [args.vmConfig.sshPubKey],
+    }), PackageUpdate, 
+    Packages("curl", "helm", "git-core", "bash-completion", "vim", "nano", "iputils", "wget", "mc", "tree", "btop", "kubernetes-client", "helm", "k9s", "cloud-init"), 
+    GuestAgent, IncreaseFileLimit, DhcpInterface("eth0"), DhcpInterface("eth1"), kubeProcessor];
+
+
+    cloudInitProcessors = [Leap16Repos, Packages("firewalld", "k3s-selinux"), ...cloudInitProcessors];
+
     const buildCloudInit = (harvesterKc?: string) => cloudInit(
-        BashRcLocal,
-        KubeFirewall,
-        DisableIpv6,
-        DefaultUser,
-        NewUser({
-            name: args.vmConfig.sshUser,
-            password: "$2y$10$M8ZamcBlJG4xMooQSI7M2eAy2vrDrFx4WOG79SrPKjZUU/kDpsRE6",
-            sudo: "ALL=(ALL) NOPASSWD:ALL",
-            sshAuthorizedKeys: [args.vmConfig.sshPubKey],
-        }),
-        PackageUpdate,
-        Packages("curl", "helm", "git-core", "bash-completion", "vim", "nano", "iputils", "wget", "mc", "tree", "btop", "kubernetes-client", "helm", "k9s", "cloud-init"),
-        GuestAgent,
-        IncreaseFileLimit,
-        DhcpInterface("eth0"),
-        DhcpInterface("eth1"),
-        kubeProcessor,
+        ...cloudInitProcessors,
         // ...(harvesterKc ? [HarvesterCloudProvider(harvesterKc, vmNamespace)] : []),
     );
 

@@ -13,7 +13,7 @@ const DefaultRepos: Record<string, RepoConfig> = {
         gitBranch: "main",
     },
     "security-ui": {
-        gitRepo: "https://github.com/neuvector/security-ui-exts.git",
+        gitRepo: "https://github.com/rancher/security-ui-exts",
         gitBranch: "gh-pages",
     },
     "virtual-clusters": {

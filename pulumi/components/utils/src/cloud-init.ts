@@ -6,13 +6,17 @@ export type CloudInitProcessor = (cfg: CloudInitArgs) => CloudInitArgs;
 export type CloudInitUserArgs = string | CloudInitUser;
 export interface CloudInitUser {
     name: pulumi.Input<string>;
-    sudo?: string;
+    sudo?: string[];
     password: string;
     sshAuthorizedKeys?: pulumi.Input<string>[];
     lockPassword?: boolean;
     shell?: string;
 }
 
+export interface ChPasswdArgs {
+    expire: boolean;
+    users: { name: pulumi.Input<string>; password: string }[];
+}
 export interface WriteFileArgs {
     path: string;
     content: string;
@@ -76,6 +80,8 @@ export interface CloudInitArgs {
 
     users: CloudInitUserArgs[];
 
+    chpasswd: ChPasswdArgs;
+
     packages: PackageArgs[];
 
     packageUpdate: boolean;
@@ -99,6 +105,7 @@ export function cloudInit(...processors: CloudInitProcessor[]): CloudInitArgs {
         debug: false,
         output: {},
         users: [],
+        chpasswd: { expire: false, users: [] },
         packages: [],
         packageUpdate: false,
         packageUpgrade: false,
@@ -133,6 +140,9 @@ export function renderCloudInit(args: CloudInitArgs, ignoreNetwork: boolean = fa
     if (args.bootcmd && args.bootcmd.length > 0) {
         cloudInitObj.bootcmd = args.bootcmd;
     }
+    if (args.chpasswd && args.chpasswd.users.length > 0) {
+        cloudInitObj.chpasswd = args.chpasswd;
+    }
     if (args.runcmd && args.runcmd.length > 0) {
         cloudInitObj.runcmd = args.runcmd;
     }
@@ -166,7 +176,6 @@ export function renderUser(user: CloudInitUser): { [key: string]: any } {
     const userObj = {
         name: user.name,
         sudo: user.sudo,
-        password: user.password,
         ssh_authorized_keys: user.sshAuthorizedKeys,
         lock_password: user.lockPassword,
         shell: user.shell || "/bin/bash",
