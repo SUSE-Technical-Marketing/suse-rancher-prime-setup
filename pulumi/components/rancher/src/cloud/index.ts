@@ -1,1 +1,1 @@
-export * as "harvester" from "./harvester";
+export { HarvesterCloudProvider } from "./harvester";

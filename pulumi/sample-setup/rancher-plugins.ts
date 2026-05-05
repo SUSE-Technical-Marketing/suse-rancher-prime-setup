@@ -17,6 +17,7 @@ export function installPlugins(
         { name: "virtual-clusters", repoName: "virtual-clusters", version: versions.VIRTUAL_CLUSTERS_UIPLUGIN_VERSION },
         { name: "kubewarden", repoName: "rancher-ui-plugins", version: versions.KUBEWARDEN_UIPLUGIN_VERSION },
         { name: "sbomscanner-ui-ext", repoName: "security-ui", version: versions.SBOMSCANNER_UIPLUGIN_VERSION },
+        { name: "rancher-ai-ui", repoName: "rancher-ui-plugins", version: versions.AI_UIPLUGIN_VERSION },
     ].map(plugin =>
         new RancherUIPlugin(plugin.name, {
             chartName: plugin.name,
@@ -25,24 +26,4 @@ export function installPlugins(
             version: plugin.version,
         }, opts)
     );
-}
-
-export function installLizExtension(
-    rancher: RancherLoginInputs,
-    opts: pulumi.ResourceOptions,
-) {
-    new HelmApp("rancher-ai-agent", {
-        namespace: "cattle-ai-agent-system",
-        createNamespace: true,
-        chart: "oci://registry.suse.com/rancher/charts/rancher-ai-agent",
-        version: versions.AI_AGENT_VERSION,
-    }, opts);
-
-    new RancherUIPlugin("rancher-ai-ui", {
-        chartName: "rancher-ai-ui",
-        rancher: rancher,
-        repoName: "rancher-ui-plugins",
-        version: versions.AI_UIPLUGIN_VERSION,
-    }, opts);
-
 }

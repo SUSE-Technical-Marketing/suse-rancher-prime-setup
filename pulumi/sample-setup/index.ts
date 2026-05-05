@@ -2,13 +2,14 @@ import * as pulumi from "@pulumi/pulumi";
 import * as kubernetes from "@pulumi/kubernetes";
 import { RancherManagerInstall, BootstrapAdminPassword } from "@suse-tmm/rancher";
 import { HarvesterKubeconfig, KubeWait, noProvider, RancherLoginInputs } from "@suse-tmm/utils";
-import { HarvesterCloudProvider } from "@suse-tmm/rancher/src/cloud/harvester";
+import { HarvesterCloudProvider } from "@suse-tmm/rancher";
 import * as versions from "./versions";
 import { loadConfig } from "./config";
 import { provisionHarvester, resolveImage } from "./harvester-base";
 import { provisionVmOnHarvester } from "./infrastructure";
-import { installPlugins, installLizExtension } from "./rancher-plugins";
+import { installPlugins } from "./rancher-plugins";
 import { createFleetConfiguration } from "./fleet";
+import { HelmApp } from "@suse-tmm/common";
 
 const cfg = loadConfig();
 
@@ -108,8 +109,9 @@ const rancher: RancherLoginInputs = {
     insecure: cfg.certManager.staging,
 };
 
+const postInstallOpts = { ...rancherOpts, dependsOn: [bootstrapPassword] };
 // UI Plugins
-const plugins = installPlugins(rancher, {...rancherOpts, dependsOn: [bootstrapPassword]});
+const plugins = installPlugins(rancher, postInstallOpts);
 
 // Harvester Cloud Provider
 new HarvesterCloudProvider("harvester-cloud", {
@@ -128,12 +130,18 @@ new HarvesterCloudProvider("harvester-cloud", {
 createFleetConfiguration(
     { lab: cfg.lab, certManager: cfg.certManager },
     rancherManager.kubeconfig,
-    {...rancherOpts, dependsOn: [bootstrapPassword]},
+    postInstallOpts,
 );
 
 // Liz AI Extension (optional)
 if (cfg.rancher.lizEnabled) {
-    installLizExtension(rancher, {...rancherOpts, dependsOn: [bootstrapPassword]});
+    new HelmApp("rancher-ai-agent", {
+        namespace: "cattle-ai-agent-system",
+        createNamespace: true,
+        chart: "oci://registry.suse.com/rancher/charts/rancher-ai-agent",
+        version: versions.AI_AGENT_VERSION,
+    }, postInstallOpts);
+
 }
 
 // Stack outputs
