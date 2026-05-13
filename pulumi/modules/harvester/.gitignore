@@ -1,0 +1,13 @@
+node_modules/
+bin/
+*.js
+*.d.ts
+*.js.map
+!generated/**
+
+# crd2pulumi artifacts - removed by the generate script
+generated/package.json
+generated/tsconfig.json
+generated/provider.ts
+generated/README.md
+generated/scripts/

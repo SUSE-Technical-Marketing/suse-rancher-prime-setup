@@ -1,0 +1,36 @@
+{
+    "name": "@suse-tmm/rancher",
+    "version": "0.1.0",
+    "description": "Pulumi components for Rancher",
+    "main": "bin/index.js",
+    "types": "bin/index.d.ts",
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git"
+    },
+    "peerDependencies": {
+        "@pulumi/kubernetes": "^4.23.0",
+        "@pulumi/pulumi": "^3.171.0"
+    },
+    "scripts": {
+        "generate": "crd2pulumi --nodejsPath generated crd-sources/*.yaml && rm -f generated/package.json generated/tsconfig.json generated/provider.ts generated/README.md && rm -rf generated/scripts",
+        "build": "tsc -p .",
+        "prepublishOnly": "npm run build"
+    },
+    "devDependencies": {
+        "@types/node": "^22.18.7",
+        "typescript": "^5.9.2"
+    },
+    "dependencies": {
+        "@suse-tmm/common": "workspace:^",
+        "@suse-tmm/harvester": "workspace:^",
+        "got": "^12.6.1"
+    },
+    "files": [
+        "bin/**/*",
+        "generated/**/*",
+        "!**/*.ts",
+        "**/*.d.ts"
+    ]
+}

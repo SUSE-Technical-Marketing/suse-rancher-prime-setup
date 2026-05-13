@@ -1,0 +1,29 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "outDir": "bin",
+        "target": "es2020",
+        "module": "node16",
+        "moduleResolution": "node16",
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "experimentalDecorators": true,
+        "pretty": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitReturns": true,
+        "forceConsistentCasingInFileNames": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "resolveJsonModule": true
+    },
+    "include": [
+        "index.ts",
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "bin",
+        "test"
+    ]
+}

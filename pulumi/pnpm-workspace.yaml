@@ -1,6 +1,6 @@
 packages:
-  - components/*
-  - sample-setup
+  - modules/*
+  - setups/*
 linkWorkspacePackages: true
 onlyBuiltDependencies:
   - '@pulumi/command'

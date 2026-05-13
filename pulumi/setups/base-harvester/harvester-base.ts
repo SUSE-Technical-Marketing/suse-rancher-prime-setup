@@ -1,0 +1,169 @@
+import * as pulumi from "@pulumi/pulumi";
+import * as harvester from "@suse-tmm/pulumi-harvester";
+import * as kubernetes from "@pulumi/kubernetes";
+import {
+    BashRcLocal, DefaultUser, DisableIpv6, GuestAgent,
+    IncreaseFileLimit, KubeFirewall, LonghornReqs, NewUser,
+    Packages, PackageUpdate,
+    Leap16Repos, HelmApp
+} from "@suse-tmm/pulumi-rancher-utils";
+import { VlanConfig } from "./config";
+
+function defaultStorageClasses(): harvester.StorageClassArgs[] {
+    return [{
+        name: "longhorn-single",
+        provisioner: "driver.longhorn.io",
+        parameters: {
+            numberOfReplicas: "1",
+            migratable: "true",
+            staleReplicaTimeout: "30",
+        },
+    }];
+}
+
+function defaultNetworks(clusterNetwork: string): harvester.NetworkArgs[] {
+    return [{
+        name: "backbone-vlan",
+        annotations: {
+            "network.harvesterhci.io/clusternetwork": clusterNetwork,
+            "network.harvesterhci.io/ready": "true",
+            "network.harvesterhci.io/type": "UntaggedNetwork",
+        },
+        config: `{"cniVersion":"0.3.1","name":"backbone","type":"bridge","bridge":"${clusterNetwork}-br","promiscMode":true,"ipam":{}}`,
+    }];
+}
+
+function defaultImages(downloadImages: boolean): harvester.VmImageArgs[] {
+    if (!downloadImages) return [];
+    return [{
+        name: "opensuse-leap-15.6",
+        displayName: "openSUSE Leap 15.6",
+        url: "https://download.opensuse.org/repositories/Cloud:/Images:/Leap_15.6/images/openSUSE-Leap-15.6.x86_64-NoCloud.qcow2",
+    }, {
+        name: "opensuse-leap-16.0",
+        displayName: "openSUSE Leap 16.0",
+        url: "https://download.opensuse.org/distribution/leap/16.0/appliances/Leap-16.0-Minimal-VM.x86_64-Cloud.qcow2"
+        // url: "https://download.opensuse.org/download/repositories/openSUSE:/Leap:/16.0:/Images/images/Leap-16.0-Minimal-VM.x86_64-Cloud.qcow2",
+    }];
+}
+
+function defaultCloudInitTemplates(sshUser: string, sshPubKey: string): harvester.CloudInitTemplateArgs[] {
+    const baseCloudInit = [
+        BashRcLocal,
+            KubeFirewall,
+            DisableIpv6,
+            IncreaseFileLimit,
+            DefaultUser,
+            PackageUpdate,
+            Packages("curl", "helm", "git-core", "bash-completion", "vim", "nano", "iputils", "wget", "mc", "tree", "btop", "kubernetes-client", "helm", "k9s", "cloud-init"),
+            LonghornReqs,
+            GuestAgent,
+            NewUser({
+                name: sshUser,
+                sudo: ["ALL=(ALL) NOPASSWD:ALL"],
+                sshAuthorizedKeys: [sshPubKey],
+                password: "$2y$10$M8ZamcBlJG4xMooQSI7M2eAy2vrDrFx4WOG79SrPKjZUU/kDpsRE6",
+            }),
+    ];
+    return [{
+        name: "opensuse-leap-15.6",
+        cloudInit: baseCloudInit,
+    }, {
+        name: "opensuse-leap-16.0",
+        cloudInit: [Leap16Repos, Packages("firewalld"), ...baseCloudInit],
+    }];
+}
+
+function defaultKeyPairs(sshUser: string, sshPubKey: string): harvester.KeyPairArgs[] {
+    return [{
+        name: sshUser,
+        publicKey: sshPubKey,
+    }];
+}
+
+export function provisionHarvester(
+    cfg: { clusterNetwork: string; sshUser: string; sshPubKey: string; downloadImages: boolean, vlan: VlanConfig },
+    provider: kubernetes.Provider,
+): harvester.HarvesterBase {
+    const args = {} as harvester.HarvesterBaseArgs;
+    args.storageClasses = defaultStorageClasses();
+    args.networks = defaultNetworks(cfg.clusterNetwork);
+    const images = defaultImages(cfg.downloadImages);
+    args.images = images.length > 0 ? {
+            definitions: images,
+            storageClassName: args.storageClasses[0].name,
+        } : undefined,
+    args.cloudInitTemplates = defaultCloudInitTemplates(cfg.sshUser, cfg.sshPubKey);
+    args.keypairs = defaultKeyPairs(cfg.sshUser, cfg.sshPubKey);
+    const addons: harvester.HarvesterAddonInputs[] = [];
+    const pools: harvester.PoolArgs[] = [];
+
+    let opts = { provider };
+    let deps: pulumi.Resource[] = [];
+    if (cfg.vlan.enabled) {
+        deps = addVlanSupport(args, cfg, opts);
+    }
+
+    return new harvester.HarvesterBase("harvester-base", args, { provider, dependsOn: deps });
+}
+
+function addVlanSupport(args: harvester.HarvesterBaseArgs, cfg: { clusterNetwork: string; vlan: VlanConfig }, opts: pulumi.ComponentResourceOptions): pulumi.Resource[] {
+    if (!cfg.vlan.enabled) return [];
+    args.networks = args.networks ?? [];
+    args.networks.push({
+        name: `vlan${cfg.vlan.vlanId}`,
+        annotations: {
+            "network.harvesterhci.io/clusternetwork": cfg.clusterNetwork,
+            "network.harvesterhci.io/ready": "true",
+            "network.harvesterhci.io/type": "L2VlanNetwork",
+        },
+        config: `{"cniVersion":"0.3.1","name":"vlan${cfg.vlan.vlanId}","type":"bridge","bridge":"${cfg.clusterNetwork}-br","vlan":${cfg.vlan.vlanId},"promiscMode":true,"ipam":{}}`,
+    });
+
+    args.addons = args.addons ?? [];
+    args.addons.push({
+        addonName: "harvester-vm-dhcp-controller",
+        chart: "harvester-vm-dhcp-controller",
+        repo: "https://charts.harvesterhci.io",
+        version: "1.7.1",
+        enabled: true,
+        labels: {
+            "addon.harvesterhci.io/experimental": "true",
+        },
+    });
+
+    args.ipPools = args.ipPools ?? [];
+    args.ipPools.push({
+        name: `vlan${cfg.vlan.vlanId}-pool`,
+        namespace: "default",
+        serverIp: `10.29.${cfg.vlan.vlanId}.2`,
+        cidr: `10.29.${cfg.vlan.vlanId}.0/24`,
+        rangeStart: `10.29.${cfg.vlan.vlanId}.100`,
+        rangeEnd: `10.29.${cfg.vlan.vlanId}.150`,
+        gateway: `10.29.${cfg.vlan.vlanId}.1`,
+        dnsServers: [`10.29.${cfg.vlan.vlanId}.1`],
+        domain: "lab.geeko.me",
+        networkName: `vlan${cfg.vlan.vlanId}`,
+        networkNamespace: "default",
+    });
+
+    const dns = new HelmApp("harvester-dns-controller", {
+        retainOnDelete: false,
+        chart: "oci://ghcr.io/hierynomus/harvester-dns-controller/charts/harvester-dns-controller",
+        version: "0.3.0",
+        namespace: "harvester-system",
+        values: {
+            dns: {
+                backend: "routeros",
+                host: `10.29.${cfg.vlan.vlanId}.1`,
+                username: "admin",
+                password: '!nfiniteP0wer',
+                useTls: false,
+                tlsVerify: false,
+                domain: "lab.geeko.me"
+            }
+        }
+    }, opts);
+
+    return [dns];
+}
