@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { ClusterRepo } from "@suse-tmm/rancher-crds";
+import { ClusterRepo } from "../../generated/catalog/v1";
 
 export interface RepoConfig {
     gitRepo?: string;

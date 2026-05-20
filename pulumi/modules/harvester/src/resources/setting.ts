@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { RancherClient, RancherLoginInputs, RancherLoginProviderInputs } from "@suse-tmm/pulumi-rancher-utils";
+import { RancherClient, RancherLoginInputs, RancherLoginProviderInputs } from "@suse-tmm/common";
 
 export interface HarvesterSettingInputs {
     harvester: RancherLoginInputs;

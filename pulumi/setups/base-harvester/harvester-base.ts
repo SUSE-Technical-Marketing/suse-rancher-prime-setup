@@ -1,12 +1,12 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as harvester from "@suse-tmm/pulumi-harvester";
+import * as harvester from "@suse-tmm/harvester";
 import * as kubernetes from "@pulumi/kubernetes";
 import {
     BashRcLocal, DefaultUser, DisableIpv6, GuestAgent,
     IncreaseFileLimit, KubeFirewall, LonghornReqs, NewUser,
     Packages, PackageUpdate,
     Leap16Repos, HelmApp
-} from "@suse-tmm/pulumi-rancher-utils";
+} from "@suse-tmm/common";
 import { VlanConfig } from "./config";
 
 function defaultStorageClasses(): harvester.StorageClassArgs[] {

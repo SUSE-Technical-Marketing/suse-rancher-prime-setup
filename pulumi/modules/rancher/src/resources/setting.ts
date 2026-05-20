@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { management } from "@suse-tmm/rancher-crds";
+import { management } from "../../generated";
 
 export interface RancherSettingInputs {
     settingName: string;
@@ -7,12 +7,12 @@ export interface RancherSettingInputs {
 }
 
 export class RancherSetting extends pulumi.ComponentResource {
-    public readonly setting: management.SettingPatch;
+    public readonly setting: management.v3.SettingPatch;
 
     constructor(name: string, args: RancherSettingInputs, opts: pulumi.ComponentResourceOptions) {
         super("suse-tmm:rancher:Setting", name, {}, opts);
 
-        this.setting = new management.SettingPatch(name, {
+        this.setting = new management.v3.SettingPatch(name, {
             metadata: {
                 name: args.settingName,
                 annotations: {

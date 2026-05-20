@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 import { kubevirt } from "../../generated";
-import { CloudInitArgs, cloudInit, renderCloudInit } from "@suse-tmm/pulumi-rancher-utils";
+import { CloudInitArgs, cloudInit, renderCloudInit } from "@suse-tmm/common";
 import { Secret } from "@pulumi/kubernetes/core/v1";
 
 const volumeClaimTemplatesAnnotation = "harvesterhci.io/volumeClaimTemplates";

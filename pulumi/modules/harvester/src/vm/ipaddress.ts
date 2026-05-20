@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as dynamic from "@pulumi/pulumi/dynamic";
-import { waitFor, RancherClient } from "@suse-tmm/pulumi-rancher-utils";
+import { waitFor, RancherClient } from "@suse-tmm/common";
 export interface VmIpAddressProviderInputs {
     kubeconfig: string; // Kubeconfig to access the Kubernetes cluster
     namespace: string;

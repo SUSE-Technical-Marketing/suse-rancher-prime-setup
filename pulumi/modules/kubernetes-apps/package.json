@@ -1,7 +1,7 @@
 {
-    "name": "@suse-tmm/rancher",
+    "name": "@suse-tmm/kubernetes-apps",
     "version": "0.1.0",
-    "description": "Pulumi components for Rancher",
+    "description": "Pulumi components for Kubernetes app deployments, TLS, and ingress",
     "main": "bin/index.js",
     "types": "bin/index.d.ts",
     "license": "Apache-2.0",
@@ -19,18 +19,12 @@
         "prepublishOnly": "npm run build"
     },
     "devDependencies": {
-        "@types/node": "^22.18.7",
-        "typescript": "^5.9.2"
+        "@types/node": "^22.15.23",
+        "typescript": "^5.8.3"
     },
     "dependencies": {
-        "@suse-tmm/common": "workspace:^",
-        "@suse-tmm/harvester": "workspace:^",
-        "@suse-tmm/kubernetes-apps": "workspace:^"
-    },
-    "files": [
-        "bin/**/*",
-        "generated/**/*",
-        "!**/*.ts",
-        "**/*.d.ts"
-    ]
+        "@pulumi/command": "^1.1.2",
+        "@pulumi/kubernetes": "^4.23.0",
+        "@suse-tmm/common": "workspace:^"
+    }
 }

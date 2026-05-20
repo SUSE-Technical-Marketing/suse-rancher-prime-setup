@@ -1,13 +1,13 @@
 import * as pulumi from "@pulumi/pulumi";
-import { management } from "@suse-tmm/rancher-crds";
+import { management } from "../../generated";
 
 export interface RancherFeatureInputs {
     featureName: string;
     featureValue: pulumi.Input<boolean>;
 }
 
-export function setFeatureFlag(args: RancherFeatureInputs, opts?: pulumi.CustomResourceOptions): management.FeaturePatch {
-    return new management.FeaturePatch(args.featureName, {
+export function setFeatureFlag(args: RancherFeatureInputs, opts?: pulumi.CustomResourceOptions): management.v3.FeaturePatch {
+    return new management.v3.FeaturePatch(args.featureName, {
         metadata: {
             name: args.featureName,
             annotations: {

@@ -5,6 +5,8 @@
         "target": "es2020",
         "module": "node16",
         "moduleResolution": "node16",
+        "declaration": true,
+        "declarationMap": true,
         "sourceMap": true,
         "experimentalDecorators": true,
         "pretty": true,
@@ -13,9 +15,15 @@
         "forceConsistentCasingInFileNames": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "resolveJsonModule": true,
+        "resolveJsonModule": true
     },
-    "files": [
-        "index.ts"
+    "include": [
+        "index.ts",
+        "src/**/*",
+        "generated/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "bin"
     ]
 }

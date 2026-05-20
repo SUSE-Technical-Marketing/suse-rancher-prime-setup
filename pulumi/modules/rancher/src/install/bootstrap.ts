@@ -1,8 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 import { dynamic } from "@pulumi/pulumi";
-import { KubeConfigHttpOutput, kubeConfigToHttp, waitFor } from "@suse-tmm/common";
+import { waitFor, RancherClient } from "@suse-tmm/common";
 import { loginToRancher } from "@suse-tmm/common";
-import got from "got";
 
 export interface BootstrapAdminPasswordArgs {
     kubeconfig: pulumi.Input<string>; // Kubeconfig to access the Rancher API
@@ -34,11 +33,10 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
             password = Math.random().toString(36).slice(-8);
         }
 
-        const httpConfig = kubeConfigToHttp(inputs.kubeconfig);
         const start = Date.now();
 
         // Fetch the bootstrap token from the Rancher API
-        return waitFor(() => this.fetchBootstrapToken(httpConfig), {
+        return waitFor(() => this.fetchBootstrapToken(inputs.kubeconfig), {
             intervalMs: 5_000,
             timeoutMs: 300_000, // 5 minutes
         }).catch(err => {
@@ -87,105 +85,20 @@ class BootstrapAdminPasswordProvider implements dynamic.ResourceProvider<Bootstr
     }
 
     async updatePassword(server: string, username: string, token: string, password: string, newPassword: string, insecure?: boolean): Promise<void> {
-        const url = `${server}/v3/users?action=changepassword`;
-        const retryLimit = 3;
-
-        pulumi.log.info(`[Bootstrap] POST ${url} (changepassword for "${username}")`);
-
-        const res = await got.post(url, {
-            headers: {
-                "Authorization": `Bearer ${token}`
-            },
-            https: {
-                rejectUnauthorized: !insecure,
-            },
-            json: {
-                currentPassword: password,
-                newPassword: newPassword,
-            },
-            throwHttpErrors: false,
-            responseType: "json",
-            timeout: {
-                lookup: 5000,
-                connect: 5000,
-                secureConnect: 5000,
-                request: 30000,
-            },
-            retry: {
-                limit: retryLimit,
-                calculateDelay: ({ attemptCount }) => {
-                    if (attemptCount > retryLimit) {
-                        pulumi.log.error(`[Bootstrap] Password update: retry limit reached (${retryLimit}), giving up.`);
-                        return 0;
-                    }
-                    pulumi.log.warn(`[Bootstrap] Password update: retry ${attemptCount}/${retryLimit} in 5s...`);
-                    return 5000;
-                }
-            },
-            hooks: {
-                beforeRequest: [
-                    options => { pulumi.log.info(`[Bootstrap] Sending password update to ${options.url}`); },
-                ],
-                beforeError: [
-                    error => {
-                        pulumi.log.error(`[Bootstrap] Password update error: code=${error.code ?? 'N/A'} message="${error.message}"`);
-                        return error;
-                    },
-                ],
-            },
-        });
-
-        pulumi.log.info(`[Bootstrap] Password update response: ${res.statusCode} ${res.statusMessage}`);
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-            throw new Error(`Failed to update password for user ${username}: ${res.statusCode} ${res.statusMessage}`);
-        }
+        pulumi.log.info(`[Bootstrap] POST ${server}/v3/users?action=changepassword (changepassword for "${username}")`);
+        const client = new RancherClient({ server, token, insecure: insecure ?? false });
+        await client.post("v3/users", { currentPassword: password, newPassword }, { action: "changepassword" });
+        pulumi.log.info(`[Bootstrap] Password update complete.`);
     }
 
-    async fetchBootstrapToken(httpConfig: KubeConfigHttpOutput): Promise<string | undefined> {
-        const url = `${httpConfig.server}/api/v1/namespaces/cattle-system/secrets/bootstrap-secret`;
-        const retryLimit = 5;
-
-        pulumi.log.info(`[Bootstrap] GET ${url}`);
-
-        return got.get<{ [key: string]: any }>(url, {
-            agent: { https: httpConfig.agent },
-            headers: httpConfig.headers,
-            responseType: "json",
-            timeout: {
-                lookup: 5000,
-                connect: 5000,
-                secureConnect: 5000,
-                request: 15000,
-            },
-            retry: {
-                limit: retryLimit,
-                calculateDelay: ({ attemptCount }) => {
-                    if (attemptCount > retryLimit) {
-                        pulumi.log.error(`[Bootstrap] Fetch bootstrap token: retry limit reached (${retryLimit}), giving up.`);
-                        return 0;
-                    }
-                    pulumi.log.warn(`[Bootstrap] Fetch bootstrap token: retry ${attemptCount}/${retryLimit} in 5s...`);
-                    return 5000;
-                }
-            },
-            hooks: {
-                beforeRequest: [
-                    options => { pulumi.log.info(`[Bootstrap] Sending request to ${options.url}`); },
-                ],
-                beforeError: [
-                    error => {
-                        pulumi.log.error(`[Bootstrap] Fetch token error: code=${error.code ?? 'N/A'} message="${error.message}"`);
-                        return error;
-                    },
-                ],
-            },
-        }).then(res => {
-            if (res.statusCode !== 200) {
-                throw new Error(`Failed to fetch bootstrap token: ${res.statusCode} ${res.statusMessage}`);
-            }
-            const bootstrapToken = res.body?.data?.["bootstrapPassword"];
-            return bootstrapToken ? Buffer.from(bootstrapToken, "base64").toString("utf-8") : undefined;
-        });
+    async fetchBootstrapToken(kubeconfig: string): Promise<string | undefined> {
+        const client = await RancherClient.fromKubeconfig(kubeconfig);
+        pulumi.log.info(`[Bootstrap] GET api/v1/namespaces/cattle-system/secrets/bootstrap-secret`);
+        return client.get("api/v1/namespaces/cattle-system/secrets/bootstrap-secret")
+            .then(body => {
+                const bootstrapToken = body?.data?.["bootstrapPassword"];
+                return bootstrapToken ? Buffer.from(bootstrapToken, "base64").toString("utf-8") : undefined;
+            });
     }
 
     async diff(id: pulumi.ID, olds: BootstrapAdminPasswordProviderOutputs, news: BootstrapAdminPasswordProviderInputs): Promise<pulumi.dynamic.DiffResult> {

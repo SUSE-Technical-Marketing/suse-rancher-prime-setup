@@ -3,7 +3,6 @@
     "main": "index.ts",
     "devDependencies": {
         "@pulumi/pulumi": "^3.171.0",
-        "@types/js-yaml": "^4.0.9",
         "@types/node": "^22.15.23",
         "typescript": "^5.8.3"
     },
@@ -11,7 +10,6 @@
         "@pulumi/command": "^1.1.2",
         "@pulumi/kubernetes": "^4.23.0",
         "@suse-tmm/harvester": "workspace:^",
-        "@suse-tmm/common": "workspace:^",
-        "js-yaml": "^3.14.1"
+        "@suse-tmm/common": "workspace:^"
     }
 }

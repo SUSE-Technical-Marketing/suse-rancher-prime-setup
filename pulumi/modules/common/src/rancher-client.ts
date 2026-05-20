@@ -1,4 +1,4 @@
-import {got, Got, Response}  from "got";
+import got, { Got, Response } from "got";
 import { kubeConfigToHttp } from "./functions/kubehttp";
 
 export interface RancherServerConnectionArgs {
@@ -85,8 +85,8 @@ export class RancherClient {
                     },
                 ],
                 beforeRetry: [
-                    (error, retryCount) => {
-                        console.warn(`[${fnName}] Request failed (attempt ${retryCount}): code=${error.code ?? 'N/A'} message="${error.message}"`);
+                    (_options, error, retryCount) => {
+                        console.warn(`[${fnName}] Request failed (attempt ${retryCount}): code=${error?.code ?? 'N/A'} message="${error?.message}"`);
                     },
                 ],
 

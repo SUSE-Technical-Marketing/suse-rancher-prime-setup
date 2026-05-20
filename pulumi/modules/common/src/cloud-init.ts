@@ -7,7 +7,7 @@ export type CloudInitUserArgs = string | CloudInitUser;
 export interface CloudInitUser {
     name: pulumi.Input<string>;
     sudo?: string[];
-    password: string;
+    password: pulumi.Input<string>;
     sshAuthorizedKeys?: pulumi.Input<string>[];
     lockPassword?: boolean;
     shell?: string;
@@ -15,7 +15,7 @@ export interface CloudInitUser {
 
 export interface ChPasswdArgs {
     expire: boolean;
-    users: { name: pulumi.Input<string>; password: string }[];
+    users: { name: pulumi.Input<string>; password: pulumi.Input<string>; type: string }[];
 }
 export interface WriteFileArgs {
     path: string;

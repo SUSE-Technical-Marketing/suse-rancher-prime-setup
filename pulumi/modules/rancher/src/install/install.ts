@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi"
 import { helmInstallRancher } from "./rancher";
 import * as k8s from "@pulumi/kubernetes";
-import { Sprouter, TLS, TLSArgs, Outrider, Traefik } from "@suse-tmm/common";
+import { Sprouter, TLS, TLSArgs, Outrider, Traefik } from "@suse-tmm/kubernetes-apps";
 import { RancherSetting } from "../resources/setting";
 import { setFeatureFlag } from "../resources/feature";
 

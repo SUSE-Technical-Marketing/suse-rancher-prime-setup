@@ -6,7 +6,7 @@ import {
     BashRcLocal, cloudInit, DefaultUser, DisableIpv6, GuestAgent,
     IncreaseFileLimit, InstallK3s, KubeFirewall, NewUser, Packages,
     PackageUpdate, DhcpInterface,
-} from "@suse-tmm/utils";
+} from "@suse-tmm/common";
 import { VmConfig } from "./config";
 
 export interface HarvesterVmInfraArgs {
@@ -50,7 +50,7 @@ export function provisionVmOnHarvester(
 
     let cloudInitProcessors = [BashRcLocal, KubeFirewall, DisableIpv6, DefaultUser, NewUser({
         name: args.vmConfig.sshUser,
-        password: "$2y$10$M8ZamcBlJG4xMooQSI7M2eAy2vrDrFx4WOG79SrPKjZUU/kDpsRE6",
+        password: args.vmConfig.sshPassword,
         sudo: ["ALL=(ALL) NOPASSWD:ALL"],
         sshAuthorizedKeys: [args.vmConfig.sshPubKey],
     }), PackageUpdate,

@@ -1,6 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { kubeConfigToHttp, waitFor } from "@suse-tmm/common";
-import got from "got";
+import { RancherClient, waitFor } from "@suse-tmm/common";
 
 interface ClusterRegistrationTokenInputs {
     rancherKubeconfig: pulumi.Input<string>; // Kubeconfig to access the Rancher cluster
@@ -56,25 +55,12 @@ class ClusterRegistrationTokenProvider implements pulumi.dynamic.ResourceProvide
     }
 
     async fetchClusterRegistrationToken(kubeconfigYaml: string, namespace: string): Promise<string | undefined> {
-        // 2️⃣  parse the kubeconfig -------------------------------------------------
-        const httpConfig = kubeConfigToHttp(kubeconfigYaml);
-        // 4️⃣  call the VMI endpoint ------------------------------------------------
-        const url = `${httpConfig.server}/apis/management.cattle.io/v3/namespaces/${namespace}/clusterregistrationtokens/default-token`;
-
-        return got.get<{ [key: string]: any }>(url, {
-            agent: { https: httpConfig.agent },
-            headers: httpConfig.headers,
-            responseType: "json",
-            timeout: { request: 10000 },
-            retry: { limit: 5, calculateDelay: () => 5000 },
-        }).then((res) => {
-            if (res.statusCode === 404) {
-                return undefined; // Resource not found
-            } else if (res.statusCode < 200 || res.statusCode >= 300) {
-                throw new Error(`Failed to fetch cluster registration token: ${res.statusMessage}`);
-            }
-
-            return res.body?.status?.manifestUrl;
+        const path = `apis/management.cattle.io/v3/namespaces/${namespace}/clusterregistrationtokens/default-token`;
+        return RancherClient.fromKubeconfig(kubeconfigYaml).then(async (client) => {
+            return client.get(path)
+        }).then((body) => body?.status?.manifestUrl).catch((err) => {
+            if (err.response?.statusCode === 404) return undefined;
+            throw err;
         });
     }
 }

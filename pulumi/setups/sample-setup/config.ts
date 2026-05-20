@@ -21,6 +21,7 @@ export interface VlanConfig {
 
 export interface VmConfig {
     sshUser: string;
+    sshPassword: pulumi.Output<string>;
     sshPubKey: string;
     sshPrivKey: pulumi.Output<string>;
     cpu: number;
@@ -89,6 +90,7 @@ export function loadConfig(): Config {
         },
         vm: {
             sshUser: vm.require("sshUser"),
+            sshPassword: vm.requireSecret("sshPassword"),
             sshPubKey: vm.require("sshPubKey"),
             sshPrivKey: vm.requireSecret("sshPrivKey"),
             cpu: vm.getNumber("cpu") ?? 2,

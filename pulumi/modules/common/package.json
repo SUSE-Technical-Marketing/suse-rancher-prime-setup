@@ -29,8 +29,7 @@
     },
     "dependencies": {
         "@pulumi/kubernetes": "^4.23.0",
-        "@types/got": "^9.6.12",
-        "got": "^12.6.1",
+        "got": "^11.8.6",
         "js-yaml": "^3.14.1",
         "ssh2": "^1.16.0",
         "tmp": "^0.2.3",

@@ -1,6 +1,5 @@
-import "@suse-tmm/utils";
 import * as pulumi from "@pulumi/pulumi";
-import {fleet} from "@suse-tmm/rancher-crds";
+import {fleet} from "@suse-tmm/rancher";
 import { KubeWait, noProvider } from "@suse-tmm/common";
 import * as kubernetes from "@pulumi/kubernetes";
 import { Secret } from "@pulumi/kubernetes/core/v1";

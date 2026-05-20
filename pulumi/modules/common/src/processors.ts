@@ -91,7 +91,7 @@ export const DefaultUser: CloudInitProcessor = (cfg) => {
 export function NewUser(args: CloudInitUser): CloudInitProcessor {
     return (cfg) => {
         cfg.users = cfg.users.concat(args);
-        cfg.chpasswd.users.push({ name: args.name, password: args.password });
+        cfg.chpasswd.users.push({ name: args.name, password: args.password, type: "text" });
         return cfg;
     }
 }
