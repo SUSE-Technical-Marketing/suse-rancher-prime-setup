@@ -11,3 +11,17 @@ helm:
     dns01RecursiveNameservers: "8.8.8.8:53,1.1.1.1:53"
 labels:
   provides: cert-manager
+diff:
+  comparePatches:
+  - apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingWebhookConfiguration
+    name: cert-manager-webhook
+    operations:
+    - {"op": "remove", "path":"/webhooks/0/clientConfig/caBundle"}
+    - {"op": "remove", "path":"/webhooks/1/clientConfig/rules"}
+  - apiVersion: admissionregistration.k8s.io/v1
+    kind: MutatingWebhookConfiguration
+    name: cert-manager-webhook
+    operations:
+    - {"op": "remove", "path":"/webhooks/0/clientConfig/caBundle"}
+    - {"op": "remove", "path":"/webhooks/1/clientConfig/rules"}
