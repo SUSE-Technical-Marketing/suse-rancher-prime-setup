@@ -123,7 +123,9 @@ export function createFleetConfiguration(
             |token: ${lab.sccPassword}
           `,
           "cert-manager-values.yaml": sm`
-            |email: ${certManager.letsEncryptEmail ?? ""}
+            |letsencrypt:
+            |  prod:
+            |    email: ${certManager.letsEncryptEmail ?? ""}
             |cloudflare:
             |  token: ${certManager.cloudflareApiKey ?? ""}
           `,
