@@ -2,7 +2,7 @@ defaultNamespace: ollama
 helm:
   chart: oci://dp.apps.rancher.io/charts/ollama
   releaseName: ollama
-  version: "1.38.0"
+  version: "1.55.0"
   values:
     global:
       imagePullSecrets: ["application-collection"]
@@ -16,6 +16,9 @@ helm:
 
         # -- Specify the number of GPU to 1
         number: 1
+    persistentVolume:
+      enabled: true
+      existingClaim: ollama-models
     ingress:
       enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${ else }false${ end }
       hosts:
