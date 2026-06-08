@@ -30,5 +30,13 @@ overrideTargets:
   - clusterSelector:
       matchLabels:
         needs-ollama: "true"
+  - clusterSelector:
+      matchLabels:
+         has-gpu: "nvidia"
+dependsOn:
+  - selector:
+      matchLabels:
+        provides: nvidia-gpu-operator
+
 labels:
   provides: ollama

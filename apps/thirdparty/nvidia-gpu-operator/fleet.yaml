@@ -14,5 +14,8 @@ overrideTargets:
   - clusterSelector:
       matchLabels:
         needs-gpu-operator: "true"
+  - clusterSelector:
+      matchLabels:
+         has-gpu: "nvidia"
 labels:
   provides: nvidia-gpu-operator
