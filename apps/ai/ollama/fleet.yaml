@@ -29,7 +29,7 @@ helm:
 overrideTargets:
   - clusterSelector:
       matchLabels:
-        needs-ollama: "true"
+         has-gpu: "nvidia"
 dependsOn:
   - selector:
       matchLabels:

@@ -13,6 +13,6 @@ helm:
 overrideTargets:
   - clusterSelector:
       matchLabels:
-        needs-gpu-operator: "true"
+         has-gpu: "nvidia"
 labels:
   provides: nvidia-gpu-operator
