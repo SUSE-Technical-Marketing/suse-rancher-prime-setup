@@ -7,8 +7,9 @@ helm:
   version: "0.7.0"
   values:
     ingress:
+      enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${ else}false${ end}
       host: ${ if hasKey .ClusterAnnotations "hosted-domain" }aria.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
 overrideTargets:
   - clusterSelector:
       matchLabels:
-        needs-cve-demo: "true"
+        needs-cve-demo-2: "true"
