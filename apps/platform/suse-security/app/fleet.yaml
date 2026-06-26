@@ -2,7 +2,7 @@ defaultNamespace: cattle-neuvector-system
 helm:
   chart: neuvector
   repo: https://charts.rancher.io
-  version: "107.0.2+up2.8.9"
+  version: "109.0.3+up2.10.3"
   valuesFiles:
     - values.yaml
 overrideTargets:
