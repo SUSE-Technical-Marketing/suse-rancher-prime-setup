@@ -1,6 +1,6 @@
 defaultNamespace: suse-observability
 helm:
-  chart: https://charts.rancher.com/server-charts/prime/suse-observability/suse-observability-2.8.0.tgz
+  chart: https://charts.rancher.com/server-charts/prime/suse-observability/suse-observability-2.10.3.tgz
   releaseName: suse-observability
   valuesFiles:
     - values.yaml
