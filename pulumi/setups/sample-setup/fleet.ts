@@ -13,6 +13,7 @@ interface GitRepoConfig {
     branch?: string;
     paths?: string[];
     helmSecretName?: string;
+    helmRepoURLRegex?: string;
     clusterGroup?: string;
     namespace?: string;
 }
@@ -62,6 +63,13 @@ const DefaultGitRepos: Record<string, GitRepoConfig> = {
         url: "https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git",
         branch: "main",
         paths: ["/apps/demos"],
+    },
+    "ai-apps": {
+        url: "https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git",
+        branch: "main",
+        paths: ["/apps/ai"],
+        helmSecretName: "application-collection-basicauth",
+        helmRepoURLRegex: "oci://dp.apps.rancher.io/*",
     },
 };
 
@@ -182,6 +190,7 @@ export function createFleetConfiguration(
                 branch: cfg.branch ?? "main",
                 paths: cfg.paths,
                 helmSecretName: cfg.helmSecretName,
+                helmRepoURLRegex: cfg.helmRepoURLRegex,
                 correctDrift: { enabled: false },
                 pollingInterval: "60s",
                 insecureSkipTLSVerify: false,

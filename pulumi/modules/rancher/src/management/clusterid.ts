@@ -55,15 +55,52 @@ export class ClusterIdProvider implements dynamic.ResourceProvider<ClusterIdProv
     }
 
     async fetchClusterId(rancher: RancherLoginProviderInputs, clusterName: string): Promise<string | undefined> {
-        return RancherClient.fromServerConnectionArgs(rancher).then(client => {
-            return client.get(`/apis/management.cattle.io/v3/clusters?displayName=${clusterName}`);
-        }).then((response) => {
-            const items = response.items;
-            if (items.length === 0) {
-                throw new Error(`Cluster with name ${clusterName} not found`);
+        return RancherClient.fromServerConnectionArgs(rancher).then(async (client) => {
+            const filtered = await client.get("/apis/management.cattle.io/v3/clusters", { displayName: clusterName });
+            const filteredItems = filtered.items ?? filtered.data ?? [];
+
+            const filteredMatches = this.findExactMatches(filteredItems, clusterName);
+            if (filteredMatches.length === 1) {
+                return filteredMatches[0];
             }
-            return items[0].metadata.name;
+            if (filteredMatches.length > 1) {
+                throw new Error(`Multiple clusters matched display name '${clusterName}' in filtered query: ${filteredMatches.join(", ")}`);
+            }
+
+            const full = await client.get("/apis/management.cattle.io/v3/clusters");
+            const fullItems = full.items ?? full.data ?? [];
+            const fullMatches = this.findExactMatches(fullItems, clusterName);
+            if (fullMatches.length === 1) {
+                return fullMatches[0];
+            }
+            if (fullMatches.length > 1) {
+                throw new Error(`Multiple clusters matched display name '${clusterName}': ${fullMatches.join(", ")}`);
+            }
+
+            throw new Error(`Cluster with name ${clusterName} not found`);
         });
+    }
+
+    private findExactMatches(items: any[], wantedName: string): string[] {
+        return items
+            .filter(item => this.getCandidateNames(item).includes(wantedName))
+            .map(item => this.getClusterId(item))
+            .filter((id): id is string => !!id);
+    }
+
+    private getCandidateNames(item: any): string[] {
+        return [
+            item?.displayName,
+            item?.name,
+            item?.metadata?.name,
+            item?.spec?.displayName,
+            item?.status?.displayName,
+        ].filter((v): v is string => typeof v === "string" && v.length > 0);
+    }
+
+    private getClusterId(item: any): string | undefined {
+        const id = item?.metadata?.name ?? item?.id;
+        return typeof id === "string" && id.length > 0 ? id : undefined;
     }
 }
 
