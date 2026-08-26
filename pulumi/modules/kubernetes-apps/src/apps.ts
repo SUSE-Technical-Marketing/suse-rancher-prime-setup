@@ -1,5 +1,20 @@
 import * as pulumi from "@pulumi/pulumi";
+import * as k8s from "@pulumi/kubernetes";
 import { HelmApp } from "@suse-tmm/common";
+
+export type GatewayApiChannel = "standard" | "experimental";
+
+/**
+ * Gateway API CRDs.
+ *
+ * Neither k3s/RKE2 nor the Traefik chart ship these, so they have to be applied before any
+ * controller that watches Gateway/HTTPRoute is installed. The "standard" channel carries
+ * GatewayClass, Gateway, HTTPRoute and GRPCRoute; "experimental" adds TCPRoute/TLSRoute/UDPRoute.
+ */
+export const GatewayApiCrds = (version: string, channel: GatewayApiChannel = "standard", opts?: pulumi.ComponentResourceOptions) =>
+    new k8s.yaml.v2.ConfigFile("gateway-api-crds", {
+        file: `https://github.com/kubernetes-sigs/gateway-api/releases/download/${version}/${channel}-install.yaml`,
+    }, opts);
 
 export const CertManager = (version: pulumi.Input<string>, opts: pulumi.ComponentResourceOptions) => new HelmApp("cert-manager", {
         createNamespace: true,

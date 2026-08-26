@@ -69,6 +69,7 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
     hostname: cfg.rancher.vmName,
     rancherVersion: cfg.rancher.version,
     traefikVersion: versions.TRAEFIK_VERSION,
+    gatewayApiVersion: versions.GATEWAY_API_VERSION,
     tls: {
         certManager: cfg.certManager.cloudflareApiKey && cfg.certManager.letsEncryptEmail ? {
             version: cfg.certManager.version,

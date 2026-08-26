@@ -1,7 +1,8 @@
 import * as pulumi from "@pulumi/pulumi"
 import { helmInstallRancher } from "./rancher";
 import * as k8s from "@pulumi/kubernetes";
-import { Sprouter, TLS, TLSArgs, Outrider, Traefik } from "@suse-tmm/kubernetes-apps";
+import { Sprouter, TLS, TLSArgs, Outrider, Traefik, GatewayApiCrds, GatewayApiChannel } from "@suse-tmm/kubernetes-apps";
+import { withDependsOn } from "@suse-tmm/common";
 import { RancherSetting } from "../resources/setting";
 import { setFeatureFlag } from "../resources/feature";
 
@@ -14,6 +15,8 @@ export interface RancherInstallArgs {
     skipBootstrap?: pulumi.Input<boolean>; // Optional skip the bootstrap for Rancher
     rancherVersion: pulumi.Input<string>; // Rancher version to install
     traefikVersion: pulumi.Input<string>; // Traefik version to install, if not provided, the default version will be used
+    gatewayApiVersion: string; // Gateway API CRD release to install, e.g. "v1.6.1"
+    gatewayApiChannel?: GatewayApiChannel; // Gateway API channel, defaults to "standard"
 }
 
 export class RancherManagerInstall extends pulumi.ComponentResource {
@@ -66,8 +69,10 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
         Sprouter(opts);
         // We use outrider to propagate secrets to downstream clusters
         Outrider(opts);
+        // Traefik's Gateway provider needs the Gateway API CRDs to exist before the chart is installed
+        const gatewayApi = GatewayApiCrds(args.gatewayApiVersion, args.gatewayApiChannel, opts);
         // Treafik is required for the Rancher ingress
-        Traefik(args.traefikVersion, opts);
+        Traefik(args.traefikVersion, withDependsOn(opts, gatewayApi));
 
         // Create TLS
         const tls = new TLS("rancher-tls", args.tls, opts);

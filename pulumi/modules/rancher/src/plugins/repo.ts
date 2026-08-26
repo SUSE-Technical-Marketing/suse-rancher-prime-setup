@@ -12,13 +12,6 @@ const DefaultRepos: Record<string, RepoConfig> = {
         gitRepo: "https://github.com/rancher/ui-plugin-charts",
         gitBranch: "main",
     },
-    "security-ui": {
-        gitRepo: "https://github.com/rancher/security-ui-exts",
-        gitBranch: "gh-pages",
-    },
-    "virtual-clusters": {
-        httpRepo: "https://rancher.github.io/virtual-clusters-ui",
-    },
 }
 
 export function defaultUIPluginRepos(opts?: pulumi.ComponentResourceOptions): Record<string, ClusterRepo> {

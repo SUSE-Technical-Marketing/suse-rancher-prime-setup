@@ -38,11 +38,11 @@ function defaultImages(downloadImages: boolean): harvester.VmImageArgs[] {
     if (!downloadImages) return [];
     return [{
         name: "opensuse-leap-15.6",
-        displayName: "openSUSE Leap 15.6",
+        displayName: "openSUSE-Leap-15.6",
         url: "https://download.opensuse.org/repositories/Cloud:/Images:/Leap_15.6/images/openSUSE-Leap-15.6.x86_64-NoCloud.qcow2",
     }, {
         name: "opensuse-leap-16.0",
-        displayName: "openSUSE Leap 16.0",
+        displayName: "openSUSE-Leap-16.0",
         url: "https://download.opensuse.org/distribution/leap/16.0/appliances/Leap-16.0-Minimal-VM.x86_64-Cloud.qcow2"
         // url: "https://download.opensuse.org/download/repositories/openSUSE:/Leap:/16.0:/Images/images/Leap-16.0-Minimal-VM.x86_64-Cloud.qcow2",
     }];

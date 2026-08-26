@@ -1,6 +1,9 @@
 import * as pulumi from "@pulumi/pulumi";
 import { RancherClient, waitFor } from "@suse-tmm/common";
 
+// Rancher templates the registration token out of the manifest URL and stores it in a separate Secret
+const TOKEN_PLACEHOLDER = "{token}";
+
 interface ClusterRegistrationTokenInputs {
     rancherKubeconfig: pulumi.Input<string>; // Kubeconfig to access the Rancher cluster
     clusterName: pulumi.Input<string>;
@@ -56,12 +59,40 @@ class ClusterRegistrationTokenProvider implements pulumi.dynamic.ResourceProvide
 
     async fetchClusterRegistrationToken(kubeconfigYaml: string, namespace: string): Promise<string | undefined> {
         const path = `apis/management.cattle.io/v3/namespaces/${namespace}/clusterregistrationtokens/default-token`;
-        return RancherClient.fromKubeconfig(kubeconfigYaml).then(async (client) => {
-            return client.get(path)
-        }).then((body) => body?.status?.manifestUrl).catch((err) => {
+        const client = await RancherClient.fromKubeconfig(kubeconfigYaml);
+
+        const crt = await client.get(path).catch((err) => {
             if (err.response?.statusCode === 404) return undefined;
             throw err;
         });
+
+        const manifestUrl: string | undefined = crt?.status?.manifestUrl;
+        if (!manifestUrl) return undefined; // Status not populated yet, let waitFor retry
+
+        if (!manifestUrl.includes(TOKEN_PLACEHOLDER)) return manifestUrl;
+
+        // Newer Rancher versions keep the token out of the CRD and only reference the secret holding it
+        const tokenSecretName: string | undefined = crt?.status?.tokenSecretName;
+        if (!tokenSecretName) return undefined; // Secret not referenced yet, let waitFor retry
+
+        const token = await this.fetchToken(client, namespace, tokenSecretName);
+        if (!token) return undefined; // Secret not created/populated yet, let waitFor retry
+
+        return manifestUrl.replace(TOKEN_PLACEHOLDER, token);
+    }
+
+    private async fetchToken(client: RancherClient, namespace: string, secretName: string): Promise<string | undefined> {
+        const path = `api/v1/namespaces/${namespace}/secrets/${secretName}`;
+        const secret = await client.get(path).catch((err) => {
+            if (err.response?.statusCode === 404) return undefined;
+            throw err;
+        });
+
+        const encoded: string | undefined = secret?.data?.token;
+        if (!encoded) return undefined;
+
+        const token = Buffer.from(encoded, "base64").toString("utf8").trim();
+        return token.length > 0 ? token : undefined;
     }
 }
 
@@ -69,6 +100,10 @@ export class ClusterRegistrationToken extends pulumi.dynamic.Resource {
     public readonly token!: pulumi.Output<string>;
 
     constructor(name: string, args: ClusterRegistrationTokenInputs, opts?: pulumi.CustomResourceOptions) {
-        super(new ClusterRegistrationTokenProvider(), name, { ...args, token: undefined }, opts);
+        // The resolved manifest URL embeds the registration token, so keep it out of plaintext state
+        super(new ClusterRegistrationTokenProvider(), name, { ...args, token: undefined }, {
+            ...opts,
+            additionalSecretOutputs: [...(opts?.additionalSecretOutputs ?? []), "token"],
+        });
     }
 }

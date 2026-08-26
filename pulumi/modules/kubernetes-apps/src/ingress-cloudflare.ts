@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { HelmApp } from "./helmapp";
+import { HelmApp } from "@suse-tmm/common";
 
 interface CloudflareIngressArgs {
     apiToken: pulumi.Input<string>;
