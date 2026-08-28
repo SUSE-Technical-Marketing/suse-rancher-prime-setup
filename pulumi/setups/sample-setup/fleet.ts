@@ -35,6 +35,7 @@ const DefaultGitRepos: Record<string, GitRepoConfig> = {
         branch: "main",
         paths: ["/apps/appco"],
         helmSecretName: "application-collection-basicauth",
+        helmRepoURLRegex: "oci://dp.apps.rancher.io/*",
         clusterGroup: "all-downstream-clusters",
     },
     "lab-setup-suse": {
@@ -42,6 +43,7 @@ const DefaultGitRepos: Record<string, GitRepoConfig> = {
         branch: "main",
         paths: ["/apps/suse"],
         helmSecretName: "scc-suse-basicauth",
+        helmRepoURLRegex: "oci://registry.suse.com/*",
     },
     "lab-setup-platform": {
         url: "https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git",

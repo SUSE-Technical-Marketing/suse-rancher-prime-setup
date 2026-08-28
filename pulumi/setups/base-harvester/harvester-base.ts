@@ -125,7 +125,7 @@ function addVlanSupport(args: harvester.HarvesterBaseArgs, cfg: { clusterNetwork
         addonName: "harvester-vm-dhcp-controller",
         chart: "harvester-vm-dhcp-controller",
         repo: "https://charts.harvesterhci.io",
-        version: "1.7.1",
+        version: "1.8.2",
         enabled: true,
         labels: {
             "addon.harvesterhci.io/experimental": "true",
