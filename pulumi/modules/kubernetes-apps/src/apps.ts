@@ -45,9 +45,13 @@ export const Traefik = (version: pulumi.Input<string>, opts?: pulumi.ComponentRe
         },
     }, opts);
 
-export const Sprouter = (opts?: pulumi.ComponentResourceOptions) => new HelmApp("sprouter", {
+export const Sprouter = (version: pulumi.Input<string>, opts?: pulumi.ComponentResourceOptions) => new HelmApp("sprouter", {
         createNamespace: true,
         chart: "oci://ghcr.io/hierynomus/sprouter/charts/sprouter",
+        version: version,
+        values: {
+            excludeNamespaces: ["kube-system", "kube-public", "cattle-local-user-passwords"],
+        }
     }, opts);
 
 export const Outrider = (opts?: pulumi.ComponentResourceOptions) => new HelmApp("outrider", {

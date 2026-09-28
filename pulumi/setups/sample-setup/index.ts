@@ -69,6 +69,7 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
     hostname: cfg.rancher.vmName,
     rancherVersion: cfg.rancher.version,
     traefikVersion: versions.TRAEFIK_VERSION,
+    sprouterVersion: versions.SPROUTER_VERSION,
     gatewayApiVersion: versions.GATEWAY_API_VERSION,
     tls: {
         certManager: cfg.certManager.cloudflareApiKey && cfg.certManager.letsEncryptEmail ? {
@@ -86,12 +87,16 @@ const rancherManager = new RancherManagerInstall("rancher-manager", {
 const rancherK8sProvider = new kubernetes.Provider("rancher-k8s", { kubeconfig: rancherManager.kubeconfig });
 const rancherOpts: pulumi.ResourceOptions = { provider: rancherK8sProvider, dependsOn: [rancherManager] };
 
-const kw = new KubeWait("wait-for-rancherinstallation", {
-    apiVersion: "apiextensions.k8s.io/v1",
-    kind: "CustomResourceDefinition",
-    name: "gitrepos.fleet.cattle.io",
+// Wait for the local cluster to be Ready, which only happens once Rancher (including
+// rancher-webhook) is fully up. Without this, later namespace creation can race with
+// rancher-webhook still starting/restarting: "no endpoints available for service rancher-webhook".
+const kw = new KubeWait("wait-for-local-cluster-ready", {
+    apiVersion: "fleet.cattle.io/v1alpha1",
+    kind: "Cluster",
+    name: "local",
+    namespace: "fleet-local",
     kubeconfig: rancherManager.kubeconfig,
-    condition: "Established",
+    condition: "Ready",
 }, noProvider(rancherOpts));
 
 const bootstrapPassword = new BootstrapAdminPassword("rancher-bootstrap-password", {

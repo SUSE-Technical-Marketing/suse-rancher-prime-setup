@@ -39,13 +39,15 @@ class KubeWaitProvider implements dynamic.ResourceProvider<KubeWaitProviderInput
             ? `/apis/${i.apiVersion}/namespaces/${i.namespace}/${i.kind.toLowerCase()}s/${i.name}`
             : `/apis/${i.apiVersion}/${i.kind.toLowerCase()}s/${i.name}`;
 
-        const url = `${httpConfig.server}${path}`;        // tiny JSONPath helper
+        pulumi.log.info(`Waiting for ${path} to have status ${i.condition}`)
+        const url = `${httpConfig.server}${path}`;
+        pulumi.log.info(`Trying ${url}`)
         return waitFor(() => got.get(url, {
             agent: { https: httpConfig.agent },
             headers: httpConfig.headers,
             responseType: "json",
             throwHttpErrors: false,
-            timeout: { request: 10000 },
+            timeout: { request: 1000 },
             retry: { limit: 0 },
         }).then(res => {
             if (res.statusCode === 404) {
@@ -74,8 +76,8 @@ class KubeWaitProvider implements dynamic.ResourceProvider<KubeWaitProviderInput
             id: `${i.namespace ?? "_cluster"}/${i.name}/${i.condition}`,
             outs: { ...i, reached },
         })).catch(err => {
-            pulumi.log.error(`Failed to fetch ${i.kind}/${i.name}: ${err.message}`);
-            throw new Error(`Failed to fetch ${i.kind}/${i.name}: ${err.message}`);
+            pulumi.log.error(`Failed to fetch ${i.apiVersion}/${i.kind}/${i.name}: ${err.message}`);
+            throw new Error(`Failed to fetch ${i.apiVersion}/${i.kind}/${i.name}: ${err.message}`);
         });
     }
 

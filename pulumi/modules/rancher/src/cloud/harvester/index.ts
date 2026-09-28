@@ -48,7 +48,7 @@ export class HarvesterCloudProvider extends pulumi.ComponentResource {
             kind: "Cluster",
             name: cluster.clusterId,
             namespace: "fleet-default",
-            condition: "Connected",
+            condition: "Created",
             timeoutSeconds: 600,
             pollSeconds: 10,
         }, noProvider({...myOpts, dependsOn: [harvesterAuthSetting] }));

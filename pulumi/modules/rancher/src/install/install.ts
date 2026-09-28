@@ -14,6 +14,7 @@ export interface RancherInstallArgs {
     adminPassword?: pulumi.Input<string>; // Optional admin password for Rancher
     skipBootstrap?: pulumi.Input<boolean>; // Optional skip the bootstrap for Rancher
     rancherVersion: pulumi.Input<string>; // Rancher version to install
+    sprouterVersion: pulumi.Input<string>; // Sprouter version to install
     traefikVersion: pulumi.Input<string>; // Traefik version to install, if not provided, the default version will be used
     gatewayApiVersion: string; // Gateway API CRD release to install, e.g. "v1.6.1"
     gatewayApiChannel?: GatewayApiChannel; // Gateway API channel, defaults to "standard"
@@ -66,7 +67,7 @@ export class RancherManagerInstall extends pulumi.ComponentResource {
     installRancher(kubeconfig: pulumi.Input<string>, args: RancherInstallArgs, opts?: pulumi.ComponentResourceOptions) {
 
         // We use sprouter to copy the certificates to all the required namespaces
-        Sprouter(opts);
+        Sprouter(args.sprouterVersion, opts);
         // We use outrider to propagate secrets to downstream clusters
         Outrider(opts);
         // Traefik's Gateway provider needs the Gateway API CRDs to exist before the chart is installed

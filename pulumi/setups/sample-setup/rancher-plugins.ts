@@ -16,7 +16,7 @@ export function installPlugins(
         { name: "harvester", repoName: "rancher-ui-plugins", version: versions.HARVESTER_UIPLUGIN_VERSION },
         { name: "virtual-clusters", repoName: "rancher-ui-plugins", version: versions.VIRTUAL_CLUSTERS_UIPLUGIN_VERSION },
         { name: "kubewarden", repoName: "rancher-ui-plugins", version: versions.KUBEWARDEN_UIPLUGIN_VERSION },
-        { name: "vulnerability-scanner", repoName: "rancher-ui-plugins", version: versions.SBOMSCANNER_UIPLUGIN_VERSION },
+        { name: "vulnerability-scanner", repoName: "rancher-ui-plugins", version: versions.VULNERABILITY_SCANNER_UIPLUGIN_VERSION },
         { name: "rancher-ai-ui", repoName: "rancher-ui-plugins", version: versions.AI_UIPLUGIN_VERSION },
     ].map(plugin =>
         new RancherUIPlugin(plugin.name, {
