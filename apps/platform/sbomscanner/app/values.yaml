@@ -4,8 +4,8 @@ storage:
   replicas: 1
   postgres:
     cnpg:
-      storage:
-        storageClass: longhorn-single
+      # storage:
+      #   storageClass: longhorn-single
       instances: 1
 worker:
   replicas: 1
@@ -15,8 +15,8 @@ nats:
       filestore:
         pvc:
           size: 2Gi
-          storageClassName: longhorn-single
+          # storageClassName: longhorn-single
     resolver:
       pvc:
         size: 2Gi
-        storageClassName: longhorn-single
+        # storageClassName: longhorn-single

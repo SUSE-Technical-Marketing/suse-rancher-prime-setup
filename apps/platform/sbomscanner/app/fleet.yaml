@@ -2,7 +2,7 @@ defaultNamespace: sbomscanner
 helm:
   chart: sbomscanner
   repo: https://charts.kubewarden.io
-  version: 0.10.2
+  version: 0.13.0
   releaseName: sbomscanner
   valuesFiles:
     - values.yaml
