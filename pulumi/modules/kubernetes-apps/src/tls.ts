@@ -128,7 +128,7 @@ export class TLS extends pulumi.ComponentResource {
             },
             spec: {
                 secretTemplate: {
-                    annotations: {
+                    labels: {
                         "sprouter.geeko.me/enabled": "true"
                     }
                 },

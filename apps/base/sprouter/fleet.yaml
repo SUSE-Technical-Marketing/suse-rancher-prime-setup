@@ -2,5 +2,7 @@ defaultNamespace: sprouter
 helm:
   chart: oci://ghcr.io/hierynomus/sprouter/charts/sprouter
   releaseName: sprouter
+  values:
+    excludedNamespaces: ["kube-system", "kube-public", "cattle-local-user-passwords"]
 labels:
   app: sprouter

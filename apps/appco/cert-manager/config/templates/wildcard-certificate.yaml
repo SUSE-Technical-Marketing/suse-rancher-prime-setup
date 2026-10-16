@@ -6,7 +6,7 @@ metadata:
   namespace: cert-manager
 spec:
   secretTemplate:
-    annotations:
+    labels:
       sprouter.geeko.me/enabled: "true"
   secretName: wildcard-tls
   issuerRef:

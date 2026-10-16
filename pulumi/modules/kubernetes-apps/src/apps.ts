@@ -50,7 +50,7 @@ export const Sprouter = (version: pulumi.Input<string>, opts?: pulumi.ComponentR
         chart: "oci://ghcr.io/hierynomus/sprouter/charts/sprouter",
         version: version,
         values: {
-            excludeNamespaces: ["kube-system", "kube-public", "cattle-local-user-passwords"],
+            excludedNamespaces: ["kube-system", "kube-public", "cattle-local-user-passwords"],
         }
     }, opts);
 
