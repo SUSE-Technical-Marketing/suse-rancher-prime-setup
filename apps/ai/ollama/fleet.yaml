@@ -2,7 +2,7 @@ defaultNamespace: ollama
 helm:
   chart: oci://dp.apps.rancher.io/charts/ollama
   releaseName: ollama
-  version: "1.55.0"
+  version: "1.89.0"
   values:
     global:
       imagePullSecrets: ["application-collection"]
