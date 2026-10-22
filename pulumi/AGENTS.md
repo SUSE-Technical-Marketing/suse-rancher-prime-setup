@@ -105,19 +105,17 @@ each package's `generate` script. Never hand-edit `generated/`; add or update a 
 regenerate. The generated types are re-exported namespaced from the package `index.ts`
 (`management`, `provisioning`, `fleet`, `harvesterhci`, `kubevirt`, ...).
 
-## Build gotcha: modules are consumed as compiled output
+## Modules are consumed as TypeScript source
 
-`@suse-tmm/rancher` and `@suse-tmm/kubernetes-apps` declare `main: bin/index.js` / `types:
-bin/index.d.ts`, so setups consume their **compiled** `bin/` output. After editing either module you
-must `mise exec -- pnpm -r build` before `pulumi preview`/`up`, or the stack silently runs the
-previous version.
+No module declares `main` or `types`, so every `@suse-tmm/*` import resolves to the package's root
+`index.ts` — at runtime through Pulumi's ts-node, and for `tsc` through the workspace symlink. Edits
+to a module are picked up by the next `pulumi preview`/`up` without a build step. Do not add
+`main: bin/index.js` back: a stale `bin/` would then silently run the previous version.
 
-`@suse-tmm/common` and `@suse-tmm/harvester` declare no `main`, so they resolve to their root
-`index.ts` through Pulumi's ts-node runtime. Building them is still required for the other modules
-to typecheck against them.
+`pnpm -r build` still works as a full typecheck of each module, but its `bin/` output is unused.
 
-Each package's `tsconfig.json` uses `"files": ["index.ts"]`, so a file that nothing re-exports from
-`index.ts` is never typechecked. Wire new files into the package `index.ts`.
+`@suse-tmm/rancher` and the setups use `"files": ["index.ts"]` in `tsconfig.json`, so a file that
+nothing re-exports from `index.ts` is never typechecked. Wire new files into the package `index.ts`.
 
 ## Known rough edges
 

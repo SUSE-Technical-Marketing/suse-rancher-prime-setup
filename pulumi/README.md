@@ -18,14 +18,14 @@ export PULUMI_CONFIG_PASSPHRASE_FILE=~/.pulumi/config-passphrase
 ### Creating a new stack:
 
 ```bash
-cd sample-setup
+cd setups/sample-setup
 pulumi stack init -s dev
 ```
 
 This will output:
 
 ```bash
-pulumi@60d2799eae2a:/workspaces/suse-rancher-prime-setup/pulumi/sample-setup> pulumi stack init -s dev
+pulumi@60d2799eae2a:/workspaces/suse-rancher-prime-setup/pulumi/setups/sample-setup> pulumi stack init -s dev
 Created stack 'dev'
 ```
 
@@ -73,6 +73,6 @@ pulumi login file://$(pwd)/pulumi-state
 
 Create/Update the infrastructure:
 ```bash
-cd sample-setup
+cd setups/sample-setup
 pulumi up
 ```

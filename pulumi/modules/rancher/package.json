@@ -2,8 +2,6 @@
     "name": "@suse-tmm/rancher",
     "version": "0.1.0",
     "description": "Pulumi components for Rancher",
-    "main": "bin/index.js",
-    "types": "bin/index.d.ts",
     "license": "Apache-2.0",
     "repository": {
         "type": "git",
