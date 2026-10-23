@@ -1,0 +1,68 @@
+# M4 test VMs: two bare VMs on asgard that labs/asgard-m4-machines.yaml uses as existing machines (`Machine`).
+# Bring this up first and destroy it last. Harvester url and credentials come from the personal config.
+apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata:
+  name: asgard-m4-vms
+spec:
+  domain: lab.geeko.me
+
+  tls: { acme: none }
+
+  ssh:
+    user: lab
+    publicKey: { file: ~/.ssh/id_ed25519.pub }
+    privateKey: { $secret: ssh-key }
+
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Harvester
+metadata:
+  name: asgard
+spec:
+  dns:
+    backend: routeros
+    host: 10.29.20.1
+    credentials: { $secret: routeros }
+  networks:
+    default: vlan20
+    vlans:
+      - id: 20
+        dhcp: { cidr: 10.29.20.0/24, gateway: 10.29.20.1, range: [ 10.29.20.100, 10.29.20.150 ] }
+        loadBalancer: { range: [ 10.29.20.200, 10.29.20.220 ] } # Harvester LB pool for guest clusters
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: machine-01
+  description: A bare VM; labs/asgard-m4-machines.yaml installs on it as a Machine
+spec:
+  harvester: asgard
+  os: leap-16
+  cpu: 4
+  memory: 8Gi
+  disk: 40Gi
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: machine-02
+  description: A bare VM; labs/asgard-m4-machines.yaml installs on it as a Machine
+spec:
+  harvester: asgard
+  os: leap-16
+  cpu: 4
+  memory: 8Gi
+  disk: 40Gi
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: machine-03
+  description: A bare VM; labs/asgard-m4-machines.yaml installs on it as a Machine
+spec:
+  harvester: asgard
+  os: leap-16
+  cpu: 4
+  memory: 8Gi
+  disk: 40Gi

@@ -1,0 +1,9 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: harvester-dns-controller
+  description: DNS records for the lab's VMs and load balancers, on each Harvester
+spec:
+  chart: oci://ghcr.io/hierynomus/harvester-dns-controller/charts/harvester-dns-controller
+  version: 0.3.0
+  namespace: harvester-system

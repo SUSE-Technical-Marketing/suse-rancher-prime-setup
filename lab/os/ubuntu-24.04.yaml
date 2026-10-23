@@ -1,7 +1,0 @@
-name: ubuntu-24.04
-displayName: Ubuntu 24.04 LTS
-family: debian
-image:
-  url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
-defaultUser: ubuntu
-packages: [curl, git, bash-completion, vim, wget, tree, qemu-guest-agent]

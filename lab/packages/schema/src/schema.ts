@@ -1,9 +1,9 @@
 import { z } from "zod";
+import { Inputs, Placement } from "./objects";
 import {
     CIDR, Credentials, dnsLabel, dnsName, FileRef, ImageSource, ipv4, MAC, OS_FAMILIES, osName, quantity,
     SecretRef, secretOrString,
 } from "./primitives";
-import { Profiles } from "./profiles";
 
 export * from "./primitives";
 
@@ -86,6 +86,14 @@ export const PersonalHarvester = z.strictObject({
 // ---------------------------------------------------------------------------------------------
 // Hosts (§5.3). One shape for both kinds; the resolver checks which fields apply.
 
+/** A HelmChart from the catalog on a host: its name, optionally another namespace, and values. */
+export const ChartPlacement = z.strictObject({
+    name: dnsLabel,
+    namespace: z.string().min(1).optional(),
+    values: z.record(z.string(), z.unknown()).optional(),
+});
+export type ChartPlacement = z.infer<typeof ChartPlacement>;
+
 export const HostInput = z.strictObject({
     on: z.string().min(1),
     os: z.string().min(1),
@@ -96,9 +104,24 @@ export const HostInput = z.strictObject({
     macAddress: z.string().regex(MAC, "must be a MAC address like 52:54:00:aa:bb:01").optional(),
     address: z.string().optional(),
     user: z.string().optional(),
-    profiles: Profiles.default({}),
+    /** Profile name -> settings; checked against the profile's catalog schema by the resolver. */
+    profiles: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
+    /** Catalog secret and configmap templates to create on the host's cluster (§16.6). */
+    secrets: z.array(Placement).optional(),
+    configmaps: z.array(Placement).optional(),
+    /** Catalog HelmCharts to install on the host's cluster, after its profiles (§17). */
+    charts: z.array(ChartPlacement).optional(),
 });
 export type HostInput = z.infer<typeof HostInput>;
+
+/** A `HarvesterVM` document's spec (DESIGN.md §17): a host the lab creates on one of its Harvesters. */
+export const HarvesterVMSpec = HostInput.omit({ on: true, address: true, user: true }).extend({
+    /** The `Harvester` document it runs on. */
+    harvester: z.string().min(1),
+});
+
+/** A `Machine` document's spec: an existing machine the lab reaches over SSH. */
+export const MachineSpec = HostInput.omit({ on: true, cpu: true, memory: true, disk: true, network: true, macAddress: true });
 
 // ---------------------------------------------------------------------------------------------
 // Downstream clusters (§5.5)
@@ -118,6 +141,19 @@ const HarvesterPool = z.strictObject({
     network: z.string().optional(),
 });
 
+/** Rancher cluster settings beyond the engine's (§16.5): passed through, merged over the engine's. */
+const ClusterPassthrough = {
+    /** CNI; default calico for RKE2, flannel for k3s. */
+    cni: z.string().min(1).optional(),
+    /** Merged into `rkeConfig.machineGlobalConfig` (the distro's config.yaml on every node). */
+    machineGlobalConfig: z.record(z.string(), z.unknown()).optional(),
+    /** Merged into `rkeConfig.chartValues` (values for the distro's bundled charts). */
+    chartValues: z.record(z.string(), z.unknown()).optional(),
+    /** Catalog secrets and configmaps to create on the cluster once it is Ready (§16.6). */
+    secrets: z.array(Placement).optional(),
+    configmaps: z.array(Placement).optional(),
+};
+
 export const DownstreamInput = z.discriminatedUnion("type", [
     z.strictObject({
         type: z.literal("harvester"),
@@ -126,6 +162,7 @@ export const DownstreamInput = z.discriminatedUnion("type", [
         distro: z.enum(["rke2", "k3s"]).default("rke2"),
         version: z.string().optional(),
         labels,
+        ...ClusterPassthrough,
         pools: z.array(HarvesterPool).min(1),
     }),
     z.strictObject({
@@ -134,10 +171,24 @@ export const DownstreamInput = z.discriminatedUnion("type", [
         distro: z.enum(["rke2", "k3s"]).default("rke2"),
         version: z.string().optional(),
         labels,
+        ...ClusterPassthrough,
         nodes: z.array(z.strictObject({ host: z.string(), roles })).min(1),
     }),
 ]);
 export type DownstreamInput = z.infer<typeof DownstreamInput>;
+
+// ---------------------------------------------------------------------------------------------
+// The catalog (DESIGN.md §16): defaults as data, layered built-in -> personal config -> lab file
+
+/** YAML reads `41` or `1.10` as numbers; versions are always strings. */
+const versionString = z.union([z.string().min(1), z.number()]).transform(String);
+
+/** A version, or Harvester minor (`"1.9"`) -> version for components that follow the Harvester. */
+export const VersionValue = z.union([versionString, z.record(z.string().regex(/^\d+\.\d+$/, "must be a Harvester minor like 1.9"), versionString)]);
+export type VersionValue = z.infer<typeof VersionValue>;
+
+/** More documents, from files or directories, relative to the file that names them. */
+export const Include = z.array(z.string().min(1)).default([]);
 
 // ---------------------------------------------------------------------------------------------
 // The lab file and the personal config
@@ -146,7 +197,8 @@ export const LabFile = z.strictObject({
     lab: dnsLabel,
     domain: dnsName,
     tls: z.strictObject({
-        acme: z.enum(["letsencrypt", "letsencrypt-staging", "none"]).default("letsencrypt"),
+        /** An AcmeServer from the catalog (`letsencrypt`, `letsencrypt-staging`), or `none`. */
+        acme: z.string().min(1).default("letsencrypt"),
         email: z.email().optional(),
         cloudflare: SecretRef.optional(),
     }).default({ acme: "letsencrypt" }),
@@ -155,14 +207,23 @@ export const LabFile = z.strictObject({
         publicKey: z.union([FileRef, z.string().min(1)]),
         privateKey: SecretRef,
     }).optional(),
-    versions: z.record(z.string(), z.string()).default({}),
+    /** Files or directories of more documents (catalog documents; for a lab, its Harvesters, hosts and clusters too). */
+    include: Include,
+    /** Values for the inputs of catalog secrets and configmaps (§16.6). */
+    inputs: Inputs.default({}),
     harvesters: z.record(dnsLabel, HarvesterInput).default({}),
     hosts: z.record(dnsLabel, HostInput).default({}),
     downstream: z.record(dnsLabel, DownstreamInput).default({}),
-    os: z.record(osName, OsProfileInput).default({}),
     images: z.record(osName, ImageSource).default({}),
 });
 export type LabFile = z.infer<typeof LabFile>;
+
+/**
+ * A `Lab` document's spec: the lab-wide settings. Its Harvesters, hosts and downstream clusters are
+ * documents of their own (`Harvester`, `HarvesterVM`, `Machine`, `DownstreamCluster`).
+ */
+export const LabSpec = LabFile.omit({ lab: true, harvesters: true, hosts: true, downstream: true });
+export type LabSpec = z.infer<typeof LabSpec>;
 
 /** A secret's value in the personal config: a string, or a map of strings (e.g. credentials). */
 export const SecretValue = z.union([z.string(), z.record(z.string(), z.string())]);
@@ -172,6 +233,9 @@ export const PersonalConfig = z.strictObject({
     secrets: z.record(z.string(), SecretValue).default({}),
     harvesters: z.record(z.string(), PersonalHarvester).default({}),
     images: z.record(osName, ImageSource).default({}),
-    os: z.record(osName, OsProfileInput).default({}),
+    /** Files or directories of more documents (catalog documents; for a lab, its Harvesters, hosts and clusters too). */
+    include: Include,
+    /** Values for the inputs of catalog secrets and configmaps (§16.6). */
+    inputs: Inputs.default({}),
 });
 export type PersonalConfig = z.infer<typeof PersonalConfig>;

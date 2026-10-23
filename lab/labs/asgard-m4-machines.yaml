@@ -1,0 +1,51 @@
+# M4 test lab: profiles on existing machines (`Machine`), here the bare VMs of labs/asgard-m4-vms.yaml.
+# It uses no Harvester, so it claims none. machine-01 runs RKE2 with its own Traefik and ServiceLB,
+# machine-02 RKE2 with the traefik profile and MetalLB instead (on vlan20, outside its DHCP range and
+# the Harvester load-balancer pool), machine-03 k3s with its own Traefik and ServiceLB.
+apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata:
+  name: asgard-m4-machines
+spec:
+  domain: lab.geeko.me
+  tls: { acme: none }
+  ssh:
+    user: lab
+    publicKey: { file: ~/.ssh/id_ed25519.pub }
+    privateKey: { $secret: ssh-key }
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Machine
+metadata:
+  name: machine-01
+spec:
+  address: machine-01.lab.geeko.me
+  user: lab
+  os: leap-16
+  profiles:
+    rke2: {}
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Machine
+metadata:
+  name: machine-02
+spec:
+  address: machine-02.lab.geeko.me
+  user: lab
+  os: leap-16
+  profiles:
+    rke2: {}
+    metallb:
+      addresses: [ 10.29.20.221-10.29.20.230 ]
+    traefik: {}
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Machine
+metadata:
+  name: machine-03
+spec:
+  address: machine-03.lab.geeko.me
+  user: lab
+  os: leap-16
+  profiles:
+    k3s: {}

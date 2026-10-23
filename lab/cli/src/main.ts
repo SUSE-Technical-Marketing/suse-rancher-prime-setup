@@ -1,18 +1,19 @@
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
-import { defaultPersonalConfigPath, formatDiagnostic, loadLab, PersonalConfig, ResolvedLab } from "@lab/schema";
+import { defaultPersonalConfigPath, formatDiagnostic, loadCatalog, loadLab, PersonalConfig, ResolvedLab } from "@lab/schema";
 import {
     checkOwnership, claimHarvesters, closeSessions, HarvesterSession, openSessions, releaseHarvesters, writeRunFiles,
 } from "./harvesters";
 import { findLeftovers } from "./leftovers";
 import { log } from "./log";
-import { renderPlan, renderProfiles } from "./plan";
+import { renderCatalog, renderPlan, renderProfiles } from "./plan";
 import { resolveSecrets, ResolvedSecret } from "./secrets";
 import { createOrSelectStack, selectStack, workspaceSettings, writeStackConfig } from "./workspace";
 
 const USAGE = `Usage: lab <command> <lab.yaml> [options]
        lab profiles
+       lab catalog [lab.yaml]
 
 Commands
   validate   Check the lab file, personal config and secrets; changes nothing
@@ -23,6 +24,8 @@ Commands
   outputs    Show the lab's outputs (URLs, addresses)
   release    Remove this lab's claim on its Harvesters without destroying anything
   profiles   List the host profiles and their rules (no lab file needed)
+  catalog    Show the effective catalog (components, plugins, Fleet, OS profiles) and where
+             each entry comes from; with a lab file, including its overrides
 
 Options
   --config <file>       Personal config (default: $LAB_CONFIG or ~/.config/lab/config.yaml)
@@ -128,7 +131,18 @@ async function main(argv: string[]): Promise<void> {
         return;
     }
     if (command === "profiles") {
-        console.log(renderProfiles());
+        const { diagnostics, catalog } = loadCatalog({ personalConfig: opts.config ?? defaultPersonalConfigPath() });
+        for (const d of diagnostics.items) console.error(formatDiagnostic(d));
+        if (!catalog) process.exit(1);
+        console.log(renderProfiles(catalog.profiles));
+        return;
+    }
+    if (command === "catalog") {
+        if (rest.length > 0) throw new UsageError(`unexpected arguments: ${rest.join(" ")}`);
+        const { diagnostics, catalog } = loadCatalog({ labFile, personalConfig: opts.config ?? defaultPersonalConfigPath() });
+        for (const d of diagnostics.items) console.error(formatDiagnostic(d));
+        if (!catalog) process.exit(1);
+        console.log(renderCatalog(catalog));
         return;
     }
     if (!labFile) throw new UsageError(`"${command}" needs a lab file`);

@@ -1,0 +1,10 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: rancher-ai-agent
+  description: Liz, Rancher's AI assistant (the agent; its UI is the rancher-ai-ui plugin)
+spec:
+  # helm show all oci://registry.suse.com/rancher/charts/rancher-ai-agent
+  chart: oci://registry.suse.com/rancher/charts/rancher-ai-agent
+  version: 110.0.0+up1.1.0
+  namespace: cattle-ai-agent-system

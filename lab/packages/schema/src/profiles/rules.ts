@@ -1,6 +1,7 @@
 import { Credentials, OsFamily, SecretRef } from "../primitives";
-import { ProfileDefinition } from "./define";
-import { capabilitiesOf, PROFILE_BY_NAME, ProfileName, Profiles, providersOf } from "./index";
+import { valuePaths } from "../catalog";
+import { ProfileDefinition, ProfileRegistry } from "./define";
+import { capabilitiesOf, Profiles, providersOf } from "./index";
 
 /** Value at a dot path (`fleet.secrets.appco`), or undefined. */
 export function getPath(obj: unknown, path: string): unknown {
@@ -27,27 +28,34 @@ const secretFieldsOf = (def: ProfileDefinition) =>
     (def.secretFields ?? []).map(f => (typeof f === "string" ? { field: f, shape: "string" as const } : f));
 
 /** The profiles set on a host, in a stable order. */
-export function activeProfiles(profiles: Profiles): ProfileName[] {
-    return (Object.keys(profiles) as ProfileName[]).filter(n => profiles[n] !== undefined).sort();
+export function activeProfiles(profiles: Profiles): string[] {
+    return Object.keys(profiles).filter(n => profiles[n] !== undefined).sort();
 }
 
-/** Capability -> the profiles on this host that provide it. */
-export function hostCapabilities(profiles: Profiles): Map<string, ProfileName[]> {
-    const caps = new Map<string, ProfileName[]>();
-    for (const name of activeProfiles(profiles)) {
-        for (const cap of capabilitiesOf(PROFILE_BY_NAME[name])) caps.set(cap, [...(caps.get(cap) ?? []), name]);
+/** Capability -> the profiles on this host that provide it; a `fallback` only when no other profile does. */
+export function hostCapabilities(registry: ProfileRegistry, profiles: Profiles): Map<string, string[]> {
+    const caps = new Map<string, string[]>();
+    const names = activeProfiles(profiles).filter(n => registry[n]);
+    for (const name of names) {
+        for (const cap of capabilitiesOf(registry[name])) caps.set(cap, [...(caps.get(cap) ?? []), name]);
     }
+    const fallbacks = new Map<string, string[]>();
+    for (const name of names) {
+        for (const cap of registry[name].fallback ?? []) if (!caps.has(cap)) fallbacks.set(cap, [...(fallbacks.get(cap) ?? []), name]);
+    }
+    for (const [cap, providers] of fallbacks) caps.set(cap, providers);
     return caps;
 }
 
 /** "kubernetes (k3s or rke2)" for a shared capability, just "mlm-server" for a profile's own name. */
-export function describeCapability(capability: string): string {
-    const providers = providersOf(capability);
+export function describeCapability(registry: ProfileRegistry, capability: string): string {
+    const providers = providersOf(registry, capability);
     if (providers.length === 1 && providers[0] === capability) return capability;
     return providers.length > 0 ? `${capability} (${providers.join(" or ")})` : capability;
 }
 
 export interface HostRulesContext {
+    registry: ProfileRegistry;
     host: { name: string; os: string; kind: "harvester" | "ssh"; profiles: Profiles };
     osFamily: OsFamily | undefined;
     /** What the host's network has configured on its Harvester; empty for ssh hosts. */
@@ -63,18 +71,20 @@ export interface HostRulesContext {
 
 /** Check every profile on a host against its declared rules. */
 export function checkHostProfiles(ctx: HostRulesContext): void {
-    const { host } = ctx;
-    const caps = hostCapabilities(host.profiles);
+    const { host, registry } = ctx;
+    const caps = hostCapabilities(registry, host.profiles);
+    const describe = (c: string) => describeCapability(registry, c);
     const reportedConflicts = new Set<string>();
 
     for (const name of activeProfiles(host.profiles)) {
-        const def = PROFILE_BY_NAME[name];
-        const settings = host.profiles[name] as Record<string, unknown>;
+        const def = registry[name];
+        if (!def) continue; // reported by the resolver
+        const settings = host.profiles[name];
         const at = `hosts.${host.name}.profiles.${name}`;
 
         for (const required of activeRequirements(def, settings)) {
             const providers = (caps.get(required) ?? []).filter(p => p !== name);
-            if (providers.length === 0) ctx.error(at, `needs ${describeCapability(required)} on the same host`);
+            if (providers.length === 0) ctx.error(at, `needs ${describe(required)} on the same host`);
         }
 
         for (const conflict of def.conflicts ?? []) {
@@ -105,7 +115,13 @@ export function checkHostProfiles(ctx: HostRulesContext): void {
             const targetProfiles = ctx.profilesOf(target);
             if (target === host.name) ctx.error(`${at}.${ref.field}`, "can't point at its own host");
             else if (!targetProfiles) ctx.error(`${at}.${ref.field}`, `unknown host "${target}"`);
-            else if (!hostCapabilities(targetProfiles).has(ref.provides)) ctx.error(`${at}.${ref.field}`, `host "${target}" doesn't run ${describeCapability(ref.provides)}`);
+            else if (!hostCapabilities(registry, targetProfiles).has(ref.provides)) ctx.error(`${at}.${ref.field}`, `host "${target}" doesn't run ${describe(ref.provides)}`);
+        }
+
+        const values = settings.values as Record<string, unknown> | undefined;
+        for (const leaf of values ? valuePaths(values) : []) {
+            const owned = (def.protectedValues ?? []).find(p => leaf === p || leaf.startsWith(`${p}.`) || p.startsWith(`${leaf}.`));
+            if (owned) ctx.error(`${at}.values.${leaf}`, `is set by the lab engine (${owned}); it can't be overridden`);
         }
 
         const declared = secretFieldsOf(def);
@@ -116,6 +132,7 @@ export function checkHostProfiles(ctx: HostRulesContext): void {
         walkSecretRefs(settings, at, ctx.secretRef, new Set(declared.map(d => `${at}.${d.field}`)));
     }
 }
+
 
 function walkSecretRefs(value: unknown, path: string, found: (ref: SecretRef, path: string) => void, skip: Set<string>): void {
     if (skip.has(path)) return;
@@ -134,14 +151,14 @@ function walkSecretRefs(value: unknown, path: string, found: (ref: SecretRef, pa
  * Order the profiles on a host so every profile comes after the ones providing what it
  * `requires` (k3s before rancher). Ties keep alphabetical order, so the result is stable.
  */
-export function profileBuildOrder(profiles: Profiles): ProfileName[] {
+export function profileBuildOrder(registry: ProfileRegistry, profiles: Profiles): string[] {
     const names = activeProfiles(profiles);
-    const caps = hostCapabilities(profiles);
+    const caps = hostCapabilities(registry, profiles);
     const deps = new Map(names.map(n => [n, new Set(
-        [...activeRequirements(PROFILE_BY_NAME[n], profiles[n]), ...(PROFILE_BY_NAME[n].uses ?? [])]
+        [...activeRequirements(registry[n], profiles[n]), ...(registry[n].uses ?? [])]
             .flatMap(c => caps.get(c) ?? []).filter(p => p !== n),
     )]));
-    const order: ProfileName[] = [];
+    const order: string[] = [];
     while (order.length < names.length) {
         const next = names.find(n => !order.includes(n) && [...deps.get(n)!].every(d => order.includes(d)));
         if (!next) throw new Error(`profiles on a host depend on each other in a cycle: ${names.filter(n => !order.includes(n)).join(", ")}`);
@@ -151,9 +168,9 @@ export function profileBuildOrder(profiles: Profiles): ProfileName[] {
 }
 
 /** Whether a host may become a node of a Rancher custom cluster, which brings its own Kubernetes. */
-export function blocksCustomClusterNode(profiles: Profiles): ProfileName[] {
+export function blocksCustomClusterNode(registry: ProfileRegistry, profiles: Profiles): string[] {
     return activeProfiles(profiles).filter(n => {
-        const def = PROFILE_BY_NAME[n];
+        const def = registry[n];
         return capabilitiesOf(def).includes("kubernetes") || (def.conflicts ?? []).includes("kubernetes");
     });
 }

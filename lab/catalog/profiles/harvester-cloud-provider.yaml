@@ -1,0 +1,28 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: harvester-cloud-provider
+  description: "Harvester cloud provider: LoadBalancer services get an address from the network's Harvester load-balancer pool (instead of ServiceLB)"
+spec:
+  charts:
+    - chart: harvester-cloud-provider
+      namespace: kube-system
+      lockedValues:
+        # The secret the builder creates with the cloud provider's Harvester kubeconfig.
+        cloudConfig: { secretName: harvester-cloud-config, secretKey: cloud-config }
+        # The guest cluster's name, as Harvester's load balancers and the DNS controller know it.
+        global: { cattle: { clusterName: "{{ host.name }}" } }
+  requires: [ kubernetes ]
+  # The cloud provider of the guest cluster too: the distribution runs its external-CCM config.
+  provides: [ load-balancer, cloud-provider ]
+  conflicts: [ load-balancer, cloud-provider ]
+  hostKinds: [ harvester ]
+  networkFeatures: [ loadBalancer ]
+  outputs:
+    # Makes the cloud provider take a LoadBalancer's address from the Harvester IP pool.
+    load-balancer: { serviceAnnotations: { cloudprovider.harvesterhci.io/ipam: pool } }
+  settings:
+    type: object
+    properties:
+      version: { type: string }
+      values: { $ref: chartValues }

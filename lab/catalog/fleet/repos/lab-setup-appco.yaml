@@ -1,0 +1,15 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetRepo
+metadata:
+  name: lab-setup-appco
+  description: apps/appco of this repository
+spec:
+  default: true
+  url: https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git
+  branch: main
+  paths: [ /apps/appco ]
+  target: all-downstream-clusters
+  helm:
+    secret: application-collection-basicauth
+    repoURLRegex: oci://dp.apps.rancher.io/*
+  uses: [ fleet-secrets ]

@@ -4,6 +4,7 @@ import { harvesterhci, k8s as cni, loadbalancer, network } from "@lab/crds";
 import type { ResolvedHarvester } from "@lab/schema";
 import { HarvesterAddon } from "./addon";
 import { LoadBalancerCleanup } from "./lb-cleanup";
+import { NamespaceBindingsCleanup } from "./rbac-cleanup";
 
 export interface Credentials {
     username: pulumi.Input<string>;
@@ -19,7 +20,15 @@ export interface HarvesterBaseArgs {
     /** Networks hosts or downstream pools use; only these (and networks with DHCP) are created. */
     usedNetworks: string[];
     dnsCredentials?: Credentials;
-    versions: { dhcpController: string; dnsController: string };
+    /** Catalog charts at their versions (DESIGN.md §16.2). */
+    charts: { dhcpController: Chart; dnsController: Chart };
+}
+
+/** A catalog chart at a version: `repo` unless it's an `oci://` chart. */
+export interface Chart {
+    chart: string;
+    repo?: string;
+    version: string;
 }
 
 export interface HarvesterImage {
@@ -51,9 +60,11 @@ export class HarvesterBase extends pulumi.ComponentResource {
         const child = (suffix: string) => `${name}/${suffix}`;
         const o: pulumi.CustomResourceOptions = { parent: this, provider: opts.provider };
 
+        // Created first so that it's deleted after the namespace.
+        const bindings = new NamespaceBindingsCleanup(child("rbac-cleanup"), { harvester: h.name, namespace: args.namespace }, { parent: this });
         this.namespace = new k8s.core.v1.Namespace(child("namespace"), {
             metadata: { name: args.namespace, labels: { "app.kubernetes.io/managed-by": "lab" } },
-        }, o);
+        }, { ...o, dependsOn: [bindings] });
         const ns = this.namespace.metadata.name;
         const inNs: pulumi.CustomResourceOptions = { ...o, dependsOn: [this.namespace] };
 
@@ -78,9 +89,10 @@ export class HarvesterBase extends pulumi.ComponentResource {
             name: "harvester-vm-dhcp-controller",
             namespace: "harvester-system",
             labels: { "addon.harvesterhci.io/experimental": "true" },
-            repo: "https://charts.harvesterhci.io",
-            chart: "harvester-vm-dhcp-controller",
-            version: args.versions.dhcpController,
+            // Harvester add-ons install from a Helm repository, not an OCI reference.
+            repo: args.charts.dhcpController.repo ?? (() => { throw new Error("catalog.components.harvester-vm-dhcp-controller needs a repo: Harvester add-ons can't use oci:// charts"); })(),
+            chart: args.charts.dhcpController.chart,
+            version: args.charts.dhcpController.version,
         }, { parent: this }) : undefined;
 
         const nads: Record<string, pulumi.Resource> = {};
@@ -167,8 +179,9 @@ export class HarvesterBase extends pulumi.ComponentResource {
             this.ready.push(new k8s.helm.v3.Release(child("dns-controller"), {
                 name: "harvester-dns-controller",
                 namespace: "harvester-system",
-                chart: "oci://ghcr.io/hierynomus/harvester-dns-controller/charts/harvester-dns-controller",
-                version: args.versions.dnsController,
+                chart: args.charts.dnsController.chart,
+                version: args.charts.dnsController.version,
+                ...(args.charts.dnsController.repo ? { repositoryOpts: { repo: args.charts.dnsController.repo } } : {}),
                 values: {
                     dns: {
                         backend: h.dns.backend,

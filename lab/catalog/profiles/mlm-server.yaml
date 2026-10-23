@@ -1,0 +1,22 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: mlm-server
+  description: SUSE Multi-Linux Manager server (containers on SL Micro, installed with mgradm)
+spec:
+  # mgradm runs the server with podman on SL Micro; no Kubernetes or MLM client next to it.
+  osFamilies: [ suse ]
+  conflicts: [ kubernetes, mlm-client ]
+  secretFields: [ adminPassword ]
+  settings:
+    type: object
+    required: [ adminPassword ]
+    properties:
+      version: { type: string }
+      adminPassword: { $ref: secretOrString }
+      products:
+        anyOf:
+          - { const: auto }
+          - type: array
+            items: { type: string }
+        default: auto

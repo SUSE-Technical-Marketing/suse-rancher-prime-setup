@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { distroInstall, rewriteKubeconfig } from "../src";
+import type { ResolvedDistribution } from "@lab/schema";
+import { parse } from "yaml";
+import { distroInstall, mergeConfig, rewriteKubeconfig } from "../src";
 
 const K3S_YAML = `apiVersion: v1
 clusters:
@@ -26,28 +28,45 @@ describe("rewriteKubeconfig", () => {
     });
 });
 
+const DISTRO: ResolvedDistribution = {
+    kind: "KubernetesDistribution",
+    version: "v1",
+    install: "curl -sfL https://get.example.com | VERSION=v1 sh -",
+    configFile: "/etc/rancher/x/config.yaml",
+    config: { disable: ["traefik"], "enable-servicelb": true },
+    withCapability: {
+        "load-balancer": { disable: ["servicelb"], "enable-servicelb": false },
+        "cloud-provider": { "disable-cloud-controller": true },
+    },
+    kubeconfig: "/etc/rancher/x/x.yaml",
+    kubectl: "/usr/local/bin/x kubectl",
+    dataDir: "/var/lib/rancher/x",
+    uninstall: [],
+    cni: "flannel",
+};
+
+/** The config.yaml the runcmd writes. */
+const written = (runcmd: string[]) => parse(/^printf '%s' '([\s\S]*)' > /.exec(runcmd[1])![1].replace(/'\\''/g, "'"));
+
 describe("distroInstall", () => {
-    it("hands load balancing to an external cloud provider when asked", () => {
-        const k3s = distroInstall("k3s", "v1", "vm.example.com", { externalCloudProvider: true }).runcmd[0];
-        expect(k3s).toContain("--disable=servicelb --disable-cloud-controller --kubelet-arg=cloud-provider=external");
-        const rke2 = distroInstall("rke2", "v1", "vm.example.com", { externalCloudProvider: true }).runcmd.join("\n");
-        expect(rke2).toContain("'cloud-provider-name: external'");
-        expect(rke2).not.toContain("enable-servicelb");
+    it("writes the config file, with the FQDN as a tls-san, then runs the install command", () => {
+        const { runcmd } = distroInstall(DISTRO, DISTRO.install, "vm.example.com");
+        expect(runcmd[0]).toBe("mkdir -p '/etc/rancher/x'");
+        expect(runcmd[1]).toMatch(/> '\/etc\/rancher\/x\/config.yaml'$/);
+        expect(written(runcmd)).toEqual({ disable: ["traefik"], "enable-servicelb": true, "tls-san": ["vm.example.com"] });
+        expect(runcmd[2]).toBe(DISTRO.install);
     });
 
-    it("installs k3s without its Traefik and with the FQDN in the certificate", () => {
-        const k3s = distroInstall("k3s", "v1.36.4+k3s1", "rancher.lab.example.com");
-        expect(k3s.runcmd[0]).toContain("INSTALL_K3S_VERSION='v1.36.4+k3s1'");
-        expect(k3s.runcmd[0]).toContain("--disable=traefik --tls-san=rancher.lab.example.com");
-        expect(k3s.kubeconfigPath).toBe("/etc/rancher/k3s/k3s.yaml");
-        expect(k3s.readyCheck).toContain("/usr/local/bin/k3s");
+    it("merges the config for each capability other profiles provide, joining lists", () => {
+        const lb = distroInstall(DISTRO, DISTRO.install, "vm.example.com", { capabilities: ["kubernetes", "load-balancer"] });
+        expect(written(lb.runcmd)).toEqual({ disable: ["traefik", "servicelb"], "enable-servicelb": false, "tls-san": ["vm.example.com"] });
+        const both = distroInstall(DISTRO, DISTRO.install, "vm.example.com", { capabilities: ["load-balancer", "cloud-provider"] });
+        expect(written(both.runcmd)).toMatchObject({ "enable-servicelb": false, "disable-cloud-controller": true });
     });
+});
 
-    it("installs RKE2 from the tarball without ingress-nginx", () => {
-        const rke2 = distroInstall("rke2", "v1.36.4+rke2r3", "vm.lab.example.com");
-        expect(rke2.runcmd.join("\n")).toContain("rke2-ingress-nginx");
-        expect(rke2.runcmd.join("\n")).toContain("enable-servicelb: true");
-        expect(rke2.runcmd.join("\n")).toContain("INSTALL_RKE2_METHOD=tar");
-        expect(rke2.runcmd.at(-1)).toBe("systemctl enable --now rke2-server.service");
+describe("mergeConfig", () => {
+    it("merges maps key by key, joins lists without duplicates, and replaces scalars", () => {
+        expect(mergeConfig({ a: [1, 2], m: { x: 1 }, s: "a" }, { a: [2, 3], m: { y: 2 }, s: "b" })).toEqual({ a: [1, 2, 3], m: { x: 1, y: 2 }, s: "b" });
     });
 });

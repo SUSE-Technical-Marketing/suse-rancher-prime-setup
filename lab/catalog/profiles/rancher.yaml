@@ -1,0 +1,60 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: rancher
+  description: Rancher Manager on the host's Kubernetes cluster, with UI plugins and Fleet
+spec:
+  charts:
+    - chart: rancher
+      namespace: cattle-system
+      values:
+        global: { cattle: { psp: { enabled: false } } }
+      # Rancher is single-node, and wired to the host's ingress, certificate and (staging) CA.
+      lockedValues:
+        replicas: 1
+        hostname: "{{ settings.hostname }}.{{ host.fqdn }}"
+        ingress:
+          ingressClassName: "{{ outputs.ingress.ingressClassName }}"
+          tls: { source: secret, secretName: "{{ outputs.tls.secretName }}" }
+        # Agents trust a certificate from an untrusted CA (Let's Encrypt staging) only through its roots, as a private CA.
+        privateCA: "{{ lab.tls.privateCA }}"
+        agentTLSMode: "{{ 'strict' if lab.tls.privateCA else 'system-store' }}"
+    # Liz, Rancher's AI assistant: the agent (its UI is the rancher-ai-ui plugin).
+    - chart: rancher-ai-agent
+      namespace: cattle-ai-agent-system
+      when: "{{ settings.liz | default(false) }}"
+  requires: [ kubernetes, ingress, tls, secret-propagation ]
+  # A SecretTemplate for Fleet can require Outrider; build it first.
+  uses: [ downstream-secrets ]
+  secretFields: [ adminPassword ]
+  settings:
+    type: object
+    required: [ adminPassword ]
+    properties:
+      version: { type: string }
+      hostname:
+        $ref: dnsLabel
+        default: rancher
+        description: "First label of Rancher's name: <hostname>.<host>.<domain>"
+      adminPassword: { $ref: secretOrString }
+      plugins:
+        description: UI plugins by name (versions from the catalog), or name -> version; default the catalog's set
+        anyOf:
+          - type: array
+            items: { type: string, minLength: 1 }
+          - type: object
+            additionalProperties: { type: string, minLength: 1 }
+      liz:
+        type: boolean
+        description: Install Liz, Rancher's AI assistant
+      values:
+        $ref: chartValues
+        description: Extra Helm values, merged over the engine's
+      fleet:
+        description: GitRepos from the catalog; their secrets come from the lab's inputs
+        type: object
+        properties:
+          repos:
+            type: array
+            items: { $ref: dnsLabel }
+            description: "GitRepos by catalog name; default the repos with default: true"

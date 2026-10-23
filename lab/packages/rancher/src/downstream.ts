@@ -1,6 +1,9 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { provisioning, rke_machine_config } from "@lab/crds";
+import { deepMerge } from "@lab/kubernetes";
+import type { ResolvedDistribution } from "@lab/schema";
+import { ClusterKubeconfig } from "./cluster-kubeconfig";
 import { RancherAccess } from "./server";
 
 export interface HarvesterMachinePool {
@@ -20,6 +23,8 @@ export interface HarvesterMachinePool {
 export interface HarvesterClusterArgs {
     rancher: RancherAccess;
     distro: "rke2" | "k3s";
+    /** Its KubernetesDistribution document: the default CNI and the data directory. */
+    distribution: ResolvedDistribution;
     kubernetesVersion: string;
     labels: Record<string, string>;
     /** `cattle-global-data:cc-xxxxx` of the Harvester's cloud credential. */
@@ -31,6 +36,11 @@ export interface HarvesterClusterArgs {
     /** Kubeconfig for the Harvester cloud provider in the new cluster (RKE2 only). */
     cloudProviderConfig?: pulumi.Input<string>;
     pools: HarvesterMachinePool[];
+    /** CNI; default the distribution's `cni`. */
+    cni?: string;
+    /** The lab's own `machineGlobalConfig` and `chartValues`, merged over the engine's. */
+    machineGlobalConfig?: Record<string, unknown>;
+    chartValues?: Record<string, unknown>;
     /** What has to exist first and outlive the cluster: the Harvester's networks and images, the credential. */
     after?: pulumi.Resource[];
 }
@@ -55,6 +65,8 @@ export function toGiB(quantity: string): number {
  */
 export class HarvesterCluster extends pulumi.ComponentResource {
     readonly cluster: provisioning.v1.Cluster;
+    /** A provider for the new cluster (through Rancher); resources on it are deleted with the cluster. */
+    readonly provider: k8s.Provider;
 
     constructor(name: string, args: HarvesterClusterArgs, opts?: pulumi.ComponentResourceOptions) {
         super("lab:rancher:HarvesterCluster", name, {}, opts);
@@ -83,7 +95,6 @@ export class HarvesterCluster extends pulumi.ComponentResource {
             vmNamespace: args.vmNamespace,
         }, o));
 
-        const rke2 = args.distro === "rke2";
         this.cluster = new provisioning.v1.Cluster(`${name}/cluster`, {
             metadata: {
                 name: clusterName,
@@ -95,18 +106,16 @@ export class HarvesterCluster extends pulumi.ComponentResource {
                 kubernetesVersion: args.kubernetesVersion,
                 cloudCredentialSecretName: args.cloudCredential,
                 rkeConfig: {
-                    machineGlobalConfig: rke2 ? { cni: "calico" } : {},
+                    machineGlobalConfig: deepMerge(args.machineGlobalConfig ?? {}, { cni: args.cni ?? args.distribution.cni }),
                     machineSelectorConfig: [{
                         config: cloudConfig
                             ? { "cloud-provider-name": "harvester", "cloud-provider-config": pulumi.interpolate`secret://${NS}:${cloudConfig.metadata.name}` }
                             : {},
                     }],
-                    ...(cloudConfig ? {
-                        chartValues: {
-                            "harvester-cloud-provider": {
-                                clusterName,
-                                cloudConfigPath: "/var/lib/rancher/rke2/etc/config-files/cloud-provider-config",
-                            },
+                    chartValues: deepMerge(args.chartValues ?? {}, cloudConfig ? {
+                        "harvester-cloud-provider": {
+                            clusterName,
+                            cloudConfigPath: `${args.distribution.dataDir}/etc/config-files/cloud-provider-config`,
                         },
                     } : {}),
                     machinePools: args.pools.map((pool, i) => ({
@@ -125,6 +134,14 @@ export class HarvesterCluster extends pulumi.ComponentResource {
             // Rancher deletes the machines (VMs) before the Cluster object goes.
             customTimeouts: { create: "60m", delete: "30m" },
         });
+
+        const kubeconfig = new ClusterKubeconfig(`${name}/kubeconfig`, {
+            rancherKubeconfig: args.rancher.cluster.kubeconfig,
+            cluster: clusterName,
+            rancherUrl: args.rancher.url,
+            insecure: args.rancher.insecure,
+        }, { parent: this, dependsOn: [this.cluster], deletedWith: this.cluster });
+        this.provider = new k8s.Provider(`${name}/provider`, { kubeconfig: kubeconfig.kubeconfig, suppressHelmHookWarnings: true }, { parent: this });
 
         this.registerOutputs({});
     }

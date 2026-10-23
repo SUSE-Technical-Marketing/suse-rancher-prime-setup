@@ -12,6 +12,8 @@
         "@lab/crds": "workspace:*",
         "@lab/kube": "workspace:*",
         "@lab/kubernetes": "workspace:*",
+        "@lab/schema": "workspace:*",
+        "@pulumi/command": "^1.2.1",
         "@pulumi/kubernetes": "^4.34.2",
         "@pulumi/pulumi": "^3.271.0"
     }

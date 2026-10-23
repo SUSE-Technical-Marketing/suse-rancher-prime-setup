@@ -1,0 +1,20 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: rke2
+  description: Single-node RKE2 cluster on the host
+spec:
+  distribution: rke2
+  provides: [ kubernetes ]
+  conflicts: [ kubernetes ]
+  # RKE2's own ServiceLB and Traefik, unless another profile on the host provides them (metallb,
+  # traefik): its KubernetesDistribution's `withCapability` then turns them off.
+  fallback: [ load-balancer, ingress ]
+  outputs:
+    ingress: { ingressClassName: traefik }
+  settings:
+    type: object
+    properties:
+      version:
+        type: string
+        description: RKE2 version; default from this file

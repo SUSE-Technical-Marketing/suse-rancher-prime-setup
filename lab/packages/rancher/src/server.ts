@@ -1,6 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { ClusterAccess, helmApp, KubePatch, KubeWait, onCluster, withCluster } from "@lab/kubernetes";
+import { ClusterAccess, KubePatch, KubeWait, onCluster, ProfileChartSpec, profileHelmApp, withCluster } from "@lab/kubernetes";
 import { RancherBootstrap } from "./bootstrap";
 
 /** How to talk to a running Rancher. */
@@ -22,12 +22,12 @@ export interface RancherAccess {
 
 export interface RancherServerArgs {
     cluster: ClusterAccess;
-    version: string;
-    /** Full name, e.g. `rancher.rancher.lab.geeko.me`. */
+    /** The chart, its namespace, and the Profile document's default and locked values. */
+    chart: ProfileChartSpec;
+    /** The lab's own chart values, merged over the engine's (protected paths validated earlier). */
+    values?: pulumi.Input<Record<string, unknown>>;
+    /** Full name, e.g. `rancher.rancher.lab.geeko.me` (the chart's `hostname`, from its Profile's lockedValues). */
     hostname: string;
-    ingressClassName: string;
-    /** Secret (in cattle-system, put there by Sprouter) with the wildcard certificate. */
-    tlsSecretName: string;
     adminPassword: pulumi.Input<string>;
     insecure: boolean;
     /**
@@ -49,26 +49,12 @@ export class RancherServer extends pulumi.ComponentResource {
 
         // The chart mounts `tls-ca` when privateCA is on, so it has to exist before Rancher starts.
         const privateCa = args.privateCa ? [new k8s.core.v1.Secret(`${name}/tls-ca`, {
-            metadata: { name: "tls-ca", namespace: new k8s.core.v1.Namespace(`${name}/namespace`, { metadata: { name: "cattle-system" } }, o).metadata.name },
+            metadata: { name: "tls-ca", namespace: new k8s.core.v1.Namespace(`${name}/namespace`, { metadata: { name: args.chart.namespace } }, o).metadata.name },
             stringData: { "cacerts.pem": args.privateCa },
         }, o)] : [];
 
-        const chart = helmApp(`${name}/chart`, {
-            chart: "rancher",
-            repo: "https://charts.rancher.com/server-charts/prime",
-            version: args.version.replace(/^v/, ""),
-            namespace: "cattle-system",
-            values: {
-                hostname: args.hostname,
-                replicas: 1,
-                ...(args.privateCa ? { privateCA: true, agentTLSMode: "strict" } : { agentTLSMode: "system-store" }),
-                global: { cattle: { psp: { enabled: false } } },
-                ingress: {
-                    ingressClassName: args.ingressClassName,
-                    tls: { source: "secret", secretName: args.tlsSecretName },
-                },
-            },
-        }, { ...o, dependsOn: privateCa });
+        // hostname, ingress and the (staging) CA settings come from the Profile's lockedValues.
+        const chart = profileHelmApp(`${name}/chart`, { ...args.chart, version: args.chart.version.replace(/^v/, "") }, { lab: args.values }, { ...o, dependsOn: privateCa });
 
         const after = withCluster(args.cluster, this, { dependsOn: [chart] });
         const settings = [

@@ -1,0 +1,9 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Manifest
+metadata:
+  name: gateway-api
+  description: Gateway API CRDs, for Traefik's Gateway provider; {channel} is standard or experimental
+spec:
+  # https://github.com/kubernetes-sigs/gateway-api/releases; {channel} is standard or experimental.
+  url: https://github.com/kubernetes-sigs/gateway-api/releases/download/{version}/{channel}-install.yaml
+  version: v1.6.2

@@ -5,9 +5,11 @@ import { HarvesterSession } from "./harvesters";
  * Everything a lab may create on a Harvester, as API paths. `destroy --check` lists whatever of
  * it still exists, to catch teardown leaks. Keep in sync with packages/harvester.
  */
-function candidates(lab: ResolvedLab, session: HarvesterSession): { what: string; path: string; list?: boolean; prefix?: string }[] {
+function candidates(lab: ResolvedLab, session: HarvesterSession): { what: string; path: string; list?: boolean; prefix?: string; leaks?: (item: any) => boolean }[] {
     const ns = lab.name;
     const h = session.harvester;
+    // A Rancher of the lab imported this Harvester: removing it from Rancher should remove its agent.
+    const imported = lab.downstream.some(d => d.type === "harvester" && d.harvester === h.name);
     return [
         { what: `namespace ${ns}`, path: `/api/v1/namespaces/${ns}` },
         ...["virtualmachines", "virtualmachineinstances"].map(r => ({ what: `kubevirt ${r}`, path: `/apis/kubevirt.io/v1/namespaces/${ns}/${r}`, list: true })),
@@ -26,6 +28,23 @@ function candidates(lab: ResolvedLab, session: HarvesterSession): { what: string
         { what: "DNS controller secret", path: "/api/v1/namespaces/harvester-system/secrets/lab-dns-controller" },
         { what: "DNS controller release", path: "/api/v1/namespaces/harvester-system/secrets?labelSelector=owner%3Dhelm%2Cname%3Dharvester-dns-controller", list: true },
         { what: "ownership claim", path: "/api/v1/namespaces/default/configmaps/lab-owner" },
+        // Harvester binds the service accounts it makes kubeconfigs for (the cloud provider's) cluster-wide.
+        { what: "cluster role bindings of the lab's service accounts", path: "/apis/rbac.authorization.k8s.io/v1/clusterrolebindings", list: true,
+            leaks: (b: any) => (b.subjects ?? []).length > 0 && b.subjects.every((s: any) => s.kind === "ServiceAccount" && s.namespace === ns) },
+        ...(imported ? [
+            { what: "Rancher registration (setting cluster-registration-url)", path: "/apis/harvesterhci.io/v1beta1/settings/cluster-registration-url", leaks: (s: any) => !!s?.value },
+            { what: "Rancher cluster agent", path: "/apis/apps/v1/namespaces/cattle-system/deployments/cattle-cluster-agent" },
+            { what: "namespace cattle-impersonation-system", path: "/api/v1/namespaces/cattle-impersonation-system" },
+            { what: "Rancher's service account cattle", path: "/api/v1/namespaces/cattle-system/serviceaccounts/cattle" },
+            { what: "Rancher cluster agent service", path: "/api/v1/namespaces/cattle-system/services/cattle-cluster-agent" },
+            { what: "Rancher agent credentials", path: "/api/v1/namespaces/cattle-system/secrets", list: true, prefix: "cattle-credentials-" },
+            { what: "cluster role binding cattle-admin-binding", path: "/apis/rbac.authorization.k8s.io/v1/clusterrolebindings/cattle-admin-binding" },
+            { what: "cluster role proxy-clusterrole-kubeapiserver", path: "/apis/rbac.authorization.k8s.io/v1/clusterroles/proxy-clusterrole-kubeapiserver" },
+            { what: "Rancher impersonation roles", path: "/apis/rbac.authorization.k8s.io/v1/clusterroles?labelSelector=authz.cluster.cattle.io%2Fimpersonator%3Dtrue", list: true },
+            { what: "Rancher cleanup roles", path: "/apis/rbac.authorization.k8s.io/v1/clusterroles", list: true, prefix: "cattle-cleanup-" },
+            { what: "Rancher cleanup role bindings", path: "/apis/rbac.authorization.k8s.io/v1/clusterrolebindings", list: true, prefix: "cattle-cleanup-" },
+            { what: "Fleet agent (registered with the lab's Rancher)", path: "/apis/apps/v1/namespaces/cattle-fleet-system/deployments/fleet-agent" },
+        ] : []),
     ];
 }
 
@@ -48,7 +67,9 @@ export async function findLeftovers(lab: ResolvedLab, sessions: HarvesterSession
                 continue;
             }
             // Cluster-scoped lists (IP pools) are narrowed to this lab's objects by name prefix.
-            const items: any[] = (c.list ? res.body?.items ?? [] : [res.body]).filter((i: any) => !c.prefix || i?.metadata?.name?.startsWith(c.prefix));
+            const items: any[] = (c.list ? res.body?.items ?? [] : [res.body])
+                .filter((i: any) => !c.prefix || i?.metadata?.name?.startsWith(c.prefix))
+                .filter((i: any) => !c.leaks || c.leaks(i));
             const live = items.filter(i => !i?.metadata?.deletionTimestamp);
             const dying = items.filter(i => i?.metadata?.deletionTimestamp);
             const describe = (list: any[]) => `${session.harvester.name}: ${c.what}${c.list ? `: ${list.map(i => i.metadata.name).join(", ")}` : ""}`;

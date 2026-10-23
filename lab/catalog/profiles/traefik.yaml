@@ -1,0 +1,35 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: traefik
+  description: Traefik ingress controller with the Gateway API CRDs and its Gateway provider
+spec:
+  charts:
+    # Neither k3s/RKE2 nor the chart ship the Gateway API CRDs; Traefik's Gateway provider needs them.
+    - manifest: gateway-api
+      version: "{{ settings.gatewayApi.version | default('') }}"
+      vars: { channel: "{{ settings.gatewayApi.channel | default('standard') }}" }
+    - chart: traefik
+      namespace: traefik
+      lockedValues:
+        providers: { kubernetesGateway: { enabled: true } }
+        # With a load-balancer profile on the host, its Service takes an address from it.
+        service: { annotations: "{{ outputs['load-balancer'].serviceAnnotations | default({}) }}" }
+  requires: [ kubernetes ]
+  uses: [ load-balancer ]
+  provides: [ ingress ]
+  conflicts: [ ingress ]
+  outputs:
+    ingress: { ingressClassName: traefik }
+  settings:
+    type: object
+    properties:
+      version: { type: string }
+      gatewayApi:
+        type: object
+        properties:
+          version: { type: string }
+          channel:
+            enum: [ standard, experimental ]
+            default: standard
+      values: { $ref: chartValues }

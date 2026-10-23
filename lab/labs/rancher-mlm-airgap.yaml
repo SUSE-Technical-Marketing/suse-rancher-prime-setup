@@ -1,61 +1,81 @@
 # Reference lab 1: Rancher, Multi-Linux Manager and an air-gap registry, each on its own VM.
-lab: rancher-mlm-airgap
-domain: lab.geeko.me
+apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata:
+  name: rancher-mlm-airgap
+spec:
+  domain: lab.geeko.me
 
-tls:
-  acme: letsencrypt
-  email: lab@geeko.me
-  cloudflare: { $secret: cloudflare-token }
+  tls:
+    acme: letsencrypt
+    email: lab@geeko.me
+    cloudflare: { $secret: cloudflare-token }
 
-ssh:
-  user: lab
-  publicKey: { file: ~/.ssh/id_ed25519.pub }
-  privateKey: { $secret: ssh-key }
-
-harvesters:
-  hv-north:                         # url and credentials from the personal config
-    dns:
-      backend: routeros
-      host: 10.29.100.1
-      credentials: { $secret: routeros }
-    networks:
-      default: vlan100
-      vlans:
-        - id: 100
-          dhcp: { cidr: 10.29.100.0/24, gateway: 10.29.100.1, range: [10.29.100.100, 10.29.100.150] }
-
-hosts:
-  rancher:
-    on: hv-north
-    os: leap-16
-    cpu: 4
-    memory: 16Gi
-    disk: 100Gi
-    profiles:
-      k3s: {}
-      cert-manager: {}
-      sprouter: {}
-      traefik: {}
-      rancher:
-        adminPassword: { $secret: rancher-admin }
-        plugins: [harvester, kubewarden]
-
-  mlm:
-    on: hv-north
-    os: sl-micro-6.1
-    cpu: 4
-    memory: 16Gi
-    disk: 300Gi
-    profiles:
-      mlm-server:
-        adminPassword: { $secret: mlm-admin }
-
-  registry:
-    on: hv-north
-    os: leap-16
-    cpu: 2
-    memory: 4Gi
-    disk: 200Gi
-    profiles:
-      hauler:
-        manifests: [rancher-2.15]
+  ssh:
+    user: lab
+    publicKey: { file: ~/.ssh/id_ed25519.pub }
+    privateKey: { $secret: ssh-key }
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Harvester
+metadata:
+  name: hv-north
+  description: url and credentials from the personal config
+spec:
+  # url and credentials from the personal config
+  dns:
+    backend: routeros
+    host: 10.29.100.1
+    credentials: { $secret: routeros }
+  networks:
+    default: vlan100
+    vlans:
+      - id: 100
+        dhcp: { cidr: 10.29.100.0/24, gateway: 10.29.100.1, range: [ 10.29.100.100, 10.29.100.150 ] }
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: rancher
+spec:
+  harvester: hv-north
+  os: leap-16
+  cpu: 4
+  memory: 16Gi
+  disk: 100Gi
+  profiles:
+    k3s: {}
+    cert-manager: {}
+    sprouter: {}
+    traefik: {}
+    rancher:
+      adminPassword: { $secret: rancher-admin }
+      plugins: [ harvester, kubewarden ]
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: mlm
+spec:
+  harvester: hv-north
+  os: sl-micro-6.1
+  cpu: 4
+  memory: 16Gi
+  disk: 300Gi
+  profiles:
+    mlm-server:
+      adminPassword: { $secret: mlm-admin }
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: registry
+spec:
+  harvester: hv-north
+  os: leap-16
+  cpu: 2
+  memory: 4Gi
+  disk: 200Gi
+  profiles:
+    hauler:
+      manifests: [ rancher-2.15 ]

@@ -1,0 +1,11 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: OperatingSystem
+metadata:
+  name: ubuntu-24.04
+  description: Ubuntu 24.04 LTS
+spec:
+  family: debian
+  image:
+    url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+  defaultUser: ubuntu
+  packages: [ curl, git, bash-completion, vim, wget, tree, qemu-guest-agent ]

@@ -1,8 +1,7 @@
-import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { catalog } from "@lab/crds";
 import { rancherLogin, rancherRequest } from "@lab/kube";
-import { helmApp, onCluster, withCluster } from "@lab/kubernetes";
+import { onCluster, withCluster } from "@lab/kubernetes";
 import { RancherAccess } from "./server";
 
 interface AppInputs {
@@ -63,18 +62,20 @@ class RancherApp extends pulumi.dynamic.Resource {
 
 export interface UiPluginsArgs {
     rancher: RancherAccess;
+    /** The plugins' chart repository (a git repo of charts, as rancher/ui-plugin-charts). */
+    repo: { name: string; gitRepo: string; branch: string };
     /** Plugin name -> chart version. */
     plugins: Record<string, string>;
 }
 
-/** The rancher/ui-plugin-charts repository and the plugins installed from it. */
+/** The UI plugin chart repository and the plugins installed from it. */
 export class UiPlugins extends pulumi.ComponentResource {
     constructor(name: string, args: UiPluginsArgs, opts?: pulumi.ComponentResourceOptions) {
         super("lab:rancher:UiPlugins", name, {}, opts);
         const { rancher } = args;
         const repo = new catalog.v1.ClusterRepo(`${name}/repo`, {
-            metadata: { name: "rancher-ui-plugins", annotations: { "pulumi.com/waitFor": "condition=Downloaded" } },
-            spec: { gitRepo: "https://github.com/rancher/ui-plugin-charts", gitBranch: "main" },
+            metadata: { name: args.repo.name, annotations: { "pulumi.com/waitFor": "condition=Downloaded" } },
+            spec: { gitRepo: args.repo.gitRepo, gitBranch: args.repo.branch },
         }, { ...onCluster(rancher.cluster, this), provider: rancher.provider, dependsOn: rancher.ready });
 
         for (const [plugin, version] of Object.entries(args.plugins)) {
@@ -82,7 +83,7 @@ export class UiPlugins extends pulumi.ComponentResource {
                 url: rancher.url,
                 insecure: rancher.insecure,
                 password: rancher.password,
-                repo: "rancher-ui-plugins",
+                repo: args.repo.name,
                 chart: plugin,
                 version,
                 namespace: "cattle-ui-plugin-system",
@@ -90,13 +91,4 @@ export class UiPlugins extends pulumi.ComponentResource {
         }
         this.registerOutputs({});
     }
-}
-
-/** Liz, Rancher's AI assistant: the agent chart (its UI is the `rancher-ai-ui` plugin). */
-export function liz(name: string, rancher: RancherAccess, version: string, parent: pulumi.Resource): k8s.helm.v3.Release {
-    return helmApp(name, {
-        chart: "oci://registry.suse.com/rancher/charts/rancher-ai-agent",
-        version,
-        namespace: "cattle-ai-agent-system",
-    }, { ...onCluster(rancher.cluster, parent), provider: rancher.provider, dependsOn: rancher.ready });
 }

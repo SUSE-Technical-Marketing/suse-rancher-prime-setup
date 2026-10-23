@@ -4,7 +4,8 @@
     "private": true,
     "main": "index.ts",
     "scripts": {
-        "typecheck": "tsc -p ."
+        "typecheck": "tsc -p .",
+        "test": "vitest run --passWithNoTests"
     },
     "dependencies": {
         "@lab/apps": "workspace:*",

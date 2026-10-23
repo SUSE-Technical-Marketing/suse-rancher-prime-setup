@@ -1,9 +1,0 @@
-name: sl-micro-6.1
-displayName: SUSE Linux Micro 6.1
-family: suse
-image:
-  url: null            # needs an SCC login to download; provide images.sl-micro-6.1 (url or file)
-registration:
-  suseconnect:
-    regcode: { $secret: scc-regcode-slmicro }
-packages: [qemu-guest-agent]

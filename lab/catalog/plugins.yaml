@@ -1,0 +1,53 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: UiPluginRepository
+metadata:
+  name: rancher-ui-plugins
+  description: Rancher's UI plugin charts
+spec:
+  gitRepo: https://github.com/rancher/ui-plugin-charts
+  branch: main
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: UiPlugin
+metadata:
+  name: harvester
+spec:
+  repository: rancher-ui-plugins
+  version: 1.8.2
+  default: true
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: UiPlugin
+metadata:
+  name: virtual-clusters
+spec:
+  repository: rancher-ui-plugins
+  version: 1.2.1
+  default: true
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: UiPlugin
+metadata:
+  name: kubewarden
+spec:
+  repository: rancher-ui-plugins
+  version: 4.2.1
+  default: true
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: UiPlugin
+metadata:
+  name: vulnerability-scanner
+spec:
+  repository: rancher-ui-plugins
+  version: 0.9.0
+  default: true
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: UiPlugin
+metadata:
+  name: rancher-ai-ui
+spec:
+  repository: rancher-ui-plugins
+  version: 1.1.0
+  default: true

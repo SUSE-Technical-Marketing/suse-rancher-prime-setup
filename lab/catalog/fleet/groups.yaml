@@ -1,0 +1,11 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: ClusterGroup
+metadata:
+  name: all-downstream-clusters
+  description: Every downstream cluster, but not an imported Harvester
+spec:
+  selector:
+    matchExpressions:
+      - key: provider.cattle.io
+        operator: NotIn
+        values: [ harvester ]

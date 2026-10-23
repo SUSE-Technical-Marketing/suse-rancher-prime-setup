@@ -1,76 +1,47 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { ClusterAccess, helmApp, onCluster } from "@lab/kubernetes";
+import { ClusterAccess, onCluster, ProfileChartSpec, profileHelmApp } from "@lab/kubernetes";
 
-interface ChartArgs {
+export interface ChartArgs {
     cluster: ClusterAccess;
-    version: string;
+    /** The chart, its namespace, and the Profile document's default and locked values. */
+    chart: ProfileChartSpec;
+    /** The lab's own values (the profile's `values` setting), merged over the engine's. */
+    values?: pulumi.Input<Record<string, unknown>>;
 }
 
-/** Sprouter: copies secrets labelled `sprouter.geeko.me/enabled` into every namespace. */
-export class Sprouter extends pulumi.ComponentResource {
-    readonly release: k8s.helm.v3.Release;
-
-    constructor(name: string, args: ChartArgs, opts?: pulumi.ComponentResourceOptions) {
-        super("lab:apps:Sprouter", name, {}, opts);
-        this.release = helmApp(`${name}/chart`, {
-            chart: "oci://ghcr.io/hierynomus/sprouter/charts/sprouter",
-            version: args.version,
-            namespace: "sprouter",
-            values: { excludedNamespaces: ["kube-system", "kube-public", "cattle-local-user-passwords"] },
-        }, onCluster(args.cluster, this));
-        this.registerOutputs({});
-    }
+export interface ChartProfileArgs extends ChartArgs {
+    /** What it has to wait for: the outputs of the profiles it requires or uses. */
+    after?: pulumi.Resource[];
 }
 
-/** Outrider: propagates secrets annotated `outrider.geeko.me/enabled` to downstream clusters. */
-export class Outrider extends pulumi.ComponentResource {
+/**
+ * A profile that only installs its chart (Sprouter, Outrider, …): everything about it is in its
+ * Profile document (namespace, default and locked values), so it needs no builder of its own.
+ */
+export class ChartProfile extends pulumi.ComponentResource {
     readonly release: k8s.helm.v3.Release;
 
-    constructor(name: string, args: ChartArgs, opts?: pulumi.ComponentResourceOptions) {
-        super("lab:apps:Outrider", name, {}, opts);
-        this.release = helmApp(`${name}/chart`, {
-            chart: "oci://ghcr.io/hierynomus/outrider/charts/outrider",
-            version: args.version,
-            namespace: "outrider",
-            values: { defaultTargetNamespace: "default", logLevel: "info" },
-        }, onCluster(args.cluster, this));
+    constructor(name: string, args: ChartProfileArgs, opts?: pulumi.ComponentResourceOptions) {
+        super("lab:apps:ChartProfile", name, {}, opts);
+        this.release = profileHelmApp(`${name}/chart`, args.chart, { lab: args.values }, { ...onCluster(args.cluster, this), dependsOn: args.after ?? [] });
         this.registerOutputs({});
     }
 }
 
 export interface TraefikArgs extends ChartArgs {
-    gatewayApi: { version: string; channel: "standard" | "experimental" };
-    /** Annotations for Traefik's LoadBalancer Service, e.g. which load-balancer pool to use. */
-    serviceAnnotations?: Record<string, string>;
-    /** Install only after these (the cloud provider, so the Service gets an address). */
+    /** Install only after these (the Gateway API CRDs, the cloud provider so the Service gets an address). */
     after?: pulumi.Resource[];
 }
 
-/**
- * Traefik with its Kubernetes Gateway provider. Neither k3s/RKE2 nor the chart ship the Gateway
- * API CRDs, so they're applied first.
- */
+/** Traefik with its Kubernetes Gateway provider (the Gateway API CRDs are the profile's first `charts` entry). */
 export class Traefik extends pulumi.ComponentResource {
-    readonly ingressClassName = "traefik";
     readonly release: k8s.helm.v3.Release;
 
     constructor(name: string, args: TraefikArgs, opts?: pulumi.ComponentResourceOptions) {
         super("lab:apps:Traefik", name, {}, opts);
         const o = onCluster(args.cluster, this);
-        const crds = new k8s.yaml.v2.ConfigFile(`${name}/gateway-api`, {
-            file: `https://github.com/kubernetes-sigs/gateway-api/releases/download/${args.gatewayApi.version}/${args.gatewayApi.channel}-install.yaml`,
-        }, o);
-        this.release = helmApp(`${name}/chart`, {
-            chart: "traefik",
-            repo: "https://traefik.github.io/charts",
-            version: args.version,
-            namespace: "traefik",
-            values: {
-                providers: { kubernetesGateway: { enabled: true } },
-                service: { annotations: args.serviceAnnotations ?? {} },
-            },
-        }, { ...o, dependsOn: [crds, ...(args.after ?? [])] });
+        this.release = profileHelmApp(`${name}/chart`, args.chart, { lab: args.values }, { ...o, dependsOn: args.after ?? [] });
         this.registerOutputs({});
     }
 }

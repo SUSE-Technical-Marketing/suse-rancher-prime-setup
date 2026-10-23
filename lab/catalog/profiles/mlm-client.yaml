@@ -1,0 +1,14 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: mlm-client
+  description: Registers the host with a Multi-Linux Manager server in the lab
+spec:
+  hostRefs:
+    - { field: server, provides: mlm-server }
+  settings:
+    type: object
+    required: [ server ]
+    properties:
+      server: { type: string, description: The host running mlm-server }
+      activationKey: { type: string }

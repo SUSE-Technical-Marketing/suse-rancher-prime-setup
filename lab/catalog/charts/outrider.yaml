@@ -1,0 +1,9 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: outrider
+  description: "Outrider: propagates annotated secrets to downstream clusters"
+spec:
+  chart: oci://ghcr.io/hierynomus/outrider/charts/outrider
+  version: 0.5.0
+  namespace: outrider

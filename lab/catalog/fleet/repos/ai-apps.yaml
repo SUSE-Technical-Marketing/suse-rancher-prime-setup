@@ -1,0 +1,13 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetRepo
+metadata:
+  name: ai-apps
+  description: apps/ai of this repository
+spec:
+  default: true
+  url: https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git
+  branch: main
+  paths: [ /apps/ai ]
+  helm:
+    secret: application-collection-basicauth
+    repoURLRegex: oci://dp.apps.rancher.io/*

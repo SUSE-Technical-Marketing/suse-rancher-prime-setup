@@ -19,6 +19,7 @@ import * as harvesterhci from "./harvesterhci";
 import * as k8s from "./k8s";
 import * as kubevirt from "./kubevirt";
 import * as loadbalancer from "./loadbalancer";
+import * as metallb from "./metallb";
 import * as network from "./network";
 import * as provisioning from "./provisioning";
 import * as rke_machine_config from "./rke_machine_config";
@@ -32,6 +33,7 @@ export {
     k8s,
     kubevirt,
     loadbalancer,
+    metallb,
     network,
     provisioning,
     rke_machine_config,

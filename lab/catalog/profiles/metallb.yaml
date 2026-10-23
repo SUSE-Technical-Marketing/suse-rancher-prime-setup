@@ -1,0 +1,24 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: metallb
+  description: "MetalLB in L2 mode: LoadBalancer services get an address from a range on the host's network (instead of ServiceLB)"
+spec:
+  charts:
+    - chart: metallb
+      namespace: metallb-system
+      # L2 only: no BGP stack (the chart's frr-k8s backend).
+      values: { frrk8s: { enabled: false } }
+  requires: [ kubernetes ]
+  provides: [ load-balancer ]
+  conflicts: [ load-balancer ]
+  settings:
+    type: object
+    required: [ addresses ]
+    properties:
+      addresses:
+        type: array
+        description: Ranges or CIDRs it hands out, on the host's network and outside its DHCP range, e.g. 10.29.20.221-10.29.20.230
+        items: { type: string, pattern: '^\d+\.\d+\.\d+\.\d+(/\d+|-\d+\.\d+\.\d+\.\d+)$' }
+      version: { type: string }
+      values: { $ref: chartValues }

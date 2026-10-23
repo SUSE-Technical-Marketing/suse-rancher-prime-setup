@@ -30498,6 +30498,676 @@ export namespace meta {
     }
 }
 
+export namespace metallb {
+    export namespace v1beta1 {
+        /**
+         * IPAddressPool represents a pool of IP addresses that can be allocated
+         * to LoadBalancer services.
+         */
+        export interface IPAddressPool {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "metallb.io/v1beta1";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "IPAddressPool";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.metallb.v1beta1.IPAddressPoolSpec;
+            status: outputs.metallb.v1beta1.IPAddressPoolStatus;
+        }
+
+        /**
+         * IPAddressPoolSpec defines the desired state of IPAddressPool.
+         */
+        export interface IPAddressPoolSpec {
+            /**
+             * A list of IP address ranges over which MetalLB has authority.
+             * You can list multiple ranges in a single pool, they will all share the
+             * same settings. Each range can be either a CIDR prefix, or an explicit
+             * start-end range of IPs.
+             */
+            addresses: string[];
+            /**
+             * AutoAssign flag used to prevent MetallB from automatic allocation
+             * for a pool.
+             */
+            autoAssign: boolean;
+            /**
+             * AvoidBuggyIPs prevents addresses ending with .0 and .255
+             * to be used by a pool.
+             */
+            avoidBuggyIPs: boolean;
+            serviceAllocation: outputs.metallb.v1beta1.IPAddressPoolSpecServiceAllocation;
+        }
+
+        /**
+         * IPAddressPoolSpec defines the desired state of IPAddressPool.
+         */
+        export interface IPAddressPoolSpecPatch {
+            /**
+             * A list of IP address ranges over which MetalLB has authority.
+             * You can list multiple ranges in a single pool, they will all share the
+             * same settings. Each range can be either a CIDR prefix, or an explicit
+             * start-end range of IPs.
+             */
+            addresses: string[];
+            /**
+             * AutoAssign flag used to prevent MetallB from automatic allocation
+             * for a pool.
+             */
+            autoAssign: boolean;
+            /**
+             * AvoidBuggyIPs prevents addresses ending with .0 and .255
+             * to be used by a pool.
+             */
+            avoidBuggyIPs: boolean;
+            serviceAllocation: outputs.metallb.v1beta1.IPAddressPoolSpecServiceAllocationPatch;
+        }
+
+        /**
+         * AllocateTo makes ip pool allocation to specific namespace and/or service.
+         * The controller will use the pool with lowest value of priority in case of
+         * multiple matches. A pool with no priority set will be used only if the
+         * pools with priority can't be used. If multiple matching IPAddressPools are
+         * available it will check for the availability of IPs sorting the matching
+         * IPAddressPools by priority, starting from the highest to the lowest. If
+         * multiple IPAddressPools have the same priority, choice will be random.
+         */
+        export interface IPAddressPoolSpecServiceAllocation {
+            /**
+             * NamespaceSelectors list of label selectors to select namespace(s) for ip pool,
+             * an alternative to using namespace list.
+             */
+            namespaceSelectors: outputs.metallb.v1beta1.IPAddressPoolSpecServiceAllocationNamespaceSelectors[];
+            /**
+             * Namespaces list of namespace(s) on which ip pool can be attached.
+             */
+            namespaces: string[];
+            /**
+             * Priority priority given for ip pool while ip allocation on a service.
+             */
+            priority: number;
+            /**
+             * ServiceSelectors list of label selector to select service(s) for which ip pool
+             * can be used for ip allocation.
+             */
+            serviceSelectors: outputs.metallb.v1beta1.IPAddressPoolSpecServiceAllocationServiceSelectors[];
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface IPAddressPoolSpecServiceAllocationNamespaceSelectors {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.metallb.v1beta1.IPAddressPoolSpecServiceAllocationNamespaceSelectorsMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface IPAddressPoolSpecServiceAllocationNamespaceSelectorsMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface IPAddressPoolSpecServiceAllocationNamespaceSelectorsMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface IPAddressPoolSpecServiceAllocationNamespaceSelectorsPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.metallb.v1beta1.IPAddressPoolSpecServiceAllocationNamespaceSelectorsMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * AllocateTo makes ip pool allocation to specific namespace and/or service.
+         * The controller will use the pool with lowest value of priority in case of
+         * multiple matches. A pool with no priority set will be used only if the
+         * pools with priority can't be used. If multiple matching IPAddressPools are
+         * available it will check for the availability of IPs sorting the matching
+         * IPAddressPools by priority, starting from the highest to the lowest. If
+         * multiple IPAddressPools have the same priority, choice will be random.
+         */
+        export interface IPAddressPoolSpecServiceAllocationPatch {
+            /**
+             * NamespaceSelectors list of label selectors to select namespace(s) for ip pool,
+             * an alternative to using namespace list.
+             */
+            namespaceSelectors: outputs.metallb.v1beta1.IPAddressPoolSpecServiceAllocationNamespaceSelectorsPatch[];
+            /**
+             * Namespaces list of namespace(s) on which ip pool can be attached.
+             */
+            namespaces: string[];
+            /**
+             * Priority priority given for ip pool while ip allocation on a service.
+             */
+            priority: number;
+            /**
+             * ServiceSelectors list of label selector to select service(s) for which ip pool
+             * can be used for ip allocation.
+             */
+            serviceSelectors: outputs.metallb.v1beta1.IPAddressPoolSpecServiceAllocationServiceSelectorsPatch[];
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface IPAddressPoolSpecServiceAllocationServiceSelectors {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.metallb.v1beta1.IPAddressPoolSpecServiceAllocationServiceSelectorsMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface IPAddressPoolSpecServiceAllocationServiceSelectorsMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface IPAddressPoolSpecServiceAllocationServiceSelectorsMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface IPAddressPoolSpecServiceAllocationServiceSelectorsPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.metallb.v1beta1.IPAddressPoolSpecServiceAllocationServiceSelectorsMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * IPAddressPoolStatus defines the observed state of IPAddressPool.
+         */
+        export interface IPAddressPoolStatus {
+            /**
+             * AssignedIPv4 is the number of assigned IPv4 addresses.
+             */
+            assignedIPv4: number;
+            /**
+             * AssignedIPv6 is the number of assigned IPv6 addresses.
+             */
+            assignedIPv6: number;
+            /**
+             * AvailableIPv4 is the number of available IPv4 addresses.
+             */
+            availableIPv4: number;
+            /**
+             * AvailableIPv6 is the number of available IPv6 addresses.
+             */
+            availableIPv6: number;
+        }
+
+        /**
+         * IPAddressPoolStatus defines the observed state of IPAddressPool.
+         */
+        export interface IPAddressPoolStatusPatch {
+            /**
+             * AssignedIPv4 is the number of assigned IPv4 addresses.
+             */
+            assignedIPv4: number;
+            /**
+             * AssignedIPv6 is the number of assigned IPv6 addresses.
+             */
+            assignedIPv6: number;
+            /**
+             * AvailableIPv4 is the number of available IPv4 addresses.
+             */
+            availableIPv4: number;
+            /**
+             * AvailableIPv6 is the number of available IPv6 addresses.
+             */
+            availableIPv6: number;
+        }
+
+        /**
+         * L2Advertisement allows to advertise the LoadBalancer IPs provided
+         * by the selected pools via L2.
+         */
+        export interface L2Advertisement {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "metallb.io/v1beta1";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "L2Advertisement";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.metallb.v1beta1.L2AdvertisementSpec;
+            /**
+             * L2AdvertisementStatus defines the observed state of L2Advertisement.
+             */
+            status: {[key: string]: string};
+        }
+
+        /**
+         * L2AdvertisementSpec defines the desired state of L2Advertisement.
+         */
+        export interface L2AdvertisementSpec {
+            /**
+             * A list of interfaces to announce from. The LB IP will be announced only from these interfaces.
+             * If the field is not set, we advertise from all the interfaces on the host.
+             */
+            interfaces: string[];
+            /**
+             * A selector for the IPAddressPools which would get advertised via this advertisement.
+             * If no IPAddressPool is selected by this or by the list, the advertisement is applied to all the IPAddressPools.
+             */
+            ipAddressPoolSelectors: outputs.metallb.v1beta1.L2AdvertisementSpecIpAddressPoolSelectors[];
+            /**
+             * The list of IPAddressPools to advertise via this advertisement, selected by name.
+             */
+            ipAddressPools: string[];
+            /**
+             * NodeSelectors allows to limit the nodes to announce as next hops for the LoadBalancer IP. When empty, all the nodes having  are announced as next hops.
+             */
+            nodeSelectors: outputs.metallb.v1beta1.L2AdvertisementSpecNodeSelectors[];
+            /**
+             * ServiceSelectors limits the set of services that will be advertised via this advertisement.
+             * If empty, all services from the selected pools are advertised.
+             */
+            serviceSelectors: outputs.metallb.v1beta1.L2AdvertisementSpecServiceSelectors[];
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface L2AdvertisementSpecIpAddressPoolSelectors {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.metallb.v1beta1.L2AdvertisementSpecIpAddressPoolSelectorsMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface L2AdvertisementSpecIpAddressPoolSelectorsMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface L2AdvertisementSpecIpAddressPoolSelectorsMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface L2AdvertisementSpecIpAddressPoolSelectorsPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.metallb.v1beta1.L2AdvertisementSpecIpAddressPoolSelectorsMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface L2AdvertisementSpecNodeSelectors {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.metallb.v1beta1.L2AdvertisementSpecNodeSelectorsMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface L2AdvertisementSpecNodeSelectorsMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface L2AdvertisementSpecNodeSelectorsMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface L2AdvertisementSpecNodeSelectorsPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.metallb.v1beta1.L2AdvertisementSpecNodeSelectorsMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * L2AdvertisementSpec defines the desired state of L2Advertisement.
+         */
+        export interface L2AdvertisementSpecPatch {
+            /**
+             * A list of interfaces to announce from. The LB IP will be announced only from these interfaces.
+             * If the field is not set, we advertise from all the interfaces on the host.
+             */
+            interfaces: string[];
+            /**
+             * A selector for the IPAddressPools which would get advertised via this advertisement.
+             * If no IPAddressPool is selected by this or by the list, the advertisement is applied to all the IPAddressPools.
+             */
+            ipAddressPoolSelectors: outputs.metallb.v1beta1.L2AdvertisementSpecIpAddressPoolSelectorsPatch[];
+            /**
+             * The list of IPAddressPools to advertise via this advertisement, selected by name.
+             */
+            ipAddressPools: string[];
+            /**
+             * NodeSelectors allows to limit the nodes to announce as next hops for the LoadBalancer IP. When empty, all the nodes having  are announced as next hops.
+             */
+            nodeSelectors: outputs.metallb.v1beta1.L2AdvertisementSpecNodeSelectorsPatch[];
+            /**
+             * ServiceSelectors limits the set of services that will be advertised via this advertisement.
+             * If empty, all services from the selected pools are advertised.
+             */
+            serviceSelectors: outputs.metallb.v1beta1.L2AdvertisementSpecServiceSelectorsPatch[];
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface L2AdvertisementSpecServiceSelectors {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.metallb.v1beta1.L2AdvertisementSpecServiceSelectorsMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface L2AdvertisementSpecServiceSelectorsMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface L2AdvertisementSpecServiceSelectorsMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface L2AdvertisementSpecServiceSelectorsPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.metallb.v1beta1.L2AdvertisementSpecServiceSelectorsMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+    }
+}
+
 export namespace network {
     export namespace v1alpha1 {
         export interface IPPool {

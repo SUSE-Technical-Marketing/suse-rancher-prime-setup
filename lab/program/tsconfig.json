@@ -1,4 +1,4 @@
 {
     "extends": "../tsconfig.base.json",
-    "files": ["index.ts", "profiles.ts", "versions.ts", "secrets.ts"]
+    "files": ["index.ts", "profiles.ts", "catalog.ts", "secrets.ts", "generated/profile-settings.ts", "scripts/profile-types.ts", "test/builders.test.ts"]
 }

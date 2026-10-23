@@ -1,58 +1,57 @@
+import type { ResolvedDistribution } from "@lab/schema";
+import { stringify } from "yaml";
+
 export type Distro = "k3s" | "rke2";
 
 export interface DistroInstall {
     /** cloud-init `runcmd` lines that install and start the distribution. */
     runcmd: string[];
-    kubeconfigPath: string;
-    /** Command on the host that succeeds once the API server answers. */
-    readyCheck: string;
 }
 
 const quote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
 export interface DistroOptions {
     /**
-     * Another profile runs the cloud provider (the Harvester cloud provider): no ServiceLB, no
-     * built-in cloud controller, and the kubelet waits for the external one.
+     * The capabilities other profiles on the host provide (`load-balancer`, `cloud-provider`):
+     * the distribution's `withCapability` config for each is merged in, in its document's order.
      */
-    externalCloudProvider?: boolean;
+    capabilities?: string[];
+}
+
+const isMap = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** Distribution config layers: maps merge key by key, lists are joined (`disable: [traefik]` + `[servicelb]`). */
+export function mergeConfig(base: Record<string, unknown>, over: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = { ...base };
+    for (const [key, value] of Object.entries(over)) {
+        const old = out[key];
+        out[key] = Array.isArray(value) && Array.isArray(old) ? [...new Set([...old, ...value])]
+            : isMap(value) && isMap(old) ? mergeConfig(old, value)
+            : value;
+    }
+    return out;
 }
 
 /**
- * Install a single-node k3s or RKE2 server. The built-in ingress controller is disabled: ingress
- * is the `traefik` profile's job. The host's FQDN is added to the API certificate so the
- * kubeconfig works by name as well as by address.
+ * Install a single-node k3s or RKE2 server as its KubernetesDistribution document says (DESIGN.md
+ * §16.2): its config file with the host's FQDN as a tls-san, so the kubeconfig works by name as
+ * well as by address, then its install command (already rendered with the version).
  */
-export function distroInstall(distro: Distro, version: string, fqdn: string, opts: DistroOptions = {}): DistroInstall {
-    const external = opts.externalCloudProvider ?? false;
-    if (distro === "k3s") {
-        const args = ["server", "--disable=traefik", `--tls-san=${fqdn}`];
-        if (external) args.push("--disable=servicelb", "--disable-cloud-controller", "--kubelet-arg=cloud-provider=external");
-        return {
-            runcmd: [
-                `curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${quote(version)} INSTALL_K3S_EXEC=${quote(args.join(" "))} sh -`,
-            ],
-            kubeconfigPath: "/etc/rancher/k3s/k3s.yaml",
-            // Full path: sudo's secure_path on SUSE doesn't include /usr/local/bin.
-            readyCheck: "sudo /usr/local/bin/k3s kubectl get --raw /readyz",
-        };
-    }
-    // Without an external cloud provider, ServiceLB (k3s' built-in load balancer) gives
-    // LoadBalancer services such as Traefik's the node's address, as on k3s.
-    const config = [
-        "tls-san:", `  - ${fqdn}`,
-        "disable:", "  - rke2-ingress-nginx",
-        ...(external ? ["cloud-provider-name: external", "disable-cloud-controller: true"] : ["enable-servicelb: true"]),
-    ];
+export function distroInstall(d: ResolvedDistribution, install: string, fqdn: string, opts: DistroOptions = {}): DistroInstall {
+    const others = new Set(opts.capabilities ?? []);
+    const config = mergeConfig(
+        Object.entries(d.withCapability).filter(([cap]) => others.has(cap)).reduce((c, [, over]) => mergeConfig(c, over), d.config),
+        { "tls-san": [fqdn] },
+    );
+    const dir = d.configFile.replace(/\/[^/]*$/, "") || "/";
     return {
         runcmd: [
-            "mkdir -p /etc/rancher/rke2",
-            `printf '%s\\n' ${config.map(quote).join(" ")} > /etc/rancher/rke2/config.yaml`,
-            // The tarball install doesn't depend on an RPM repository for the host's distribution.
-            `curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION=${quote(version)} INSTALL_RKE2_METHOD=tar sh -`,
-            "systemctl enable --now rke2-server.service",
+            `mkdir -p ${quote(dir)}`,
+            `printf '%s' ${quote(stringify(config))} > ${quote(d.configFile)}`,
+            install,
         ],
-        kubeconfigPath: "/etc/rancher/rke2/rke2.yaml",
-        readyCheck: "sudo /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml get --raw /readyz",
     };
 }
+
+/** A command on the host that succeeds once the API server answers. */
+export const readyCheck = (d: Pick<ResolvedDistribution, "kubectl">) => `sudo ${d.kubectl} get --raw /readyz`;

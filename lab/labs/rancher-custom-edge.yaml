@@ -1,54 +1,78 @@
 # Reference lab 4: Rancher with a custom RKE2 cluster on a physical machine.
-lab: rancher-custom-edge
-domain: lab.geeko.me
+apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata:
+  name: rancher-custom-edge
+spec:
+  domain: lab.geeko.me
 
-tls:
-  acme: letsencrypt
-  email: lab@geeko.me
-  cloudflare: { $secret: cloudflare-token }
+  tls:
+    acme: letsencrypt
+    email: lab@geeko.me
+    cloudflare: { $secret: cloudflare-token }
 
-ssh:
-  user: lab
-  publicKey: { file: ~/.ssh/id_ed25519.pub }
-  privateKey: { $secret: ssh-key }
-
-harvesters:
-  hv-north:
-    dns:
-      backend: routeros
-      host: 10.29.100.1
-      credentials: { $secret: routeros }
-
-hosts:
-  rancher:
-    on: hv-north
-    os: leap-16
-    cpu: 4
-    memory: 16Gi
-    disk: 100Gi
-    profiles:
-      k3s: {}
-      cert-manager: {}
-      sprouter: {}
-      traefik: {}
-      rancher:
-        adminPassword: { $secret: rancher-admin }
-        fleet:
-          groups:
-            edge: { env: edge }
-
-  nuc-01:                           # physical machine with an existing DNS record
-    on: ssh
-    address: nuc-01.lab.geeko.me
-    user: root
-    os: sles-16
-
-downstream:
-  edge:
-    type: custom
-    rancher: rancher
-    distro: rke2
-    labels: { env: edge }
-    nodes:
-      - host: nuc-01
-        roles: [etcd, controlplane, worker]
+  ssh:
+    user: lab
+    publicKey: { file: ~/.ssh/id_ed25519.pub }
+    privateKey: { $secret: ssh-key }
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Harvester
+metadata:
+  name: hv-north
+  description: url and credentials from the personal config
+spec:
+  dns:
+    backend: routeros
+    host: 10.29.100.1
+    credentials: { $secret: routeros }
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: rancher
+spec:
+  harvester: hv-north
+  os: leap-16
+  cpu: 4
+  memory: 16Gi
+  disk: 100Gi
+  profiles:
+    k3s: {}
+    cert-manager: {}
+    sprouter: {}
+    traefik: {}
+    rancher:
+      adminPassword: { $secret: rancher-admin }
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Machine
+metadata:
+  name: nuc-01
+  description: Physical machine with an existing DNS record
+spec:
+  # physical machine with an existing DNS record
+  address: nuc-01.lab.geeko.me
+  user: root
+  os: sles-16
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: DownstreamCluster
+metadata:
+  name: edge
+spec:
+  type: custom
+  rancher: rancher
+  distro: rke2
+  labels: { env: edge }
+  nodes:
+    - host: nuc-01
+      roles: [ etcd, controlplane, worker ]
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: ClusterGroup
+metadata:
+  name: edge
+  description: The downstream clusters labelled for it
+spec:
+  selector: { matchLabels: { env: edge } }

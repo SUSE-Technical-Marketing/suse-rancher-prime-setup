@@ -4,4 +4,6 @@ export * from "./plugins";
 export * from "./fleet";
 export * from "./cloud-credential";
 export * from "./downstream";
+export * from "./custom-cluster";
 export * from "./harvester-import";
+export * from "./cluster-kubeconfig";

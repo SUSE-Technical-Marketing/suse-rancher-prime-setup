@@ -101,3 +101,8 @@ export function renderCloudConfig(input: CloudConfigInput): string {
     };
     return `#cloud-config\n${stringify(config, { lineWidth: 0 })}`;
 }
+
+/** Commands (run as root) that install packages with the OS family's package manager: for existing machines, which get no user data. */
+export function installCommands(os: ResolvedOs, packages: string[]): string[] {
+    return FAMILIES[os.family].install(packages);
+}

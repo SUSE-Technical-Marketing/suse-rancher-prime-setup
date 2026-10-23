@@ -1,0 +1,10 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: harvester-cloud-provider
+  description: Harvester cloud provider for guest clusters (load balancers from Harvester IP pools)
+spec:
+  repo: https://charts.harvesterhci.io
+  chart: harvester-cloud-provider
+  version: 0.2.16
+  namespace: kube-system

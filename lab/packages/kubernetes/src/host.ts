@@ -10,6 +10,14 @@ export interface HostAccess {
     privateKey: pulumi.Input<string>;
 }
 
+const quote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
+
+/** Run a shell script as root over SSH, whether the login is root or a passwordless sudoer. */
+export const asRoot = (script: string) => `if [ "$(id -u)" -eq 0 ]; then sh -c ${quote(script)}; else sudo -n sh -c ${quote(script)}; fi`;
+
+/** Run the scripts that exist of `scripts` (uninstall scripts, as root); missing ones are skipped. */
+export const runExisting = (scripts: string[]) => [...scripts.map(s => `if [ -x ${quote(s)} ]; then ${quote(s)}; fi`), "true"].join("; ");
+
 export function sshConnection(host: HostAccess): command.types.input.remote.ConnectionArgs {
     return {
         host: host.address,

@@ -1,0 +1,14 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetRepo
+metadata:
+  name: lab-setup-suse
+  description: apps/suse of this repository
+spec:
+  default: true
+  url: https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git
+  branch: main
+  paths: [ /apps/suse ]
+  helm:
+    secret: scc-suse-basicauth
+    repoURLRegex: oci://registry.suse.com/*
+  uses: [ fleet-secrets ]

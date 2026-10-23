@@ -42,3 +42,6 @@ export type ImageSource = z.infer<typeof ImageSource>;
 
 export const OS_FAMILIES = ["suse", "rhel", "debian"] as const;
 export type OsFamily = (typeof OS_FAMILIES)[number];
+
+/** Extra Helm values for a chart profile, merged over the engine's (DESIGN.md §16.2). */
+export const chartValues = z.record(z.string(), z.unknown()).optional();

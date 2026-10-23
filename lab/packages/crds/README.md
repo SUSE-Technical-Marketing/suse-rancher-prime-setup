@@ -13,4 +13,4 @@ server-set metadata:
     kubectl get crd <name> -o json | node scripts/clean-crd.mjs crd-sources/<name>.yaml
     mise run crds
 
-Current sources: Harvester v1.9.0 (asgard), Rancher v2.15.2, cert-manager v1.20.2.
+Current sources: Harvester v1.9.0 (asgard), Rancher v2.15.2, cert-manager v1.20.2, MetalLB 0.16.1 (from its chart's `charts/crds`).

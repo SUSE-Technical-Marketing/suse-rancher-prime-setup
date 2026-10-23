@@ -1,0 +1,31 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: KubernetesDistribution
+metadata:
+  name: k3s
+  description: Single-node k3s cluster on the host
+spec:
+  version: v1.36.4+k3s1
+  # Run as root by cloud-init; `version` is the version above (or the profile's own).
+  install: curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ version }} sh -
+  # The engine writes `config` here before installing, with the host's FQDN as a tls-san.
+  configFile: /etc/rancher/k3s/config.yaml
+  # Without other profiles, its own ServiceLB gives LoadBalancer services the node's address and its
+  # own Traefik is the ingress (the k3s profile's fallbacks).
+  config: {}
+  # Merged into `config` (lists are joined) when another profile on the host provides the capability.
+  withCapability:
+    ingress:                      # the traefik profile
+      disable: [ traefik ]
+    load-balancer:                # metallb, harvester-cloud-provider
+      disable: [ servicelb ]
+    cloud-provider:               # harvester-cloud-provider
+      disable-cloud-controller: true
+      kubelet-arg: [ cloud-provider=external ]
+  kubeconfig: /etc/rancher/k3s/k3s.yaml
+  # Full path: sudo's secure_path on SUSE doesn't include /usr/local/bin.
+  kubectl: /usr/local/bin/k3s kubectl
+  dataDir: /var/lib/rancher/k3s
+  # Run on a custom cluster's existing machines when the lab goes; missing ones are skipped.
+  uninstall: [ /usr/local/bin/k3s-uninstall.sh, /usr/local/bin/k3s-agent-uninstall.sh ]
+  # Downstream clusters' default CNI.
+  cni: flannel
