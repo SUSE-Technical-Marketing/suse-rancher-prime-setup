@@ -1,0 +1,72 @@
+# Reference lab 3: Multi-Linux Manager managing several Linux distributions.
+lab: mlm-multi-os
+domain: lab.geeko.me
+
+tls:
+  acme: letsencrypt
+  email: lab@geeko.me
+  cloudflare: { $secret: cloudflare-token }
+
+ssh:
+  user: lab
+  publicKey: { file: ~/.ssh/id_ed25519.pub }
+  privateKey: { $secret: ssh-key }
+
+harvesters:
+  hv-north:
+    dns:
+      backend: routeros
+      host: 10.29.100.1
+      credentials: { $secret: routeros }
+    networks:
+      default: vlan100
+      vlans:
+        - id: 100
+          dhcp: { cidr: 10.29.100.0/24, gateway: 10.29.100.1, range: [10.29.100.100, 10.29.100.150] }
+
+hosts:
+  mlm:
+    on: hv-north
+    os: sl-micro-6.1
+    cpu: 4
+    memory: 16Gi
+    disk: 400Gi
+    profiles:
+      mlm-server:
+        adminPassword: { $secret: mlm-admin }
+
+  sles-01:
+    on: hv-north
+    os: sles-16
+    cpu: 2
+    memory: 4Gi
+    disk: 40Gi
+    profiles:
+      mlm-client: { server: mlm }
+
+  ubuntu-01:
+    on: hv-north
+    os: ubuntu-24.04
+    cpu: 2
+    memory: 4Gi
+    disk: 40Gi
+    profiles:
+      mlm-client: { server: mlm }
+
+  rocky-01:
+    on: hv-north
+    os: rocky-9
+    cpu: 2
+    memory: 4Gi
+    disk: 40Gi
+    profiles:
+      mlm-client: { server: mlm }
+
+  leap-01:
+    on: hv-north
+    os: leap-16
+    cpu: 2
+    memory: 4Gi
+    disk: 40Gi
+    profiles:
+      mlm-client: { server: mlm }

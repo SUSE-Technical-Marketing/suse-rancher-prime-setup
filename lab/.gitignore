@@ -1,0 +1,3 @@
+node_modules/
+# Stack settings are written by the CLI (Automation API) and hold the per-user encryption salt.
+program/Pulumi.*.yaml

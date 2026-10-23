@@ -1,0 +1,8 @@
+name: leap-16
+displayName: openSUSE Leap 16.0
+family: suse
+image:
+  url: https://download.opensuse.org/distribution/leap/16.0/appliances/Leap-16.0-Minimal-VM.x86_64-Cloud.qcow2
+packages: [curl, git-core, bash-completion, vim, wget, tree, qemu-guest-agent, firewalld]
+k8s:
+  packages: [k3s-selinux]

@@ -1,0 +1,15 @@
+{
+    "name": "@lab/cli",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "typecheck": "tsc -p .",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@lab/core": "workspace:*",
+        "@lab/schema": "workspace:*",
+        "@pulumi/pulumi": "^3.271.0",
+        "yaml": "^2.9.1"
+    }
+}

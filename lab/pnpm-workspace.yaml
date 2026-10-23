@@ -1,0 +1,11 @@
+packages:
+  - packages/*
+  - cli
+  - program
+linkWorkspacePackages: true
+allowBuilds:
+  esbuild: true
+  protobufjs: true
+  # Their install scripts only pre-download provider plugins; Pulumi fetches those itself.
+  "@pulumi/command": false
+  "@pulumi/kubernetes": false

@@ -1,0 +1,3 @@
+# Smallest valid lab: nothing to build. Used to smoke-test the CLI and the Pulumi wiring.
+lab: empty
+domain: lab.geeko.me

@@ -1,0 +1,18 @@
+{
+    "name": "@lab/apps",
+    "version": "0.1.0",
+    "private": true,
+    "main": "src/index.ts",
+    "types": "src/index.ts",
+    "scripts": {
+        "typecheck": "tsc -p .",
+        "test": "vitest run --passWithNoTests"
+    },
+    "dependencies": {
+        "@lab/crds": "workspace:*",
+        "@lab/kube": "workspace:*",
+        "@lab/kubernetes": "workspace:*",
+        "@pulumi/kubernetes": "^4.34.2",
+        "@pulumi/pulumi": "^3.271.0"
+    }
+}

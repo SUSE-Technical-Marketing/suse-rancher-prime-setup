@@ -1,0 +1,6 @@
+name: lab
+description: Lab engine program. Driven by the lab CLI; do not run pulumi commands here by hand.
+runtime:
+  name: nodejs
+  options:
+    packagemanager: pnpm

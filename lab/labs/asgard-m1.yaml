@@ -1,0 +1,34 @@
+# M1 test lab: one plain VM on asgard, VLAN 20, with DHCP and DNS from the lab.
+# Harvester url and credentials come from the personal config (harvesters.asgard).
+lab: asgard-m1
+domain: lab.geeko.me
+
+tls:
+  acme: letsencrypt
+  email: jeroen@vanerp.info
+  cloudflare: { $secret: cloudflare-token }
+
+ssh:
+  user: lab
+  publicKey: { file: ~/.ssh/id_ed25519.pub }
+  privateKey: { $secret: ssh-key }
+
+harvesters:
+  asgard:
+    dns:
+      backend: routeros
+      host: 10.29.20.1
+      credentials: { $secret: routeros }
+    networks:
+      default: vlan20
+      vlans:
+        - id: 20
+          dhcp: { cidr: 10.29.20.0/24, gateway: 10.29.20.1, range: [10.29.20.100, 10.29.20.150] }
+
+hosts:
+  m1-test:
+    on: asgard
+    os: leap-16
+    cpu: 2
+    memory: 4Gi
+    disk: 30Gi

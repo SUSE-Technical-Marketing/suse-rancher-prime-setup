@@ -1,0 +1,59 @@
+# Reference lab 2: Rancher provisions an RKE2 cluster on Harvester and labels it for Fleet.
+lab: rancher-harvester-rke2
+domain: lab.geeko.me
+
+tls:
+  acme: letsencrypt
+  email: lab@geeko.me
+  cloudflare: { $secret: cloudflare-token }
+
+ssh:
+  user: lab
+  publicKey: { file: ~/.ssh/id_ed25519.pub }
+  privateKey: { $secret: ssh-key }
+
+harvesters:
+  hv-north:
+    dns:
+      backend: routeros
+      host: 10.29.100.1
+      credentials: { $secret: routeros }
+    networks:
+      default: vlan100
+      vlans:
+        - id: 100
+          dhcp: { cidr: 10.29.100.0/24, gateway: 10.29.100.1, range: [10.29.100.100, 10.29.100.150] }
+
+hosts:
+  rancher:
+    on: hv-north
+    os: leap-16
+    cpu: 4
+    memory: 16Gi
+    disk: 100Gi
+    profiles:
+      k3s: {}
+      cert-manager: {}
+      sprouter: {}
+      traefik: {}
+      rancher:
+        adminPassword: { $secret: rancher-admin }
+        fleet:
+          groups:
+            demo: { env: demo }
+
+downstream:
+  apps:
+    type: harvester
+    rancher: rancher
+    harvester: hv-north
+    distro: rke2
+    labels: { env: demo }
+    pools:
+      - name: all
+        quantity: 3
+        roles: [etcd, controlplane, worker]
+        cpu: 4
+        memory: 8Gi
+        disk: 60Gi
+        os: sles-16

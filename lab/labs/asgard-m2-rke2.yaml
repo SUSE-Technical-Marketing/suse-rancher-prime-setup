@@ -1,0 +1,49 @@
+# M2 test lab, RKE2 variant: Rancher on one VM on asgard (rke2 + cert-manager + sprouter + traefik + outrider).
+# Harvester url and credentials come from the personal config (harvesters.asgard).
+lab: asgard-m2-rke2
+domain: lab.geeko.me
+
+tls:
+  # Staging while iterating: Let's Encrypt allows 5 certificates per week for the same names.
+  acme: letsencrypt-staging
+  email: jeroen@vanerp.info
+  cloudflare: { $secret: cloudflare-token }
+
+ssh:
+  user: lab
+  publicKey: { file: ~/.ssh/id_ed25519.pub }
+  privateKey: { $secret: ssh-key }
+
+harvesters:
+  asgard:
+    dns:
+      backend: routeros
+      host: 10.29.20.1
+      credentials: { $secret: routeros }
+    networks:
+      default: vlan20
+      vlans:
+        - id: 20
+          dhcp: { cidr: 10.29.20.0/24, gateway: 10.29.20.1, range: [10.29.20.100, 10.29.20.150] }
+
+hosts:
+  rancher:
+    on: asgard
+    os: leap-16
+    cpu: 4
+    memory: 16Gi
+    disk: 100Gi
+    profiles:
+      rke2: {}
+      cert-manager: {}
+      sprouter: {}
+      traefik: {}
+      outrider: {}
+      rancher:
+        adminPassword: { $secret: rancher-admin }
+        # Add once appco / scc / suse-observability-license are in the personal config:
+        # fleet:
+        #   secrets:
+        #     appco: { $secret: appco }
+        #     scc: { $secret: scc }
+        #     suse-observability-license: { $secret: suse-observability-license }

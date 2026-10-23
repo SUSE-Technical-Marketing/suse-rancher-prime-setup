@@ -1,0 +1,24 @@
+[tools]
+node = "latest"
+pnpm = "latest"
+pulumi = "latest"
+# Generates typed classes from the CRDs in packages/crds/crd-sources (mise run crds)
+"github:pulumi/crd2pulumi" = "latest"
+
+[tasks.lab]
+description = "Run the lab CLI (mise run lab -- <command> <lab.yaml>)"
+dir = "{{cwd}}"
+run = "{{config_root}}/node_modules/.bin/tsx {{config_root}}/cli/src/main.ts"
+
+[tasks.test]
+description = "Run all unit tests"
+run = "pnpm -r test"
+
+[tasks.typecheck]
+description = "Typecheck all packages"
+run = "pnpm -r typecheck"
+
+[tasks.crds]
+description = "Regenerate the typed CRD classes in packages/crds/generated from crd-sources/"
+dir = "{{config_root}}/packages/crds"
+run = "pnpm run generate"
