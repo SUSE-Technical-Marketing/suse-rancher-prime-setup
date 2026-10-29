@@ -4,6 +4,7 @@ metadata:
   name: outrider
   description: "Outrider: propagates annotated secrets to downstream clusters"
 spec:
+  icon: send                # in the lab UI (lucide.dev/icons)
   charts:
     - chart: outrider
       namespace: outrider

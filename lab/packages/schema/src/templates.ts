@@ -7,7 +7,7 @@ import * as nunjucks from "nunjucks";
 const env = new nunjucks.Environment(null, { autoescape: false, throwOnUndefined: true });
 
 const WHOLE = /^\s*\{\{([\s\S]*)\}\}\s*$/;
-const isTemplate = (s: string) => s.includes("{{") || s.includes("{%");
+export const isTemplate = (s: string) => s.includes("{{") || s.includes("{%");
 
 /** What a profile's templates can use. */
 export interface TemplateContext {
@@ -31,6 +31,15 @@ function renderString(template: string, ctx: object): unknown {
         return json === "" ? undefined : JSON.parse(json);
     }
     return env.renderString(template, ctx);
+}
+
+/** Render one template string; throws with a readable message on a problem. */
+export function renderTemplate(template: string, ctx: object): unknown {
+    try {
+        return renderString(template, ctx);
+    } catch (e) {
+        throw new Error(`template: ${clean((e as Error).message)}`);
+    }
 }
 
 /**

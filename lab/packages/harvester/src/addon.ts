@@ -11,6 +11,8 @@ export interface HarvesterAddonArgs {
     version: pulumi.Input<string>;
     valuesContent?: pulumi.Input<string>;
     labels?: Record<string, string>;
+    /** How long to wait for it to deploy, or be removed. */
+    timeoutSeconds: number;
 }
 
 interface Inputs {
@@ -22,9 +24,8 @@ interface Inputs {
     version: string;
     valuesContent?: string;
     labels?: Record<string, string>;
+    timeoutSeconds?: number;
 }
-
-const TIMEOUT_MS = 15 * 60 * 1000;
 
 /**
  * A Harvester add-on, removed the way Harvester expects: disable it, wait until its HelmChart is
@@ -68,24 +69,25 @@ const provider: pulumi.dynamic.ResourceProvider = {
         const disabled = await kubeRequest({ context: props.harvester }, "PATCH", addon, { spec: { enabled: false } });
         if (disabled.status === 404) return;
         if (disabled.status !== 200) throw new Error(`disabling add-on ${props.name} failed: HTTP ${disabled.status}`);
-        await poll(`add-on ${props.name} to uninstall`, async () => (await kubeRequest({ context: props.harvester }, "GET", chart)).status === 404);
+        await poll(`add-on ${props.name} to uninstall`, props, async () => (await kubeRequest({ context: props.harvester }, "GET", chart)).status === 404);
         const deleted = await kubeRequest({ context: props.harvester }, "DELETE", addon);
         if (deleted.status !== 200 && deleted.status !== 202 && deleted.status !== 404) throw new Error(`deleting add-on ${props.name} failed: HTTP ${deleted.status}`);
-        await poll(`add-on ${props.name} to be deleted`, async () => (await kubeRequest({ context: props.harvester }, "GET", addon)).status === 404);
+        await poll(`add-on ${props.name} to be deleted`, props, async () => (await kubeRequest({ context: props.harvester }, "GET", addon)).status === 404);
     },
 };
 
 async function waitCompleted(inputs: Inputs): Promise<void> {
     const path = `/apis/harvesterhci.io/v1beta1/namespaces/${inputs.namespace}/addons/${inputs.name}`;
-    await poll(`add-on ${inputs.name} to deploy`, async () => {
+    await poll(`add-on ${inputs.name} to deploy`, inputs, async () => {
         const res = await kubeRequest({ context: inputs.harvester }, "GET", path);
         const conditions: any[] = res.body?.status?.conditions ?? [];
         return conditions.some(c => c.type === "Completed" && c.status === "True");
     });
 }
 
-async function poll(what: string, done: () => Promise<boolean>): Promise<void> {
-    const deadline = Date.now() + TIMEOUT_MS;
+async function poll(what: string, inputs: Inputs, done: () => Promise<boolean>): Promise<void> {
+    // Add-ons created before the timeout was an input waited 15 minutes.
+    const deadline = Date.now() + (inputs.timeoutSeconds ?? 900) * 1000;
     while (Date.now() < deadline) {
         if (await done().catch(() => false)) return;
         await new Promise(r => setTimeout(r, 5000));

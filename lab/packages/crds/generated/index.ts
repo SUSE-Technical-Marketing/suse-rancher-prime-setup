@@ -16,6 +16,7 @@ import * as catalog from "./catalog";
 import * as cert_manager from "./cert_manager";
 import * as fleet from "./fleet";
 import * as harvesterhci from "./harvesterhci";
+import * as k3k from "./k3k";
 import * as k8s from "./k8s";
 import * as kubevirt from "./kubevirt";
 import * as loadbalancer from "./loadbalancer";
@@ -30,6 +31,7 @@ export {
     cert_manager,
     fleet,
     harvesterhci,
+    k3k,
     k8s,
     kubevirt,
     loadbalancer,

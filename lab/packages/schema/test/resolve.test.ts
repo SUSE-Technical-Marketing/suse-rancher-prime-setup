@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { formatDiagnostic, loadLab, LoadResult } from "../src";
+import { formatDiagnostic, loadLab, LoadResult, ObjectTemplate, objectTemplateContext, renderSecretTemplate, renderTemplate } from "../src";
 import { labDocument, personalDocument, resolverPath } from "./as-documents";
 
 const LABS_DIR = path.resolve(__dirname, "..", "..", "..", "labs");
@@ -27,7 +27,7 @@ secrets:
 harvesters:
   hv-north:
     url: https://hv-north.lab.geeko.me
-    credentials: { $secret: hv-north }
+    credentials: "{{ secrets['hv-north'] }}"
 images:
   sles-16: { file: ~/sles-16.qcow2 }
   sl-micro-6.1: { url: https://mirror.example.com/sl-micro-6.1.qcow2 }
@@ -65,14 +65,14 @@ function errors(result: LoadResult): string[] {
 }
 
 // The profiles a Rancher host needs (DESIGN.md §5.4).
-const RANCHER_STACK = "k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: { $secret: ra } }";
+const RANCHER_STACK = "k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.ra }}\" }";
 
 // A valid single-VM lab to derive broken variants from.
 const BASE = `
 lab: test
 domain: lab.geeko.me
-tls: { acme: letsencrypt-staging, email: a@b.cd, cloudflare: { $secret: cf } }
-ssh: { user: lab, publicKey: "ssh-ed25519 AAAA", privateKey: { $secret: ssh-key } }
+tls: { acme: letsencrypt-staging, email: a@b.cd, cloudflare: "{{ secrets.cf }}" }
+ssh: { user: lab, publicKey: "ssh-ed25519 AAAA", privateKey: "{{ secrets['ssh-key'] }}" }
 harvesters:
   hv-north: {}
 `;
@@ -110,7 +110,7 @@ describe("reference labs", () => {
 
     it("takes Harvester url and credentials from the personal config", () => {
         const { lab } = loadLab({ labFile: path.join(LABS_DIR, "rancher-custom-edge.yaml"), personalConfig });
-        expect(lab!.harvesters[0]).toMatchObject({ url: "https://hv-north.lab.geeko.me", credentials: { $secret: "hv-north" }, insecure: true });
+        expect(lab!.harvesters[0]).toMatchObject({ url: "https://hv-north.lab.geeko.me", credentials: "{{ secrets['hv-north'] }}", insecure: true });
     });
 
     it("uses an ssh host's address as its name", () => {
@@ -138,7 +138,7 @@ hosts:
     it("lists everything Rancher needs on its host", () => {
         const result = load(`${BASE}
 hosts:
-  rancher: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { rancher: { adminPassword: { $secret: ra } } } }
+  rancher: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { rancher: { adminPassword: \"{{ secrets.ra }}\" } } }
 `);
         expect(errors(result)).toEqual([
             "hosts.rancher.profiles.rancher: needs kubernetes (k3s or rke2) on the same host",
@@ -153,7 +153,7 @@ hosts:
 hosts:
   vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ${profiles} } }
 `);
-        const builtin = host("k3s: {}, cert-manager: {}, sprouter: {}, rancher: { adminPassword: { $secret: ra } }");
+        const builtin = host("k3s: {}, cert-manager: {}, sprouter: {}, rancher: { adminPassword: \"{{ secrets.ra }}\" }");
         expect(errors(builtin)).toEqual([]);
         const vm = builtin.lab!.hosts[0];
         expect(vm.providers).toMatchObject({ ingress: ["k3s"], "load-balancer": ["k3s"], kubernetes: ["k3s"] });
@@ -174,7 +174,7 @@ hosts:
 `);
         expect(errors(result)).toEqual([
             'hosts.vm.on: unknown Harvester "hv-south"; known: hv-north',
-            'hosts.vm2.os: unknown OS profile "windows-11"; known: leap-16, rocky-9, sl-micro-6.1, sles-16, ubuntu-24.04',
+            'hosts.vm2.os: unknown OS profile "windows-11"; known: leap-16, leap-16-k8s, rocky-9, rocky-9-k8s, sl-micro-6.1, sles-16, sles-16-k8s, ubuntu-24.04, ubuntu-24.04-k8s',
             'hosts.vm2.network: network "vlan42" doesn\'t exist on harvester "hv-north"; known: untagged',
             'hosts.client.profiles.mlm-client.server: host "vm2" doesn\'t run mlm-server',
         ]);
@@ -212,7 +212,7 @@ downstream:
 
     it("needs an image source for OSes without a public image", () => {
         const empty = path.join(tmp, "empty-config.yaml");
-        writePersonal(empty, "harvesters: { hv-north: { url: https://hv.example.com, credentials: { $secret: hv } } }\n");
+        writePersonal(empty, "harvesters: { hv-north: { url: https://hv.example.com, credentials: \"{{ secrets.hv }}\" } }\n");
         const result = load(`${BASE}
 hosts:
   vm: { on: hv-north, os: sles-16, cpu: 2, memory: 4Gi, disk: 20Gi }
@@ -243,13 +243,13 @@ describe("profile rules", () => {
     });
 
     it("checks the OS family", () => {
-        expect(errors(load(host("{ mlm-server: { adminPassword: { $secret: m } } }", "ubuntu-24.04")))).toEqual([
+        expect(errors(load(host("{ mlm-server: { adminPassword: \"{{ secrets.m }}\" } }", "ubuntu-24.04")))).toEqual([
             'hosts.vm.profiles.mlm-server: needs an OS of the suse family; "ubuntu-24.04" is debian',
         ]);
     });
 
     it("reports conflicts once", () => {
-        expect(errors(load(host("{ k3s: {}, mlm-server: { adminPassword: { $secret: m } }, mlm-client: { server: other } }", "sl-micro-6.1")))).toEqual([
+        expect(errors(load(host("{ k3s: {}, mlm-server: { adminPassword: \"{{ secrets.m }}\" }, mlm-client: { server: other } }", "sl-micro-6.1")))).toEqual([
             'hosts.vm.profiles.mlm-client.server: unknown host "other"',
             "hosts.vm.profiles: k3s and mlm-server can't run on the same host",
             "hosts.vm.profiles: mlm-client and mlm-server can't run on the same host",
@@ -276,6 +276,41 @@ downstream:
   apps: { type: harvester, rancher: vm, harvester: hv-north, pools: [{ name: a, quantity: 1, roles: [etcd, controlplane, worker], cpu: 2, memory: 4Gi, disk: 40Gi, os: leap-16 }] }
 `);
         expect(errors(result)).toEqual(['downstream.apps.rancher: host "vm" doesn\'t run rancher']);
+    });
+});
+
+describe("TLS", () => {
+    it("needs an ACME server for cert-manager", () => {
+        const result = load(`${BASE.replace("acme: letsencrypt-staging", "acme: none")}hosts:\n  r: { on: hv-north, os: leap-16-k8s, profiles: { ${RANCHER_STACK} } }\n`);
+        expect(errors(result)).toContain("hosts.r.profiles.cert-manager: issues certificates from the lab's ACME server; set tls.acme (and tls.email, tls.cloudflare), not none");
+    });
+});
+
+describe("k3k clusters", () => {
+    const POOL = "pools: [{ name: a, quantity: 1, roles: [etcd, controlplane, worker], os: leap-16-k8s }]";
+    const lab = (extra: string) => `${BASE}hosts:
+  r1: { on: hv-north, os: leap-16-k8s, profiles: { ${RANCHER_STACK} } }
+  r2: { on: hv-north, os: leap-16-k8s, profiles: { ${RANCHER_STACK} } }
+downstream:
+  apps: { type: harvester, rancher: r1, harvester: hv-north, ${POOL} }
+  other: { type: harvester, rancher: r2, harvester: hv-north, ${POOL} }
+${extra}`;
+
+    it("runs in a downstream cluster of the same Rancher, in namespace k3k-<name> unless it says", () => {
+        const result = load(lab("  team: { type: k3k, rancher: r1, parent: apps }\n  tenants: { type: k3k, rancher: r1, parent: apps, namespace: shared-ns, mode: virtual, agents: 2 }\n"));
+        expect(errors(result)).toEqual([]);
+        const k3k = Object.fromEntries(result.lab!.downstream.filter(d => d.type === "k3k").map(d => [d.name, d]));
+        expect(k3k.team).toMatchObject({ parent: "apps", namespace: "k3k-team", mode: "shared", servers: 1, agents: 0 });
+        expect(k3k.tenants).toMatchObject({ namespace: "shared-ns", mode: "virtual", agents: 2 });
+    });
+
+    it("rejects an unknown parent, a k3k parent, and a parent of another Rancher", () => {
+        const result = load(lab("  a: { type: k3k, rancher: r1, parent: nope }\n  b: { type: k3k, rancher: r1, parent: apps }\n  c: { type: k3k, rancher: r1, parent: b }\n  d: { type: k3k, rancher: r1, parent: other }\n"));
+        expect(errors(result)).toEqual([
+            'downstream.a.parent: unknown downstream cluster "nope"; known: apps, b, c, d, other',
+            'downstream.c.parent: "b" is a k3k cluster itself; a k3k cluster runs in a harvester or custom cluster',
+            'downstream.d.parent: "other" is managed by the Rancher on r2, this cluster by the one on r1; they must be the same',
+        ]);
     });
 });
 
@@ -310,19 +345,45 @@ describe("Harvester load balancer", () => {
 });
 
 describe("OS profiles", () => {
-    it("supports extends, with the child's fields winning", () => {
+    it("supports extends: cloud-config lists are joined, the rest of the child wins, the image is shared", () => {
         const { lab, diagnostics } = load(`${BASE}
 catalog:
   os:
     leap-16-dev:
-      extends: leap-16
-      packages: [git, make]
+      extends: leap-16-k8s
+      cloudInit: { packages: [make], runcmd: [make install], timezone: UTC }
 hosts:
   vm: { on: hv-north, os: leap-16-dev, cpu: 2, memory: 4Gi, disk: 20Gi }
+  plain: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi }
 `);
         expect(diagnostics.errors).toEqual([]);
-        expect(lab!.os["leap-16-dev"]).toMatchObject({ family: "suse", packages: ["git", "make"], k8s: { packages: ["k3s-selinux"] } });
-        expect(lab!.harvesters[0].images[0].source).toMatchObject({ kind: "url", url: expect.stringContaining("Leap-16.0") });
+        const dev = lab!.os["leap-16-dev"];
+        expect(dev.family).toBe("suse");
+        expect(dev.cloudInit.packages).toEqual(["curl", "git-core", "bash-completion", "vim", "wget", "tree", "qemu-guest-agent", "firewalld", "k3s-selinux", "open-iscsi", "nfs-client", "cryptsetup", "make"]);
+        expect((dev.cloudInit.runcmd as string[]).at(0)).toBe("systemctl enable --now qemu-guest-agent");
+        expect((dev.cloudInit.runcmd as string[]).at(-1)).toBe("make install");
+        expect(dev.cloudInit).toMatchObject({ package_update: true, timezone: "UTC" });
+        // Both variants boot leap-16's image: one download.
+        expect(lab!.harvesters[0].images).toEqual([{ os: "leap-16", source: { kind: "url", url: expect.stringContaining("Leap-16.0") } }]);
+    });
+
+    it("checks the cloudInit templates and registers the secrets they use", () => {
+        const result = load(`${BASE}\ncatalog:\n  os:\n    mine: { extends: leap-16, cloudInit: { runcmd: [\"echo {{ secrets.tok }} {{ lab.domain }}\", \"echo {{ secrets.tok.user }}\", \"echo {{ nope }}\"] } }\nhosts:\n  vm: { on: hv-north, os: mine, cpu: 2, memory: 4Gi, disk: 20Gi }\n`);
+        // After leap-16's own runcmd.
+        expect(errors(result).filter(e => e.startsWith("cloudInit"))).toEqual([
+            "cloudInit.runcmd[3]: secrets.tok.user: a secret is a value, or credentials with a username and password",
+            "cloudInit.runcmd[4]: template: attempted to output null or undefined value",
+        ]);
+        const ok = load(`${BASE}\ncatalog:\n  os:\n    mine: { extends: leap-16, cloudInit: { runcmd: [\"echo {{ secrets['reg-code'] }} {{ secrets.scc.password }}\"] } }\nhosts:\n  vm: { on: hv-north, os: mine, cpu: 2, memory: 4Gi, disk: 20Gi }\n`);
+        expect(errors(ok)).toEqual([]);
+        expect(ok.lab!.secrets).toMatchObject({ "reg-code": "string", scc: "credentials" });
+    });
+
+    it("leaves the login and the hostname to the engine", () => {
+        expect(errors(load(`${BASE}\ncatalog:\n  os:\n    mine: { extends: leap-16, cloudInit: { users: [], hostname: x } }\n`))).toEqual([
+            "mine.cloudInit.users: set by the engine (the lab's ssh user and the host's name)",
+            "mine.cloudInit.hostname: set by the engine (the lab's ssh user and the host's name)",
+        ]);
     });
 
     it("detects circular extends", () => {
@@ -348,7 +409,7 @@ catalog:
 describe("catalog components and chart values", () => {
     const rancherHost = (rancher: string) => `${BASE}
 hosts:
-  vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: { $secret: ra }${rancher} } } }
+  vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: "{{ secrets.ra }}"${rancher} } } }
 `;
 
     it("starts from the built-in components, each with its version", () => {
@@ -412,6 +473,22 @@ spec: { url: https://example.com/x.yaml }
         ]);
     });
 
+    it("merges a distribution override's config and withCapability key by key", () => {
+        const result = loadDocs(`${labDocument(BASE)}---
+kind: KubernetesDistribution
+metadata: { name: rke2 }
+spec:
+  config: { disable: [], profile: cis }
+  withCapability: { ingress: { disable: [rke2-traefik] } }
+`);
+        expect(errors(result)).toEqual([]);
+        const rke2 = result.lab!.components.rke2 as { config: unknown; withCapability: Record<string, unknown> };
+        // Lists are replaced; the other keys stay.
+        expect(rke2.config).toEqual({ disable: [], "enable-servicelb": true, profile: "cis" });
+        expect(rke2.withCapability.ingress).toEqual({ disable: ["rke2-traefik"] });
+        expect(rke2.withCapability["load-balancer"]).toEqual({ "enable-servicelb": false });
+    });
+
     it("describes how each distribution is installed, and checks new ones", () => {
         const { lab } = load(BASE);
         expect(lab!.components.rke2).toMatchObject({
@@ -450,6 +527,68 @@ spec: { url: https://acme.zerossl.com/v2/DV90 }
 `);
         expect(errors(own)).toEqual([]);
         expect(own.lab!.acme).toEqual({ name: "zerossl", url: "https://acme.zerossl.com/v2/DV90" });
+    });
+
+    it("takes timeouts and Harvester defaults from the catalog's Defaults, overridden field by field", () => {
+        const base = load(BASE).lab!;
+        expect(base.timeouts).toMatchObject({ downstreamReady: 3600, uiPlugin: 600, loadBalancerCleanup: 300 });
+        expect(base.harvesters[0]).toMatchObject({
+            clusterNetwork: "mgmt",
+            storageClass: { name: "longhorn-single", replicas: 1, parameters: { staleReplicaTimeout: "30", migratable: "true" } },
+        });
+
+        const own = loadDocs(`${labDocument(BASE.replace("hv-north: {}", "hv-north: { storageClass: { replicas: 3, parameters: { dataLocality: best-effort } } }"))}---
+kind: Defaults
+metadata: { name: default }
+spec:
+  harvester: { clusterNetwork: storage }
+  timeouts: { downstreamReady: 2h }
+`);
+        expect(errors(own)).toEqual([]);
+        expect(own.lab!.timeouts).toMatchObject({ downstreamReady: 7200, uiPlugin: 600 });
+        expect(own.lab!.harvesters[0]).toMatchObject({
+            clusterNetwork: "storage",
+            storageClass: { name: "longhorn-single", replicas: 3, parameters: { staleReplicaTimeout: "30", migratable: "true", dataLocality: "best-effort" } },
+        });
+
+        const sized = loadDocs(`${labDocument(`${BASE.replace("user: lab, ", "")}
+hosts:
+  vm: { on: hv-north, os: leap-16 }
+  big: { on: hv-north, os: leap-16, memory: 32Gi }
+`)}---
+kind: Defaults
+metadata: { name: default }
+spec: { ssh: { user: geeko }, vm: { disk: 80Gi } }
+`);
+        expect(errors(sized)).toEqual([]);
+        expect(sized.lab!.ssh!.user).toBe("geeko");
+        expect(sized.lab!.hosts.map(h => h.kind === "harvester" && [h.cpu, h.memory, h.disk])).toEqual([[4, "8Gi", "80Gi"], [4, "32Gi", "80Gi"]]);
+
+        const named = loadDocs(`${labDocument(BASE)}---
+kind: Defaults
+metadata: { name: mine }
+spec: {}
+`);
+        expect(errors(named)).toEqual(['Defaults/mine.metadata.name: must be "default": there is one Defaults document, which later layers override']);
+        const bad = loadDocs(`${labDocument(BASE)}---
+kind: Defaults
+metadata: { name: default }
+spec: { timeouts: { downstreamReady: soon, nope: 1m } }
+`);
+        expect(errors(bad)).toEqual([
+            "Defaults/default.spec.timeouts.downstreamReady: must be a duration like 90s, 15m or 2h",
+            'Defaults/default.spec.timeouts.nope: unknown field "nope"',
+        ]);
+    });
+
+    it("merges a lab's Rancher feature flags over the profile's default", () => {
+        const rancher = (extra: string) => load(rancherHost(extra)).lab!.hosts[0].profiles.rancher as Record<string, unknown>;
+        expect(rancher("").features).toEqual({ "harvester-baremetal-container-workload": true });
+        expect(rancher(", features: { harvester-baremetal-container-workload: false, fleet-workspaces: true }, settings: { ui-brand: suse }")).toMatchObject({
+            features: { "harvester-baremetal-container-workload": false, "fleet-workspaces": true },
+            settings: { "ui-brand": "suse" },
+        });
+        expect(errors(load(rancherHost(", features: { x: yes }")))[0]).toMatch(/^hosts\.vm\.profiles\.rancher\.features\.x: /);
     });
 
     it("checks plugin names against the catalog", () => {
@@ -579,7 +718,7 @@ spec: { repository: rancher-ui-plugins, version: 3.0.0, default: true }
 describe("Fleet repos", () => {
     const rancher = (fleet: string, extra = "", tail = "") => `${BASE}
 hosts:
-  vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ${RANCHER_STACK.replace("adminPassword: { $secret: ra }", `adminPassword: { $secret: ra }${fleet ? `, fleet: ${fleet}` : ""}`)}${extra} } }
+  vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ${RANCHER_STACK.replace("adminPassword: \"{{ secrets.ra }}\"", `adminPassword: \"{{ secrets.ra }}\"${fleet ? `, fleet: ${fleet}` : ""}`)}${extra} } }
 ${tail}`;
     const repoNames = (r: LoadResult) => r.lab!.fleet.vm.repos.map(x => x.name);
     const objectsOn = (r: LoadResult) => r.lab!.objects.map(o => `${o.kind} ${o.namespace}/${o.name}`);
@@ -598,22 +737,28 @@ ${tail}`;
     });
 
     it("builds the repos' secrets from the lab's inputs, on the Rancher host", () => {
-        const result = load(rancher("", ", outrider: {}", "inputs: { appco: { $secret: appco }, suse-observability-license: { $secret: obs } }\n"));
+        const result = load(rancher("", ", outrider: {}", "inputs: { appco: \"{{ secrets.appco }}\", suse-observability-license: \"{{ secrets.obs }}\" }\n"));
         expect(errors(result)).toEqual([]);
         expect(repoNames(result)).toContain("lab-setup-appco");
         expect(repoNames(result)).not.toContain("lab-setup-suse");
         const basicauth = result.lab!.objects.find(x => x.name === "application-collection-basicauth")!;
         expect(basicauth).toMatchObject({ kind: "Secret", namespace: "fleet-default", target: { host: "vm" }, type: "kubernetes.io/basic-auth" });
-        expect(basicauth.data).toEqual({ username: { $secret: "appco", key: "username" }, password: { $secret: "appco", key: "password" } });
+        expect(basicauth.data).toEqual({
+            username: { $template: "{{ inputs.appco.username }}", inputs: { appco: "{{ secrets.appco }}" }, lab: {} },
+            password: { $template: "{{ inputs.appco.password }}", inputs: { appco: "{{ secrets.appco }}" }, lab: {} },
+        });
         const files = result.lab!.objects.find(x => x.name === "fleet-secrets")!.data;
         expect(Object.keys(files).sort()).toEqual(["appco-values.yaml", "cert-manager-values.yaml", "harbor-values.yaml", "suse-observability-values.yaml"]);
-        expect(files["cert-manager-values.yaml"]).toEqual({ letsencrypt: { prod: { email: "a@b.cd" } }, cloudflare: { token: { $secret: "cf" } } });
+        expect(files["cert-manager-values.yaml"]).toEqual({
+            letsencrypt: { prod: { email: "a@b.cd" } },
+            cloudflare: { token: { $template: "{{ lab.tls.cloudflare }}", inputs: {}, lab: { "tls.cloudflare": "{{ secrets.cf }}" } } },
+        });
         expect(result.lab!.secrets).toMatchObject({ appco: "credentials", obs: "string" });
         expect(result.lab!.hosts[0].profileOrder.indexOf("outrider")).toBeLessThan(result.lab!.hosts[0].profileOrder.indexOf("rancher"));
     });
 
     it("leaves out a used secret whose requirements the host lacks; listed by name, it's an error", () => {
-        const result = load(rancher("", "", "inputs: { appco: { $secret: appco } }\n"));
+        const result = load(rancher("", "", "inputs: { appco: \"{{ secrets.appco }}\" }\n"));
         expect(errors(result)).toEqual([]);
         expect(result.lab!.skippedObjects).toContainEqual({ what: "secret fleet-default/fleet-secrets on vm", missing: ["downstream-secrets (outrider) on vm"] });
         expect(repoNames(result)).toContain("lab-setup-appco");
@@ -668,32 +813,36 @@ hosts:
 ${tail}`;
 
     it("places catalog objects on a host's cluster, by name or with a namespace", () => {
-        const result = load(lab("profiles: { k3s: {} }, secrets: [scc-suse-basicauth], configmaps: [{ name: proxy, namespace: kube-system }]", `inputs: { scc: { username: me, password: { $secret: scc-pw } } }
+        const result = load(lab("profiles: { k3s: {} }, secrets: [scc-suse-basicauth], configmaps: [{ name: proxy, namespace: kube-system }]", `inputs: { scc: { username: me, password: "{{ secrets['scc-pw'] }}" } }
 catalog:
   configmaps:
-    proxy: { data: { HTTPS_PROXY: http://proxy.example.com:3128, settings: { noProxy: [{ $lab: domain }] } } }
+    proxy: { data: { HTTPS_PROXY: http://proxy.example.com:3128, settings: { noProxy: ["{{ lab.domain }}", "*.{{ lab.domain }}"] } } }
 `));
         expect(errors(result)).toEqual([]);
         expect(result.lab!.objects).toEqual([
-            expect.objectContaining({ kind: "Secret", name: "scc-suse-basicauth", namespace: "default", target: { host: "vm" }, data: { username: "me", password: { $secret: "scc-pw" } } }),
-            expect.objectContaining({ kind: "ConfigMap", name: "proxy", namespace: "kube-system", data: { HTTPS_PROXY: "http://proxy.example.com:3128", settings: { noProxy: ["lab.geeko.me"] } } }),
+            expect.objectContaining({ kind: "Secret", name: "scc-suse-basicauth", namespace: "default", target: { host: "vm" }, data: {
+                // The username is plain, so it's rendered here; the password is a secret, rendered by the program.
+                username: "me",
+                password: { $template: "{{ inputs.scc.password }}", inputs: { scc: { password: "{{ secrets['scc-pw'] }}" } }, lab: {} },
+            } }),
+            expect.objectContaining({ kind: "ConfigMap", name: "proxy", namespace: "kube-system", data: { HTTPS_PROXY: "http://proxy.example.com:3128", settings: { noProxy: ["lab.geeko.me", "*.lab.geeko.me"] } } }),
         ]);
         expect(result.lab!.secrets).toMatchObject({ "scc-pw": "string" });
     });
 
     it("takes inputs from the personal config, overridden by the lab", () => {
         const personal = path.join(tmp, "config-inputs.yaml");
-        writePersonal(personal, `${PERSONAL_YAML}inputs:\n  scc: { $secret: my-scc }\n  appco: { $secret: my-appco }\n`);
-        const result = load(lab("profiles: { k3s: {} }, secrets: [scc-suse-basicauth, application-collection-basicauth]", "inputs: { appco: { $secret: lab-appco } }\n"), personal);
+        writePersonal(personal, `${PERSONAL_YAML}inputs:\n  scc: "{{ secrets['my-scc'] }}"\n  appco: "{{ secrets['my-appco'] }}"\n`);
+        const result = load(lab("profiles: { k3s: {} }, secrets: [scc-suse-basicauth, application-collection-basicauth]", "inputs: { appco: \"{{ secrets['lab-appco'] }}\" }\n"), personal);
         expect(errors(result)).toEqual([]);
-        expect(result.lab!.objects.map(o => (o.data.username as { $secret: string }).$secret)).toEqual(["my-scc", "lab-appco"]);
+        expect(result.lab!.objects.map(o => (o.data.username as { inputs: Record<string, string> }).inputs)).toEqual([{ scc: "{{ secrets['my-scc'] }}" }, { appco: "{{ secrets['lab-appco'] }}" }]);
     });
 
     it("places objects on downstream clusters", () => {
         const result = load(`${BASE}
 hosts:
   rancher: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ${RANCHER_STACK} } }
-inputs: { appco: { $secret: appco } }
+inputs: { appco: "{{ secrets.appco }}" }
 downstream:
   apps:
     type: harvester
@@ -715,22 +864,58 @@ downstream:
             "hosts.vm: has secrets or configmaps to create, but no kubernetes (k3s or rke2) to put them on",
         ]);
         expect(errors(load(lab("profiles: { k3s: {} }", "inputs: { appco: plain, other: x }\n")))).toEqual([
-            "inputs.appco: must be credentials: { $secret: name } or { username, password }",
+            "inputs.appco: must be credentials: \"{{ secrets.name }}\" or { username, password }",
             'inputs.other: no catalog secret or configmap takes input "other"; known: appco, scc, suse-observability-license',
         ]);
     });
 
-    it("checks refs in a secret's templates", () => {
-        const result = load(lab("profiles: { k3s: {} }, secrets: [s]", `inputs: { key: { $secret: k } }
+    it("checks a secret's templates", () => {
+        const result = load(lab("profiles: { k3s: {} }, secrets: [s]", `inputs: { key: "{{ secrets.k }}", login: "{{ secrets.l }}" }
 catalog:
   secrets:
-    s: { inputs: { key: string }, data: { a: { $input: key.username }, b: { $input: nope }, c: { $lab: nope } } }
+    s:
+      inputs: { key: string, login: credentials }
+      data: { a: "{{ inputs.key.username }}", b: "{{ inputs.nope }}", c: "{{ lab.nope }}", d: "{{ inputs.login }}", e: "x {{ inputs.login }}", f: "{{ inputs.key", g: "Bearer {{ inputs.key | upper }}" }
 `));
         expect(errors(result)).toEqual([
-            'catalog.secrets.s.data.a: input "key" is a single value: use key',
+            expect.stringMatching(/^catalog\.secrets\.s\.data\.a: template: /),
             "catalog.secrets.s.data.b: refers to input \"nope\", which secret s doesn't list under inputs",
-            'catalog.secrets.s.data.c: unknown $lab ref "nope"; one of tls.email, tls.cloudflare, domain',
+            expect.stringMatching(/^catalog\.secrets\.s\.data\.c: template: /),
+            "catalog.secrets.s.data.d: renders to a map or list; a template must give a single value",
+            expect.stringMatching(/^catalog\.secrets\.s\.data\.e: template: .*input "login" is credentials: use inputs\.login\.username or inputs\.login\.password/),
+            expect.stringMatching(/^catalog\.secrets\.s\.data\.f: template: /),
         ]);
+    });
+
+    it("hands templates with secrets to the program, which renders them with the values", () => {
+        const result = load(lab("profiles: { k3s: {} }, secrets: [s]", `inputs: { login: { username: me, password: "{{ secrets.pw }}" }, token: "{{ secrets.tk }}" }
+catalog:
+  secrets:
+    s:
+      inputs: { login: credentials, token: string }
+      data: { auth: "{{ inputs.login.username }}:{{ inputs.login.password }}", header: "Bearer {{ inputs.token }} for {{ lab.domain }}" }
+`));
+        expect(errors(result)).toEqual([]);
+        const secrets: Record<string, string> = { pw: "s3cret", tk: "t0ken" };
+        const render = (leaf: unknown) => renderTemplate((leaf as ObjectTemplate).$template, objectTemplateContext(leaf as ObjectTemplate, t => renderSecretTemplate(t, secrets)));
+        const data = result.lab!.objects[0].data;
+        expect(render(data.auth)).toBe("me:s3cret");
+        expect(render(data.header)).toBe("Bearer t0ken for lab.geeko.me");
+        // Only what a template uses goes with it, and no secret value.
+        expect(data.header).toEqual({ $template: "Bearer {{ inputs.token }} for {{ lab.domain }}", inputs: { token: "{{ secrets.tk }}" }, lab: { domain: "lab.geeko.me" } });
+    });
+
+    it("leaves out a key whose inputs aren't given, and renders the rest", () => {
+        const result = load(lab("profiles: { k3s: {} }, secrets: [s]", `inputs: { key: plain }
+catalog:
+  secrets:
+    s:
+      inputs: { key: string, other: string }
+      data: { a: "Bearer {{ inputs.key | upper }}", b: "{{ inputs.key }}-{{ inputs.other }}", c: literal }
+`));
+        expect(errors(result)).toEqual([]);
+        expect(result.lab!.objects[0].data).toEqual({ a: "Bearer PLAIN", c: "literal" });
+        expect(result.lab!.skippedObjects).toContainEqual({ what: "secret s/b", missing: ["other"] });
     });
 });
 
@@ -744,6 +929,32 @@ hosts:
 
         const bad = load(BASE.replace("hv-north: {}", "hv-north: { networks: { vlans: [{ id: 100 }] } }"));
         expect(errors(bad)).toEqual(["harvesters.hv-north.networks.vlans[0].dhcp: required"]);
+    });
+});
+
+describe("secret templates", () => {
+    const vm = (profiles: string) => `${BASE.replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: \"{{ secrets.hv }}\" }")}hosts:\n  vm: { on: hv-north, os: leap-16-k8s, profiles: { ${profiles} } }\n`;
+
+    it("registers each secret with the shape it's used in: whole, or by username and password", () => {
+        const result = load(vm(`${RANCHER_STACK.replace("rancher: {", "rancher: { values: { auth: \"Basic {{ secrets.reg.username }}:{{ secrets.reg.password }}\" }, ")}`));
+        expect(errors(result)).toEqual([]);
+        expect(result.lab!.secrets).toEqual({ cf: "string", "ssh-key": "string", hv: "credentials", ra: "string", reg: "credentials" });
+    });
+
+    it("rejects a secret used in two shapes, an unknown field, and credentials that aren't one secret", () => {
+        const result = load(`${BASE.replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: \"admin:{{ secrets.hv }}\" }")}hosts:\n  vm: { on: hv-north, os: leap-16-k8s, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.cf.password }}\", values: { x: \"{{ secrets['ssh-key'].token }}\" } } } }\n`);
+        expect(errors(result)).toEqual([
+            "harvesters.hv-north.credentials: credentials are one secret ({{ secrets.name }}) or { username, password }",
+            "hosts.vm.profiles.rancher.values.x: secrets.ssh-key.token: a secret is a value, or credentials with a username and password",
+            // Reported where it's used the second time.
+            "tls.cloudflare: secret \"cf\" is used both as credentials and as string",
+        ]);
+    });
+
+    it("warns about plain values in secret fields, and errors on credentials written as one plain string", () => {
+        const result = load(BASE.replace("\"{{ secrets.cf }}\"", "my-token").replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: admin }"));
+        expect(errors(result)).toEqual(["harvesters.hv-north.credentials: credentials are one secret (\"{{ secrets.name }}\") or { username, password }"]);
+        expect(result.diagnostics.warnings.map(d => `${resolverPath(d.path)}: ${d.message}`)).toContain("tls.cloudflare: secret value is written in the lab file; use a secret (\"{{ secrets.name }}\") before sharing it");
     });
 });
 

@@ -22,6 +22,7 @@ export interface SettingSchema {
     items?: SettingSchema;
     properties?: Record<string, SettingSchema>;
     required?: string[];
+    /** On a map (no `properties`): its values' schema. A map's `default` is merged with what a lab gives. */
     additionalProperties?: boolean | SettingSchema;
 }
 
@@ -32,7 +33,7 @@ const REFS: Record<string, { zod: z.ZodType; ts: string }> = {
     quantity: { zod: quantity, ts: "string" },
     ipv4: { zod: ipv4, ts: "string" },
     url: { zod: z.url(), ts: "string" },
-    secretOrString: { zod: secretOrString, ts: "SecretRef | string" },
+    secretOrString: { zod: secretOrString, ts: "string" },
     credentials: { zod: Credentials, ts: "Credentials" },
     chartValues: { zod: chartValues.unwrap(), ts: "Record<string, unknown>" },
 };
@@ -76,8 +77,14 @@ export function settingZod(s: SettingSchema): z.ZodType {
             const field = settingZod(v);
             return [k, required.has(k) || v.default !== undefined ? field : field.optional()];
         }));
-        if (!s.properties && typeof s.additionalProperties === "object") t = z.record(z.string(), settingZod(s.additionalProperties));
-        else if (s.additionalProperties === true) t = z.looseObject(shape);
+        if (!s.properties && typeof s.additionalProperties === "object") {
+            t = z.record(z.string(), settingZod(s.additionalProperties));
+            // A map with a default (Rancher's feature flags) is merged over it, not instead of it.
+            const base = s.default;
+            if (typeof base === "object" && base !== null && !Array.isArray(base)) {
+                return t.optional().transform(v => ({ ...(base as Record<string, unknown>), ...(v as Record<string, unknown> | undefined) }));
+            }
+        } else if (s.additionalProperties === true) t = z.looseObject(shape);
         else t = z.strictObject(shape);
     } else t = z.unknown();
     return s.default !== undefined ? t.default(s.default as never) : t;
@@ -124,7 +131,7 @@ export function generateProfileSettingsTs(profiles: Record<string, { settingsSch
     const names = Object.keys(profiles).sort();
     const out = [
         "// Generated from the Profile documents in lab/catalog/ by `mise run profile-types`. Don't edit.",
-        'import type { Credentials, SecretRef } from "@lab/schema";',
+        'import type { Credentials } from "@lab/schema";',
         "",
     ];
     for (const name of names) {

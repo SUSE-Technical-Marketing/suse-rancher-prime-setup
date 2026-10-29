@@ -1,5 +1,5 @@
 import { Diagnostics } from "./diagnostics";
-import { OS_FAMILIES, OsFamily, OsProfileInput, SecretRef } from "./schema";
+import { OS_FAMILIES, OsFamily, OsProfileInput } from "./schema";
 
 export interface ResolvedOs {
     name: string;
@@ -7,11 +7,12 @@ export interface ResolvedOs {
     family: OsFamily;
     /** Default public download URL, or null when the image needs an `images:` entry. */
     imageUrl: string | null;
+    /**
+     * The profile whose image this is: itself, or the nearest one it extends that sets `image`.
+     * Harvester images and `images:` entries go by this name, so variants share one download.
+     */
+    image: string;
     defaultUser?: string;
-    registration?: { suseconnect?: { regcode: SecretRef | string } };
-    repos: { name: string; url: string; gpgkey?: string }[];
-    packages: string[];
-    k8s: { packages: string[] };
     cloudInit: Record<string, unknown>;
 }
 
@@ -19,6 +20,32 @@ export interface ResolvedOs {
 export interface OsLayerEntry {
     profile: OsProfileInput;
     source: string;
+}
+
+/** What an OS profile's `cloudInit` templates can use. */
+export interface CloudInitVars {
+    /** The lab's secrets, resolved (only the program has them). */
+    secrets: Record<string, unknown>;
+    lab: { name: string; domain: string };
+}
+
+export const cloudInitVars = (lab: CloudInitVars["lab"], secrets: Record<string, unknown>): CloudInitVars => ({ secrets, lab });
+
+/** cloud-config keys the engine sets: the login, the hostname. */
+export const ENGINE_CLOUD_INIT_KEYS = ["users", "user", "system_info", "ssh_authorized_keys", "hostname", "fqdn", "prefer_fqdn_over_hostname", "manage_etc_hosts"];
+
+const isMap = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** A child's cloud-config over its parent's: lists are joined (parent first), maps merged, scalars replaced. */
+export function extendCloudInit(parent: Record<string, unknown>, child: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = { ...parent };
+    for (const [key, value] of Object.entries(child)) {
+        const old = out[key];
+        out[key] = Array.isArray(value) && Array.isArray(old) ? [...old, ...value]
+            : isMap(value) && isMap(old) ? extendCloudInit(old, value)
+            : value;
+    }
+    return out;
 }
 
 /**
@@ -37,13 +64,14 @@ export function resolveOsProfiles(layers: Record<string, OsLayerEntry>[], diags:
     }
 
     const resolved: Record<string, ResolvedOs> = {};
-    const flattened: Record<string, OsProfileInput | null> = {};
+    type Flat = OsProfileInput & { imageOf: string };
+    const flattened: Record<string, Flat | null> = {};
 
-    const flatten = (name: string, chain: string[]): OsProfileInput | null => {
+    const flatten = (name: string, chain: string[]): Flat | null => {
         if (name in flattened) return flattened[name];
         const entry = merged[name];
         const { extends: parentName, ...own } = entry.profile;
-        let result: OsProfileInput | null = own;
+        let result: Flat | null = { ...own, imageOf: name };
         if (parentName !== undefined) {
             if (chain.includes(parentName)) {
                 diags.error(entry.source, `${name}.extends`, `circular extends: ${[...chain, parentName].join(" -> ")}`);
@@ -54,8 +82,13 @@ export function resolveOsProfiles(layers: Record<string, OsLayerEntry>[], diags:
             } else {
                 const parent = flatten(parentName, [...chain, parentName]);
                 // A profile's own name never carries over to the profiles extending it.
-                const { name: _parentName, ...inherited } = parent ?? {};
-                result = parent ? { ...inherited, ...own } : null;
+                const { name: _parentName, ...inherited } = parent ?? { imageOf: parentName };
+                result = parent ? {
+                    ...inherited,
+                    ...own,
+                    cloudInit: extendCloudInit(inherited.cloudInit ?? {}, own.cloudInit ?? {}),
+                    imageOf: own.image !== undefined ? name : inherited.imageOf,
+                } : null;
             }
         }
         flattened[name] = result;
@@ -73,17 +106,18 @@ export function resolveOsProfiles(layers: Record<string, OsLayerEntry>[], diags:
             diags.error(entry.source, `${name}.family`, `missing; must be one of ${OS_FAMILIES.join(", ")}`);
             continue;
         }
+        const cloudInit = profile.cloudInit ?? {};
+        for (const key of ENGINE_CLOUD_INIT_KEYS.filter(k => k in cloudInit)) {
+            diags.error(entry.source, `${name}.cloudInit.${key}`, "set by the engine (the lab's ssh user and the host's name)");
+        }
         resolved[name] = {
             name,
             displayName: profile.displayName ?? name,
             family: profile.family,
             imageUrl: profile.image?.url ?? null,
+            image: profile.imageOf,
             defaultUser: profile.defaultUser,
-            registration: profile.registration,
-            repos: profile.repos ?? [],
-            packages: profile.packages ?? [],
-            k8s: { packages: profile.k8s?.packages ?? [] },
-            cloudInit: profile.cloudInit ?? {},
+            cloudInit,
         };
     }
     return resolved;

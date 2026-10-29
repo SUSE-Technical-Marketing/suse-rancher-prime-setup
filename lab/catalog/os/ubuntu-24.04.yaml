@@ -8,4 +8,8 @@ spec:
   image:
     url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
   defaultUser: ubuntu
-  packages: [ curl, git, bash-completion, vim, wget, tree, qemu-guest-agent ]
+  cloudInit:
+    package_update: true
+    packages: [ curl, git, bash-completion, vim, wget, tree, qemu-guest-agent ]
+    runcmd:
+      - systemctl enable --now qemu-guest-agent

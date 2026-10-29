@@ -1,7 +1,7 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { harvesterhci, k8s as cni, loadbalancer, network } from "@lab/crds";
-import type { ResolvedHarvester } from "@lab/schema";
+import type { ResolvedHarvester, Timeouts } from "@lab/schema";
 import { HarvesterAddon } from "./addon";
 import { LoadBalancerCleanup } from "./lb-cleanup";
 import { NamespaceBindingsCleanup } from "./rbac-cleanup";
@@ -16,12 +16,14 @@ export interface HarvesterBaseArgs {
     /** Namespace on the Harvester that holds everything the lab creates there. */
     namespace: string;
     domain: string;
-    ssh: { user: string; publicKey: string };
+    /** The lab's login and key; a lab without hosts has none, and gets no key pair. */
+    ssh?: { user: string; publicKey: string };
     /** Networks hosts or downstream pools use; only these (and networks with DHCP) are created. */
     usedNetworks: string[];
     dnsCredentials?: Credentials;
     /** Catalog charts at their versions (DESIGN.md §16.2). */
     charts: { dhcpController: Chart; dnsController: Chart };
+    timeouts: Pick<Timeouts, "harvesterAddon" | "image" | "loadBalancerCleanup">;
 }
 
 /** A catalog chart at a version: `repo` unless it's an `oci://` chart. */
@@ -74,11 +76,7 @@ export class HarvesterBase extends pulumi.ComponentResource {
             allowVolumeExpansion: true,
             reclaimPolicy: "Delete",
             volumeBindingMode: "Immediate",
-            parameters: {
-                numberOfReplicas: String(h.storageClass.replicas),
-                staleReplicaTimeout: "30",
-                migratable: "true",
-            },
+            parameters: { ...h.storageClass.parameters, numberOfReplicas: String(h.storageClass.replicas) },
         }, o);
 
         // --- Networks and DHCP ---------------------------------------------------------------
@@ -93,6 +91,7 @@ export class HarvesterBase extends pulumi.ComponentResource {
             repo: args.charts.dhcpController.repo ?? (() => { throw new Error("catalog.components.harvester-vm-dhcp-controller needs a repo: Harvester add-ons can't use oci:// charts"); })(),
             chart: args.charts.dhcpController.chart,
             version: args.charts.dhcpController.version,
+            timeoutSeconds: args.timeouts.harvesterAddon,
         }, { parent: this }) : undefined;
 
         const nads: Record<string, pulumi.Resource> = {};
@@ -167,7 +166,7 @@ export class HarvesterBase extends pulumi.ComponentResource {
         if (pools.length > 0) {
             // VMs wait for this instead of the pools, so on destroy it removes the guests' load
             // balancers after the VMs are gone and before the pools are deleted.
-            this.ready.push(new LoadBalancerCleanup(child("lb-cleanup"), { harvester: h.name, namespace: ns }, { parent: this, dependsOn: pools }));
+            this.ready.push(new LoadBalancerCleanup(child("lb-cleanup"), { harvester: h.name, namespace: ns, timeoutSeconds: args.timeouts.loadBalancerCleanup }, { parent: this, dependsOn: pools }));
         }
 
         // --- DNS controller --------------------------------------------------------------------
@@ -197,10 +196,12 @@ export class HarvesterBase extends pulumi.ComponentResource {
         }
 
         // --- SSH key pair and images --------------------------------------------------------------
-        new harvesterhci.v1beta1.KeyPair(child("keypair"), {
-            metadata: { name: args.ssh.user, namespace: ns },
-            spec: { publicKey: args.ssh.publicKey },
-        }, inNs);
+        if (args.ssh) {
+            new harvesterhci.v1beta1.KeyPair(child("keypair"), {
+                metadata: { name: args.ssh.user, namespace: ns },
+                spec: { publicKey: args.ssh.publicKey },
+            }, inNs);
+        }
 
         for (const image of h.images) {
             if (image.source.kind === "file") {
@@ -210,17 +211,13 @@ export class HarvesterBase extends pulumi.ComponentResource {
                 metadata: {
                     name: image.os,
                     namespace: ns,
-                    annotations: { [WAIT]: "condition=Imported", [TIMEOUT]: "3600" },
+                    annotations: { [WAIT]: "condition=Imported", [TIMEOUT]: String(args.timeouts.image) },
                 },
                 spec: {
                     displayName: image.os,
                     sourceType: "download",
                     url: image.source.url,
-                    storageClassParameters: {
-                        numberOfReplicas: String(h.storageClass.replicas),
-                        staleReplicaTimeout: "30",
-                        migratable: "true",
-                    },
+                    storageClassParameters: { ...h.storageClass.parameters, numberOfReplicas: String(h.storageClass.replicas) },
                 },
             }, {
                 ...inNs,

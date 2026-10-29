@@ -1,10 +1,10 @@
 import { parseAllDocuments } from "yaml";
 import { z } from "zod";
-import { AcmeServerInput, CatalogLayer } from "./catalog";
+import { AcmeServerInput, CatalogLayer, DefaultsInput } from "./catalog";
 import { Diagnostics } from "./diagnostics";
 import { ClusterSelector, FleetRepoInput } from "./fleet";
 import { ConfigMapInput, SecretInput } from "./objects";
-import { dnsLabel, osName } from "./primitives";
+import { dnsLabel, duration, osName, quantity, TIMEOUTS } from "./primitives";
 import { ProfileInput } from "./profiles";
 import { DownstreamInput, HarvesterInput, HarvesterVMSpec, MachineSpec, OsProfileInput, VersionValue } from "./schema";
 
@@ -79,6 +79,25 @@ export const CATALOG_KINDS = {
             url: z.url().optional(),
             /** PEM roots for a CA nothing trusts (Let's Encrypt staging): servers hand them to their clients. */
             ca: z.string().min(1).optional(),
+        }),
+    },
+    /** The engine's defaults for what a lab leaves out; one, named `default`, overridable field by field. */
+    Defaults: {
+        name: z.literal("default", { error: 'must be "default": there is one Defaults document, which later layers override' }),
+        spec: z.strictObject({
+            ssh: z.strictObject({ user: z.string().min(1).optional() }).optional(),
+            vm: z.strictObject({ cpu: z.int().min(1).optional(), memory: quantity.optional(), disk: quantity.optional() }).optional(),
+            harvester: z.strictObject({
+                clusterNetwork: z.string().min(1).optional(),
+                storageClass: z.strictObject({
+                    name: dnsLabel.optional(),
+                    replicas: z.int().min(1).max(3).optional(),
+                    /** Longhorn StorageClass parameters besides numberOfReplicas. */
+                    parameters: z.record(z.string(), z.string()).optional(),
+                }).optional(),
+            }).optional(),
+            timeouts: z.strictObject(Object.fromEntries(TIMEOUTS.map(t => [t, duration.optional()]))).optional(),
+            images: z.strictObject({ kubectl: z.string().min(1).optional() }).optional(),
         }),
     },
     Profile: { name: dnsLabel, spec: ProfileInput },
@@ -313,6 +332,9 @@ export function documentsLayer(docs: CatalogDocument[], source: string, diags: D
                 layer.pluginSources![d.name] = d.source;
                 break;
             }
+            case "Defaults":
+                layer.defaults = { value: spec as DefaultsInput, source: d.source };
+                break;
             case "AcmeServer":
                 layer.acme[d.name] = { value: { ...spec, ...(d.description ? { description: d.description } : {}) } as AcmeServerInput, source: d.source };
                 break;

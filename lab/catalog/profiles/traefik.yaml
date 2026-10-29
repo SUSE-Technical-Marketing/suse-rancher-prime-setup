@@ -4,6 +4,7 @@ metadata:
   name: traefik
   description: Traefik ingress controller with the Gateway API CRDs and its Gateway provider
 spec:
+  icon: route                # in the lab UI (lucide.dev/icons)
   charts:
     # Neither k3s/RKE2 nor the chart ship the Gateway API CRDs; Traefik's Gateway provider needs them.
     - manifest: gateway-api

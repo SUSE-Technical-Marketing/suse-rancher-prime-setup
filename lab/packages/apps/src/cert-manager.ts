@@ -13,6 +13,8 @@ export interface CertManagerArgs extends ChartArgs {
     wildcardDomain: string;
     /** The certificate's secret (the profile's `tls` output); Sprouter copies it into every namespace. */
     secretName: string;
+    /** Seconds to wait for the certificate to be issued. */
+    timeoutSeconds: number;
 }
 
 
@@ -51,7 +53,7 @@ export class CertManager extends pulumi.ComponentResource {
             metadata: {
                 name: args.secretName,
                 namespace: ns,
-                annotations: { "pulumi.com/waitFor": "condition=Ready", "pulumi.com/timeoutSeconds": "900" },
+                annotations: { "pulumi.com/waitFor": "condition=Ready", "pulumi.com/timeoutSeconds": String(args.timeoutSeconds) },
             },
             spec: {
                 secretName: args.secretName,

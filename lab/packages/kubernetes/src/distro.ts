@@ -53,5 +53,29 @@ export function distroInstall(d: ResolvedDistribution, install: string, fqdn: st
     };
 }
 
+/**
+ * A command (run as root) that starts a watcher on a k3s or RKE2 server for its first
+ * `forSeconds`. The distribution's helm-controller suspends an install Job before replacing it,
+ * and sometimes never deletes it; that chart is then never installed (a missing cloud provider
+ * keeps the node tainted). The watcher deletes helm-controller Jobs that stay suspended for 90s,
+ * and helm-controller makes them again. It runs as the transient unit `lab-helm-watch`, so the
+ * command returns at once (one already running is replaced); its log is `journalctl -u lab-helm-watch`.
+ */
+export function helmJobWatch(d: Pick<ResolvedDistribution, "kubeconfig" | "kubectl">, forSeconds: number): string {
+    const jobs = `{range .items[?(@.spec.suspend==true)]}{.metadata.namespace}/{.metadata.name}/{.metadata.uid}{" "}{end}`;
+    const script = [
+        `end=$(($(date +%s)+${forSeconds})); seen=/run/lab-helm-watch; mkdir -p $seen`,
+        `while [ $(date +%s) -lt $end ]; do`,
+        `if [ -f ${quote(d.kubeconfig)} ]; then`,
+        `for j in $(${d.kubectl} get jobs -A -l helmcharts.helm.cattle.io/chart -o jsonpath=${quote(jobs)} 2>/dev/null); do`,
+        `f=$seen/\${j##*/}; [ -f $f ] || touch $f`,
+        `if [ $(($(date +%s)-$(stat -c %Y $f))) -ge 90 ]; then ns=\${j%%/*}; job=\${j#*/}; job=\${job%/*}; echo "deleting job $ns/$job, suspended for 90s"; ${d.kubectl} -n $ns delete job $job --ignore-not-found; fi`,
+        `done; fi; sleep 15; done`,
+    ].join("; ").replace(/(do|then);/g, "$1");
+    // systemd expands $VAR and ${VAR} in a unit's command line itself; $$ passes a `$` on to sh.
+    const forSystemd = script.replace(/\$/g, "$$$$");
+    return `{ { systemctl stop lab-helm-watch; systemctl reset-failed lab-helm-watch; } 2>/dev/null; systemd-run --unit=lab-helm-watch --description='Delete stuck helm-controller Jobs' sh -c ${quote(forSystemd)}; }`;
+}
+
 /** A command on the host that succeeds once the API server answers. */
 export const readyCheck = (d: Pick<ResolvedDistribution, "kubectl">) => `sudo ${d.kubectl} get --raw /readyz`;

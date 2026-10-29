@@ -1,5 +1,5 @@
 // Generated from the Profile documents in lab/catalog/ by `mise run profile-types`. Don't edit.
-import type { Credentials, SecretRef } from "@lab/schema";
+import type { Credentials } from "@lab/schema";
 
 /** Settings of the `cert-manager` profile: cert-manager with Let's Encrypt issuers (Cloudflare DNS-01) and a wildcard certificate for the host */
 export type CertManagerSettings = {
@@ -43,7 +43,7 @@ export type MlmClientSettings = {
 /** Settings of the `mlm-server` profile: SUSE Multi-Linux Manager server (containers on SL Micro, installed with mgradm) */
 export type MlmServerSettings = {
     version?: string;
-    adminPassword: SecretRef | string;
+    adminPassword: string;
     products: "auto" | string[];
 };
 
@@ -58,13 +58,17 @@ export type RancherSettings = {
     version?: string;
     /** First label of Rancher's name: <hostname>.<host>.<domain> */
     hostname: string;
-    adminPassword: SecretRef | string;
+    adminPassword: string;
     /** UI plugins by name (versions from the catalog), or name -> version; default the catalog's set */
     plugins?: string[] | Record<string, string>;
     /** Install Liz, Rancher's AI assistant */
     liz?: boolean;
     /** Extra Helm values, merged over the engine's */
     values?: Record<string, unknown>;
+    /** Rancher settings by name (management.cattle.io Settings), e.g. ui-banners; server-url is the lab's */
+    settings?: Record<string, string>;
+    /** Feature flags by name, merged over the default; false turns one off */
+    features: Record<string, boolean>;
     /** GitRepos from the catalog; their secrets come from the lab's inputs */
     fleet?: {
         /** GitRepos by catalog name; default the repos with default: true */

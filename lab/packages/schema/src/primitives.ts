@@ -14,21 +14,36 @@ export const osName = z.string().regex(/^[a-z0-9]([-a-z0-9.]{0,61}[a-z0-9])?$/, 
 export const dnsName = z.string().regex(DNS_NAME, "must be a lowercase DNS name");
 export const quantity = z.string().regex(QUANTITY, "must be a size like 8Gi, 512Mi or 1Ti");
 export const ipv4 = z.string().regex(IPV4, "must be an IPv4 address");
+/** A duration like `90s`, `15m` or `2h`. */
+export const duration = z.string().regex(/^[1-9][0-9]*(s|m|h)$/, "must be a duration like 90s, 15m or 2h");
 
-/** `{ $secret: name }` — the value comes from the user's environment, never from the lab file. */
-export const SecretRef = z.strictObject({ $secret: z.string().min(1) });
-export type SecretRef = z.infer<typeof SecretRef>;
+/** What the engine waits for, by name (a Defaults document's `timeouts`, DESIGN.md §17). */
+export const TIMEOUTS = [
+    "harvesterAddon", "image", "vmStart", "vmAddress", "cloudInit", "loadBalancerCleanup",
+    "kubernetesApi", "resourceReady", "certificate",
+    "rancherReady", "uiPlugin", "harvesterImport", "clusterRegistration", "downstreamReady", "downstreamDelete",
+    "helmJobWatch",
+] as const;
+export type TimeoutName = (typeof TIMEOUTS)[number];
+
+/** Seconds in a (checked) duration. */
+export function durationSeconds(d: string): number {
+    return Number(d.slice(0, -1)) * { s: 1, m: 60, h: 3600 }[d.slice(-1) as "s" | "m" | "h"];
+}
 
 /** `{ file: path }` — non-secret file contents, read when the lab is loaded. */
 export const FileRef = z.strictObject({ file: z.string().min(1) });
 export type FileRef = z.infer<typeof FileRef>;
 
-/** A secret reference, or a plain value (which triggers a warning when written in a lab file). */
-export const secretOrString = z.union([SecretRef, z.string()]);
+/**
+ * A secret: a template over the personal config's `secrets` ("{{ secrets['ssh-key'] }}"), or a plain
+ * value, which triggers a warning when written in a lab file (secrets.ts).
+ */
+export const secretOrString = z.string().min(1);
 
-/** Either a secret holding `{ username, password }`, or the fields themselves. */
+/** One secret holding a username and password ("{{ secrets.harbor }}"), or the fields themselves. */
 export const Credentials = z.union([
-    SecretRef,
+    secretOrString,
     z.strictObject({ username: z.string().min(1), password: secretOrString }),
 ]);
 export type Credentials = z.infer<typeof Credentials>;

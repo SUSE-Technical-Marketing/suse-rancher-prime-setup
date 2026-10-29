@@ -2,8 +2,8 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { provisioning, rke_machine_config } from "@lab/crds";
 import { deepMerge } from "@lab/kubernetes";
-import type { ResolvedDistribution } from "@lab/schema";
-import { ClusterKubeconfig } from "./cluster-kubeconfig";
+import type { ResolvedDistribution, Timeouts } from "@lab/schema";
+import { ClusterKubeconfig, managementClusterId } from "./cluster-kubeconfig";
 import { RancherAccess } from "./server";
 
 export interface HarvesterMachinePool {
@@ -27,6 +27,7 @@ export interface HarvesterClusterArgs {
     distribution: ResolvedDistribution;
     kubernetesVersion: string;
     labels: Record<string, string>;
+    annotations: Record<string, string>;
     /** `cattle-global-data:cc-xxxxx` of the Harvester's cloud credential. */
     cloudCredential: pulumi.Input<string>;
     /** Namespace on the Harvester the VMs go in. */
@@ -43,6 +44,7 @@ export interface HarvesterClusterArgs {
     chartValues?: Record<string, unknown>;
     /** What has to exist first and outlive the cluster: the Harvester's networks and images, the credential. */
     after?: pulumi.Resource[];
+    timeouts: Pick<Timeouts, "downstreamReady" | "downstreamDelete">;
 }
 
 const NS = "fleet-default";
@@ -67,6 +69,8 @@ export class HarvesterCluster extends pulumi.ComponentResource {
     readonly cluster: provisioning.v1.Cluster;
     /** A provider for the new cluster (through Rancher); resources on it are deleted with the cluster. */
     readonly provider: k8s.Provider;
+    /** Rancher's management cluster id (`c-m-...`). */
+    readonly clusterId: pulumi.Output<string>;
 
     constructor(name: string, args: HarvesterClusterArgs, opts?: pulumi.ComponentResourceOptions) {
         super("lab:rancher:HarvesterCluster", name, {}, opts);
@@ -99,8 +103,9 @@ export class HarvesterCluster extends pulumi.ComponentResource {
             metadata: {
                 name: clusterName,
                 namespace: NS,
-                labels: args.labels,
-                annotations: { "pulumi.com/waitFor": "condition=Ready", "pulumi.com/timeoutSeconds": "3600" },
+                // Not an empty map: Kubernetes drops it, and every preview would show it again.
+                ...(Object.keys(args.labels).length > 0 ? { labels: args.labels } : {}),
+                annotations: { ...args.annotations, "pulumi.com/waitFor": "condition=Ready", "pulumi.com/timeoutSeconds": String(args.timeouts.downstreamReady) },
             },
             spec: {
                 kubernetesVersion: args.kubernetesVersion,
@@ -132,7 +137,7 @@ export class HarvesterCluster extends pulumi.ComponentResource {
             ...o,
             dependsOn: [...(o.dependsOn as pulumi.Resource[]), ...machineConfigs, ...(cloudConfig ? [cloudConfig] : [])],
             // Rancher deletes the machines (VMs) before the Cluster object goes.
-            customTimeouts: { create: "60m", delete: "30m" },
+            customTimeouts: { create: `${args.timeouts.downstreamReady}s`, delete: `${args.timeouts.downstreamDelete}s` },
         });
 
         const kubeconfig = new ClusterKubeconfig(`${name}/kubeconfig`, {
@@ -142,6 +147,7 @@ export class HarvesterCluster extends pulumi.ComponentResource {
             insecure: args.rancher.insecure,
         }, { parent: this, dependsOn: [this.cluster], deletedWith: this.cluster });
         this.provider = new k8s.Provider(`${name}/provider`, { kubeconfig: kubeconfig.kubeconfig, suppressHelmHookWarnings: true }, { parent: this });
+        this.clusterId = managementClusterId(kubeconfig.kubeconfig);
 
         this.registerOutputs({});
     }

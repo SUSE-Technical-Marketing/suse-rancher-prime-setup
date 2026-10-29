@@ -1,0 +1,13 @@
+# For k3s / RKE2 nodes: what Longhorn needs on every node. iSCSI for its volumes, NFS for RWX
+# volumes, cryptsetup for encrypted ones.
+apiVersion: lab.geeko.me/v1alpha1
+kind: OperatingSystem
+metadata:
+  name: ubuntu-24.04-k8s
+  description: Ubuntu 24.04 LTS, for k3s / RKE2 nodes
+spec:
+  extends: ubuntu-24.04
+  cloudInit:
+    packages: [ open-iscsi, nfs-common, cryptsetup ]
+    runcmd:
+      - systemctl enable --now iscsid

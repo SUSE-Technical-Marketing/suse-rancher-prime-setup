@@ -81,6 +81,8 @@ export class ClusterPatch extends pulumi.CustomResource {
             resourceInputs["status"] = undefined /*out*/;
         }
         opts = pulumi.mergeOptions(utilities.resourceOptsDefaults(), opts);
+        const aliasOpts = { aliases: [{ type: "kubernetes:k3k.io/v1beta1:ClusterPatch" }] };
+        opts = pulumi.mergeOptions(opts, aliasOpts);
         super(ClusterPatch.__pulumiType, name, resourceInputs, opts);
     }
 }

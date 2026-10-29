@@ -52,13 +52,14 @@ export function rewriteKubeconfig(yamlText: string, name: string, address: strin
  * Read a host's kubeconfig over SSH once its API server is ready. The admin kubeconfig is the one
  * credential the lab keeps in state: encrypted, and gone with the lab.
  */
-export function clusterFromHost(name: string, host: HostAccess, distro: { name: string } & Pick<ResolvedDistribution, "kubeconfig" | "kubectl">, opts: pulumi.ComponentResourceOptions & { deletedWith?: pulumi.Resource }): ClusterAccess {
+export function clusterFromHost(name: string, host: HostAccess, distro: { name: string } & Pick<ResolvedDistribution, "kubeconfig" | "kubectl">, timeoutSeconds: number, opts: pulumi.ComponentResourceOptions & { deletedWith?: pulumi.Resource }): ClusterAccess {
     const check = readyCheck(distro);
+    const tries = Math.ceil(timeoutSeconds / 5);
     const read = new command.remote.Command(`${name}/kubeconfig`, {
         connection: sshConnection(host),
         create: [
-            `for i in $(seq 1 120); do ${check} >/dev/null 2>&1 && ready=1 && break; sleep 5; done;`,
-            `[ -n "$ready" ] || { echo "${distro.name} API server not ready after 10 minutes; last check:" >&2; ${check} >&2; exit 1; };`,
+            `for i in $(seq 1 ${tries}); do ${check} >/dev/null 2>&1 && ready=1 && break; sleep 5; done;`,
+            `[ -n "$ready" ] || { echo "${distro.name} API server not ready after ${timeoutSeconds}s; last check:" >&2; ${check} >&2; exit 1; };`,
             `sudo cat ${distro.kubeconfig}`,
         ].join(" "),
         logging: "stderr",

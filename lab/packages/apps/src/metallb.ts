@@ -7,6 +7,8 @@ import { ChartArgs } from "./charts";
 export interface MetalLbArgs extends ChartArgs {
     /** Ranges or CIDRs on the host's network it hands out to LoadBalancer services. */
     addresses: string[];
+    /** Seconds to wait for its webhook to admit the pool. */
+    timeoutSeconds: number;
 }
 
 /**
@@ -30,6 +32,7 @@ export class MetalLb extends pulumi.ComponentResource {
             kubeconfig: args.cluster.kubeconfig,
             path: `/apis/metallb.io/v1beta1/namespaces/${ns}/ipaddresspools`,
             object: { apiVersion: "metallb.io/v1beta1", kind: "IPAddressPool", metadata: { name: "lab", namespace: ns }, spec },
+            timeoutSeconds: args.timeoutSeconds,
         }, { parent: this, dependsOn: [this.release], deletedWith: args.cluster.deletedWith });
         const pool = new metallb.v1beta1.IPAddressPool(`${name}/pool`, {
             metadata: { name: "lab", namespace: ns },

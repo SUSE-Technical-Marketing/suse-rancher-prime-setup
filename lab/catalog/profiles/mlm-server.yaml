@@ -4,6 +4,7 @@ metadata:
   name: mlm-server
   description: SUSE Multi-Linux Manager server (containers on SL Micro, installed with mgradm)
 spec:
+  icon: server-cog                # in the lab UI (lucide.dev/icons)
   # mgradm runs the server with podman on SL Micro; no Kubernetes or MLM client next to it.
   osFamilies: [ suse ]
   conflicts: [ kubernetes, mlm-client ]

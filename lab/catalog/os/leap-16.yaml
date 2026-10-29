@@ -7,14 +7,10 @@ spec:
   family: suse
   image:
     url: https://download.opensuse.org/distribution/leap/16.0/appliances/Leap-16.0-Minimal-VM.x86_64-Cloud.qcow2
-  packages:
-    - curl
-    - git-core
-    - bash-completion
-    - vim
-    - wget
-    - tree
-    - qemu-guest-agent
-    - firewalld
-  k8s:
-    packages: [ k3s-selinux ]
+  cloudInit:
+    package_update: true
+    packages: [ curl, git-core, bash-completion, vim, wget, tree, qemu-guest-agent, firewalld ]
+    runcmd:
+      - systemctl enable --now qemu-guest-agent
+      # Running from the first boot, not only after a reboot.
+      - systemctl enable --now firewalld

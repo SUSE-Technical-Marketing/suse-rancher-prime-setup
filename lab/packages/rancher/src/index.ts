@@ -7,3 +7,4 @@ export * from "./downstream";
 export * from "./custom-cluster";
 export * from "./harvester-import";
 export * from "./cluster-kubeconfig";
+export * from "./k3k-cluster";

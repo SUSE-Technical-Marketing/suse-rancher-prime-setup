@@ -4,6 +4,8 @@ import { kubeRequest } from "@lab/kube";
 interface Inputs {
     harvester: string;
     namespace: string;
+    /** How long to wait for the load balancers to go; kept for the delete. */
+    timeoutSeconds?: number;
 }
 
 const LBS = (ns: string) => `/apis/loadbalancer.harvesterhci.io/v1beta1/namespaces/${ns}/loadbalancers`;
@@ -20,6 +22,13 @@ const provider: pulumi.dynamic.ResourceProvider = {
     async create(inputs: Inputs) {
         return { id: `${inputs.harvester}/${inputs.namespace}/loadbalancers`, outs: inputs };
     },
+    async diff(_id: string, olds: Inputs, news: Inputs) {
+        const replaces = (["harvester", "namespace"] as const).filter(k => olds[k] !== news[k]);
+        return { changes: replaces.length > 0 || olds.timeoutSeconds !== news.timeoutSeconds, replaces };
+    },
+    async update(_id: string, _olds: Inputs, news: Inputs) {
+        return { outs: news };
+    },
     async delete(_id: string, props: Inputs) {
         const target = { context: props.harvester };
         const list = await kubeRequest(target, "GET", LBS(props.namespace));
@@ -27,18 +36,19 @@ const provider: pulumi.dynamic.ResourceProvider = {
         for (const lb of list.body?.items ?? []) {
             await kubeRequest(target, "DELETE", `${LBS(props.namespace)}/${lb.metadata.name}`);
         }
-        const deadline = Date.now() + 5 * 60 * 1000;
+        const timeout = props.timeoutSeconds ?? 300;
+        const deadline = Date.now() + timeout * 1000;
         while (Date.now() < deadline) {
             const left = await kubeRequest(target, "GET", LBS(props.namespace));
             if (left.status === 404 || (left.body?.items ?? []).length === 0) return;
             await new Promise(r => setTimeout(r, 5000));
         }
-        throw new Error(`load balancers in ${props.namespace} on ${props.harvester} weren't removed within 5 minutes`);
+        throw new Error(`load balancers in ${props.namespace} on ${props.harvester} weren't removed within ${timeout}s`);
     },
 };
 
 export class LoadBalancerCleanup extends pulumi.dynamic.Resource {
-    constructor(name: string, args: { harvester: string; namespace: pulumi.Input<string> }, opts?: pulumi.CustomResourceOptions) {
+    constructor(name: string, args: { harvester: string; namespace: pulumi.Input<string>; timeoutSeconds: number }, opts?: pulumi.CustomResourceOptions) {
         super(provider, name, args, opts, "lab", "LoadBalancerCleanup");
     }
 }

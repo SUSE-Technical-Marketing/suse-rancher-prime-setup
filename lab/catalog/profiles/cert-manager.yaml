@@ -4,6 +4,7 @@ metadata:
   name: cert-manager
   description: cert-manager with Let's Encrypt issuers (Cloudflare DNS-01) and a wildcard certificate for the host
 spec:
+  icon: lock-keyhole                # in the lab UI (lucide.dev/icons)
   charts:
     - chart: cert-manager
       namespace: cert-manager

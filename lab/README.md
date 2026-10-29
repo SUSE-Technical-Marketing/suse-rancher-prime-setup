@@ -19,8 +19,14 @@ mise run lab -- plan     labs/rancher-harvester-rke2.yaml
 
 Commands: `validate`, `plan`, `preview`, `up`, `destroy`, `outputs`, `release`, `profiles`
 (lists every host profile with its rules) and `catalog [lab.yaml]` (the effective defaults:
-components, plugins, secrets, configmaps, Fleet repos and groups, and OS profiles, and where
-each comes from). Run `mise run lab -- --help` for options.
+components, plugins, secrets, configmaps, Fleet repos and groups, OS profiles and the
+Defaults, and where each comes from). Run `mise run lab -- --help` for options.
+
+**OCI charts and your Docker config.** Helm pulls `oci://` charts (Sprouter, Outrider) with the
+credential helper your `~/.docker/config.json` names (`credsStore`), even for public charts. If
+that helper isn't on your `PATH`, `up` fails with `exec: "docker-credential-<name>": executable
+file not found in $PATH`. Put it on the `PATH` of the shell you run `lab` from (Rancher Desktop
+installs them in `~/.rd/bin`), or remove `credsStore` if you don't need it.
 
 ## Files are documents
 
@@ -47,7 +53,7 @@ spec: { networks: { ... } }
 ---
 kind: HarvesterVM                          # a VM the lab creates on a Harvester
 metadata: { name: rancher }
-spec: { harvester: asgard, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ... } }
+spec: { harvester: asgard, os: leap-16-k8s, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ... } }   # -k8s: for k3s / RKE2
 ---
 kind: Machine                              # an existing machine, reached over SSH
 metadata: { name: nuc-01 }
@@ -56,6 +62,10 @@ spec: { address: nuc-01.lab.geeko.me, user: root, os: sles-16 }
 kind: DownstreamCluster                    # a cluster Rancher creates
 metadata: { name: apps }
 spec: { type: harvester, rancher: rancher, harvester: asgard, pools: [ ... ] }
+---
+kind: DownstreamCluster                    # a k3k virtual cluster inside apps, imported into Rancher
+metadata: { name: team-blue }
+spec: { type: k3k, rancher: rancher, parent: apps }
 ---
 kind: HelmChart                            # a catalog override for this lab
 metadata: { name: rancher }
@@ -83,14 +93,18 @@ spec:
     ssh-key:          file:~/.ssh/id_ed25519
     rancher-admin:    "cmd:pass show lab/rancher-admin"
   harvesters:
-    hv-north: { url: https://hv-north.lab.geeko.me, credentials: { $secret: hv-north } }
+    hv-north: { url: https://hv-north.lab.geeko.me, credentials: "{{ secrets['hv-north'] }}" }
   images:
     sles-16: { file: ~/images/SLES-16.0-Minimal-VM.x86_64-Cloud.qcow2 }
 ```
 
 Secret values may be literal, `env:VAR`, `file:path` or `cmd:<command>`. Any secret can also be set
 as an environment variable `LAB_SECRET_<NAME>` (for example `LAB_SECRET_HV_NORTH`, as JSON
-`{"username":"...","password":"..."}` for credentials). Lab files only ever say `{ $secret: name }`.
+`{"username":"...","password":"..."}` for credentials).
+
+Lab files only name secrets, as Jinja2 templates: `"{{ secrets.appco }}"`, with brackets for a name
+with a dash (`"{{ secrets['ssh-key'] }}"`), a credentials field by name (`"{{ secrets.scc.password }}"`),
+or with text around it (`"Bearer {{ secrets.token }}"`). Quote them: YAML reads a bare `{` as a map.
 
 ## Catalog: the defaults
 
@@ -101,6 +115,7 @@ directories by kind (the directories don't matter to the loader; the `kind` does
 |---|---|---|
 | `KubernetesDistribution` | k3s, RKE2: version, install command, config, paths, default CNI | `kubernetes/` |
 | `AcmeServer` | where certificates come from (`tls.acme`): Let's Encrypt and its staging | `acme/` |
+| `Defaults` | what the engine uses where a lab doesn't say: the SSH user, a VM's size, Harvester's cluster network and storage class, and how long each step may take | `defaults.yaml` |
 | `HelmChart` | a chart: repo, chart, version, default namespace | `charts/` |
 | `Manifest` | a manifest URL template and its version (Gateway API) | `charts/` |
 | `Profile` | what you can put on a host under `profiles:`, with its rules and settings | `profiles/` |
@@ -112,7 +127,8 @@ directories by kind (the directories don't matter to the loader; the `kind` does
 **Overriding or adding** works from the personal config and from a lab file: put documents after
 the first one, or list files and directories (a team's shared catalog) under
 `spec.include`. A document of the same kind and name merges its `spec` into the built-in
-one, field by field, so you only write what differs; a new name adds an entry. Profiles can't be
+one, field by field, so you only write what differs (a distribution's `config` and
+`withCapability`, and `Defaults`, merge key by key; lists are replaced); a new name adds an entry. Profiles can't be
 changed this way: the engine's builders are written against them.
 
 ```yaml
@@ -127,7 +143,11 @@ spec: { repo: https://releases.rancher.com/server-charts/latest, version: v2.14.
 ---
 kind: OperatingSystem
 metadata: { name: sles-16-dev, description: SLES 16 with build tools }
-spec: { extends: sles-16, packages: [git, make] }
+spec: { extends: sles-16, cloudInit: { packages: [git, make] } }   # joined with sles-16's
+---
+kind: Defaults
+metadata: { name: default }
+spec: { timeouts: { downstreamReady: 2h, image: 2h } }   # a slow Harvester; the other timeouts stay
 ```
 
 `mise run lab -- catalog [lab.yaml]` shows the result and where each entry comes from.
@@ -139,7 +159,7 @@ install under `charts:` (charts and manifests, in order, each with its namespace
 profiles are Jinja2 templates in those (`hostname: "{{ settings.hostname }}.{{ host.fqdn }}"`,
 `"{{ outputs.tls.secretName }}"`), rendered by `validate`. Your `values` merge over the defaults;
 setting a locked path is rejected.
-`{ $secret: name }` works inside `values`.
+Secret templates (`"{{ secrets.name }}"`) work inside `values` too; the program renders those.
 
 A profile that only installs charts (Sprouter, Outrider, or a chart set like Kubewarden's) needs
 no TypeScript at all: HelmChart documents and a Profile document with its `charts` are enough. The engine
@@ -172,8 +192,8 @@ config can hold defaults):
 ```yaml
 spec:
   inputs:
-    appco: { $secret: appco }                     # SUSE Application Collection login
-    scc: { $secret: scc }                         # SCC registry login
+    appco: "{{ secrets.appco }}"                     # SUSE Application Collection login
+    scc: "{{ secrets.scc }}"                         # SCC registry login
 ```
 
 Put them on any cluster by name, optionally in another namespace:
@@ -189,9 +209,11 @@ Put them on any cluster by name, optionally in another namespace:
 ```
 
 A template's `spec.template.data` value is a single value or a map (stored as a YAML document,
-e.g. a values file), with `{ $input: appco.username }` and `{ $lab: tls.email }` refs. Keys whose
-inputs you didn't give are left out; something you list by name that can't be built is a
-validation error.
+e.g. a values file). Strings in it are Jinja2 templates over `inputs` and `lab`:
+`"{{ inputs.appco.username }}"`, `"Bearer {{ inputs.token }}"`, `"{{ lab.tls.email }}"` (an input
+whose name has a `-` is `inputs['suse-observability-license']`). Keys whose inputs you didn't give
+are left out; something you list by name that can't be built is a validation error. Secret values
+never reach the resolver: a template that uses one is rendered by the Pulumi program.
 
 ### Fleet
 
@@ -204,7 +226,7 @@ profile picks the repos:
 
 ```yaml
 rancher:
-  adminPassword: { $secret: rancher-admin }
+  adminPassword: "{{ secrets['rancher-admin'] }}"
   fleet:
     repos: [lab-setup-base, lab-setup-appco, team-apps]   # default: the repos marked default: true
 ```

@@ -52,6 +52,13 @@ export function chart(key: string, lab: ResolvedLab, own?: string): ChartSpec {
     return { ...chartOf(key, lab), version: version(key, lab, own) };
 }
 
+/** A catalog chart in its HelmChart document's namespace: for what the engine installs itself (the k3k operator). */
+export function chartInNamespace(key: string, lab: ResolvedLab): ChartSpec & { namespace: string } {
+    const c = component(key, lab);
+    if (c.kind !== "HelmChart" || !c.namespace) throw new Error(`catalog.components.${key} needs to be a HelmChart with a namespace`);
+    return { ...chart(key, lab), namespace: c.namespace };
+}
+
 /** Like `chart`, for components that follow the Harvester they run on. */
 export function harvesterChart(key: string, lab: ResolvedLab, harvester: string | undefined): ChartSpec {
     return { ...chartOf(key, lab), version: harvesterVersion(key, lab, harvester) };

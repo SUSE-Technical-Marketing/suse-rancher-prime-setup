@@ -4,6 +4,7 @@ metadata:
   name: metallb
   description: "MetalLB in L2 mode: LoadBalancer services get an address from a range on the host's network (instead of ServiceLB)"
 spec:
+  icon: network                # in the lab UI (lucide.dev/icons)
   charts:
     - chart: metallb
       namespace: metallb-system

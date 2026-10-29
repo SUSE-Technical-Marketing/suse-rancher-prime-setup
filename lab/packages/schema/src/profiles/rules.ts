@@ -1,4 +1,5 @@
-import { Credentials, OsFamily, SecretRef } from "../primitives";
+import { Credentials, OsFamily } from "../primitives";
+import { usesSecrets } from "../secrets";
 import { valuePaths } from "../catalog";
 import { ProfileDefinition, ProfileRegistry } from "./define";
 import { capabilitiesOf, Profiles, providersOf } from "./index";
@@ -64,9 +65,9 @@ export interface HostRulesContext {
     profilesOf(host: string): Profiles | undefined;
     error(path: string, message: string): void;
     /** A field listed in `secretFields`: registers the secret(s) or warns about plain values. */
-    secretField(value: SecretRef | string | Credentials | undefined, path: string, shape: "string" | "credentials"): void;
-    /** Any `{ $secret }` found anywhere in a profile's settings. */
-    secretRef(ref: SecretRef, path: string): void;
+    secretField(value: string | Credentials | undefined, path: string, shape: "string" | "credentials"): void;
+    /** Any other string in a profile's settings that uses `secrets` (chart values, say). */
+    secretTemplate(template: string, path: string): void;
 }
 
 /** Check every profile on a host against its declared rules. */
@@ -126,24 +127,22 @@ export function checkHostProfiles(ctx: HostRulesContext): void {
 
         const declared = secretFieldsOf(def);
         for (const { field, shape } of declared) {
-            ctx.secretField(getPath(settings, field) as SecretRef | string | Credentials | undefined, `${at}.${field}`, shape);
+            ctx.secretField(getPath(settings, field) as string | Credentials | undefined, `${at}.${field}`, shape);
         }
-        // Any other { $secret } in the settings is a plain string secret.
-        walkSecretRefs(settings, at, ctx.secretRef, new Set(declared.map(d => `${at}.${d.field}`)));
+        // Secrets in other settings (chart values) are string secrets.
+        walkSecretTemplates(settings, at, ctx.secretTemplate, new Set(declared.map(d => `${at}.${d.field}`)));
     }
 }
 
 
-function walkSecretRefs(value: unknown, path: string, found: (ref: SecretRef, path: string) => void, skip: Set<string>): void {
+function walkSecretTemplates(value: unknown, path: string, found: (template: string, path: string) => void, skip: Set<string>): void {
     if (skip.has(path)) return;
-    if (Array.isArray(value)) {
-        value.forEach((v, i) => walkSecretRefs(v, `${path}[${i}]`, found, skip));
+    if (typeof value === "string") {
+        if (usesSecrets(value)) found(value, path);
+    } else if (Array.isArray(value)) {
+        value.forEach((v, i) => walkSecretTemplates(v, `${path}[${i}]`, found, skip));
     } else if (typeof value === "object" && value !== null) {
-        if ("$secret" in value && typeof (value as SecretRef).$secret === "string") {
-            found(value as SecretRef, path);
-            return;
-        }
-        for (const [k, v] of Object.entries(value)) walkSecretRefs(v, `${path}.${k}`, found, skip);
+        for (const [k, v] of Object.entries(value)) walkSecretTemplates(v, `${path}.${k}`, found, skip);
     }
 }
 

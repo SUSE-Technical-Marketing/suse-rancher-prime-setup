@@ -54,7 +54,7 @@ spec: {}
         expect(errors(result)).toEqual([
             "document 2.apiVersion: must be lab.geeko.me/v1alpha1",
             'document 2.extra: unknown field "extra"; a document has apiVersion, kind, metadata and spec',
-            'document 3.kind: unknown kind "Deployment"; one of HelmChart, Manifest, KubernetesDistribution, AcmeServer, Profile, SecretTemplate, ConfigMapTemplate, FleetRepo, ClusterGroup, UiPluginRepository, UiPlugin, OperatingSystem, Harvester, HarvesterVM, Machine, DownstreamCluster',
+            'document 3.kind: unknown kind "Deployment"; one of HelmChart, Manifest, KubernetesDistribution, AcmeServer, Defaults, Profile, SecretTemplate, ConfigMapTemplate, FleetRepo, ClusterGroup, UiPluginRepository, UiPlugin, OperatingSystem, Harvester, HarvesterVM, Machine, DownstreamCluster',
             "document 4.kind: Lab can only be the first document of its own file",
         ]);
     });
@@ -80,7 +80,7 @@ spec: {}
     });
 
     it("reads the personal config as a PersonalConfig document", () => {
-        const personal = write("config.yaml", "apiVersion: lab.geeko.me/v1alpha1\nkind: PersonalConfig\nmetadata: { name: me }\nspec:\n  inputs: { scc: { $secret: scc } }\n  colour: blue\n");
+        const personal = write("config.yaml", "apiVersion: lab.geeko.me/v1alpha1\nkind: PersonalConfig\nmetadata: { name: me }\nspec:\n  inputs: { scc: \"{{ secrets.scc }}\" }\n  colour: blue\n");
         expect(errors(loadLab({ labFile: write("plain.yaml", LAB), personalConfig: personal }))).toEqual(['spec.colour: unknown field "colour"']);
     });
 
@@ -92,12 +92,12 @@ metadata: { name: test }
 spec:
   domain: lab.example.com
   tls: { acme: none }
-  ssh: { user: lab, publicKey: "ssh-ed25519 AAAA", privateKey: { $secret: k } }
+  ssh: { user: lab, publicKey: "ssh-ed25519 AAAA", privateKey: "{{ secrets.k }}" }
   include: [shared]
 ---
 kind: Harvester
 metadata: { name: hv }
-spec: { url: https://hv.example.com, credentials: { username: a, password: { $secret: hv } } }
+spec: { url: https://hv.example.com, credentials: { username: a, password: "{{ secrets.hv }}" } }
 ---
 kind: Machine
 metadata: { name: box }

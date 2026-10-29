@@ -6,6 +6,7 @@ import { ConfigMapInput, SecretInput } from "./objects";
 import { ProfileDefinition, ProfileInput, ProfileRegistry } from "./profiles";
 import { checkSettingSchema, SettingSchema, settingZod } from "./settings-schema";
 import { renderTemplates } from "./templates";
+import { durationSeconds, TimeoutName, TIMEOUTS } from "./primitives";
 import { VersionValue } from "./schema";
 
 /** How a Kubernetes distribution is installed and run (a KubernetesDistribution's `spec`, DESIGN.md §16.2). */
@@ -47,6 +48,36 @@ export interface ResolvedAcmeServer {
     description?: string;
 }
 
+/** Timeout name -> seconds. */
+export type Timeouts = Record<TimeoutName, number>;
+
+/** The engine's defaults for what a lab leaves out (a Defaults document's `spec`). */
+export interface DefaultsInput {
+    ssh?: { user?: string };
+    vm?: { cpu?: number; memory?: string; disk?: string };
+    harvester?: {
+        clusterNetwork?: string;
+        storageClass?: { name?: string; replicas?: number; parameters?: Record<string, string> };
+    };
+    /** Durations like `15m`. */
+    timeouts?: Partial<Record<TimeoutName, string>>;
+    images?: { kubectl?: string };
+}
+
+export interface ResolvedDefaults {
+    /** The lab's login on its VMs, and on Machines that don't name one. */
+    ssh: { user: string };
+    /** The size of a Harvester VM or downstream pool machine that doesn't give one. */
+    vm: { cpu: number; memory: string; disk: string };
+    harvester: {
+        clusterNetwork: string;
+        storageClass: { name: string; replicas: number; parameters: Record<string, string> };
+    };
+    timeouts: Timeouts;
+    /** Images the engine runs itself: `kubectl` (and curl) for jobs on a cluster, like a k3k cluster's import. */
+    images: { kubectl: string };
+}
+
 /** The UI plugin documents of one layer. */
 export interface PluginsInput {
     repo?: { name?: string; gitRepo?: string; branch?: string };
@@ -80,6 +111,8 @@ export interface CatalogLayer {
     os: Record<string, OsLayerEntry>;
     /** ACME servers, each with the file it came from. */
     acme: Record<string, Sourced<AcmeServerInput>>;
+    /** The layer's Defaults document. */
+    defaults?: Sourced<DefaultsInput>;
 }
 
 export interface FleetLayer {
@@ -120,12 +153,14 @@ export interface ResolvedCatalog {
     plugins: Sourced<ResolvedPlugins>;
     os: Record<string, Sourced<ResolvedOs>>;
     acme: Record<string, Sourced<ResolvedAcmeServer>>;
+    defaults: Sourced<ResolvedDefaults>;
 }
 
 /**
  * Merge the layers, later ones winning. A document overriding one of the same kind and name merges
  * its `spec` field by field (a lab can change just a `version` or a `branch`; a per-Harvester
- * version map is replaced whole); OS profiles also resolve `extends` (§6).
+ * version map is replaced whole; a distribution's `config` and `withCapability` merge key by key,
+ * and so does Defaults); OS profiles also resolve `extends` (§6).
  */
 export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): ResolvedCatalog {
     const inputs: Record<string, Sourced<ComponentInput>> = {};
@@ -138,7 +173,14 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
     const plugins: Required<PluginsInput> = { repo: {}, versions: {}, defaults: {}, repositories: {} };
     const pluginSources: Record<string, string> = {};
     const acmeInputs: Record<string, Sourced<AcmeServerInput>> = {};
+    // Defaults merge field by field, so a personal config can change a single timeout.
+    let defaultsInput: DefaultsInput = {};
+    let defaultsSource = layers[0]?.source ?? "catalog";
     for (const layer of layers) {
+        if (layer.defaults) {
+            defaultsInput = mergeFields(defaultsInput, layer.defaults.value);
+            defaultsSource = layer.defaults.source;
+        }
         for (const [name, entry] of Object.entries(layer.acme)) {
             acmeInputs[name] = { value: { ...acmeInputs[name]?.value, ...entry.value }, source: entry.source };
         }
@@ -171,7 +213,13 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
             }
             if (kind) kinds[key] = kind;
             if (layer.componentDescriptions?.[key]) descriptions[key] = layer.componentDescriptions[key];
-            inputs[key] = { value: { ...inputs[key]?.value, ...value }, source: layer.componentSources?.[key] ?? layer.source };
+            const merged: ComponentInput = { ...inputs[key]?.value, ...value };
+            // A distribution's config maps merge key by key, so an override can change one setting;
+            // a list in them is replaced (`disable: []` turns all off).
+            const before = inputs[key]?.value;
+            if (before?.config && value.config) merged.config = mergeFields(before.config, value.config);
+            if (before?.withCapability && value.withCapability) merged.withCapability = mergeFields(before.withCapability, value.withCapability);
+            inputs[key] = { value: merged, source: layer.componentSources?.[key] ?? layer.source };
         }
         for (const [name, entry] of Object.entries(layer.os)) osSource[name] = entry.source;
     }
@@ -282,9 +330,12 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
         acme[name] = { value: { name, url: value.url, ...(value.ca ? { ca: value.ca } : {}), ...(value.description ? { description: value.description } : {}) }, source };
     }
 
+    const defaults = resolveDefaults(defaultsInput, defaultsSource, diags);
+
     const os = resolveOsProfiles(layers.map(l => l.os), diags);
     return {
         acme,
+        defaults,
         components,
         profiles,
         plugins: {
@@ -302,11 +353,51 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
     };
 }
 
+/** Maps merged key by key, the later one winning; anything else is replaced. */
+function mergeFields<T>(base: T, over: T): T {
+    const isMap = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+    if (!isMap(base) || !isMap(over)) return over;
+    const out: Record<string, unknown> = { ...base };
+    for (const [k, v] of Object.entries(over)) out[k] = k in out ? mergeFields(out[k], v) : v;
+    return out as T;
+}
+
+/** The merged Defaults, checked to be complete: the engine's catalog sets every field. */
+function resolveDefaults(d: DefaultsInput, source: string, diags: Diagnostics): Sourced<ResolvedDefaults> {
+    const missing = (field: string) => diags.error(source, docAt("Defaults", "default", `spec.${field}`), "required");
+    const sc = d.harvester?.storageClass ?? {};
+    if (!d.ssh?.user) missing("ssh.user");
+    for (const f of ["cpu", "memory", "disk"] as const) if (d.vm?.[f] === undefined) missing(`vm.${f}`);
+    if (!d.harvester?.clusterNetwork) missing("harvester.clusterNetwork");
+    if (!sc.name) missing("harvester.storageClass.name");
+    if (sc.replicas === undefined) missing("harvester.storageClass.replicas");
+    if (!d.images?.kubectl) missing("images.kubectl");
+    const timeouts = {} as Timeouts;
+    for (const t of TIMEOUTS) {
+        const value = d.timeouts?.[t];
+        if (value === undefined) missing(`timeouts.${t}`);
+        else timeouts[t] = durationSeconds(value);
+    }
+    return {
+        value: {
+            ssh: { user: d.ssh?.user ?? "" },
+            vm: { cpu: d.vm?.cpu ?? 1, memory: d.vm?.memory ?? "", disk: d.vm?.disk ?? "" },
+            harvester: {
+                clusterNetwork: d.harvester?.clusterNetwork ?? "",
+                storageClass: { name: sc.name ?? "", replicas: sc.replicas ?? 1, parameters: sc.parameters ?? {} },
+            },
+            timeouts,
+            images: { kubectl: d.images?.kubectl ?? "" },
+        },
+        source,
+    };
+}
+
 /** Dot paths of the leaves of a values map: scalars, lists and empty maps. */
 export function valuePaths(value: Record<string, unknown>, prefix = ""): string[] {
     return Object.entries(value).flatMap(([key, v]) => {
         const at = prefix ? `${prefix}.${key}` : key;
-        const nested = typeof v === "object" && v !== null && !Array.isArray(v) && !("$secret" in v) && Object.keys(v).length > 0;
+        const nested = typeof v === "object" && v !== null && !Array.isArray(v) && Object.keys(v).length > 0;
         return nested ? valuePaths(v as Record<string, unknown>, at) : [at];
     });
 }

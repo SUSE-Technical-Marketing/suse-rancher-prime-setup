@@ -35,6 +35,12 @@ export interface RancherServerArgs {
      * Encrypt staging). Rancher then serves it as `cacerts` and its agents trust only that.
      */
     privateCa?: string;
+    /** Rancher settings (`management.cattle.io` Settings) by name; `server-url` is the engine's. */
+    settings: Record<string, string>;
+    /** Feature flags by name. */
+    features: Record<string, boolean>;
+    /** Seconds to wait for Rancher to be up (its `local` cluster Ready, the admin password set). */
+    timeoutSeconds: number;
 }
 
 /** Rancher Prime on a lab cluster, ready to log in to. */
@@ -57,17 +63,27 @@ export class RancherServer extends pulumi.ComponentResource {
         const chart = profileHelmApp(`${name}/chart`, { ...args.chart, version: args.chart.version.replace(/^v/, "") }, { lab: args.values }, { ...o, dependsOn: privateCa });
 
         const after = withCluster(args.cluster, this, { dependsOn: [chart] });
+        if ("server-url" in args.settings) throw new Error(`${name}: the server-url setting is the lab's (${url})`);
+        const timeoutSeconds = args.timeoutSeconds;
         const settings = [
             new KubePatch(`${name}/server-url`, {
                 kubeconfig,
                 path: "/apis/management.cattle.io/v3/settings/server-url",
                 patch: { value: url },
+                timeoutSeconds,
             }, after),
-            new KubePatch(`${name}/feature/harvester-baremetal-container-workload`, {
+            ...Object.entries(args.settings).map(([setting, value]) => new KubePatch(`${name}/setting/${setting}`, {
                 kubeconfig,
-                path: "/apis/management.cattle.io/v3/features/harvester-baremetal-container-workload",
-                patch: { spec: { value: true } },
-            }, after),
+                path: `/apis/management.cattle.io/v3/settings/${setting}`,
+                patch: { value },
+                timeoutSeconds,
+            }, after)),
+            ...Object.entries(args.features).map(([feature, value]) => new KubePatch(`${name}/feature/${feature}`, {
+                kubeconfig,
+                path: `/apis/management.cattle.io/v3/features/${feature}`,
+                patch: { spec: { value } },
+                timeoutSeconds,
+            }, after)),
         ];
 
         // Rancher (and rancher-webhook) are fully up once the `local` cluster is Ready; creating
@@ -76,7 +92,7 @@ export class RancherServer extends pulumi.ComponentResource {
             kubeconfig,
             path: "/apis/fleet.cattle.io/v1alpha1/namespaces/fleet-local/clusters/local",
             condition: "Ready",
-            timeoutSeconds: 1200,
+            timeoutSeconds,
         }, after);
 
         const bootstrap = new RancherBootstrap(`${name}/admin-password`, {
@@ -84,6 +100,7 @@ export class RancherServer extends pulumi.ComponentResource {
             url,
             insecure: args.insecure,
             password: args.adminPassword,
+            timeoutSeconds,
         }, withCluster(args.cluster, this, { dependsOn: [local] }));
 
         const provider = new k8s.Provider(`${name}/provider`, { kubeconfig, suppressHelmHookWarnings: true }, { parent: this, dependsOn: [local] });

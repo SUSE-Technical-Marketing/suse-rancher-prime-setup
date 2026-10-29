@@ -10,6 +10,8 @@ export interface FleetArgs {
     fleet: ResolvedFleet;
     /** The secrets the repos use (catalog secrets on the Rancher cluster): GitRepos wait for them. */
     after?: pulumi.Resource[];
+    /** Seconds to wait for Fleet's CRDs. */
+    timeoutSeconds: number;
 }
 
 /**
@@ -25,6 +27,7 @@ export class Fleet extends pulumi.ComponentResource {
             kubeconfig: rancher.cluster.kubeconfig,
             path: "/apis/apiextensions.k8s.io/v1/customresourcedefinitions/gitrepos.fleet.cattle.io",
             condition: "Established",
+            timeoutSeconds: args.timeoutSeconds,
         }, withCluster(rancher.cluster, this, { dependsOn: rancher.ready }));
         const o: pulumi.CustomResourceOptions = { ...onCluster(rancher.cluster, this), provider: rancher.provider, dependsOn: [crds] };
 

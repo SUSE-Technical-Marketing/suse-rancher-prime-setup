@@ -2,7 +2,7 @@ import { z } from "zod";
 import { Inputs, Placement } from "./objects";
 import {
     CIDR, Credentials, dnsLabel, dnsName, FileRef, ImageSource, ipv4, MAC, OS_FAMILIES, osName, quantity,
-    SecretRef, secretOrString,
+    secretOrString,
 } from "./primitives";
 
 export * from "./primitives";
@@ -18,17 +18,13 @@ export const OsProfileInput = z.strictObject({
     family: z.enum(OS_FAMILIES).optional(),
     image: z.strictObject({ url: z.url().nullable().optional() }).optional(),
     defaultUser: z.string().optional(),
-    registration: z.strictObject({
-        suseconnect: z.strictObject({ regcode: secretOrString }).optional(),
-    }).optional(),
-    /** Package repositories to add (the format per family is handled by the cloud-init builder). */
-    repos: z.array(z.strictObject({
-        name: z.string().regex(/^[a-z0-9][-a-z0-9_.]*$/, "must be lowercase letters, digits, '-', '_' and '.'"),
-        url: z.url(),
-        gpgkey: z.url().optional(),
-    })).optional(),
-    packages: z.array(z.string()).optional(),
-    k8s: z.strictObject({ packages: z.array(z.string()).optional() }).optional(),
+    /**
+     * The VM's cloud-config (packages, runcmd, bootcmd, write_files, ...). Strings may be Jinja2
+     * templates with `secrets` (the personal config's, as everywhere: a registration code) and `lab`
+     * (`name`, `domain`). The engine adds the login and the
+     * hostname, and appends the host's own commands (k3s / RKE2) to `runcmd`. A variant (one for
+     * Kubernetes nodes) is another profile that `extends` this one.
+     */
     cloudInit: z.record(z.string(), z.unknown()).optional(),
 });
 export type OsProfileInput = z.infer<typeof OsProfileInput>;
@@ -58,11 +54,14 @@ export const HarvesterInput = z.strictObject({
     credentials: Credentials.optional(),
     /** Skip TLS verification of the Harvester endpoint. Harvester ships a self-signed cert. */
     insecure: z.boolean().optional(),
-    clusterNetwork: z.string().default("mgmt"),
+    /** Default: the catalog's Defaults (`mgmt`). */
+    clusterNetwork: z.string().min(1).optional(),
+    /** Merged over the catalog's Defaults (`longhorn-single`, 1 replica). */
     storageClass: z.strictObject({
-        name: dnsLabel.default("longhorn-single"),
-        replicas: z.int().min(1).max(3).default(1),
-    }).default({ name: "longhorn-single", replicas: 1 }),
+        name: dnsLabel.optional(),
+        replicas: z.int().min(1).max(3).optional(),
+        parameters: z.record(z.string(), z.string()).optional(),
+    }).optional(),
     dns: z.strictObject({
         backend: z.literal("routeros"),
         host: ipv4,
@@ -129,14 +128,17 @@ export const MachineSpec = HostInput.omit({ on: true, cpu: true, memory: true, d
 export const NODE_ROLES = ["etcd", "controlplane", "worker"] as const;
 const roles = z.array(z.enum(NODE_ROLES)).min(1);
 const labels = z.record(z.string(), z.string()).default({});
+/** On the provisioning Cluster; Rancher copies them to the Fleet cluster (`.ClusterAnnotations` in fleet.yaml). */
+const annotations = z.record(z.string(), z.string()).default({});
 
 const HarvesterPool = z.strictObject({
     name: dnsLabel,
     quantity: z.int().min(1),
     roles,
-    cpu: z.int().min(1),
-    memory: quantity,
-    disk: quantity,
+    /** Default: the catalog's Defaults (`vm`). */
+    cpu: z.int().min(1).optional(),
+    memory: quantity.optional(),
+    disk: quantity.optional(),
     os: z.string().min(1),
     network: z.string().optional(),
 });
@@ -162,6 +164,7 @@ export const DownstreamInput = z.discriminatedUnion("type", [
         distro: z.enum(["rke2", "k3s"]).default("rke2"),
         version: z.string().optional(),
         labels,
+        annotations,
         ...ClusterPassthrough,
         pools: z.array(HarvesterPool).min(1),
     }),
@@ -171,8 +174,34 @@ export const DownstreamInput = z.discriminatedUnion("type", [
         distro: z.enum(["rke2", "k3s"]).default("rke2"),
         version: z.string().optional(),
         labels,
+        annotations,
         ...ClusterPassthrough,
         nodes: z.array(z.strictObject({ host: z.string(), roles })).min(1),
+    }),
+    z.strictObject({
+        /** A k3k virtual cluster inside another downstream cluster, imported into Rancher (§5.5). */
+        type: z.literal("k3k"),
+        rancher: z.string(),
+        /** The DownstreamCluster it runs in; the engine installs the k3k operator there. */
+        parent: z.string(),
+        /** shared: its workloads are pods of the parent; virtual: it has its own nodes, as pods; hcp: hosted control plane. */
+        mode: z.enum(["shared", "virtual", "hcp"]).default("shared"),
+        servers: z.int().min(1).default(1),
+        agents: z.int().min(0).default(0),
+        /** Its k3s version (v1.33.1-k3s1); default the parent's Kubernetes version. */
+        version: z.string().optional(),
+        /** Namespace on the parent; default `k3k-<name>`. */
+        namespace: dnsLabel.optional(),
+        /** etcd data: on a PVC (`dynamic`, the parent's default StorageClass unless `storageClass`) or `ephemeral`. */
+        persistence: z.strictObject({
+            type: z.enum(["dynamic", "ephemeral"]).default("dynamic"),
+            storageClass: z.string().min(1).optional(),
+            size: quantity.optional(),
+        }).optional(),
+        labels,
+        annotations,
+        secrets: z.array(Placement).optional(),
+        configmaps: z.array(Placement).optional(),
     }),
 ]);
 export type DownstreamInput = z.infer<typeof DownstreamInput>;
@@ -200,12 +229,13 @@ export const LabFile = z.strictObject({
         /** An AcmeServer from the catalog (`letsencrypt`, `letsencrypt-staging`), or `none`. */
         acme: z.string().min(1).default("letsencrypt"),
         email: z.email().optional(),
-        cloudflare: SecretRef.optional(),
+        cloudflare: secretOrString.optional(),
     }).default({ acme: "letsencrypt" }),
     ssh: z.strictObject({
-        user: z.string().min(1),
+        /** Default: the catalog's Defaults (`lab`). */
+        user: z.string().min(1).optional(),
         publicKey: z.union([FileRef, z.string().min(1)]),
-        privateKey: SecretRef,
+        privateKey: secretOrString,
     }).optional(),
     /** Files or directories of more documents (catalog documents; for a lab, its Harvesters, hosts and clusters too). */
     include: Include,

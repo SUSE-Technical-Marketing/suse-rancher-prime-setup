@@ -49,15 +49,15 @@ export interface KubeWaitArgs {
     /** The cluster's kubeconfig (JSON); kept secret. */
     kubeconfig: pulumi.Input<string>;
     /** API path, e.g. `/apis/fleet.cattle.io/v1alpha1/namespaces/fleet-local/clusters/local`. */
-    path: string;
+    path: pulumi.Input<string>;
     condition?: string;
-    timeoutSeconds?: number;
+    timeoutSeconds: number;
 }
 
 /** Wait until an object exists (and has a condition that is True). */
 export class KubeWait extends pulumi.dynamic.Resource {
     constructor(name: string, args: KubeWaitArgs, opts?: pulumi.CustomResourceOptions) {
-        super(waitProvider, name, { ...args, kubeconfig: pulumi.secret(args.kubeconfig), timeoutSeconds: args.timeoutSeconds ?? 900 }, opts, "lab", "KubeWait");
+        super(waitProvider, name, { ...args, kubeconfig: pulumi.secret(args.kubeconfig), timeoutSeconds: args.timeoutSeconds }, opts, "lab", "KubeWait");
     }
 }
 
@@ -65,11 +65,13 @@ interface PatchInputs {
     kubeconfig: string;
     path: string;
     patch: Record<string, unknown>;
+    /** How long to wait for the object to exist. */
+    timeoutSeconds: number;
 }
 
 const patchProvider: pulumi.dynamic.ResourceProvider = {
     async create(inputs: PatchInputs) {
-        await waitFor({ kubeconfig: inputs.kubeconfig, path: inputs.path, timeoutSeconds: 900 });
+        await waitFor({ kubeconfig: inputs.kubeconfig, path: inputs.path, timeoutSeconds: inputs.timeoutSeconds });
         const res = await kubeRequest({ kubeconfig: inputs.kubeconfig }, "PATCH", inputs.path, inputs.patch);
         if (res.status !== 200) throw new Error(`patching ${inputs.path} failed: HTTP ${res.status} ${JSON.stringify(res.body)}`);
         return { id: inputs.path, outs: inputs };
@@ -92,6 +94,8 @@ export interface KubePatchArgs {
     path: string;
     /** JSON merge patch. */
     patch: pulumi.Input<Record<string, unknown>>;
+    /** How long to wait for the object to exist. */
+    timeoutSeconds: number;
 }
 
 /** Merge-patch an object someone else owns, once it exists. */
@@ -135,7 +139,7 @@ export interface KubeAdmittedArgs {
     kubeconfig: pulumi.Input<string>;
     path: string;
     object: Record<string, unknown>;
-    timeoutSeconds?: number;
+    timeoutSeconds: number;
 }
 
 /**
@@ -145,6 +149,6 @@ export interface KubeAdmittedArgs {
  */
 export class KubeAdmitted extends pulumi.dynamic.Resource {
     constructor(name: string, args: KubeAdmittedArgs, opts?: pulumi.CustomResourceOptions) {
-        super(admitProvider, name, { ...args, kubeconfig: pulumi.secret(args.kubeconfig), timeoutSeconds: args.timeoutSeconds ?? 600 }, opts, "lab", "KubeAdmitted");
+        super(admitProvider, name, { ...args, kubeconfig: pulumi.secret(args.kubeconfig), timeoutSeconds: args.timeoutSeconds }, opts, "lab", "KubeAdmitted");
     }
 }

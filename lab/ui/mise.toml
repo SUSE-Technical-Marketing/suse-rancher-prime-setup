@@ -1,0 +1,26 @@
+[tools]
+bun = "latest"
+
+[tasks.install]
+description = "Install the UI's packages"
+run = "bun install"
+
+[tasks.dev]
+description = "Run the UI with hot reload: Vite on http://127.0.0.1:5173, the API server behind it"
+depends = ["install"]
+run = "bun run --bun vite & bun --watch server/index.ts; wait"
+
+[tasks.build]
+description = "Build the UI into dist/"
+depends = ["install"]
+run = "bun run --bun vite build"
+
+[tasks.start]
+description = "Build the UI and serve it with the API on http://127.0.0.1:4173"
+depends = ["build"]
+run = "bun server/index.ts"
+
+[tasks.typecheck]
+description = "Typecheck the UI and its server"
+depends = ["install"]
+run = ["bunx vue-tsc --noEmit -p tsconfig.json", "bunx tsc --noEmit -p tsconfig.server.json"]

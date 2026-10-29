@@ -26,3 +26,8 @@ run = "pnpm run generate"
 [tasks.profile-types]
 description = "Regenerate program/generated/profile-settings.ts from the Profile documents in catalog/profiles/"
 run = "{{config_root}}/node_modules/.bin/tsx {{config_root}}/program/scripts/profile-types.ts"
+
+[tasks.ui]
+description = "Compose labs in the browser: builds and serves lab/ui on http://127.0.0.1:4173"
+dir = "{{config_root}}/ui"
+run = "mise run start"

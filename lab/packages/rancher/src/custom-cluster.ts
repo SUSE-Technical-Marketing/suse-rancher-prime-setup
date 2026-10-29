@@ -3,16 +3,17 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { provisioning } from "@lab/crds";
 import { kubeRequest } from "@lab/kube";
-import { asRoot, deepMerge, HostAccess, KubeWait, runExisting, sshConnection } from "@lab/kubernetes";
-import type { ResolvedDistribution } from "@lab/schema";
-import { ClusterKubeconfig } from "./cluster-kubeconfig";
+import { asRoot, deepMerge, helmJobWatch, HostAccess, KubeWait, runExisting, sshConnection } from "@lab/kubernetes";
+import type { ResolvedDistribution, Timeouts } from "@lab/schema";
+import { ClusterKubeconfig, managementClusterId } from "./cluster-kubeconfig";
+import { ClusterRegistration } from "./registration";
 import { RancherAccess } from "./server";
 
 export interface CustomClusterNode {
     host: HostAccess;
     roles: ("etcd" | "controlplane" | "worker")[];
     /** Shell commands run as root before the node registers (the OS's packages for Kubernetes). */
-    prepare?: string[];
+    prepare?: pulumi.Input<string[]>;
     /** What has to be done before the node can register (cloud-init on a VM). */
     after?: pulumi.Resource[];
     /** A VM is deleted whole, so it isn't cleaned up first. */
@@ -25,70 +26,18 @@ export interface CustomClusterArgs {
     distribution: ResolvedDistribution;
     kubernetesVersion: string;
     labels: Record<string, string>;
+    annotations: Record<string, string>;
     nodes: CustomClusterNode[];
     /** CNI; default the distribution's `cni`. */
     cni?: string;
     /** The lab's own `machineGlobalConfig` and `chartValues`, merged over the engine's. */
     machineGlobalConfig?: Record<string, unknown>;
     chartValues?: Record<string, unknown>;
+    timeouts: Pick<Timeouts, "clusterRegistration" | "downstreamReady" | "downstreamDelete" | "helmJobWatch">;
 }
 
 const NS = "fleet-default";
 const CLUSTERS = `/apis/provisioning.cattle.io/v1/namespaces/${NS}/clusters`;
-const TOKEN_PLACEHOLDER = "{token}";
-
-interface RegistrationInputs {
-    rancherKubeconfig: string;
-    cluster: string;
-    /** Rancher's certificate isn't trusted (Let's Encrypt staging): fetch the installer without checking it. */
-    insecure: boolean;
-}
-
-/**
- * The command that registers a machine with a custom cluster, read from the cluster's
- * registration token. Newer Rancher keeps the token itself in a Secret next to it.
- */
-const registrationProvider: pulumi.dynamic.ResourceProvider = {
-    async create(inputs: RegistrationInputs) {
-        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-        const rancher = { kubeconfig: inputs.rancherKubeconfig };
-        const deadline = Date.now() + 5 * 60 * 1000;
-        while (Date.now() < deadline) {
-            const clusterId = (await kubeRequest(rancher, "GET", `${CLUSTERS}/${inputs.cluster}`)).body?.status?.clusterName;
-            const crt = clusterId ? (await kubeRequest(rancher, "GET", `/apis/management.cattle.io/v3/namespaces/${clusterId}/clusterregistrationtokens/default-token`)).body : undefined;
-            const nodeCommand: string | undefined = inputs.insecure ? crt?.status?.insecureNodeCommand : crt?.status?.nodeCommand;
-            if (nodeCommand && !nodeCommand.includes(TOKEN_PLACEHOLDER)) return { id: `${NS}/${inputs.cluster}/registration`, outs: { ...inputs, nodeCommand } };
-            const secretName = crt?.status?.tokenSecretName;
-            if (nodeCommand && secretName) {
-                const encoded = (await kubeRequest(rancher, "GET", `/api/v1/namespaces/${clusterId}/secrets/${secretName}`)).body?.data?.token;
-                if (encoded) {
-                    const token = Buffer.from(encoded, "base64").toString("utf8").trim();
-                    return { id: `${NS}/${inputs.cluster}/registration`, outs: { ...inputs, nodeCommand: nodeCommand.split(TOKEN_PLACEHOLDER).join(token) } };
-                }
-            }
-            await sleep(5000);
-        }
-        throw new Error(`Rancher made no registration command for cluster ${inputs.cluster} within 5 minutes`);
-    },
-    async diff(_id: string, olds: RegistrationInputs, news: RegistrationInputs) {
-        const replaces = (["cluster", "insecure"] as const).filter(k => olds[k] !== news[k]);
-        return { changes: replaces.length > 0, replaces };
-    },
-    async delete() {
-        // The token goes with the cluster.
-    },
-};
-
-class ClusterRegistration extends pulumi.dynamic.Resource {
-    declare readonly nodeCommand: pulumi.Output<string>;
-
-    constructor(name: string, args: { rancherKubeconfig: pulumi.Input<string>; cluster: string; insecure: boolean }, opts?: pulumi.CustomResourceOptions) {
-        super(registrationProvider, name, { ...args, rancherKubeconfig: pulumi.secret(args.rancherKubeconfig), nodeCommand: undefined },
-            { ...opts, additionalSecretOutputs: ["nodeCommand"] }, "lab", "ClusterRegistration");
-    }
-}
-
-
 /** Where Rancher's registration command installs its agent's uninstall script. */
 const SYSTEM_AGENT_UNINSTALL = "/usr/local/bin/rancher-system-agent-uninstall.sh";
 
@@ -107,6 +56,8 @@ export class CustomCluster extends pulumi.ComponentResource {
     readonly cluster: provisioning.v1.Cluster;
     /** A provider for the new cluster (through Rancher); resources on it are deleted with the cluster. */
     readonly provider: k8s.Provider;
+    /** Rancher's management cluster id (`c-m-...`). */
+    readonly clusterId: pulumi.Output<string>;
 
     constructor(name: string, args: CustomClusterArgs, opts?: pulumi.ComponentResourceOptions) {
         super("lab:rancher:CustomCluster", name, {}, opts);
@@ -122,9 +73,10 @@ export class CustomCluster extends pulumi.ComponentResource {
             metadata: {
                 name: clusterName,
                 namespace: NS,
-                labels: args.labels,
+                // Not an empty map: Kubernetes drops it, and every preview would show it again.
+                ...(Object.keys(args.labels).length > 0 ? { labels: args.labels } : {}),
                 // Ready only once nodes have registered, which needs the Cluster first.
-                annotations: { "pulumi.com/skipAwait": "true" },
+                annotations: { ...args.annotations, "pulumi.com/skipAwait": "true" },
             },
             spec: {
                 kubernetesVersion: args.kubernetesVersion,
@@ -138,13 +90,14 @@ export class CustomCluster extends pulumi.ComponentResource {
             provider: args.rancher.provider,
             dependsOn: [...args.rancher.ready, ...cleanups],
             // Rancher removes the nodes from the cluster before the Cluster object goes.
-            customTimeouts: { delete: "30m" },
+            customTimeouts: { delete: `${args.timeouts.downstreamDelete}s` },
         });
 
         const registration = new ClusterRegistration(`${name}/registration`, {
             rancherKubeconfig: args.rancher.cluster.kubeconfig,
             cluster: clusterName,
             insecure: args.rancher.insecure,
+            timeoutSeconds: args.timeouts.clusterRegistration,
         }, { parent: this, dependsOn: [this.cluster], deletedWith: this.cluster });
 
         const registered = args.nodes.map((node, i) => {
@@ -154,10 +107,12 @@ export class CustomCluster extends pulumi.ComponentResource {
                 ...(node.roles.includes("worker") ? ["--worker"] : []),
                 "--node-name", node.host.name,
             ].join(" ");
-            const prepare = node.prepare && node.prepare.length > 0 ? `${node.prepare.join(" && ")} && ` : "";
+            // A server node (etcd or control plane) gets the watcher for helm-controller Jobs left suspended.
+            const watch = node.roles.some(r => r !== "worker") ? [helmJobWatch(args.distribution, args.timeouts.helmJobWatch)] : [];
+            const steps = pulumi.output(node.prepare ?? []).apply(prepare => [...prepare, ...watch]);
             return new command.remote.Command(`${name}/node/${node.host.name}/register`, {
                 connection: sshConnection(node.host),
-                create: pulumi.secret(registration.nodeCommand.apply(cmd => asRoot(`${prepare}${cmd} ${flags}`))),
+                create: pulumi.secret(pulumi.all([steps, registration.nodeCommand]).apply(([steps, cmd]) => asRoot([...steps, `${cmd} ${flags}`].join(" && ")))),
             }, { parent: this, dependsOn: [registration, cleanups[i]], deletedWith: this.cluster });
         });
 
@@ -165,7 +120,7 @@ export class CustomCluster extends pulumi.ComponentResource {
             kubeconfig: args.rancher.cluster.kubeconfig,
             path: `${CLUSTERS}/${clusterName}`,
             condition: "Ready",
-            timeoutSeconds: 3600,
+            timeoutSeconds: args.timeouts.downstreamReady,
         }, { parent: this, dependsOn: registered, deletedWith: this.cluster });
 
         const kubeconfig = new ClusterKubeconfig(`${name}/kubeconfig`, {
@@ -175,6 +130,7 @@ export class CustomCluster extends pulumi.ComponentResource {
             insecure: args.rancher.insecure,
         }, { parent: this, dependsOn: [ready], deletedWith: this.cluster });
         this.provider = new k8s.Provider(`${name}/provider`, { kubeconfig: kubeconfig.kubeconfig, suppressHelmHookWarnings: true }, { parent: this });
+        this.clusterId = managementClusterId(kubeconfig.kubeconfig);
 
         this.registerOutputs({});
     }

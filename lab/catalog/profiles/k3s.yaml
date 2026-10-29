@@ -4,6 +4,7 @@ metadata:
   name: k3s
   description: Single-node k3s cluster on the host
 spec:
+  icon: feather                # in the lab UI (lucide.dev/icons)
   distribution: k3s
   provides: [ kubernetes ]
   conflicts: [ kubernetes ]

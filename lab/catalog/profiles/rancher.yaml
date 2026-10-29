@@ -4,6 +4,7 @@ metadata:
   name: rancher
   description: Rancher Manager on the host's Kubernetes cluster, with UI plugins and Fleet
 spec:
+  icon: tractor                # in the lab UI (lucide.dev/icons)
   charts:
     - chart: rancher
       namespace: cattle-system
@@ -50,6 +51,17 @@ spec:
       values:
         $ref: chartValues
         description: Extra Helm values, merged over the engine's
+      settings:
+        type: object
+        description: "Rancher settings by name (management.cattle.io Settings), e.g. ui-banners; server-url is the lab's"
+        additionalProperties: { type: string }
+      features:
+        type: object
+        description: Feature flags by name, merged over the default; false turns one off
+        additionalProperties: { type: boolean }
+        default:
+          # Harvester's bare-metal container workloads, shown in Virtualization Management.
+          harvester-baremetal-container-workload: true
       fleet:
         description: GitRepos from the catalog; their secrets come from the lab's inputs
         type: object

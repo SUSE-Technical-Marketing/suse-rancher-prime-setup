@@ -6,6 +6,7 @@ interface Inputs {
     url: string;
     insecure: boolean;
     password: string;
+    timeoutSeconds: number;
 }
 
 /**
@@ -16,7 +17,7 @@ interface Inputs {
 const provider: pulumi.dynamic.ResourceProvider = {
     async create(inputs: Inputs) {
         const endpoint = { url: inputs.url, insecure: inputs.insecure };
-        const deadline = Date.now() + 15 * 60 * 1000;
+        const deadline = Date.now() + inputs.timeoutSeconds * 1000;
         let last = "";
         while (Date.now() < deadline) {
             try {
@@ -59,6 +60,7 @@ export interface RancherBootstrapArgs {
     url: pulumi.Input<string>;
     insecure: boolean;
     password: pulumi.Input<string>;
+    timeoutSeconds: number;
 }
 
 export class RancherBootstrap extends pulumi.dynamic.Resource {

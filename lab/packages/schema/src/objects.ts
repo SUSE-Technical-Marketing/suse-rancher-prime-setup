@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { Diagnostics } from "./diagnostics";
-import { Credentials, dnsLabel, SecretRef, secretOrString } from "./primitives";
+import { Credentials, dnsLabel, secretOrString } from "./primitives";
+import { usesSecrets } from "./secrets";
+import { isTemplate, renderTemplate } from "./templates";
 
 // Secrets and ConfigMaps in the catalog (DESIGN.md §16.6): Kubernetes objects built from the lab's
 // inputs, placed on host clusters, downstream clusters, or the Rancher cluster for Fleet.
 
-/** Lab-level values a template can use. */
+/** Lab-level values a template can use, as `lab.<ref>`. */
 export const LAB_REFS = ["tls.email", "tls.cloudflare", "domain"] as const;
 export type LabRef = (typeof LAB_REFS)[number];
 
@@ -22,9 +24,10 @@ const ObjectFields = {
     /** The inputs it is built from: name -> shape. */
     inputs: z.record(dnsLabel, z.enum(["string", "credentials"])).optional(),
     /**
-     * Key -> a single value, or a map or list stored as a YAML document (a values file), with
-     * `{ $input: name[.username|.password] }` and `{ $lab: tls.email }` refs in it. A key whose
-     * refs aren't all given is left out; with no keys left, the object isn't created.
+     * Key -> a single value, or a map or list stored as a YAML document (a values file). Strings
+     * are Jinja2 templates over `inputs` (`{{ inputs.appco.username }}`) and `lab`
+     * (`{{ lab.tls.email }}`). A key whose inputs aren't all given is left out; with no keys left,
+     * the object isn't created.
      */
     data: z.record(z.string(), z.unknown()).optional(),
 };
@@ -47,8 +50,30 @@ export type Placement = z.infer<typeof Placement>;
 
 export type ObjectKind = "Secret" | "ConfigMap";
 
-/** A template leaf after resolution: a literal, or (part of) a secret the CLI hands to the program. */
-export type ObjectValue = string | { $secret: string; key?: "username" | "password" };
+/**
+ * A template leaf after resolution: a literal, or a template the program renders once it has the
+ * secrets, with the inputs and lab values it uses (literals, or refs to the lab's secrets).
+ */
+export type ObjectValue = string | ObjectTemplate;
+export interface ObjectTemplate {
+    $template: string;
+    /** The inputs it uses: a value or secret template, or the credentials fields it uses. */
+    inputs: Record<string, string | { username?: string; password?: string }>;
+    lab: Partial<Record<LabRef, string>>;
+}
+
+/** What an object template renders with (`inputs`, `lab`), each secret template rendered by `secret`. */
+export function objectTemplateContext(t: ObjectTemplate, secret: (template: string) => unknown): { inputs: Record<string, unknown>; lab: Record<string, unknown> } {
+    const value = (v: unknown): unknown => typeof v === "string" && usesSecrets(v) ? secret(v) : isObject(v) ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, value(x)])) : v;
+    const lab: Record<string, any> = { tls: {} };
+    for (const [ref, v] of Object.entries(t.lab)) {
+        if (ref.startsWith("tls.")) lab.tls[ref.slice(4)] = value(v);
+        else lab[ref] = value(v);
+    }
+    return { inputs: value(t.inputs) as Record<string, unknown>, lab };
+}
+
+const containsSecret = (v: unknown): boolean => (typeof v === "string" ? usesSecrets(v) : isObject(v) && Object.values(v).some(containsSecret));
 
 /** The cluster an object goes to: a host's own cluster, or one Rancher provisions. */
 export type ObjectTarget = { host: string } | { downstream: string };
@@ -71,10 +96,10 @@ export interface ObjectsContext {
     catalog: { secrets: Record<string, Sourced<SecretInput>>; configmaps: Record<string, Sourced<ConfigMapInput>> };
     /** Input values from the personal config, then the lab file (later wins). */
     inputs: { values: Inputs; source: string; at: string }[];
-    lab: Partial<Record<LabRef, string | SecretRef>>;
+    lab: Partial<Record<LabRef, string>>;
     diags: Diagnostics;
     /** Register an input value with its shape (and warn about plain values in the lab file). */
-    useSecret(value: Credentials | SecretRef | string, shape: InputShape, source: string, at: string): void;
+    useSecret(value: Credentials, shape: InputShape, source: string, at: string): void;
     describeCapability(capability: string): string;
 }
 
@@ -100,7 +125,6 @@ export interface Objects {
 
 const DEFAULT_NAMESPACE = "default";
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
-const isSecretRef = (v: unknown): v is SecretRef => isObject(v) && typeof v.$secret === "string";
 const label = (kind: ObjectKind) => (kind === "Secret" ? "secret" : "configmap");
 const targetName = (t: ObjectTarget) => ("host" in t ? t.host : `downstream ${t.downstream}`);
 
@@ -122,7 +146,7 @@ export function createObjects(ctx: ObjectsContext): Objects {
         }
     }
 
-    const provided: Record<string, Credentials | SecretRef | string> = {};
+    const provided: Record<string, Credentials> = {};
     for (const layer of ctx.inputs) {
         for (const [input, value] of Object.entries(layer.values)) {
             const valueAt = `${layer.at}.${input}`;
@@ -131,9 +155,8 @@ export function createObjects(ctx: ObjectsContext): Objects {
                 diags.error(layer.source, valueAt, `no catalog secret or configmap takes input "${input}"; known: ${Object.keys(shapes).sort().join(", ") || "none"}`);
                 continue;
             }
-            const looksLikeCredentials = isObject(value) && !isSecretRef(value);
-            if (decl.shape === "string" && looksLikeCredentials) diags.error(layer.source, valueAt, "must be a single value, not a username and password");
-            else if (decl.shape === "credentials" && typeof value === "string") diags.error(layer.source, valueAt, "must be credentials: { $secret: name } or { username, password }");
+            if (decl.shape === "string" && isObject(value)) diags.error(layer.source, valueAt, "must be a single value, not a username and password");
+            else if (decl.shape === "credentials" && typeof value === "string" && !isTemplate(value)) diags.error(layer.source, valueAt, "must be credentials: \"{{ secrets.name }}\" or { username, password }");
             else {
                 ctx.useSecret(value, decl.shape, layer.source, valueAt);
                 provided[input] = value;
@@ -141,45 +164,70 @@ export function createObjects(ctx: ObjectsContext): Objects {
         }
     }
 
-    // Template refs -> ObjectValue leaves; a missing input or lab value is collected, not an error.
+    // Template strings -> ObjectValue leaves. Each is rendered once against placeholders, which
+    // checks it and finds what it uses; a missing input or lab value is collected, not an error.
     const fill = (template: unknown, inputs: Record<string, InputShape>, owner: string, source: string, tAt: string, missing: Set<string>): unknown => {
         if (Array.isArray(template)) return template.map((v, j) => fill(v, inputs, owner, source, `${tAt}[${j}]`, missing));
-        if (!isObject(template)) return template;
-        if ("$input" in template) {
-            const [input, field, ...rest] = String(template.$input).split(".");
-            const shape = inputs[input];
-            if (!shape) {
-                diags.error(source, tAt, `refers to input "${input}", which ${owner} doesn't list under inputs`);
-                return "";
-            }
-            if (shape === "credentials" ? !["username", "password"].includes(field ?? "") || rest.length > 0 : field !== undefined) {
-                diags.error(source, tAt, shape === "credentials" ? `input "${input}" is credentials: use ${input}.username or ${input}.password` : `input "${input}" is a single value: use ${input}`);
-                return "";
-            }
-            const value = provided[input];
-            if (value === undefined) {
-                missing.add(input);
-                return "";
-            }
-            if (isSecretRef(value)) return field ? { $secret: value.$secret, key: field } : { $secret: value.$secret };
-            if (typeof value === "string") return value;
-            const part = (value as { username: string; password: SecretRef | string })[field as "username" | "password"];
-            return isSecretRef(part) ? { $secret: part.$secret } : part;
+        if (isObject(template)) return Object.fromEntries(Object.entries(template).map(([k, v]) => [k, fill(v, inputs, owner, source, `${tAt}.${k}`, missing)]));
+        if (typeof template !== "string" || !isTemplate(template)) return template;
+
+        const problems = new Set<string>();
+        const used: ObjectTemplate = { $template: template, inputs: {}, lab: {} };
+        const keyMissing = new Set<string>();
+        const inputsCtx = new Proxy({}, {
+            get(_t, input) {
+                if (typeof input !== "string") return undefined;
+                const shape = inputs[input];
+                if (!shape) {
+                    problems.add(`refers to input "${input}", which ${owner} doesn't list under inputs`);
+                    return undefined;
+                }
+                const value = provided[input];
+                if (value === undefined) keyMissing.add(input);
+                if (shape === "string") {
+                    if (value !== undefined) used.inputs[input] = value as string;
+                    return "x";
+                }
+                // Credentials are used by field (a whole secret ref goes as it is); on their own
+                // they'd render as "[object Object]".
+                const field = (f: "username" | "password") => {
+                    if (value !== undefined) {
+                        used.inputs[input] = typeof value === "string" ? value
+                            : { ...(used.inputs[input] as object | undefined), [f]: (value as { username: string; password: string })[f] };
+                    }
+                    return "x";
+                };
+                return {
+                    get username() { return field("username"); },
+                    get password() { return field("password"); },
+                    toString: () => { throw new Error(`input "${input}" is credentials: use inputs.${input}.username or inputs.${input}.password`); },
+                };
+            },
+        });
+        const labValue = (ref: LabRef) => {
+            const value = ctx.lab[ref];
+            if (value === undefined) keyMissing.add(`lab ${ref}`);
+            else used.lab[ref] = value;
+            return "x";
+        };
+        const labCtx = {
+            get domain() { return labValue("domain"); },
+            tls: { get email() { return labValue("tls.email"); }, get cloudflare() { return labValue("tls.cloudflare"); } },
+        };
+        let rendered: unknown;
+        try {
+            rendered = renderTemplate(template, { inputs: inputsCtx, lab: labCtx });
+        } catch (e) {
+            if (problems.size === 0) problems.add((e as Error).message);
         }
-        if ("$lab" in template) {
-            const ref = String(template.$lab);
-            if (!(LAB_REFS as readonly string[]).includes(ref)) {
-                diags.error(source, tAt, `unknown $lab ref "${ref}"; one of ${LAB_REFS.join(", ")}`);
-                return "";
-            }
-            const value = ctx.lab[ref as LabRef];
-            if (value === undefined) {
-                missing.add(`lab ${ref}`);
-                return "";
-            }
-            return isSecretRef(value) ? { $secret: value.$secret } : value;
-        }
-        return Object.fromEntries(Object.entries(template).map(([k, v]) => [k, fill(v, inputs, owner, source, `${tAt}.${k}`, missing)]));
+        if (problems.size === 0 && typeof rendered === "object" && rendered !== null) problems.add("renders to a map or list; a template must give a single value");
+        for (const p of problems) diags.error(source, tAt, p);
+        if (problems.size > 0) return "";
+        for (const m of keyMissing) missing.add(m);
+        if (keyMissing.size > 0) return "";
+        // Without secrets in it, it renders here; with them, the program renders it.
+        if (containsSecret(used.inputs) || containsSecret(used.lab)) return used;
+        return String(renderTemplate(template, objectTemplateContext(used, () => undefined)) ?? "");
     };
 
     // Each object's data is built once, however often it is placed.

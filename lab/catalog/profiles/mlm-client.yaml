@@ -4,6 +4,7 @@ metadata:
   name: mlm-client
   description: Registers the host with a Multi-Linux Manager server in the lab
 spec:
+  icon: laptop                # in the lab UI (lucide.dev/icons)
   hostRefs:
     - { field: server, provides: mlm-server }
   settings:

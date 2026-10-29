@@ -2,7 +2,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { CertManager, ChartProfile, HarvesterCloudProvider, MetalLb, Traefik } from "@lab/apps";
 import { HarvesterCloudConfig } from "@lab/harvester";
-import { ClusterAccess, clusterFromHost, ClusterObjects, Distro, distroInstall, helmApp, HostAccess, KubeWait } from "@lab/kubernetes";
+import { ClusterAccess, clusterFromHost, ClusterObjects, Distro, distroInstall, helmApp, helmJobWatch, HostAccess, KubeWait } from "@lab/kubernetes";
 import { Fleet, RancherAccess, RancherServer, UiPlugins } from "@lab/rancher";
 import type { ResolvedHost, ResolvedLab } from "@lab/schema";
 import type { ProfileSettings } from "./generated/profile-settings";
@@ -83,7 +83,10 @@ const kubernetesCloudInit = (distro: Distro, { lab, host }: CloudInitContext, ow
     const d = distribution(distro, lab);
     return {
         // What other profiles do instead of the distribution (ingress, load balancing, the cloud provider).
-        runcmd: distroInstall(d, installCommand(d, version(distro, lab, own)), host.fqdn, { capabilities: byOthers(host, distro) }).runcmd,
+        runcmd: [
+            helmJobWatch(d, lab.timeouts.helmJobWatch),
+            ...distroInstall(d, installCommand(d, version(distro, lab, own)), host.fqdn, { capabilities: byOthers(host, distro) }).runcmd,
+        ],
         uninstall: d.uninstall,
     };
 };
@@ -92,7 +95,7 @@ const byOthers = (host: ResolvedHost, profile: string) =>
     Object.entries(host.providers).filter(([, providers]) => !providers.includes(profile)).map(([cap]) => cap);
 
 const kubernetesBuild = (distro: Distro, { lab, host, access, ready, machine }: ProfileContext): HostOutputs => {
-    const kubernetes = clusterFromHost(`${host.name}/${distro}`, access, { name: distro, ...distribution(distro, lab) }, { dependsOn: ready, deletedWith: machine });
+    const kubernetes = clusterFromHost(`${host.name}/${distro}`, access, { name: distro, ...distribution(distro, lab) }, lab.timeouts.kubernetesApi, { dependsOn: ready, deletedWith: machine });
     const outputs: HostOutputs = { kubernetes };
     // Its own ServiceLB and Traefik (the profile's fallbacks), when no other profile replaces them.
     // Traefik is there once the distribution has installed its IngressClass.
@@ -103,6 +106,7 @@ const kubernetesBuild = (distro: Distro, { lab, host, access, ready, machine }: 
             ready: [new KubeWait(`${host.name}/${distro}/ingress`, {
                 kubeconfig: kubernetes.kubeconfig,
                 path: `/apis/networking.k8s.io/v1/ingressclasses/${ingressClass}`,
+                timeoutSeconds: lab.timeouts.resourceReady,
             }, { deletedWith: machine })],
         };
     }
@@ -147,6 +151,7 @@ export const BUILDERS: { [N in ProfileName]?: ProfileBuilder<N> } = {
                 chart: profileChart("metallb", ctx.host, ctx.lab, settings.version),
                 values: chartValuesWithSecrets(settings.values),
                 addresses: settings.addresses,
+                timeoutSeconds: ctx.lab.timeouts.resourceReady,
             });
             return { "load-balancer": { ready: lb.ready } };
         },
@@ -167,6 +172,7 @@ export const BUILDERS: { [N in ProfileName]?: ProfileBuilder<N> } = {
                 acme: { name: lab.acme.name, url: lab.acme.url },
                 wildcardDomain: host.fqdn,
                 secretName: String(host.outputs.tls?.secretName ?? ""),
+                timeoutSeconds: lab.timeouts.certificate,
             });
             return { tls: { ready: [cm.certificate] } };
         },
@@ -202,6 +208,9 @@ export const BUILDERS: { [N in ProfileName]?: ProfileBuilder<N> } = {
                 // nodes) trust Rancher through its roots, and the engine skips verifying it.
                 insecure: !!lab.acme?.ca,
                 privateCa: lab.acme?.ca,
+                settings: settings.settings ?? {},
+                features: settings.features,
+                timeoutSeconds: lab.timeouts.rancherReady,
             }, { dependsOn: [...tls.ready, ...ingress.ready, ...need(ctx, "secret-propagation").ready] });
             const rancher = server.access;
 
@@ -212,6 +221,7 @@ export const BUILDERS: { [N in ProfileName]?: ProfileBuilder<N> } = {
                 plugins: Array.isArray(plugins)
                     ? Object.fromEntries(plugins.map(p => [p, lab.plugins.versions[p]])) // names checked by the resolver
                     : plugins,
+                timeoutSeconds: lab.timeouts.uiPlugin,
             });
 
             // The repos' secrets live on this cluster too (in Rancher's namespaces): after Rancher.
@@ -220,6 +230,7 @@ export const BUILDERS: { [N in ProfileName]?: ProfileBuilder<N> } = {
                 rancher,
                 fleet: lab.fleet[host.name],
                 after: objects?.resources,
+                timeoutSeconds: lab.timeouts.resourceReady,
             });
             return { rancher };
         },

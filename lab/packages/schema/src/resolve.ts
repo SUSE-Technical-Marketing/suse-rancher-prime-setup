@@ -1,23 +1,25 @@
 import * as path from "node:path";
 import { Diagnostics } from "./diagnostics";
-import { CatalogLayer, catalogValues, ResolvedAcmeServer, ResolvedComponent, ResolvedPlugins, resolveCatalog } from "./catalog";
+import { CatalogLayer, catalogValues, ResolvedAcmeServer, ResolvedComponent, ResolvedPlugins, resolveCatalog, Timeouts } from "./catalog";
 import { FleetSettings, ResolvedFleet, resolveFleet } from "./fleet";
 import { createObjects, ObjectTarget, Placement, placementOf, ResolvedObject } from "./objects";
 import { docAt } from "./documents";
-import { renderTemplates, TemplateContext } from "./templates";
+import { isTemplate, renderTemplates, TemplateContext } from "./templates";
+import { checkSecretTemplate, type SecretShape, usesSecrets } from "./secrets";
 import { ResolvedOs } from "./os";
+
+/** cloud-config keys an existing machine (no user data) gets, over SSH instead (packages are always refreshed first). */
+export const MACHINE_CLOUD_INIT_KEYS = ["packages", "runcmd", "package_update"];
 import { Profiles } from "./profiles";
 import { activeRequirements, blocksCustomClusterNode, checkHostProfiles, describeCapability, hostCapabilities, profileBuildOrder } from "./profiles/rules";
 import {
     Credentials, DownstreamInput, HarvesterInput, ImageSource, LabFile, NODE_ROLES,
-    PersonalConfig, SecretRef, VersionValue,
+    PersonalConfig, VersionValue,
 } from "./schema";
 
 // ---------------------------------------------------------------------------------------------
-// Resolved model: plain JSON, handed to the Pulumi program as stack config. Secret references
-// stay as `{ $secret }`; the program swaps in the values it receives separately.
-
-export type SecretShape = "string" | "credentials";
+// Resolved model: plain JSON, handed to the Pulumi program as stack config. Secret templates
+// ("{{ secrets.x }}") stay as they are; the program renders them with the values it receives separately.
 
 export interface ResolvedNetwork {
     /** `untagged` or `vlan<id>`. */
@@ -36,7 +38,7 @@ export interface ResolvedHarvester {
     credentials: Credentials;
     insecure: boolean;
     clusterNetwork: string;
-    storageClass: { name: string; replicas: number };
+    storageClass: { name: string; replicas: number; parameters: Record<string, string> };
     dns?: HarvesterInput["dns"];
     networks: ResolvedNetwork[];
     defaultNetwork: string;
@@ -113,7 +115,12 @@ export interface ResolvedSshHost extends ResolvedHostBase {
 
 export type ResolvedHost = ResolvedHarvesterHost | ResolvedSshHost;
 
-export type ResolvedDownstream = DownstreamInput & { name: string };
+type HarvesterDownstreamInput = Extract<DownstreamInput, { type: "harvester" }>;
+/** A downstream cluster; a Harvester one's pools with their machine size filled in. */
+export type ResolvedDownstream = { name: string } & (
+    | Exclude<DownstreamInput, { type: "harvester" }>
+    | (Omit<HarvesterDownstreamInput, "pools"> & { pools: (HarvesterDownstreamInput["pools"][number] & { cpu: number; memory: string; disk: string })[] })
+);
 
 export interface ResolvedLab {
     name: string;
@@ -121,7 +128,7 @@ export interface ResolvedLab {
     tls: LabFile["tls"];
     /** The AcmeServer `tls.acme` names; none for `tls.acme: none`. */
     acme?: ResolvedAcmeServer;
-    ssh?: { user: string; publicKey: string; privateKey: SecretRef };
+    ssh?: { user: string; publicKey: string; privateKey: string };
     /** Everything the lab can install and its version, from the catalog (§16). */
     components: Record<string, ResolvedComponent>;
     /** For each profile with a chart: which chart, its namespace, default and locked values (§17). */
@@ -141,6 +148,10 @@ export interface ResolvedLab {
     skippedObjects: { what: string; missing: string[] }[];
     /** Every secret the lab needs, with the shape its value must have. */
     secrets: Record<string, SecretShape>;
+    /** How long the engine waits for each step, in seconds (the catalog's Defaults). */
+    timeouts: Timeouts;
+    /** Images the engine runs itself (Defaults `images`). */
+    images: { kubectl: string };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -173,38 +184,46 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         return path.resolve(baseDir, home);
     };
 
-    const needSecret = (ref: SecretRef, shape: SecretShape, source: string, at: string) => {
-        const existing = secrets[ref.$secret];
+    const needSecret = (name: string, shape: SecretShape, source: string, at: string) => {
+        const existing = secrets[name];
         if (existing && existing !== shape) {
-            diags.error(source, at, `secret "${ref.$secret}" is used both as ${existing} and as ${shape}`);
+            diags.error(source, at, `secret "${name}" is used both as ${existing} and as ${shape}`);
         }
-        secrets[ref.$secret] = shape;
+        secrets[name] = shape;
     };
 
-    const isSecret = (v: unknown): v is SecretRef => typeof v === "object" && v !== null && "$secret" in v;
+    /** A template that may use secrets: report what's wrong with it, register the secrets it uses. */
+    const useTemplate = (template: string, shape: SecretShape, source: string, at: string, vars?: Record<string, unknown>) => {
+        const { uses, error } = checkSecretTemplate(template, shape, vars);
+        if (error) diags.error(source, at, error);
+        for (const u of uses) needSecret(u.name, u.shape, source, at);
+    };
 
-    /** Register every `{ $secret }` in a free-form value (chart values) as a string secret. */
+    const PLAIN = "secret value is written in the lab file; use a secret (\"{{ secrets.name }}\") before sharing it";
+
+    /** A secret field: a template over `secrets`, or a plain value (a warning in the lab file). */
+    const useSecretOrString = (v: string | undefined, source: string, at: string) => {
+        if (v === undefined) return;
+        if (isTemplate(v)) useTemplate(v, "string", source, at);
+        else if (source === L) diags.warning(source, at, PLAIN);
+    };
+
+    /** Credentials: one secret ("{{ secrets.harbor }}"), or a username with a password. */
+    const useCredentials = (creds: Credentials, source: string, at: string) => {
+        if (typeof creds === "string") {
+            if (isTemplate(creds)) useTemplate(creds, "credentials", source, at);
+            else diags.error(source, at, "credentials are one secret (\"{{ secrets.name }}\") or { username, password }");
+            return;
+        }
+        if (isTemplate(creds.username)) useTemplate(creds.username, "string", source, `${at}.username`);
+        useSecretOrString(creds.password, source, `${at}.password`);
+    };
+
+    /** Register the secrets in free-form values (chart values): every string that uses `secrets`. */
     const walkRefs = (value: unknown, at: string): void => {
-        if (isSecret(value)) needSecret(value, "string", L, at);
+        if (typeof value === "string") { if (usesSecrets(value)) useTemplate(value, "string", L, at); }
         else if (Array.isArray(value)) value.forEach((v, i) => walkRefs(v, `${at}[${i}]`));
         else if (typeof value === "object" && value !== null) for (const [k, v] of Object.entries(value)) walkRefs(v, `${at}.${k}`);
-    };
-
-    /** Register the secrets in a credentials value; warn about passwords written into the lab file. */
-    const useCredentials = (creds: Credentials, source: string, at: string) => {
-        if (isSecret(creds)) {
-            needSecret(creds, "credentials", source, at);
-        } else if (isSecret(creds.password)) {
-            needSecret(creds.password, "string", source, `${at}.password`);
-        } else if (source === L) {
-            diags.warning(source, `${at}.password`, "password is written in the lab file; use { $secret: ... } before sharing it");
-        }
-    };
-
-    const useSecretOrString = (v: SecretRef | string | undefined, source: string, at: string) => {
-        if (v === undefined) return;
-        if (isSecret(v)) needSecret(v, "string", source, at);
-        else if (source === L) diags.warning(source, at, "secret value is written in the lab file; use { $secret: ... } before sharing it");
     };
 
     // --- Catalog: versions and OS profiles ------------------------------------------------------
@@ -225,13 +244,23 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         }
         if (!usedOs[name]) {
             usedOs[name] = os;
-            useSecretOrString(os.registration?.suseconnect?.regcode, `OS profile ${name}`, "registration.suseconnect.regcode");
+            // Rendered for real by the program, with the secrets' values; this checks the templates and
+            // finds the secrets they use (a registration code, say).
+            const vars = { lab: { name: lab.lab, domain: lab.domain } };
+            const walk = (value: unknown, at: string): void => {
+                if (typeof value === "string") { if (isTemplate(value)) useTemplate(value, "string", `OS profile ${name}`, at, vars); }
+                else if (Array.isArray(value)) value.forEach((v, i) => walk(v, `${at}[${i}]`));
+                else if (typeof value === "object" && value !== null) for (const [k, v] of Object.entries(value)) walk(v, `${at}.${k}`);
+            };
+            walk(os.cloudInit, "cloudInit");
         }
         return os;
     };
 
     // --- Harvesters --------------------------------------------------------------------------
     const harvesters = new Map<string, ResolvedHarvester>();
+    const hvDefaults = catalog.defaults.value.harvester;
+    const vmDefaults = catalog.defaults.value.vm;
     for (const [name, h] of Object.entries(lab.harvesters)) {
         const at = `harvesters.${name}`;
         const mine = personal.harvesters[name] ?? {};
@@ -301,8 +330,12 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             url: url ?? "",
             credentials: credentials ?? { username: "", password: "" },
             insecure: h.insecure ?? mine.insecure ?? true,
-            clusterNetwork: h.clusterNetwork,
-            storageClass: h.storageClass,
+            clusterNetwork: h.clusterNetwork ?? hvDefaults.clusterNetwork,
+            storageClass: {
+                name: h.storageClass?.name ?? hvDefaults.storageClass.name,
+                replicas: h.storageClass?.replicas ?? hvDefaults.storageClass.replicas,
+                parameters: { ...hvDefaults.storageClass.parameters, ...h.storageClass?.parameters },
+            },
             dns: h.dns,
             networks,
             defaultNetwork,
@@ -322,7 +355,8 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
     const imagesNeeded = new Map<string, Set<string>>();
     const needImage = (harvester: string, os: string) => {
         const set = imagesNeeded.get(harvester) ?? new Set<string>();
-        set.add(os);
+        // Variants (`extends`) without an image of their own share their parent's.
+        set.add(allOs[os]?.image ?? os);
         imagesNeeded.set(harvester, set);
     };
 
@@ -353,9 +387,12 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 if (h[field] !== undefined) diags.error(L, `${at}.${field}`, `doesn't apply to an ssh host`);
             }
             if (!h.address) diags.error(L, `${at}.address`, "required for an ssh host (its DNS name or IP)");
+            // An existing machine gets no user data: only its packages and commands run, over SSH.
+            const ignored = Object.keys(allOs[h.os]?.cloudInit ?? {}).filter(k => !MACHINE_CLOUD_INIT_KEYS.includes(k));
+            if (ignored.length > 0) diags.warning(L, `${at}.os`, `OS profile ${h.os}: ${ignored.join(", ")} only apply to VMs; a machine only gets its packages and runcmd, over SSH`);
             hosts.set(name, {
                 kind: "ssh", name, os: h.os, profiles: parseProfiles(h.profiles, at), profileOrder: [], capabilities: [], providers: {}, charts: [], chartValues: {}, outputs: {},
-                address: h.address ?? "", fqdn: h.address ?? "", user: h.user ?? lab.ssh?.user ?? "root",
+                address: h.address ?? "", fqdn: h.address ?? "", user: h.user ?? lab.ssh?.user ?? catalog.defaults.value.ssh.user,
             });
         } else {
             const harvester = harvesters.get(h.on);
@@ -364,13 +401,10 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 continue;
             }
             if (h.address !== undefined) diags.error(L, `${at}.address`, `only applies to ssh hosts; a Harvester VM is reachable at ${name}.${lab.domain}`);
-            for (const field of ["cpu", "memory", "disk"] as const) {
-                if (h[field] === undefined) diags.error(L, `${at}.${field}`, "required for a Harvester VM");
-            }
             needImage(harvester.name, h.os);
             hosts.set(name, {
                 kind: "harvester", name, os: h.os, profiles: parseProfiles(h.profiles, at), profileOrder: [], capabilities: [], providers: {}, charts: [], chartValues: {}, outputs: {}, fqdn: `${name}.${lab.domain}`,
-                harvester: harvester.name, cpu: h.cpu ?? 0, memory: h.memory ?? "", disk: h.disk ?? "",
+                harvester: harvester.name, cpu: h.cpu ?? vmDefaults.cpu, memory: h.memory ?? vmDefaults.memory, disk: h.disk ?? vmDefaults.disk,
                 network: checkNetwork(harvester, h.network, `${at}.network`), macAddress: h.macAddress,
             });
         }
@@ -392,9 +426,9 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             secretField: (value, at, shape) => {
                 if (value === undefined) return;
                 if (shape === "credentials") useCredentials(value as Credentials, L, at);
-                else useSecretOrString(value as SecretRef | string, L, at);
+                else useSecretOrString(value as string, L, at);
             },
-            secretRef: (ref, at) => needSecret(ref, "string", L, at),
+            secretTemplate: (template, at) => useTemplate(template, "string", L, at),
         });
     }
     if (diags.ok) {
@@ -449,7 +483,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         diags,
         useSecret: (value, shape, source, valueAt) => shape === "credentials"
             ? useCredentials(value as Credentials, source, valueAt)
-            : useSecretOrString(value as SecretRef | string, source, valueAt),
+            : useSecretOrString(value as string, source, valueAt),
         describeCapability: describe,
     });
     /** Place a host's or downstream cluster's `secrets:` and `configmaps:` lists. */
@@ -495,6 +529,15 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         if (!rancher) diags.error(L, `${at}.rancher`, `unknown host "${d.rancher}"`);
         else if (!hostCapabilities(registry, rancher.profiles).has("rancher")) diags.error(L, `${at}.rancher`, `host "${d.rancher}" doesn't run rancher`);
 
+        if (d.type === "k3k") {
+            const parent = lab.downstream[d.parent];
+            if (!parent) diags.error(L, `${at}.parent`, `unknown downstream cluster "${d.parent}"; known: ${Object.keys(lab.downstream).filter(n => n !== name).sort().join(", ") || "none"}`);
+            else if (parent.type === "k3k") diags.error(L, `${at}.parent`, `"${d.parent}" is a k3k cluster itself; a k3k cluster runs in a harvester or custom cluster`);
+            else if (parent.rancher !== d.rancher) diags.error(L, `${at}.parent`, `"${d.parent}" is managed by the Rancher on ${parent.rancher}, this cluster by the one on ${d.rancher}; they must be the same`);
+            downstream.push({ ...d, name, namespace: d.namespace ?? `k3k-${name}` });
+            continue;
+        }
+
         // The engine owns the CNI key (use `cni`) and the Harvester cloud provider's chart values.
         if (d.machineGlobalConfig && "cni" in d.machineGlobalConfig) diags.error(L, `${at}.machineGlobalConfig.cni`, "set it with downstream cni instead");
         if (d.type === "harvester" && d.chartValues && "harvester-cloud-provider" in d.chartValues) {
@@ -511,9 +554,10 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 poolNames.add(pool.name);
                 pool.roles.forEach(r => allRoles.add(r));
                 useOs(pool.os, `${at}.pools[${i}].os`);
-                if (!harvester) return pool;
+                const sized = { ...pool, cpu: pool.cpu ?? vmDefaults.cpu, memory: pool.memory ?? vmDefaults.memory, disk: pool.disk ?? vmDefaults.disk };
+                if (!harvester) return sized;
                 needImage(harvester.name, pool.os);
-                return { ...pool, network: checkNetwork(harvester, pool.network, `${at}.pools[${i}].network`) };
+                return { ...sized, network: checkNetwork(harvester, pool.network, `${at}.pools[${i}].network`) };
             });
             downstream.push({ ...d, name, pools });
         } else {
@@ -612,20 +656,26 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
     const anyHosts = hosts.size > 0;
     if (anyHosts && lab.tls.acme !== "none") {
         if (!lab.tls.email) diags.error(L, "tls.email", `required for ACME (tls.acme: ${lab.tls.acme})`);
-        if (!lab.tls.cloudflare) diags.error(L, "tls.cloudflare", `required for ACME DNS-01, e.g. { $secret: cloudflare-token }`);
+        if (!lab.tls.cloudflare) diags.error(L, "tls.cloudflare", `required for ACME DNS-01, e.g. "{{ secrets['cloudflare-token'] }}"`);
     }
-    if (lab.tls.cloudflare) needSecret(lab.tls.cloudflare, "string", L, "tls.cloudflare");
+    useSecretOrString(lab.tls.cloudflare, L, "tls.cloudflare");
+    // cert-manager issues the lab's certificates from its ACME server: without one it has nothing to do.
+    if (lab.tls.acme === "none") {
+        for (const host of hosts.values()) {
+            if ("cert-manager" in host.profiles) diags.error(L, `hosts.${host.name}.profiles.cert-manager`, "issues certificates from the lab's ACME server; set tls.acme (and tls.email, tls.cloudflare), not none");
+        }
+    }
 
     let ssh: ResolvedLab["ssh"];
     if (lab.ssh) {
-        needSecret(lab.ssh.privateKey, "string", L, "ssh.privateKey");
+        useSecretOrString(lab.ssh.privateKey, L, "ssh.privateKey");
         let publicKey = typeof lab.ssh.publicKey === "string" ? lab.ssh.publicKey : "";
         if (typeof lab.ssh.publicKey !== "string") {
             const file = expand(lab.ssh.publicKey.file, input.labDir);
             if (input.fs.exists(file)) publicKey = input.fs.read(file).trim();
             else diags.error(L, "ssh.publicKey.file", `file not found: ${file}`);
         }
-        ssh = { user: lab.ssh.user, publicKey, privateKey: lab.ssh.privateKey };
+        ssh = { user: lab.ssh.user ?? catalog.defaults.value.ssh.user, publicKey, privateKey: lab.ssh.privateKey };
     } else if (anyHosts) {
         diags.error(L, "ssh", "required when the lab has hosts (user, publicKey, privateKey)");
     }
@@ -666,6 +716,8 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             objects: objects.objects,
             skippedObjects: objects.skipped,
             secrets,
+            timeouts: catalog.defaults.value.timeouts,
+            images: catalog.defaults.value.images,
         },
     };
 }

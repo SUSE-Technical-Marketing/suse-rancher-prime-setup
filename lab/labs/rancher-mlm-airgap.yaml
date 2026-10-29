@@ -9,12 +9,12 @@ spec:
   tls:
     acme: letsencrypt
     email: lab@geeko.me
-    cloudflare: { $secret: cloudflare-token }
+    cloudflare: "{{ secrets['cloudflare-token'] }}"
 
   ssh:
     user: lab
     publicKey: { file: ~/.ssh/id_ed25519.pub }
-    privateKey: { $secret: ssh-key }
+    privateKey: "{{ secrets['ssh-key'] }}"
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: Harvester
@@ -26,7 +26,7 @@ spec:
   dns:
     backend: routeros
     host: 10.29.100.1
-    credentials: { $secret: routeros }
+    credentials: "{{ secrets.routeros }}"
   networks:
     default: vlan100
     vlans:
@@ -39,7 +39,7 @@ metadata:
   name: rancher
 spec:
   harvester: hv-north
-  os: leap-16
+  os: leap-16-k8s
   cpu: 4
   memory: 16Gi
   disk: 100Gi
@@ -49,7 +49,7 @@ spec:
     sprouter: {}
     traefik: {}
     rancher:
-      adminPassword: { $secret: rancher-admin }
+      adminPassword: "{{ secrets['rancher-admin'] }}"
       plugins: [ harvester, kubewarden ]
 ---
 apiVersion: lab.geeko.me/v1alpha1
@@ -64,7 +64,7 @@ spec:
   disk: 300Gi
   profiles:
     mlm-server:
-      adminPassword: { $secret: mlm-admin }
+      adminPassword: "{{ secrets['mlm-admin'] }}"
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: HarvesterVM

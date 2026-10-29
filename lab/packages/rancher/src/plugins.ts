@@ -12,6 +12,8 @@ interface AppInputs {
     chart: string;
     version: string;
     namespace: string;
+    /** Seconds to wait for it to be deployed. */
+    timeoutSeconds: number;
 }
 
 async function token(inputs: AppInputs): Promise<string> {
@@ -33,7 +35,7 @@ const appProvider: pulumi.dynamic.ResourceProvider = {
             namespace: inputs.namespace,
         }, t);
         if (res.status < 200 || res.status >= 300) throw new Error(`installing ${inputs.chart} failed: HTTP ${res.status} ${JSON.stringify(res.body)}`);
-        const deadline = Date.now() + 10 * 60 * 1000;
+        const deadline = Date.now() + inputs.timeoutSeconds * 1000;
         while (Date.now() < deadline) {
             const app = await rancherRequest(endpoint, "GET", `/v1/catalog.cattle.io.apps/${inputs.namespace}/${inputs.chart}`, undefined, t);
             const status = app.body?.spec?.info?.status ?? app.body?.status?.summary?.state;
@@ -48,7 +50,7 @@ const appProvider: pulumi.dynamic.ResourceProvider = {
     },
     async delete(_id: string, props: AppInputs) {
         const endpoint = { url: props.url, insecure: props.insecure };
-        const t = await rancherLogin(endpoint, "admin", props.password).catch(() => undefined);
+        const t = await rancherLogin(endpoint, "admin", props.password, 0).catch(() => undefined);
         if (!t) return; // Rancher is gone already (the lab is being destroyed)
         await rancherRequest(endpoint, "POST", `/v1/catalog.cattle.io.apps/${props.namespace}/${props.chart}?action=uninstall`, {}, t);
     },
@@ -66,6 +68,8 @@ export interface UiPluginsArgs {
     repo: { name: string; gitRepo: string; branch: string };
     /** Plugin name -> chart version. */
     plugins: Record<string, string>;
+    /** Seconds to wait for each plugin to be installed. */
+    timeoutSeconds: number;
 }
 
 /** The UI plugin chart repository and the plugins installed from it. */
@@ -87,6 +91,7 @@ export class UiPlugins extends pulumi.ComponentResource {
                 chart: plugin,
                 version,
                 namespace: "cattle-ui-plugin-system",
+                timeoutSeconds: args.timeoutSeconds,
             }, withCluster(rancher.cluster, this, { dependsOn: [repo] }));
         }
         this.registerOutputs({});

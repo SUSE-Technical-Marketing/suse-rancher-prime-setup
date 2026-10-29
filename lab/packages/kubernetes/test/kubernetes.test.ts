@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ResolvedDistribution } from "@lab/schema";
 import { parse } from "yaml";
-import { distroInstall, mergeConfig, rewriteKubeconfig } from "../src";
+import { distroInstall, helmJobWatch, mergeConfig, rewriteKubeconfig } from "../src";
 
 const K3S_YAML = `apiVersion: v1
 clusters:
@@ -62,6 +62,18 @@ describe("distroInstall", () => {
         expect(written(lb.runcmd)).toEqual({ disable: ["traefik", "servicelb"], "enable-servicelb": false, "tls-san": ["vm.example.com"] });
         const both = distroInstall(DISTRO, DISTRO.install, "vm.example.com", { capabilities: ["load-balancer", "cloud-provider"] });
         expect(written(both.runcmd)).toMatchObject({ "enable-servicelb": false, "disable-cloud-controller": true });
+    });
+});
+
+describe("helmJobWatch", () => {
+    it("starts a transient unit that watches helm-controller Jobs for the given time", () => {
+        const cmd = helmJobWatch(DISTRO, 3600);
+        expect(cmd).toMatch(/^\{ \{ systemctl stop lab-helm-watch; .*systemd-run --unit=lab-helm-watch .* sh -c '.*'; \}$/);
+        expect(cmd).toContain("+3600))");
+        // systemd would expand $VAR itself.
+        expect(cmd).toContain("end=$$(($$(date +%s)+3600))");
+        expect(cmd).toContain("-l helmcharts.helm.cattle.io/chart");
+        expect(cmd).toContain(DISTRO.kubeconfig);
     });
 });
 

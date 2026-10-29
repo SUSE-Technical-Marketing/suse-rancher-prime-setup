@@ -33,6 +33,8 @@ export const ProfileChartEntry = z.strictObject({
 export type ProfileChartEntry = z.infer<typeof ProfileChartEntry>;
 
 export const ProfileInput = z.strictObject({
+    /** Its icon in the lab UI: a Lucide icon name (https://lucide.dev/icons), e.g. `tractor`. */
+    icon: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "must be a Lucide icon name like server-cog").optional(),
     /**
      * What it installs, in order, each after the one before is ready. The first chart is the
      * profile's own: the lab's `values` and the profile's `version` setting apply to it.

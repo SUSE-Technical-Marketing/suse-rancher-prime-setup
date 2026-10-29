@@ -6,7 +6,11 @@ metadata:
 spec:
   family: suse
   image: { url: null }
-  registration:
-    suseconnect:
-      regcode: { $secret: scc-regcode-slmicro }
-  packages: [ qemu-guest-agent ]
+  cloudInit:
+    # Register first: bootcmd runs before cloud-init installs packages, which an unregistered
+    # system can't. cloud-init-per once: on the first boot only.
+    bootcmd:
+      - cloud-init-per once register suseconnect --regcode '{{ secrets["scc-regcode-slmicro"] }}'
+    packages: [ qemu-guest-agent ]
+    runcmd:
+      - systemctl enable --now qemu-guest-agent

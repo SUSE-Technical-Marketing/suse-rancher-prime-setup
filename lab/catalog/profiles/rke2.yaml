@@ -4,6 +4,7 @@ metadata:
   name: rke2
   description: Single-node RKE2 cluster on the host
 spec:
+  icon: shield-check                # in the lab UI (lucide.dev/icons)
   distribution: rke2
   provides: [ kubernetes ]
   conflicts: [ kubernetes ]

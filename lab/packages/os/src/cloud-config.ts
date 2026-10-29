@@ -1,4 +1,4 @@
-import type { OsFamily, ResolvedOs } from "@lab/schema";
+import { renderTemplates, type CloudInitVars, type OsFamily, type ResolvedOs } from "@lab/schema";
 import { stringify } from "yaml";
 
 export interface CloudConfigInput {
@@ -13,96 +13,70 @@ export interface CloudConfigInput {
      * top level of the user data, which is where the default user's keys go.
      */
     defaultUser?: boolean;
-    /** Registration code for OSes with `registration.suseconnect`, already resolved. */
-    regcode?: string;
-    /** Add the OS profile's `k8s.packages` (the host runs k3s or RKE2). */
-    kubernetes?: boolean;
-    /** Extra commands, run after packages are installed (profiles add these). */
+    /** For the profile's `cloudInit` templates: its secrets' values, the lab's name and domain. */
+    vars: CloudInitVars;
+    /** The host's own commands (k3s / RKE2, profiles), run after the OS profile's `runcmd`. */
     runcmd?: string[];
-}
-
-/** How one OS family adds repositories, registers and installs packages. */
-interface Family {
-    addRepos(repos: ResolvedOs["repos"]): string[];
-    register(os: ResolvedOs, regcode: string | undefined): string[];
-    install(packages: string[]): string[];
 }
 
 const quote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
-const FAMILIES: Record<OsFamily, Family> = {
-    suse: {
-        addRepos: repos => repos.flatMap(r => [
-            ...(r.gpgkey ? [`rpm --import ${quote(r.gpgkey)}`] : []),
-            `zypper --non-interactive addrepo --refresh ${r.gpgkey ? "" : "--no-gpgcheck "}${quote(r.url)} ${quote(r.name)}`,
-        ]),
-        register: (os, regcode) => {
-            if (!os.registration?.suseconnect) return [];
-            if (!regcode) throw new Error(`OS ${os.name} needs a registration code`);
-            return [`suseconnect --regcode ${quote(regcode)}`];
-        },
-        install: packages => packages.length === 0 ? [] : [
-            "zypper --non-interactive --gpg-auto-import-keys refresh",
-            `zypper --non-interactive install --no-recommends ${packages.map(quote).join(" ")}`,
-        ],
-    },
-    rhel: {
-        addRepos: repos => repos.flatMap(r => [
-            ...(r.gpgkey ? [`rpm --import ${quote(r.gpgkey)}`] : []),
-            `dnf config-manager --add-repo ${quote(r.url)}`,
-        ]),
-        register: () => [],
-        install: packages => packages.length === 0 ? [] : [`dnf -y install ${packages.map(quote).join(" ")}`],
-    },
-    debian: {
-        addRepos: repos => {
-            if (repos.length > 0) throw new Error("repos: are not supported for the debian family yet");
-            return [];
-        },
-        register: () => [],
-        install: packages => packages.length === 0 ? [] : [
-            "apt-get update",
-            `DEBIAN_FRONTEND=noninteractive apt-get install -y ${packages.map(quote).join(" ")}`,
-        ],
-    },
+/** How one OS family installs packages: for existing machines, which get no user data. */
+const INSTALL: Record<OsFamily, (packages: string[]) => string[]> = {
+    suse: packages => [
+        "zypper --non-interactive --gpg-auto-import-keys refresh",
+        `zypper --non-interactive install --no-recommends ${packages.map(quote).join(" ")}`,
+    ],
+    rhel: packages => [`dnf -y install ${packages.map(quote).join(" ")}`],
+    debian: packages => [
+        "apt-get update",
+        `DEBIAN_FRONTEND=noninteractive apt-get install -y ${packages.map(quote).join(" ")}`,
+    ],
 };
 
+/** The OS profile's cloud-config with its templates rendered. */
+function cloudInit(os: ResolvedOs, vars: CloudInitVars): Record<string, unknown> {
+    return renderTemplates(os.cloudInit, vars, "cloudInit", (at, message) => {
+        throw new Error(`OS profile ${os.name}: ${at}: ${message}`);
+    }) as Record<string, unknown>;
+}
+
+const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+
 /**
- * Render `#cloud-config` user data for a host from its OS profile. Everything order-sensitive
- * (registration, repositories, packages) runs in `runcmd`, because cloud-init's `packages:`
- * module runs before `runcmd` and an unregistered SLES can't install anything.
+ * Render `#cloud-config` user data for a host: its OS profile's `cloudInit` (templates rendered),
+ * plus what the engine owns. The login and hostname are set here (profiles can't); the host's own
+ * commands are appended to the profile's `runcmd`.
  */
 export function renderCloudConfig(input: CloudConfigInput): string {
-    const { os } = input;
-    const family = FAMILIES[os.family];
-    const packages = [...new Set([...os.packages, ...(input.kubernetes ? os.k8s.packages : [])])];
-
+    const os = cloudInit(input.os, input.vars);
     const login = {
         name: input.user.name,
         sudo: "ALL=(ALL) NOPASSWD:ALL",
         shell: "/bin/bash",
         lock_passwd: true,
     };
+    const runcmd = [...list(os.runcmd), ...(input.runcmd ?? [])];
     const config: Record<string, unknown> = {
+        ssh_pwauth: false,
+        ...os,
         ...(input.hostname ? { hostname: input.hostname, fqdn: input.fqdn, prefer_fqdn_over_hostname: false, manage_etc_hosts: true } : {}),
         ...(input.defaultUser
             ? { system_info: { default_user: login }, users: ["default"], ssh_authorized_keys: [input.user.publicKey] }
             : { users: [{ ...login, ssh_authorized_keys: [input.user.publicKey] }] }),
-        ssh_pwauth: false,
-        runcmd: [
-            ...family.register(os, input.regcode),
-            ...family.addRepos(os.repos),
-            ...family.install(packages),
-            ...(packages.includes("qemu-guest-agent") ? ["systemctl enable --now qemu-guest-agent"] : []),
-            ...(input.runcmd ?? []),
-        ],
-        // Profile-specific raw cloud-config wins, key by key.
-        ...os.cloudInit,
+        ...(runcmd.length > 0 ? { runcmd } : {}),
     };
     return `#cloud-config\n${stringify(config, { lineWidth: 0 })}`;
 }
 
-/** Commands (run as root) that install packages with the OS family's package manager: for existing machines, which get no user data. */
-export function installCommands(os: ResolvedOs, packages: string[]): string[] {
-    return FAMILIES[os.family].install(packages);
+/**
+ * Commands (run as root over SSH) that do for an existing machine what a VM's user data would:
+ * install the OS profile's `packages` with the family's package manager, then run its `runcmd`.
+ * Other cloud-config keys need cloud-init and are skipped (the resolver warns).
+ */
+export function machineSetup(os: ResolvedOs, vars: CloudInitVars): string[] {
+    const config = cloudInit(os, vars);
+    const packages = list(config.packages).filter((p): p is string => typeof p === "string");
+    const runcmd = list(config.runcmd).map(c => (Array.isArray(c) ? c.map(a => quote(String(a))).join(" ") : String(c)));
+    return [...(packages.length > 0 ? INSTALL[os.family](packages) : []), ...runcmd];
 }

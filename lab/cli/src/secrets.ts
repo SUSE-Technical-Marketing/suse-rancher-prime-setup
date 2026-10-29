@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { Credentials, SecretRef, SecretShape, SecretValue } from "@lab/schema";
+import { credentialsOf, Credentials, renderSecretTemplate, SecretShape, SecretValue } from "@lab/schema";
 
 export type ResolvedSecret = string | { username: string; password: string };
 
@@ -97,13 +97,5 @@ export function resolveSecrets(
 
 /** Turn a credentials value from the lab into a username and password, using resolved secrets. */
 export function credentialsFrom(creds: Credentials, secrets: Record<string, ResolvedSecret>): { username: string; password: string } {
-    const isRef = (v: unknown): v is SecretRef => typeof v === "object" && v !== null && "$secret" in v;
-    if (isRef(creds)) {
-        const v = secrets[creds.$secret];
-        if (typeof v !== "object") throw new Error(`secret "${creds.$secret}" is not resolved`);
-        return v;
-    }
-    const password = isRef(creds.password) ? secrets[creds.password.$secret] : creds.password;
-    if (typeof password !== "string") throw new Error("password secret is not resolved");
-    return { username: creds.username, password };
+    return credentialsOf(creds, t => renderSecretTemplate(t, secrets));
 }

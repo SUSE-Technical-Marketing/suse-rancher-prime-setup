@@ -14,20 +14,20 @@ export interface KubeValueArgs {
     path: pulumi.Input<string>;
     /** Dot path of the field, numbers index arrays: `status.interfaces.0.ipAddress`. */
     field: pulumi.Input<string>;
-    timeoutSeconds?: pulumi.Input<number>;
+    timeoutSeconds: pulumi.Input<number>;
 }
 
 interface Inputs {
     target: KubeTarget;
     path: string;
     field: string;
-    timeoutSeconds?: number;
+    timeoutSeconds: number;
 }
 
 // Dynamic providers are serialized into the state; kubeRequest is self-contained for that reason.
 const provider: pulumi.dynamic.ResourceProvider = {
     async create(inputs: Inputs) {
-        const deadline = Date.now() + (inputs.timeoutSeconds ?? 600) * 1000;
+        const deadline = Date.now() + inputs.timeoutSeconds * 1000;
         while (Date.now() < deadline) {
             const res = await kubeRequest(inputs.target, "GET", inputs.path).catch(() => undefined);
             const obj = res?.status === 200 ? res.body : undefined;

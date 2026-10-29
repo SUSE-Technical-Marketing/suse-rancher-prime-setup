@@ -21,6 +21,8 @@ export interface HarvesterVmArgs {
     userData: pulumi.Input<string>;
     /** `namespace/name` of the Harvester key pair, shown in the Harvester UI. */
     keyPair?: pulumi.Input<string>;
+    /** Seconds to wait for the VM to run, and then for its IP address. */
+    timeouts: { start: number; address: number };
 }
 
 /**
@@ -70,7 +72,7 @@ export class HarvesterVm extends pulumi.ComponentResource {
                 annotations: {
                     // Wait for the guest agent: it reports the IP address, which DNS depends on.
                     "pulumi.com/waitFor": "condition=AgentConnected",
-                    "pulumi.com/timeoutSeconds": "1800",
+                    "pulumi.com/timeoutSeconds": String(args.timeouts.start),
                     ...(args.keyPair ? { "harvesterhci.io/sshNames": pulumi.output(args.keyPair).apply(k => JSON.stringify([k])) } : {}),
                 },
             },
@@ -108,7 +110,7 @@ export class HarvesterVm extends pulumi.ComponentResource {
             target: { context: args.harvester },
             path: pulumi.interpolate`/apis/kubevirt.io/v1/namespaces/${args.namespace}/virtualmachineinstances/${args.vmName}`,
             field: "status.interfaces.0.ipAddress",
-            timeoutSeconds: 600,
+            timeoutSeconds: args.timeouts.address,
         }, { parent: this, dependsOn: [this.vm] }).value;
 
         this.registerOutputs({ ipAddress: this.ipAddress });

@@ -4,6 +4,7 @@ metadata:
   name: harvester-cloud-provider
   description: "Harvester cloud provider: LoadBalancer services get an address from the network's Harvester load-balancer pool (instead of ServiceLB)"
 spec:
+  icon: cloud-cog                # in the lab UI (lucide.dev/icons)
   charts:
     - chart: harvester-cloud-provider
       namespace: kube-system

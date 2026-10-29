@@ -2,13 +2,13 @@ import * as command from "@pulumi/command";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { HarvesterBase, HarvesterCloudConfig, HarvesterVm } from "@lab/harvester";
-import { asRoot, ClusterObjects, HostAccess, runExisting, sshConnection, waitForCloudInit } from "@lab/kubernetes";
-import { CustomCluster, HarvesterCluster, HarvesterCredential, HarvesterImport, RancherAccess } from "@lab/rancher";
-import { installCommands, renderCloudConfig } from "@lab/os";
-import type { ResolvedLab } from "@lab/schema";
+import { asRoot, ClusterObjects, helmApp, helmJobWatch, HostAccess, runExisting, sshConnection, waitForCloudInit } from "@lab/kubernetes";
+import { CustomCluster, HarvesterCluster, HarvesterCredential, HarvesterImport, K3kCluster, RancherAccess } from "@lab/rancher";
+import { machineSetup, renderCloudConfig } from "@lab/os";
+import { cloudInitVars, usesSecrets, type CloudInitVars, type ResolvedLab, type ResolvedOs } from "@lab/schema";
 import { buildHostProfiles, profileCloudInit, profileUninstall } from "./profiles";
-import { credentials, objectValue, secretString } from "./secrets";
-import { chart, distribution, harvesterChart, version } from "./catalog";
+import { credentials, objectValue, secrets, secretString } from "./secrets";
+import { chart, chartInNamespace, distribution, harvesterChart, version } from "./catalog";
 
 // The CLI writes the resolved lab, the secret values and the Harvester versions into stack config
 // before every run; this program never reads the lab file itself. Harvester access comes from the
@@ -30,17 +30,25 @@ for (const h of lab.harvesters) {
         harvester: h,
         namespace: lab.name,
         domain: lab.domain,
-        ssh: { user: lab.ssh?.user ?? "lab", publicKey: lab.ssh?.publicKey ?? "" },
+        ssh: lab.ssh,
         usedNetworks,
         dnsCredentials: h.dns?.credentials ? credentials(h.dns.credentials) : undefined,
         charts: {
             dhcpController: harvesterChart("harvester-vm-dhcp-controller", lab, harvesterVersions[h.name]),
             dnsController: chart("harvester-dns-controller", lab),
         },
+        timeouts: lab.timeouts,
     }, { provider: providers[h.name] });
 }
 
 // --- Hosts and their profiles --------------------------------------------------------------------
+/** What an OS profile's cloud-init templates use: the lab's secrets (kept secret), its name and domain. */
+const osVars = (): pulumi.Output<CloudInitVars> => secrets().apply(s => cloudInitVars({ name: lab.name, domain: lab.domain }, s));
+/** A machine's setup over SSH; secret when its OS profile's cloud-init uses secrets. */
+const machineCommands = (os: ResolvedOs): pulumi.Output<string[]> => {
+    const commands = osVars().apply(vars => machineSetup(os, vars));
+    return usesSecrets(JSON.stringify(os.cloudInit)) ? pulumi.secret(commands) : commands;
+};
 const privateKey = lab.ssh ? secretString(lab.ssh.privateKey) : pulumi.output("");
 const hostOutputs: Record<string, { fqdn: string; address: pulumi.Output<string> }> = {};
 const rancherUrls: Record<string, string> = {};
@@ -60,15 +68,12 @@ for (const host of lab.hosts) {
     if (host.kind === "harvester") {
         const base = bases[host.harvester];
         const os = lab.os[host.os];
-        const regcode = os.registration?.suseconnect?.regcode;
-        const regcodeValue: pulumi.Output<string | undefined> = regcode ? secretString(regcode) : pulumi.output(undefined);
-        const userData = regcodeValue.apply(code => renderCloudConfig({
+        const userData = osVars().apply(vars => renderCloudConfig({
             os,
             hostname: host.name,
             fqdn: host.fqdn,
             user: { name: lab.ssh!.user, publicKey: lab.ssh!.publicKey },
-            regcode: code,
-            kubernetes: host.capabilities.includes("kubernetes") || customNodes.has(host.name),
+            vars,
             runcmd,
         }));
         const vm = new HarvesterVm(host.name, {
@@ -78,11 +83,12 @@ for (const host of lab.hosts) {
             cpu: host.cpu,
             memory: host.memory,
             disk: host.disk,
-            image: base.images[host.os],
+            image: base.images[os.image],
             network: base.networks[host.network],
             macAddress: host.macAddress,
             userData: pulumi.secret(userData),
             keyPair: pulumi.interpolate`${base.namespace.metadata.name}/${lab.ssh!.user}`,
+            timeouts: { start: lab.timeouts.vmStart, address: lab.timeouts.vmAddress },
         }, { provider: providers[host.harvester], dependsOn: base.ready });
         address = vm.ipAddress;
         ready = [vm];
@@ -97,16 +103,14 @@ for (const host of lab.hosts) {
     const access: HostAccess = { name: host.name, fqdn: host.fqdn, address, user: host.kind === "ssh" ? host.user : lab.ssh!.user, privateKey };
     let setUp: pulumi.Resource[] = [];
     if (host.kind === "harvester") {
-        setUp = [waitForCloudInit(`${host.name}/cloud-init`, access, { dependsOn: ready, deletedWith: machine })];
+        setUp = [waitForCloudInit(`${host.name}/cloud-init`, access, lab.timeouts.cloudInit, { dependsOn: ready, deletedWith: machine })];
     } else if (runcmd.length > 0) {
         // An existing machine gets no user data (it may not even have cloud-init): what a VM's would
-        // do (the OS's Kubernetes packages, the profiles' commands) runs over SSH instead, and when
-        // the lab goes the profiles are uninstalled, because the machine stays.
-        const os = lab.os[host.os];
-        const packages = host.capabilities.includes("kubernetes") ? installCommands(os, os.k8s.packages) : [];
+        // do (the OS profile's packages and runcmd, the profiles' commands) runs over SSH instead,
+        // and when the lab goes the profiles are uninstalled, because the machine stays.
         const setup = new command.remote.Command(`${host.name}/setup`, {
             connection: sshConnection(access),
-            create: asRoot([...packages, ...runcmd].join(" && ")),
+            create: machineCommands(lab.os[host.os]).apply(setup => asRoot([...setup, ...runcmd].join(" && "))),
             delete: asRoot(runExisting(profileUninstall(lab, host))),
         });
         setUp = [setup];
@@ -134,6 +138,7 @@ function harvesterCredential(rancherHost: string, harvester: string): HarvesterC
         harvester,
         name: harvester,
         insecure: rancher.insecure,
+        timeoutSeconds: lab.timeouts.harvesterImport,
     }, { dependsOn: [...rancher.ready, bases[harvester].namespace] });
     return credentialsFor[key] = new HarvesterCredential(`${rancherHost}/credential/${harvester}`, {
         url: rancher.url,
@@ -146,24 +151,29 @@ function harvesterCredential(rancherHost: string, harvester: string): HarvesterC
 }
 
 const downstreamNames: string[] = [];
+/** The harvester and custom clusters, by name: k3k clusters run in them. */
+const builtClusters: Record<string, CustomCluster | HarvesterCluster> = {};
 for (const d of lab.downstream) {
+    if (d.type === "k3k") continue;
     if (d.type === "custom") {
         const cluster = new CustomCluster(`downstream/${d.name}`, {
             rancher: rancherAccess[d.rancher],
             distribution: distribution(d.distro, lab),
             kubernetesVersion: d.version ?? version(d.distro, lab),
             labels: d.labels,
+            annotations: d.annotations,
             cni: d.cni,
             machineGlobalConfig: d.machineGlobalConfig,
             chartValues: d.chartValues,
+            timeouts: lab.timeouts,
             nodes: d.nodes.map(node => {
                 const host = lab.hosts.find(h => h.name === node.host)!;
                 const { access, ready, machine } = nodeAccess[node.host];
                 return {
                     host: access,
                     roles: node.roles,
-                    // A lab VM got the OS's Kubernetes packages from its user data; a machine gets them now.
-                    prepare: host.kind === "ssh" ? installCommands(lab.os[host.os], lab.os[host.os].k8s.packages) : [],
+                    // A lab VM got its OS profile's setup from its user data; a machine gets it now.
+                    prepare: host.kind === "ssh" ? machineCommands(lab.os[host.os]) : [],
                     after: ready,
                     deletedWith: machine,
                 };
@@ -171,6 +181,7 @@ for (const d of lab.downstream) {
         });
         placeObjects(d.name, cluster);
         downstreamNames.push(d.name);
+        builtClusters[d.name] = cluster;
         continue;
     }
     const base = bases[d.harvester];
@@ -186,6 +197,7 @@ for (const d of lab.downstream) {
         distribution: distribution(d.distro, lab),
         kubernetesVersion: d.version ?? version(d.distro, lab),
         labels: d.labels,
+        annotations: d.annotations,
         cloudCredential: credential.secretName,
         vmNamespace: base.namespace.metadata.name,
         sshUser: lab.ssh!.user,
@@ -193,24 +205,54 @@ for (const d of lab.downstream) {
         cni: d.cni,
         machineGlobalConfig: d.machineGlobalConfig,
         chartValues: d.chartValues,
+        timeouts: lab.timeouts,
         pools: d.pools.map(pool => {
             const os = lab.os[pool.os];
-            const regcode = os.registration?.suseconnect?.regcode;
-            const regcodeValue: pulumi.Output<string | undefined> = regcode ? secretString(regcode) : pulumi.output(undefined);
             return {
                 ...pool,
-                image: base.images[pool.os].id,
+                image: base.images[os.image].id,
                 network: base.networks[pool.network!],
-                userData: pulumi.secret(regcodeValue.apply(code => renderCloudConfig({
+                userData: pulumi.secret(osVars().apply(vars => renderCloudConfig({
                     os,
                     user: { name: lab.ssh!.user, publicKey: lab.ssh!.publicKey },
                     defaultUser: true,
-                    regcode: code,
-                    kubernetes: true,
+                    vars,
+                    runcmd: pool.roles.some(r => r !== "worker") ? [helmJobWatch(distribution(d.distro, lab), lab.timeouts.helmJobWatch)] : [],
                 }))),
             };
         }),
         after: [credential, base.namespace, ...base.ready],
+    });
+    placeObjects(d.name, cluster);
+    downstreamNames.push(d.name);
+    builtClusters[d.name] = cluster;
+}
+
+// k3k virtual clusters, once their parents exist. The k3k operator goes on each parent once,
+// however many k3k clusters run in it.
+const k3kOperators: Record<string, pulumi.Resource> = {};
+function k3kOperator(parent: string): pulumi.Resource {
+    const cluster = builtClusters[parent];
+    return k3kOperators[parent] ??= helmApp(`downstream/${parent}/k3k-operator`, chartInNamespace("k3k", lab), {
+        provider: cluster.provider, dependsOn: [cluster.cluster], deletedWith: cluster.cluster,
+    });
+}
+for (const d of lab.downstream) {
+    if (d.type !== "k3k") continue;
+    const parent = builtClusters[d.parent];
+    const cluster = new K3kCluster(`downstream/${d.name}`, {
+        rancher: rancherAccess[d.rancher],
+        parent: { name: d.parent, provider: parent.provider, clusterId: parent.clusterId, cluster: parent.cluster, operator: k3kOperator(d.parent) },
+        namespace: d.namespace!,
+        mode: d.mode,
+        servers: d.servers,
+        agents: d.agents,
+        version: d.version,
+        persistence: d.persistence,
+        labels: d.labels,
+        annotations: d.annotations,
+        kubectlImage: lab.images.kubectl,
+        timeouts: lab.timeouts,
     });
     placeObjects(d.name, cluster);
     downstreamNames.push(d.name);

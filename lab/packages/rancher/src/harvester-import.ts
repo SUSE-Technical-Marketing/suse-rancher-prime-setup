@@ -10,6 +10,8 @@ interface Inputs {
     name: string;
     /** Harvester fetches the registration manifest without checking Rancher's certificate. */
     insecure: boolean;
+    /** Seconds each step may take, importing or removing; kept for the delete. */
+    timeoutSeconds?: number;
 }
 
 interface Outputs extends Inputs {
@@ -37,14 +39,15 @@ const provider: pulumi.dynamic.ResourceProvider = {
         const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
         const rancher = { kubeconfig: inputs.rancherKubeconfig };
         const harvester = { context: inputs.harvester };
-        const until = async <T>(what: string, minutes: number, probe: () => Promise<T | undefined>): Promise<T> => {
-            const deadline = Date.now() + minutes * 60 * 1000;
+        const timeout = inputs.timeoutSeconds!;
+        const until = async <T>(what: string, probe: () => Promise<T | undefined>): Promise<T> => {
+            const deadline = Date.now() + timeout * 1000;
             while (Date.now() < deadline) {
                 const value = await probe();
                 if (value !== undefined) return value;
                 await sleep(5000);
             }
-            throw new Error(`importing harvester ${inputs.harvester}: ${what} within ${minutes} minutes`);
+            throw new Error(`importing harvester ${inputs.harvester}: ${what} within ${timeout}s`);
         };
 
         const created = await kubeRequest(rancher, "POST", CLUSTERS, {
@@ -57,11 +60,11 @@ const provider: pulumi.dynamic.ResourceProvider = {
             throw new Error(`creating cluster ${inputs.name} in Rancher failed: HTTP ${created.status} ${JSON.stringify(created.body).slice(0, 300)}`);
         }
 
-        const clusterId = await until("Rancher didn't assign a cluster id", 5, async () =>
+        const clusterId = await until("Rancher didn't assign a cluster id", async () =>
             (await kubeRequest(rancher, "GET", `${CLUSTERS}/${inputs.name}`)).body?.status?.clusterName || undefined);
 
         // Newer Rancher keeps the token out of the manifest URL and in a Secret next to it.
-        const url = await until("no registration token appeared", 5, async () => {
+        const url = await until("no registration token appeared", async () => {
             const crt = (await kubeRequest(rancher, "GET", `/apis/management.cattle.io/v3/namespaces/${clusterId}/clusterregistrationtokens/default-token`)).body;
             const manifestUrl: string | undefined = crt?.status?.manifestUrl;
             if (!manifestUrl) return undefined;
@@ -75,7 +78,7 @@ const provider: pulumi.dynamic.ResourceProvider = {
         const set = await kubeRequest(harvester, "PATCH", SETTING, { value: JSON.stringify({ url, insecureSkipTLSVerify: inputs.insecure }) });
         if (set.status !== 200) throw new Error(`setting cluster-registration-url on ${inputs.harvester} failed: HTTP ${set.status} ${JSON.stringify(set.body).slice(0, 300)}`);
 
-        await until("the cluster didn't become Ready (is Rancher reachable from the Harvester?)", 20, async () => {
+        await until("the cluster didn't become Ready (is Rancher reachable from the Harvester?)", async () => {
             const cluster = (await kubeRequest(rancher, "GET", `/apis/management.cattle.io/v3/clusters/${clusterId}`)).body;
             return cluster?.status?.conditions?.some((c: any) => c.type === "Ready" && c.status === "True") ? true : undefined;
         });
@@ -83,7 +86,7 @@ const provider: pulumi.dynamic.ResourceProvider = {
     },
     async diff(_id: string, olds: Outputs, news: Inputs) {
         const replaces = (["harvester", "name"] as const).filter(k => olds[k] !== news[k]);
-        return { changes: replaces.length > 0 || olds.insecure !== news.insecure, replaces, deleteBeforeReplace: true };
+        return { changes: replaces.length > 0 || olds.insecure !== news.insecure || olds.timeoutSeconds !== news.timeoutSeconds, replaces, deleteBeforeReplace: true };
     },
     async update(_id: string, olds: Outputs, news: Inputs) {
         return { outs: { ...news, clusterId: olds.clusterId } };
@@ -93,11 +96,13 @@ const provider: pulumi.dynamic.ResourceProvider = {
         const rancher = { kubeconfig: props.rancherKubeconfig };
         const harvester = { context: props.harvester };
         await kubeRequest(harvester, "PATCH", SETTING, { value: "" });
+        // Imports made before the timeout was an input waited 10 minutes.
+        const timeout = props.timeoutSeconds ?? 600;
         const res = await kubeRequest(rancher, "DELETE", `${CLUSTERS}/${props.name}`);
         if (res.status !== 404) {
-            const deadline = Date.now() + 10 * 60 * 1000;
+            const deadline = Date.now() + timeout * 1000;
             while ((await kubeRequest(rancher, "GET", `${CLUSTERS}/${props.name}`)).status !== 404) {
-                if (Date.now() > deadline) throw new Error(`cluster ${props.name} wasn't removed from Rancher within 10 minutes`);
+                if (Date.now() > deadline) throw new Error(`cluster ${props.name} wasn't removed from Rancher within ${timeout}s`);
                 await sleep(5000);
             }
         }
@@ -107,7 +112,7 @@ const provider: pulumi.dynamic.ResourceProvider = {
         const JOBS = "/apis/batch/v1/namespaces/default/jobs";
         const start = Date.now();
         let seen = false;
-        while (Date.now() - start < 5 * 60 * 1000) {
+        while (Date.now() - start < timeout * 1000) {
             const jobs = ((await kubeRequest(harvester, "GET", JOBS)).body?.items ?? []).filter((j: any) => j.metadata.name.startsWith("cattle-cleanup-"));
             seen ||= jobs.length > 0;
             if (jobs.length === 0 && (seen || Date.now() - start > 30 * 1000)) break;
@@ -164,6 +169,8 @@ export interface HarvesterImportArgs {
     harvester: string;
     name: string;
     insecure: boolean;
+    /** Seconds each step may take, importing or removing. */
+    timeoutSeconds: number;
 }
 
 export class HarvesterImport extends pulumi.dynamic.Resource {

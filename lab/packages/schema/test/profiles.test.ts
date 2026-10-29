@@ -94,7 +94,7 @@ describe("profile templates", () => {
         const labFile = path.join(tmp, "lab.yaml");
         fs.writeFileSync(labFile, [
             "kind: Lab", "metadata: { name: t }", "spec:", "  domain: lab.example.com", "  tls: { acme: none }",
-            '  ssh: { user: lab, publicKey: "ssh-ed25519 AAAA", privateKey: { $secret: k } }',
+            '  ssh: { user: lab, publicKey: "ssh-ed25519 AAAA", privateKey: "{{ secrets.k }}" }',
             "---", "kind: Harvester", "metadata: { name: hv }", "spec: { url: https://hv.example.com, credentials: { username: a, password: b } }",
             "---", "kind: HarvesterVM", "metadata: { name: vm }", "spec: { harvester: hv, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { k3s: {}, sprouter: {} } }", "",
         ].join("\n"));

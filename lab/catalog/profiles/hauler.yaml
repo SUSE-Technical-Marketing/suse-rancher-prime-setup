@@ -4,6 +4,7 @@ metadata:
   name: hauler
   description: Hauler registry for air-gapped installs; on Kubernetes if the host has it, else as a systemd service
 spec:
+  icon: truck                # in the lab UI (lucide.dev/icons)
   provides: [ registry ]
   settings:
     type: object

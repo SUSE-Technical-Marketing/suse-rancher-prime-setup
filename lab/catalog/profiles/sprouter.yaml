@@ -4,6 +4,7 @@ metadata:
   name: sprouter
   description: "Sprouter: copies labelled secrets (the wildcard certificate) into every namespace"
 spec:
+  icon: sprout                # in the lab UI (lucide.dev/icons)
   charts:
     - chart: sprouter
       namespace: sprouter

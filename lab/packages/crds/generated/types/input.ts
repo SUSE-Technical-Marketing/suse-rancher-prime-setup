@@ -9974,6 +9974,8079 @@ export namespace harvesterhci {
     }
 }
 
+export namespace k3k {
+    export namespace v1beta1 {
+        /**
+         * Cluster defines a virtual Kubernetes cluster managed by k3k.
+         * It specifies the desired state of a virtual cluster, including version, node configuration, and networking.
+         * k3k uses this to provision and manage these virtual clusters.
+         */
+        export interface Cluster {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"k3k.io/v1beta1" | undefined>;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"Cluster" | undefined>;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta | undefined>;
+            spec?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpec | undefined>;
+            status?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatus | undefined>;
+        }
+
+        /**
+         * Spec defines the desired state of the Cluster.
+         */
+        export interface ClusterSpec {
+            /**
+             * Addons specifies secrets containing raw YAML to deploy on cluster startup.
+             */
+            addons?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAddons>[] | undefined>;
+            agentAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinity | undefined>;
+            /**
+             * AgentArgs specifies ordered key-value pairs for K3s agent pods.
+             * Example: ["--node-name=my-agent-node"]
+             */
+            agentArgs?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * AgentEnvs specifies list of environment variables to set in the agent pod.
+             */
+            agentEnvs?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvs>[] | undefined>;
+            /**
+             * Agents specifies the number of K3s pods to run in agent (worker) mode.
+             * Must be 0 or greater. Defaults to 0.
+             * This field is ignored in "shared" mode.
+             */
+            agents?: pulumi.Input<number | undefined>;
+            /**
+             * ClusterCIDR is the CIDR range for pod IPs.
+             * Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode.
+             * This field is immutable.
+             */
+            clusterCIDR?: pulumi.Input<string | undefined>;
+            /**
+             * ClusterDNS is the IP address for the CoreDNS service.
+             * Must be within the ServiceCIDR range. Defaults to 10.43.0.10.
+             * This field is immutable.
+             */
+            clusterDNS?: pulumi.Input<string | undefined>;
+            customCAs?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAs | undefined>;
+            expose?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecExpose | undefined>;
+            /**
+             * HostUsers sets the user namespace for server and agent pods.
+             * If set to true or not present, the pod will be run in the host user namespace.
+             * When set to false, a new userns is created for the pod.
+             * This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature.
+             */
+            hostUsers?: pulumi.Input<boolean | undefined>;
+            /**
+             * MirrorHostNodes controls whether node objects from the host cluster
+             * are mirrored into the virtual cluster.
+             */
+            mirrorHostNodes?: pulumi.Input<boolean | undefined>;
+            /**
+             * Mode specifies the cluster provisioning mode. This field is immutable.
+             */
+            mode?: pulumi.Input<string | undefined>;
+            /**
+             * NodeSelector specifies node labels to constrain where server/agent pods are scheduled.
+             * In "shared" mode, this also applies to workloads.
+             */
+            nodeSelector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            persistence?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPersistence | undefined>;
+            podSecurityContext?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPodSecurityContext | undefined>;
+            /**
+             * PriorityClass specifies the priorityClassName for server/agent pods.
+             * In "shared" mode, this also applies to workloads.
+             */
+            priorityClass?: pulumi.Input<string | undefined>;
+            /**
+             * RuntimeClassName specifies alternative runtime class for the
+             * agent and server pods of the cluster in virtual or shared mode.
+             */
+            runtimeClassName?: pulumi.Input<string | undefined>;
+            /**
+             * SecretMounts specifies a list of secrets to mount into server and agent pods.
+             * Each entry defines a secret and its mount path within the pods.
+             */
+            secretMounts?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecretMounts>[] | undefined>;
+            securityContext?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecurityContext | undefined>;
+            serverAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinity | undefined>;
+            /**
+             * ServerArgs specifies ordered key-value pairs for K3s server pods.
+             * Example: ["--tls-san=example.com"]
+             */
+            serverArgs?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * ServerEnvs specifies list of environment variables to set in the server pod.
+             */
+            serverEnvs?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvs>[] | undefined>;
+            /**
+             * ServerLimit specifies resource limits for server nodes.
+             */
+            serverLimit?: pulumi.Input<{[key: string]: pulumi.Input<number | string>} | undefined>;
+            serverResources?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerResources | undefined>;
+            /**
+             * Servers specifies the number of K3s pods to run in server (control plane) mode.
+             * Must be at least 1. Defaults to 1.
+             */
+            servers?: pulumi.Input<number | undefined>;
+            /**
+             * ServiceCIDR is the CIDR range for service IPs.
+             * Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode.
+             * This field is immutable.
+             */
+            serviceCIDR?: pulumi.Input<string | undefined>;
+            sync?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSync | undefined>;
+            /**
+             * TLSSANs specifies subject alternative names for the K3s server certificate.
+             */
+            tlsSANs?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            tokenSecretRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecTokenSecretRef | undefined>;
+            /**
+             * Version is the K3s version to use for the virtual nodes.
+             * It should follow the K3s versioning convention (e.g., v1.28.2-k3s1).
+             * If not specified, the Kubernetes version of the host node will be used.
+             */
+            version?: pulumi.Input<string | undefined>;
+            /**
+             * WorkerLimit specifies resource limits for agent nodes.
+             */
+            workerLimit?: pulumi.Input<{[key: string]: pulumi.Input<number | string>} | undefined>;
+            workerResources?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecWorkerResources | undefined>;
+        }
+
+        /**
+         * Addon specifies a Secret containing YAML to be deployed on cluster startup.
+         */
+        export interface ClusterSpecAddons {
+            /**
+             * SecretNamespace is the namespace of the Secret.
+             */
+            secretNamespace?: pulumi.Input<string | undefined>;
+            /**
+             * SecretRef is the name of the Secret.
+             */
+            secretRef?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Addon specifies a Secret containing YAML to be deployed on cluster startup.
+         */
+        export interface ClusterSpecAddonsPatch {
+            /**
+             * SecretNamespace is the namespace of the Secret.
+             */
+            secretNamespace?: pulumi.Input<string | undefined>;
+            /**
+             * SecretRef is the name of the Secret.
+             */
+            secretRef?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * AgentAffinity specifies the affinity rules for agent pods.
+         * This includes both node affinity and pod affinity/anti-affinity rules.
+         */
+        export interface ClusterSpecAgentAffinity {
+            nodeAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinity | undefined>;
+            podAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinity | undefined>;
+            podAntiAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinity | undefined>;
+        }
+
+        /**
+         * Describes node affinity scheduling rules for the pod.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinity {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and adding
+             * "weight" to the sum if the node matches the corresponding matchExpressions; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution | undefined>;
+        }
+
+        /**
+         * Describes node affinity scheduling rules for the pod.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityPatch {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and adding
+             * "weight" to the sum if the node matches the corresponding matchExpressions; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch>[] | undefined>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch | undefined>;
+        }
+
+        /**
+         * An empty preferred scheduling term matches all objects with implicit weight 0
+         * (i.e. it's a no-op). A null preferred scheduling term matches no objects (i.e. is also a no-op).
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            preference?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference | undefined>;
+            /**
+             * Weight associated with matching the corresponding nodeSelectorTerm, in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * An empty preferred scheduling term matches all objects with implicit weight 0
+         * (i.e. it's a no-op). A null preferred scheduling term matches no objects (i.e. is also a no-op).
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            preference?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferencePatch | undefined>;
+            /**
+             * Weight associated with matching the corresponding nodeSelectorTerm, in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * A node selector term, associated with the corresponding weight.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference {
+            /**
+             * A list of node selector requirements by node's labels.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions>[] | undefined>;
+            /**
+             * A list of node selector requirements by node's fields.
+             */
+            matchFields?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressionsPatch {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFieldsPatch {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector term, associated with the corresponding weight.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferencePatch {
+            /**
+             * A list of node selector requirements by node's labels.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressionsPatch>[] | undefined>;
+            /**
+             * A list of node selector requirements by node's fields.
+             */
+            matchFields?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFieldsPatch>[] | undefined>;
+        }
+
+        /**
+         * If the affinity requirements specified by this field are not met at
+         * scheduling time, the pod will not be scheduled onto the node.
+         * If the affinity requirements specified by this field cease to be met
+         * at some point during pod execution (e.g. due to an update), the system
+         * may or may not try to eventually evict the pod from its node.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            /**
+             * Required. A list of node selector terms. The terms are ORed.
+             */
+            nodeSelectorTerms?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms>[] | undefined>;
+        }
+
+        /**
+         * A null or empty node selector term matches no objects. The requirements of
+         * them are ANDed.
+         * The TopologySelectorTerm type implements a subset of the NodeSelectorTerm.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms {
+            /**
+             * A list of node selector requirements by node's labels.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions>[] | undefined>;
+            /**
+             * A list of node selector requirements by node's fields.
+             */
+            matchFields?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressionsPatch {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFieldsPatch {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A null or empty node selector term matches no objects. The requirements of
+         * them are ANDed.
+         * The TopologySelectorTerm type implements a subset of the NodeSelectorTerm.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsPatch {
+            /**
+             * A list of node selector requirements by node's labels.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressionsPatch>[] | undefined>;
+            /**
+             * A list of node selector requirements by node's fields.
+             */
+            matchFields?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFieldsPatch>[] | undefined>;
+        }
+
+        /**
+         * If the affinity requirements specified by this field are not met at
+         * scheduling time, the pod will not be scheduled onto the node.
+         * If the affinity requirements specified by this field cease to be met
+         * at some point during pod execution (e.g. due to an update), the system
+         * may or may not try to eventually evict the pod from its node.
+         */
+        export interface ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            /**
+             * Required. A list of node selector terms. The terms are ORed.
+             */
+            nodeSelectorTerms?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsPatch>[] | undefined>;
+        }
+
+        /**
+         * AgentAffinity specifies the affinity rules for agent pods.
+         * This includes both node affinity and pod affinity/anti-affinity rules.
+         */
+        export interface ClusterSpecAgentAffinityPatch {
+            nodeAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityNodeAffinityPatch | undefined>;
+            podAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPatch | undefined>;
+            podAntiAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPatch | undefined>;
+        }
+
+        /**
+         * Describes pod affinity scheduling rules (e.g. co-locate this pod in the same node, zone, etc. as some other pod(s)).
+         */
+        export interface ClusterSpecAgentAffinityPodAffinity {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and adding
+             * "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+            /**
+             * If the affinity requirements specified by this field are not met at
+             * scheduling time, the pod will not be scheduled onto the node.
+             * If the affinity requirements specified by this field cease to be met
+             * at some point during pod execution (e.g. due to a pod label update), the
+             * system may or may not try to eventually evict the pod from its node.
+             * When there are multiple elements, the lists of nodes corresponding to each
+             * podAffinityTerm are intersected, i.e. all terms must be satisfied.
+             */
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+        }
+
+        /**
+         * Describes pod affinity scheduling rules (e.g. co-locate this pod in the same node, zone, etc. as some other pod(s)).
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPatch {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and adding
+             * "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch>[] | undefined>;
+            /**
+             * If the affinity requirements specified by this field are not met at
+             * scheduling time, the pod will not be scheduled onto the node.
+             * If the affinity requirements specified by this field cease to be met
+             * at some point during pod execution (e.g. due to a pod label update), the
+             * system may or may not try to eventually evict the pod from its node.
+             * When there are multiple elements, the lists of nodes corresponding to each
+             * podAffinityTerm are intersected, i.e. all terms must be satisfied.
+             */
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch>[] | undefined>;
+        }
+
+        /**
+         * The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm | undefined>;
+            /**
+             * weight associated with matching the corresponding podAffinityTerm,
+             * in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            podAffinityTerm?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch | undefined>;
+            /**
+             * weight associated with matching the corresponding podAffinityTerm,
+             * in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * Required. A pod affinity term, associated with the corresponding weight.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Required. A pod affinity term, associated with the corresponding weight.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Defines a set of pods (namely those matching the labelSelector
+         * relative to the given namespace(s)) that this pod should be
+         * co-located (affinity) or not co-located (anti-affinity) with,
+         * where co-located is defined as running on a node whose value of
+         * the label with key <topologyKey> matches that of any node on which
+         * a pod of the set of pods is running
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Defines a set of pods (namely those matching the labelSelector
+         * relative to the given namespace(s)) that this pod should be
+         * co-located (affinity) or not co-located (anti-affinity) with,
+         * where co-located is defined as running on a node whose value of
+         * the label with key <topologyKey> matches that of any node on which
+         * a pod of the set of pods is running
+         */
+        export interface ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Describes pod anti-affinity scheduling rules (e.g. avoid putting this pod in the same node, zone, etc. as some other pod(s)).
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinity {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the anti-affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling anti-affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and subtracting
+             * "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+            /**
+             * If the anti-affinity requirements specified by this field are not met at
+             * scheduling time, the pod will not be scheduled onto the node.
+             * If the anti-affinity requirements specified by this field cease to be met
+             * at some point during pod execution (e.g. due to a pod label update), the
+             * system may or may not try to eventually evict the pod from its node.
+             * When there are multiple elements, the lists of nodes corresponding to each
+             * podAffinityTerm are intersected, i.e. all terms must be satisfied.
+             */
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+        }
+
+        /**
+         * Describes pod anti-affinity scheduling rules (e.g. avoid putting this pod in the same node, zone, etc. as some other pod(s)).
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPatch {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the anti-affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling anti-affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and subtracting
+             * "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch>[] | undefined>;
+            /**
+             * If the anti-affinity requirements specified by this field are not met at
+             * scheduling time, the pod will not be scheduled onto the node.
+             * If the anti-affinity requirements specified by this field cease to be met
+             * at some point during pod execution (e.g. due to a pod label update), the
+             * system may or may not try to eventually evict the pod from its node.
+             * When there are multiple elements, the lists of nodes corresponding to each
+             * podAffinityTerm are intersected, i.e. all terms must be satisfied.
+             */
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch>[] | undefined>;
+        }
+
+        /**
+         * The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm | undefined>;
+            /**
+             * weight associated with matching the corresponding podAffinityTerm,
+             * in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            podAffinityTerm?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch | undefined>;
+            /**
+             * weight associated with matching the corresponding podAffinityTerm,
+             * in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * Required. A pod affinity term, associated with the corresponding weight.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Required. A pod affinity term, associated with the corresponding weight.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Defines a set of pods (namely those matching the labelSelector
+         * relative to the given namespace(s)) that this pod should be
+         * co-located (affinity) or not co-located (anti-affinity) with,
+         * where co-located is defined as running on a node whose value of
+         * the label with key <topologyKey> matches that of any node on which
+         * a pod of the set of pods is running
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Defines a set of pods (namely those matching the labelSelector
+         * relative to the given namespace(s)) that this pod should be
+         * co-located (affinity) or not co-located (anti-affinity) with,
+         * where co-located is defined as running on a node whose value of
+         * the label with key <topologyKey> matches that of any node on which
+         * a pod of the set of pods is running
+         */
+        export interface ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * EnvVar represents an environment variable present in a Container.
+         */
+        export interface ClusterSpecAgentEnvs {
+            /**
+             * Name of the environment variable.
+             * May consist of any printable ASCII characters except '='.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Variable references $(VAR_NAME) are expanded
+             * using the previously defined environment variables in the container and
+             * any service environment variables. If a variable cannot be resolved,
+             * the reference in the input string will be unchanged. Double $$ are reduced
+             * to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
+             * "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
+             * Escaped references will never be expanded, regardless of whether the variable
+             * exists or not.
+             * Defaults to "".
+             */
+            value?: pulumi.Input<string | undefined>;
+            valueFrom?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsValueFrom | undefined>;
+        }
+
+        /**
+         * EnvVar represents an environment variable present in a Container.
+         */
+        export interface ClusterSpecAgentEnvsPatch {
+            /**
+             * Name of the environment variable.
+             * May consist of any printable ASCII characters except '='.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Variable references $(VAR_NAME) are expanded
+             * using the previously defined environment variables in the container and
+             * any service environment variables. If a variable cannot be resolved,
+             * the reference in the input string will be unchanged. Double $$ are reduced
+             * to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
+             * "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
+             * Escaped references will never be expanded, regardless of whether the variable
+             * exists or not.
+             * Defaults to "".
+             */
+            value?: pulumi.Input<string | undefined>;
+            valueFrom?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsValueFromPatch | undefined>;
+        }
+
+        /**
+         * Source for the environment variable's value. Cannot be used if value is not empty.
+         */
+        export interface ClusterSpecAgentEnvsValueFrom {
+            configMapKeyRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsValueFromConfigMapKeyRef | undefined>;
+            fieldRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsValueFromFieldRef | undefined>;
+            fileKeyRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsValueFromFileKeyRef | undefined>;
+            resourceFieldRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsValueFromResourceFieldRef | undefined>;
+            secretKeyRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsValueFromSecretKeyRef | undefined>;
+        }
+
+        /**
+         * Selects a key of a ConfigMap.
+         */
+        export interface ClusterSpecAgentEnvsValueFromConfigMapKeyRef {
+            /**
+             * The key to select.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of the referent.
+             * This field is effectively required, but due to backwards compatibility is
+             * allowed to be empty. Instances of this type with an empty value here are
+             * almost certainly wrong.
+             * More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Specify whether the ConfigMap or its key must be defined
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * Selects a key of a ConfigMap.
+         */
+        export interface ClusterSpecAgentEnvsValueFromConfigMapKeyRefPatch {
+            /**
+             * The key to select.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of the referent.
+             * This field is effectively required, but due to backwards compatibility is
+             * allowed to be empty. Instances of this type with an empty value here are
+             * almost certainly wrong.
+             * More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Specify whether the ConfigMap or its key must be defined
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
+         * spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
+         */
+        export interface ClusterSpecAgentEnvsValueFromFieldRef {
+            /**
+             * Version of the schema the FieldPath is written in terms of, defaults to "v1".
+             */
+            apiVersion?: pulumi.Input<string | undefined>;
+            /**
+             * Path of the field to select in the specified API version.
+             */
+            fieldPath?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
+         * spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
+         */
+        export interface ClusterSpecAgentEnvsValueFromFieldRefPatch {
+            /**
+             * Version of the schema the FieldPath is written in terms of, defaults to "v1".
+             */
+            apiVersion?: pulumi.Input<string | undefined>;
+            /**
+             * Path of the field to select in the specified API version.
+             */
+            fieldPath?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * FileKeyRef selects a key of the env file.
+         * Requires the EnvFiles feature gate to be enabled.
+         */
+        export interface ClusterSpecAgentEnvsValueFromFileKeyRef {
+            /**
+             * The key within the env file. An invalid key will prevent the pod from starting.
+             * The keys defined within a source may consist of any printable ASCII characters except '='.
+             * During Alpha stage of the EnvFiles feature gate, the key size is limited to 128 characters.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Specify whether the file or its key must be defined. If the file or key
+             * does not exist, then the env var is not published.
+             * If optional is set to true and the specified key does not exist,
+             * the environment variable will not be set in the Pod's containers.
+             *
+             * If optional is set to false and the specified key does not exist,
+             * an error will be returned during Pod creation.
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+            /**
+             * The path within the volume from which to select the file.
+             * Must be relative and may not contain the '..' path or start with '..'.
+             */
+            path?: pulumi.Input<string | undefined>;
+            /**
+             * The name of the volume mount containing the env file.
+             */
+            volumeName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * FileKeyRef selects a key of the env file.
+         * Requires the EnvFiles feature gate to be enabled.
+         */
+        export interface ClusterSpecAgentEnvsValueFromFileKeyRefPatch {
+            /**
+             * The key within the env file. An invalid key will prevent the pod from starting.
+             * The keys defined within a source may consist of any printable ASCII characters except '='.
+             * During Alpha stage of the EnvFiles feature gate, the key size is limited to 128 characters.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Specify whether the file or its key must be defined. If the file or key
+             * does not exist, then the env var is not published.
+             * If optional is set to true and the specified key does not exist,
+             * the environment variable will not be set in the Pod's containers.
+             *
+             * If optional is set to false and the specified key does not exist,
+             * an error will be returned during Pod creation.
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+            /**
+             * The path within the volume from which to select the file.
+             * Must be relative and may not contain the '..' path or start with '..'.
+             */
+            path?: pulumi.Input<string | undefined>;
+            /**
+             * The name of the volume mount containing the env file.
+             */
+            volumeName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Source for the environment variable's value. Cannot be used if value is not empty.
+         */
+        export interface ClusterSpecAgentEnvsValueFromPatch {
+            configMapKeyRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsValueFromConfigMapKeyRefPatch | undefined>;
+            fieldRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsValueFromFieldRefPatch | undefined>;
+            fileKeyRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsValueFromFileKeyRefPatch | undefined>;
+            resourceFieldRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsValueFromResourceFieldRefPatch | undefined>;
+            secretKeyRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsValueFromSecretKeyRefPatch | undefined>;
+        }
+
+        /**
+         * Selects a resource of the container: only resources limits and requests
+         * (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
+         */
+        export interface ClusterSpecAgentEnvsValueFromResourceFieldRef {
+            /**
+             * Container name: required for volumes, optional for env vars
+             */
+            containerName?: pulumi.Input<string | undefined>;
+            /**
+             * Specifies the output format of the exposed resources, defaults to "1"
+             */
+            divisor?: pulumi.Input<number | string | undefined>;
+            /**
+             * Required: resource to select
+             */
+            resource?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Selects a resource of the container: only resources limits and requests
+         * (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
+         */
+        export interface ClusterSpecAgentEnvsValueFromResourceFieldRefPatch {
+            /**
+             * Container name: required for volumes, optional for env vars
+             */
+            containerName?: pulumi.Input<string | undefined>;
+            /**
+             * Specifies the output format of the exposed resources, defaults to "1"
+             */
+            divisor?: pulumi.Input<number | string | undefined>;
+            /**
+             * Required: resource to select
+             */
+            resource?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Selects a key of a secret in the pod's namespace
+         */
+        export interface ClusterSpecAgentEnvsValueFromSecretKeyRef {
+            /**
+             * The key of the secret to select from.  Must be a valid secret key.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of the referent.
+             * This field is effectively required, but due to backwards compatibility is
+             * allowed to be empty. Instances of this type with an empty value here are
+             * almost certainly wrong.
+             * More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Specify whether the Secret or its key must be defined
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * Selects a key of a secret in the pod's namespace
+         */
+        export interface ClusterSpecAgentEnvsValueFromSecretKeyRefPatch {
+            /**
+             * The key of the secret to select from.  Must be a valid secret key.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of the referent.
+             * This field is effectively required, but due to backwards compatibility is
+             * allowed to be empty. Instances of this type with an empty value here are
+             * almost certainly wrong.
+             * More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Specify whether the Secret or its key must be defined
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * CustomCAs specifies the cert/key pairs for custom CA certificates.
+         */
+        export interface ClusterSpecCustomCAs {
+            /**
+             * Enabled toggles this feature on or off.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            sources?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSources | undefined>;
+        }
+
+        /**
+         * CustomCAs specifies the cert/key pairs for custom CA certificates.
+         */
+        export interface ClusterSpecCustomCAsPatch {
+            /**
+             * Enabled toggles this feature on or off.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            sources?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesPatch | undefined>;
+        }
+
+        /**
+         * Sources defines the sources for all required custom CA certificates.
+         */
+        export interface ClusterSpecCustomCAsSources {
+            clientCA?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesClientCA | undefined>;
+            etcdPeerCA?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesEtcdPeerCA | undefined>;
+            etcdServerCA?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesEtcdServerCA | undefined>;
+            requestHeaderCA?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesRequestHeaderCA | undefined>;
+            serverCA?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesServerCA | undefined>;
+            serviceAccountToken?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesServiceAccountToken | undefined>;
+        }
+
+        /**
+         * ClientCA specifies the client-ca cert/key pair.
+         */
+        export interface ClusterSpecCustomCAsSourcesClientCA {
+            /**
+             * The secret must contain specific keys based on the credential type:
+             * - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+             * - For the ServiceAccountToken signing key: `tls.key`.
+             */
+            secretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ClientCA specifies the client-ca cert/key pair.
+         */
+        export interface ClusterSpecCustomCAsSourcesClientCAPatch {
+            /**
+             * The secret must contain specific keys based on the credential type:
+             * - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+             * - For the ServiceAccountToken signing key: `tls.key`.
+             */
+            secretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ETCDPeerCA specifies the etcd-peer-ca cert/key pair.
+         */
+        export interface ClusterSpecCustomCAsSourcesEtcdPeerCA {
+            /**
+             * The secret must contain specific keys based on the credential type:
+             * - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+             * - For the ServiceAccountToken signing key: `tls.key`.
+             */
+            secretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ETCDPeerCA specifies the etcd-peer-ca cert/key pair.
+         */
+        export interface ClusterSpecCustomCAsSourcesEtcdPeerCAPatch {
+            /**
+             * The secret must contain specific keys based on the credential type:
+             * - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+             * - For the ServiceAccountToken signing key: `tls.key`.
+             */
+            secretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ETCDServerCA specifies the etcd-server-ca cert/key pair.
+         */
+        export interface ClusterSpecCustomCAsSourcesEtcdServerCA {
+            /**
+             * The secret must contain specific keys based on the credential type:
+             * - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+             * - For the ServiceAccountToken signing key: `tls.key`.
+             */
+            secretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ETCDServerCA specifies the etcd-server-ca cert/key pair.
+         */
+        export interface ClusterSpecCustomCAsSourcesEtcdServerCAPatch {
+            /**
+             * The secret must contain specific keys based on the credential type:
+             * - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+             * - For the ServiceAccountToken signing key: `tls.key`.
+             */
+            secretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Sources defines the sources for all required custom CA certificates.
+         */
+        export interface ClusterSpecCustomCAsSourcesPatch {
+            clientCA?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesClientCAPatch | undefined>;
+            etcdPeerCA?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesEtcdPeerCAPatch | undefined>;
+            etcdServerCA?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesEtcdServerCAPatch | undefined>;
+            requestHeaderCA?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesRequestHeaderCAPatch | undefined>;
+            serverCA?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesServerCAPatch | undefined>;
+            serviceAccountToken?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsSourcesServiceAccountTokenPatch | undefined>;
+        }
+
+        /**
+         * RequestHeaderCA specifies the request-header-ca cert/key pair.
+         */
+        export interface ClusterSpecCustomCAsSourcesRequestHeaderCA {
+            /**
+             * The secret must contain specific keys based on the credential type:
+             * - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+             * - For the ServiceAccountToken signing key: `tls.key`.
+             */
+            secretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * RequestHeaderCA specifies the request-header-ca cert/key pair.
+         */
+        export interface ClusterSpecCustomCAsSourcesRequestHeaderCAPatch {
+            /**
+             * The secret must contain specific keys based on the credential type:
+             * - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+             * - For the ServiceAccountToken signing key: `tls.key`.
+             */
+            secretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ServerCA specifies the server-ca cert/key pair.
+         */
+        export interface ClusterSpecCustomCAsSourcesServerCA {
+            /**
+             * The secret must contain specific keys based on the credential type:
+             * - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+             * - For the ServiceAccountToken signing key: `tls.key`.
+             */
+            secretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ServerCA specifies the server-ca cert/key pair.
+         */
+        export interface ClusterSpecCustomCAsSourcesServerCAPatch {
+            /**
+             * The secret must contain specific keys based on the credential type:
+             * - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+             * - For the ServiceAccountToken signing key: `tls.key`.
+             */
+            secretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ServiceAccountToken specifies the service-account-token key.
+         */
+        export interface ClusterSpecCustomCAsSourcesServiceAccountToken {
+            /**
+             * The secret must contain specific keys based on the credential type:
+             * - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+             * - For the ServiceAccountToken signing key: `tls.key`.
+             */
+            secretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ServiceAccountToken specifies the service-account-token key.
+         */
+        export interface ClusterSpecCustomCAsSourcesServiceAccountTokenPatch {
+            /**
+             * The secret must contain specific keys based on the credential type:
+             * - For TLS certificate pairs (e.g., ServerCA): `tls.crt` and `tls.key`.
+             * - For the ServiceAccountToken signing key: `tls.key`.
+             */
+            secretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Expose specifies options for exposing the API server.
+         * By default, it's only exposed as a ClusterIP.
+         */
+        export interface ClusterSpecExpose {
+            /**
+             * Annotations specifies annotations to add to the generated Service.
+             */
+            annotations?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            ingress?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecExposeIngress | undefined>;
+            loadBalancer?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecExposeLoadBalancer | undefined>;
+            nodePort?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecExposeNodePort | undefined>;
+        }
+
+        /**
+         * Ingress specifies options for exposing the API server through an Ingress.
+         */
+        export interface ClusterSpecExposeIngress {
+            /**
+             * Annotations specifies annotations to add to the Ingress.
+             */
+            annotations?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * IngressClassName specifies the IngressClass to use for the Ingress.
+             */
+            ingressClassName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Ingress specifies options for exposing the API server through an Ingress.
+         */
+        export interface ClusterSpecExposeIngressPatch {
+            /**
+             * Annotations specifies annotations to add to the Ingress.
+             */
+            annotations?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * IngressClassName specifies the IngressClass to use for the Ingress.
+             */
+            ingressClassName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * LoadBalancer specifies options for exposing the API server through a LoadBalancer service.
+         */
+        export interface ClusterSpecExposeLoadBalancer {
+            /**
+             * ETCDPort is the port on which the ETCD service is exposed when type is LoadBalancer.
+             * If not specified, the default etcd 2379 port will be allocated.
+             * If 0 or negative, the port will not be exposed.
+             */
+            etcdPort?: pulumi.Input<number | undefined>;
+            /**
+             * ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.
+             * If not specified, the default https 443 port will be allocated.
+             * If 0 or negative, the port will not be exposed.
+             */
+            serverPort?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * LoadBalancer specifies options for exposing the API server through a LoadBalancer service.
+         */
+        export interface ClusterSpecExposeLoadBalancerPatch {
+            /**
+             * ETCDPort is the port on which the ETCD service is exposed when type is LoadBalancer.
+             * If not specified, the default etcd 2379 port will be allocated.
+             * If 0 or negative, the port will not be exposed.
+             */
+            etcdPort?: pulumi.Input<number | undefined>;
+            /**
+             * ServerPort is the port on which the K3s server is exposed when type is LoadBalancer.
+             * If not specified, the default https 443 port will be allocated.
+             * If 0 or negative, the port will not be exposed.
+             */
+            serverPort?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * NodePort specifies options for exposing the API server through NodePort.
+         */
+        export interface ClusterSpecExposeNodePort {
+            /**
+             * ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.
+             * If not specified, a random port between 30000-32767 will be allocated.
+             * If out of range, the port will not be exposed.
+             */
+            etcdPort?: pulumi.Input<number | undefined>;
+            /**
+             * ServerPort is the port on each node on which the K3s server is exposed when type is NodePort.
+             * If not specified, a random port between 30000-32767 will be allocated.
+             * If out of range, the port will not be exposed.
+             */
+            serverPort?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * NodePort specifies options for exposing the API server through NodePort.
+         */
+        export interface ClusterSpecExposeNodePortPatch {
+            /**
+             * ETCDPort is the port on each node on which the ETCD service is exposed when type is NodePort.
+             * If not specified, a random port between 30000-32767 will be allocated.
+             * If out of range, the port will not be exposed.
+             */
+            etcdPort?: pulumi.Input<number | undefined>;
+            /**
+             * ServerPort is the port on each node on which the K3s server is exposed when type is NodePort.
+             * If not specified, a random port between 30000-32767 will be allocated.
+             * If out of range, the port will not be exposed.
+             */
+            serverPort?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * Expose specifies options for exposing the API server.
+         * By default, it's only exposed as a ClusterIP.
+         */
+        export interface ClusterSpecExposePatch {
+            /**
+             * Annotations specifies annotations to add to the generated Service.
+             */
+            annotations?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            ingress?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecExposeIngressPatch | undefined>;
+            loadBalancer?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecExposeLoadBalancerPatch | undefined>;
+            nodePort?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecExposeNodePortPatch | undefined>;
+        }
+
+        /**
+         * Spec defines the desired state of the Cluster.
+         */
+        export interface ClusterSpecPatch {
+            /**
+             * Addons specifies secrets containing raw YAML to deploy on cluster startup.
+             */
+            addons?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAddonsPatch>[] | undefined>;
+            agentAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentAffinityPatch | undefined>;
+            /**
+             * AgentArgs specifies ordered key-value pairs for K3s agent pods.
+             * Example: ["--node-name=my-agent-node"]
+             */
+            agentArgs?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * AgentEnvs specifies list of environment variables to set in the agent pod.
+             */
+            agentEnvs?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecAgentEnvsPatch>[] | undefined>;
+            /**
+             * Agents specifies the number of K3s pods to run in agent (worker) mode.
+             * Must be 0 or greater. Defaults to 0.
+             * This field is ignored in "shared" mode.
+             */
+            agents?: pulumi.Input<number | undefined>;
+            /**
+             * ClusterCIDR is the CIDR range for pod IPs.
+             * Defaults to 10.42.0.0/16 in shared mode and 10.52.0.0/16 in virtual mode.
+             * This field is immutable.
+             */
+            clusterCIDR?: pulumi.Input<string | undefined>;
+            /**
+             * ClusterDNS is the IP address for the CoreDNS service.
+             * Must be within the ServiceCIDR range. Defaults to 10.43.0.10.
+             * This field is immutable.
+             */
+            clusterDNS?: pulumi.Input<string | undefined>;
+            customCAs?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecCustomCAsPatch | undefined>;
+            expose?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecExposePatch | undefined>;
+            /**
+             * HostUsers sets the user namespace for server and agent pods.
+             * If set to true or not present, the pod will be run in the host user namespace.
+             * When set to false, a new userns is created for the pod.
+             * This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature.
+             */
+            hostUsers?: pulumi.Input<boolean | undefined>;
+            /**
+             * MirrorHostNodes controls whether node objects from the host cluster
+             * are mirrored into the virtual cluster.
+             */
+            mirrorHostNodes?: pulumi.Input<boolean | undefined>;
+            /**
+             * Mode specifies the cluster provisioning mode. This field is immutable.
+             */
+            mode?: pulumi.Input<string | undefined>;
+            /**
+             * NodeSelector specifies node labels to constrain where server/agent pods are scheduled.
+             * In "shared" mode, this also applies to workloads.
+             */
+            nodeSelector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            persistence?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPersistencePatch | undefined>;
+            podSecurityContext?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPodSecurityContextPatch | undefined>;
+            /**
+             * PriorityClass specifies the priorityClassName for server/agent pods.
+             * In "shared" mode, this also applies to workloads.
+             */
+            priorityClass?: pulumi.Input<string | undefined>;
+            /**
+             * RuntimeClassName specifies alternative runtime class for the
+             * agent and server pods of the cluster in virtual or shared mode.
+             */
+            runtimeClassName?: pulumi.Input<string | undefined>;
+            /**
+             * SecretMounts specifies a list of secrets to mount into server and agent pods.
+             * Each entry defines a secret and its mount path within the pods.
+             */
+            secretMounts?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecretMountsPatch>[] | undefined>;
+            securityContext?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecurityContextPatch | undefined>;
+            serverAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPatch | undefined>;
+            /**
+             * ServerArgs specifies ordered key-value pairs for K3s server pods.
+             * Example: ["--tls-san=example.com"]
+             */
+            serverArgs?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * ServerEnvs specifies list of environment variables to set in the server pod.
+             */
+            serverEnvs?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsPatch>[] | undefined>;
+            /**
+             * ServerLimit specifies resource limits for server nodes.
+             */
+            serverLimit?: pulumi.Input<{[key: string]: pulumi.Input<number | string>} | undefined>;
+            serverResources?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerResourcesPatch | undefined>;
+            /**
+             * Servers specifies the number of K3s pods to run in server (control plane) mode.
+             * Must be at least 1. Defaults to 1.
+             */
+            servers?: pulumi.Input<number | undefined>;
+            /**
+             * ServiceCIDR is the CIDR range for service IPs.
+             * Defaults to 10.43.0.0/16 in shared mode and 10.53.0.0/16 in virtual mode.
+             * This field is immutable.
+             */
+            serviceCIDR?: pulumi.Input<string | undefined>;
+            sync?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncPatch | undefined>;
+            /**
+             * TLSSANs specifies subject alternative names for the K3s server certificate.
+             */
+            tlsSANs?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            tokenSecretRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecTokenSecretRefPatch | undefined>;
+            /**
+             * Version is the K3s version to use for the virtual nodes.
+             * It should follow the K3s versioning convention (e.g., v1.28.2-k3s1).
+             * If not specified, the Kubernetes version of the host node will be used.
+             */
+            version?: pulumi.Input<string | undefined>;
+            /**
+             * WorkerLimit specifies resource limits for agent nodes.
+             */
+            workerLimit?: pulumi.Input<{[key: string]: pulumi.Input<number | string>} | undefined>;
+            workerResources?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecWorkerResourcesPatch | undefined>;
+        }
+
+        /**
+         * Persistence specifies options for persisting etcd data.
+         * Defaults to dynamic persistence, which uses a PersistentVolumeClaim to provide data persistence.
+         * A default StorageClass is required for dynamic persistence.
+         */
+        export interface ClusterSpecPersistence {
+            /**
+             * StorageClassName is the name of the StorageClass to use for the PVC.
+             * This field is only relevant in "dynamic" mode.
+             */
+            storageClassName?: pulumi.Input<string | undefined>;
+            /**
+             * StorageRequestSize is the requested size for the PVC.
+             * This field is only relevant in "dynamic" mode.
+             */
+            storageRequestSize?: pulumi.Input<number | string | undefined>;
+            /**
+             * Type specifies the persistence mode.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Persistence specifies options for persisting etcd data.
+         * Defaults to dynamic persistence, which uses a PersistentVolumeClaim to provide data persistence.
+         * A default StorageClass is required for dynamic persistence.
+         */
+        export interface ClusterSpecPersistencePatch {
+            /**
+             * StorageClassName is the name of the StorageClass to use for the PVC.
+             * This field is only relevant in "dynamic" mode.
+             */
+            storageClassName?: pulumi.Input<string | undefined>;
+            /**
+             * StorageRequestSize is the requested size for the PVC.
+             * This field is only relevant in "dynamic" mode.
+             */
+            storageRequestSize?: pulumi.Input<number | string | undefined>;
+            /**
+             * Type specifies the persistence mode.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * PodSecurityContext specifies custom PodSecurityContext to be added
+         * to the agent and server pods of the cluster in virtual or shared mode.
+         */
+        export interface ClusterSpecPodSecurityContext {
+            appArmorProfile?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPodSecurityContextAppArmorProfile | undefined>;
+            /**
+             * A special supplemental group that applies to all containers in a pod.
+             * Some volume types allow the Kubelet to change the ownership of that volume
+             * to be owned by the pod:
+             *
+             * 1. The owning GID will be the FSGroup
+             * 2. The setgid bit is set (new files created in the volume will be owned by FSGroup)
+             * 3. The permission bits are OR'd with rw-rw----
+             *
+             * If unset, the Kubelet will not modify the ownership and permissions of any volume.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            fsGroup?: pulumi.Input<number | undefined>;
+            /**
+             * fsGroupChangePolicy defines behavior of changing ownership and permission of the volume
+             * before being exposed inside Pod. This field will only apply to
+             * volume types which support fsGroup based ownership(and permissions).
+             * It will have no effect on ephemeral volume types such as: secret, configmaps
+             * and emptydir.
+             * Valid values are "OnRootMismatch" and "Always". If not specified, "Always" is used.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            fsGroupChangePolicy?: pulumi.Input<string | undefined>;
+            /**
+             * The GID to run the entrypoint of the container process.
+             * Uses runtime default if unset.
+             * May also be set in SecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence
+             * for that container.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            runAsGroup?: pulumi.Input<number | undefined>;
+            /**
+             * Indicates that the container must run as a non-root user.
+             * If true, the Kubelet will validate the image at runtime to ensure that it
+             * does not run as UID 0 (root) and fail to start the container if it does.
+             * If unset or false, no such validation will be performed.
+             * May also be set in SecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             */
+            runAsNonRoot?: pulumi.Input<boolean | undefined>;
+            /**
+             * The UID to run the entrypoint of the container process.
+             * Defaults to user specified in image metadata if unspecified.
+             * May also be set in SecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence
+             * for that container.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            runAsUser?: pulumi.Input<number | undefined>;
+            /**
+             * seLinuxChangePolicy defines how the container's SELinux label is applied to all volumes used by the Pod.
+             * It has no effect on nodes that do not support SELinux or to volumes does not support SELinux.
+             * Valid values are "MountOption" and "Recursive".
+             *
+             * "Recursive" means relabeling of all files on all Pod volumes by the container runtime.
+             * This may be slow for large volumes, but allows mixing privileged and unprivileged Pods sharing the same volume on the same node.
+             *
+             * "MountOption" mounts all eligible Pod volumes with `-o context` mount option.
+             * This requires all Pods that share the same volume to use the same SELinux label.
+             * It is not possible to share the same volume among privileged and unprivileged Pods.
+             * Eligible volumes are in-tree FibreChannel and iSCSI volumes, and all CSI volumes
+             * whose CSI driver announces SELinux support by setting spec.seLinuxMount: true in their
+             * CSIDriver instance. Other volumes are always re-labelled recursively.
+             * "MountOption" value is allowed only when SELinuxMount feature gate is enabled.
+             *
+             * If not specified and SELinuxMount feature gate is enabled, "MountOption" is used.
+             * If not specified and SELinuxMount feature gate is disabled, "MountOption" is used for ReadWriteOncePod volumes
+             * and "Recursive" for all other volumes.
+             *
+             * This field affects only Pods that have SELinux label set, either in PodSecurityContext or in SecurityContext of all containers.
+             *
+             * All Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            seLinuxChangePolicy?: pulumi.Input<string | undefined>;
+            seLinuxOptions?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPodSecurityContextSeLinuxOptions | undefined>;
+            seccompProfile?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPodSecurityContextSeccompProfile | undefined>;
+            /**
+             * A list of groups applied to the first process run in each container, in
+             * addition to the container's primary GID and fsGroup (if specified).  If
+             * the SupplementalGroupsPolicy feature is enabled, the
+             * supplementalGroupsPolicy field determines whether these are in addition
+             * to or instead of any group memberships defined in the container image.
+             * If unspecified, no additional groups are added, though group memberships
+             * defined in the container image may still be used, depending on the
+             * supplementalGroupsPolicy field.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            supplementalGroups?: pulumi.Input<pulumi.Input<number>[] | undefined>;
+            /**
+             * Defines how supplemental groups of the first container processes are calculated.
+             * Valid values are "Merge" and "Strict". If not specified, "Merge" is used.
+             * (Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled
+             * and the container runtime must implement support for this feature.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            supplementalGroupsPolicy?: pulumi.Input<string | undefined>;
+            /**
+             * Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported
+             * sysctls (by the container runtime) might fail to launch.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            sysctls?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPodSecurityContextSysctls>[] | undefined>;
+            windowsOptions?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPodSecurityContextWindowsOptions | undefined>;
+        }
+
+        /**
+         * appArmorProfile is the AppArmor options to use by the containers in this pod.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecPodSecurityContextAppArmorProfile {
+            /**
+             * localhostProfile indicates a profile loaded on the node that should be used.
+             * The profile must be preconfigured on the node to work.
+             * Must match the loaded name of the profile.
+             * Must be set if and only if type is "Localhost".
+             */
+            localhostProfile?: pulumi.Input<string | undefined>;
+            /**
+             * type indicates which kind of AppArmor profile will be applied.
+             * Valid options are:
+             *   Localhost - a profile pre-loaded on the node.
+             *   RuntimeDefault - the container runtime's default profile.
+             *   Unconfined - no AppArmor enforcement.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * appArmorProfile is the AppArmor options to use by the containers in this pod.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecPodSecurityContextAppArmorProfilePatch {
+            /**
+             * localhostProfile indicates a profile loaded on the node that should be used.
+             * The profile must be preconfigured on the node to work.
+             * Must match the loaded name of the profile.
+             * Must be set if and only if type is "Localhost".
+             */
+            localhostProfile?: pulumi.Input<string | undefined>;
+            /**
+             * type indicates which kind of AppArmor profile will be applied.
+             * Valid options are:
+             *   Localhost - a profile pre-loaded on the node.
+             *   RuntimeDefault - the container runtime's default profile.
+             *   Unconfined - no AppArmor enforcement.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * PodSecurityContext specifies custom PodSecurityContext to be added
+         * to the agent and server pods of the cluster in virtual or shared mode.
+         */
+        export interface ClusterSpecPodSecurityContextPatch {
+            appArmorProfile?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPodSecurityContextAppArmorProfilePatch | undefined>;
+            /**
+             * A special supplemental group that applies to all containers in a pod.
+             * Some volume types allow the Kubelet to change the ownership of that volume
+             * to be owned by the pod:
+             *
+             * 1. The owning GID will be the FSGroup
+             * 2. The setgid bit is set (new files created in the volume will be owned by FSGroup)
+             * 3. The permission bits are OR'd with rw-rw----
+             *
+             * If unset, the Kubelet will not modify the ownership and permissions of any volume.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            fsGroup?: pulumi.Input<number | undefined>;
+            /**
+             * fsGroupChangePolicy defines behavior of changing ownership and permission of the volume
+             * before being exposed inside Pod. This field will only apply to
+             * volume types which support fsGroup based ownership(and permissions).
+             * It will have no effect on ephemeral volume types such as: secret, configmaps
+             * and emptydir.
+             * Valid values are "OnRootMismatch" and "Always". If not specified, "Always" is used.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            fsGroupChangePolicy?: pulumi.Input<string | undefined>;
+            /**
+             * The GID to run the entrypoint of the container process.
+             * Uses runtime default if unset.
+             * May also be set in SecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence
+             * for that container.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            runAsGroup?: pulumi.Input<number | undefined>;
+            /**
+             * Indicates that the container must run as a non-root user.
+             * If true, the Kubelet will validate the image at runtime to ensure that it
+             * does not run as UID 0 (root) and fail to start the container if it does.
+             * If unset or false, no such validation will be performed.
+             * May also be set in SecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             */
+            runAsNonRoot?: pulumi.Input<boolean | undefined>;
+            /**
+             * The UID to run the entrypoint of the container process.
+             * Defaults to user specified in image metadata if unspecified.
+             * May also be set in SecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence
+             * for that container.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            runAsUser?: pulumi.Input<number | undefined>;
+            /**
+             * seLinuxChangePolicy defines how the container's SELinux label is applied to all volumes used by the Pod.
+             * It has no effect on nodes that do not support SELinux or to volumes does not support SELinux.
+             * Valid values are "MountOption" and "Recursive".
+             *
+             * "Recursive" means relabeling of all files on all Pod volumes by the container runtime.
+             * This may be slow for large volumes, but allows mixing privileged and unprivileged Pods sharing the same volume on the same node.
+             *
+             * "MountOption" mounts all eligible Pod volumes with `-o context` mount option.
+             * This requires all Pods that share the same volume to use the same SELinux label.
+             * It is not possible to share the same volume among privileged and unprivileged Pods.
+             * Eligible volumes are in-tree FibreChannel and iSCSI volumes, and all CSI volumes
+             * whose CSI driver announces SELinux support by setting spec.seLinuxMount: true in their
+             * CSIDriver instance. Other volumes are always re-labelled recursively.
+             * "MountOption" value is allowed only when SELinuxMount feature gate is enabled.
+             *
+             * If not specified and SELinuxMount feature gate is enabled, "MountOption" is used.
+             * If not specified and SELinuxMount feature gate is disabled, "MountOption" is used for ReadWriteOncePod volumes
+             * and "Recursive" for all other volumes.
+             *
+             * This field affects only Pods that have SELinux label set, either in PodSecurityContext or in SecurityContext of all containers.
+             *
+             * All Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            seLinuxChangePolicy?: pulumi.Input<string | undefined>;
+            seLinuxOptions?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPodSecurityContextSeLinuxOptionsPatch | undefined>;
+            seccompProfile?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPodSecurityContextSeccompProfilePatch | undefined>;
+            /**
+             * A list of groups applied to the first process run in each container, in
+             * addition to the container's primary GID and fsGroup (if specified).  If
+             * the SupplementalGroupsPolicy feature is enabled, the
+             * supplementalGroupsPolicy field determines whether these are in addition
+             * to or instead of any group memberships defined in the container image.
+             * If unspecified, no additional groups are added, though group memberships
+             * defined in the container image may still be used, depending on the
+             * supplementalGroupsPolicy field.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            supplementalGroups?: pulumi.Input<pulumi.Input<number>[] | undefined>;
+            /**
+             * Defines how supplemental groups of the first container processes are calculated.
+             * Valid values are "Merge" and "Strict". If not specified, "Merge" is used.
+             * (Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled
+             * and the container runtime must implement support for this feature.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            supplementalGroupsPolicy?: pulumi.Input<string | undefined>;
+            /**
+             * Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported
+             * sysctls (by the container runtime) might fail to launch.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            sysctls?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPodSecurityContextSysctlsPatch>[] | undefined>;
+            windowsOptions?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecPodSecurityContextWindowsOptionsPatch | undefined>;
+        }
+
+        /**
+         * The SELinux context to be applied to all containers.
+         * If unspecified, the container runtime will allocate a random SELinux context for each
+         * container.  May also be set in SecurityContext.  If set in
+         * both SecurityContext and PodSecurityContext, the value specified in SecurityContext
+         * takes precedence for that container.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecPodSecurityContextSeLinuxOptions {
+            /**
+             * Level is SELinux level label that applies to the container.
+             */
+            level?: pulumi.Input<string | undefined>;
+            /**
+             * Role is a SELinux role label that applies to the container.
+             */
+            role?: pulumi.Input<string | undefined>;
+            /**
+             * Type is a SELinux type label that applies to the container.
+             */
+            type?: pulumi.Input<string | undefined>;
+            /**
+             * User is a SELinux user label that applies to the container.
+             */
+            user?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The SELinux context to be applied to all containers.
+         * If unspecified, the container runtime will allocate a random SELinux context for each
+         * container.  May also be set in SecurityContext.  If set in
+         * both SecurityContext and PodSecurityContext, the value specified in SecurityContext
+         * takes precedence for that container.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecPodSecurityContextSeLinuxOptionsPatch {
+            /**
+             * Level is SELinux level label that applies to the container.
+             */
+            level?: pulumi.Input<string | undefined>;
+            /**
+             * Role is a SELinux role label that applies to the container.
+             */
+            role?: pulumi.Input<string | undefined>;
+            /**
+             * Type is a SELinux type label that applies to the container.
+             */
+            type?: pulumi.Input<string | undefined>;
+            /**
+             * User is a SELinux user label that applies to the container.
+             */
+            user?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The seccomp options to use by the containers in this pod.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecPodSecurityContextSeccompProfile {
+            /**
+             * localhostProfile indicates a profile defined in a file on the node should be used.
+             * The profile must be preconfigured on the node to work.
+             * Must be a descending path, relative to the kubelet's configured seccomp profile location.
+             * Must be set if type is "Localhost". Must NOT be set for any other type.
+             */
+            localhostProfile?: pulumi.Input<string | undefined>;
+            /**
+             * type indicates which kind of seccomp profile will be applied.
+             * Valid options are:
+             *
+             * Localhost - a profile defined in a file on the node should be used.
+             * RuntimeDefault - the container runtime default profile should be used.
+             * Unconfined - no profile should be applied.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The seccomp options to use by the containers in this pod.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecPodSecurityContextSeccompProfilePatch {
+            /**
+             * localhostProfile indicates a profile defined in a file on the node should be used.
+             * The profile must be preconfigured on the node to work.
+             * Must be a descending path, relative to the kubelet's configured seccomp profile location.
+             * Must be set if type is "Localhost". Must NOT be set for any other type.
+             */
+            localhostProfile?: pulumi.Input<string | undefined>;
+            /**
+             * type indicates which kind of seccomp profile will be applied.
+             * Valid options are:
+             *
+             * Localhost - a profile defined in a file on the node should be used.
+             * RuntimeDefault - the container runtime default profile should be used.
+             * Unconfined - no profile should be applied.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Sysctl defines a kernel parameter to be set
+         */
+        export interface ClusterSpecPodSecurityContextSysctls {
+            /**
+             * Name of a property to set
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Value of a property to set
+             */
+            value?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Sysctl defines a kernel parameter to be set
+         */
+        export interface ClusterSpecPodSecurityContextSysctlsPatch {
+            /**
+             * Name of a property to set
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Value of a property to set
+             */
+            value?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The Windows specific settings applied to all containers.
+         * If unspecified, the options within a container's SecurityContext will be used.
+         * If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
+         * Note that this field cannot be set when spec.os.name is linux.
+         */
+        export interface ClusterSpecPodSecurityContextWindowsOptions {
+            /**
+             * GMSACredentialSpec is where the GMSA admission webhook
+             * (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the
+             * GMSA credential spec named by the GMSACredentialSpecName field.
+             */
+            gmsaCredentialSpec?: pulumi.Input<string | undefined>;
+            /**
+             * GMSACredentialSpecName is the name of the GMSA credential spec to use.
+             */
+            gmsaCredentialSpecName?: pulumi.Input<string | undefined>;
+            /**
+             * HostProcess determines if a container should be run as a 'Host Process' container.
+             * All of a Pod's containers must have the same effective HostProcess value
+             * (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).
+             * In addition, if HostProcess is true then HostNetwork must also be set to true.
+             */
+            hostProcess?: pulumi.Input<boolean | undefined>;
+            /**
+             * The UserName in Windows to run the entrypoint of the container process.
+             * Defaults to the user specified in image metadata if unspecified.
+             * May also be set in PodSecurityContext. If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             */
+            runAsUserName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The Windows specific settings applied to all containers.
+         * If unspecified, the options within a container's SecurityContext will be used.
+         * If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
+         * Note that this field cannot be set when spec.os.name is linux.
+         */
+        export interface ClusterSpecPodSecurityContextWindowsOptionsPatch {
+            /**
+             * GMSACredentialSpec is where the GMSA admission webhook
+             * (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the
+             * GMSA credential spec named by the GMSACredentialSpecName field.
+             */
+            gmsaCredentialSpec?: pulumi.Input<string | undefined>;
+            /**
+             * GMSACredentialSpecName is the name of the GMSA credential spec to use.
+             */
+            gmsaCredentialSpecName?: pulumi.Input<string | undefined>;
+            /**
+             * HostProcess determines if a container should be run as a 'Host Process' container.
+             * All of a Pod's containers must have the same effective HostProcess value
+             * (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).
+             * In addition, if HostProcess is true then HostNetwork must also be set to true.
+             */
+            hostProcess?: pulumi.Input<boolean | undefined>;
+            /**
+             * The UserName in Windows to run the entrypoint of the container process.
+             * Defaults to the user specified in image metadata if unspecified.
+             * May also be set in PodSecurityContext. If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             */
+            runAsUserName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * SecretMount defines a secret to be mounted into server or agent pods,
+         * allowing for custom configurations, certificates, or other sensitive data.
+         */
+        export interface ClusterSpecSecretMounts {
+            /**
+             * defaultMode is Optional: mode bits used to set permissions on created files by default.
+             * Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.
+             * YAML accepts both octal and decimal values, JSON requires decimal values
+             * for mode bits. Defaults to 0644.
+             * Directories within the path are not affected by this setting.
+             * This might be in conflict with other options that affect the file
+             * mode, like fsGroup, and the result can be other mode bits set.
+             */
+            defaultMode?: pulumi.Input<number | undefined>;
+            /**
+             * items If unspecified, each key-value pair in the Data field of the referenced
+             * Secret will be projected into the volume as a file whose name is the
+             * key and content is the value. If specified, the listed keys will be
+             * projected into the specified paths, and unlisted keys will not be
+             * present. If a key is specified which is not present in the Secret,
+             * the volume setup will error unless it is marked optional. Paths must be
+             * relative and may not contain the '..' path or start with '..'.
+             */
+            items?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecretMountsItems>[] | undefined>;
+            /**
+             * MountPath is the path within server and agent pods where the
+             * secret contents will be mounted.
+             */
+            mountPath?: pulumi.Input<string | undefined>;
+            /**
+             * Name is the name of the secret mount volume that will be used
+             * as the name of volume and volume mount for the server or agent pod
+             * if empty then the secret name will be used instead.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * optional field specify whether the Secret or its keys must be defined
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+            /**
+             * Role is the type of the k3k pod that will be used to mount the secret.
+             */
+            role?: pulumi.Input<string | undefined>;
+            /**
+             * secretName is the name of the secret in the pod's namespace to use.
+             * More info: https://kubernetes.io/docs/concepts/storage/volumes#secret
+             */
+            secretName?: pulumi.Input<string | undefined>;
+            /**
+             * SubPath is an optional path within the secret to mount instead of the root.
+             * When specified, only the specified key from the secret will be mounted as a file
+             * at MountPath, keeping the parent directory writable.
+             */
+            subPath?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Maps a string key to a path within a volume.
+         */
+        export interface ClusterSpecSecretMountsItems {
+            /**
+             * key is the key to project.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * mode is Optional: mode bits used to set permissions on this file.
+             * Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.
+             * YAML accepts both octal and decimal values, JSON requires decimal values for mode bits.
+             * If not specified, the volume defaultMode will be used.
+             * This might be in conflict with other options that affect the file
+             * mode, like fsGroup, and the result can be other mode bits set.
+             */
+            mode?: pulumi.Input<number | undefined>;
+            /**
+             * path is the relative path of the file to map the key to.
+             * May not be an absolute path.
+             * May not contain the path element '..'.
+             * May not start with the string '..'.
+             */
+            path?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Maps a string key to a path within a volume.
+         */
+        export interface ClusterSpecSecretMountsItemsPatch {
+            /**
+             * key is the key to project.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * mode is Optional: mode bits used to set permissions on this file.
+             * Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.
+             * YAML accepts both octal and decimal values, JSON requires decimal values for mode bits.
+             * If not specified, the volume defaultMode will be used.
+             * This might be in conflict with other options that affect the file
+             * mode, like fsGroup, and the result can be other mode bits set.
+             */
+            mode?: pulumi.Input<number | undefined>;
+            /**
+             * path is the relative path of the file to map the key to.
+             * May not be an absolute path.
+             * May not contain the path element '..'.
+             * May not start with the string '..'.
+             */
+            path?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * SecretMount defines a secret to be mounted into server or agent pods,
+         * allowing for custom configurations, certificates, or other sensitive data.
+         */
+        export interface ClusterSpecSecretMountsPatch {
+            /**
+             * defaultMode is Optional: mode bits used to set permissions on created files by default.
+             * Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511.
+             * YAML accepts both octal and decimal values, JSON requires decimal values
+             * for mode bits. Defaults to 0644.
+             * Directories within the path are not affected by this setting.
+             * This might be in conflict with other options that affect the file
+             * mode, like fsGroup, and the result can be other mode bits set.
+             */
+            defaultMode?: pulumi.Input<number | undefined>;
+            /**
+             * items If unspecified, each key-value pair in the Data field of the referenced
+             * Secret will be projected into the volume as a file whose name is the
+             * key and content is the value. If specified, the listed keys will be
+             * projected into the specified paths, and unlisted keys will not be
+             * present. If a key is specified which is not present in the Secret,
+             * the volume setup will error unless it is marked optional. Paths must be
+             * relative and may not contain the '..' path or start with '..'.
+             */
+            items?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecretMountsItemsPatch>[] | undefined>;
+            /**
+             * MountPath is the path within server and agent pods where the
+             * secret contents will be mounted.
+             */
+            mountPath?: pulumi.Input<string | undefined>;
+            /**
+             * Name is the name of the secret mount volume that will be used
+             * as the name of volume and volume mount for the server or agent pod
+             * if empty then the secret name will be used instead.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * optional field specify whether the Secret or its keys must be defined
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+            /**
+             * Role is the type of the k3k pod that will be used to mount the secret.
+             */
+            role?: pulumi.Input<string | undefined>;
+            /**
+             * secretName is the name of the secret in the pod's namespace to use.
+             * More info: https://kubernetes.io/docs/concepts/storage/volumes#secret
+             */
+            secretName?: pulumi.Input<string | undefined>;
+            /**
+             * SubPath is an optional path within the secret to mount instead of the root.
+             * When specified, only the specified key from the secret will be mounted as a file
+             * at MountPath, keeping the parent directory writable.
+             */
+            subPath?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * SecurityContext specifies custom container SecurityContext to be added
+         * to the agent and server containers of the cluster in virtual or shared mode.
+         * This option will override the SecurityContext set by default for virtual mode.
+         */
+        export interface ClusterSpecSecurityContext {
+            /**
+             * AllowPrivilegeEscalation controls whether a process can gain more
+             * privileges than its parent process. This bool directly controls if
+             * the no_new_privs flag will be set on the container process.
+             * AllowPrivilegeEscalation is true always when the container is:
+             * 1) run as Privileged
+             * 2) has CAP_SYS_ADMIN
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            allowPrivilegeEscalation?: pulumi.Input<boolean | undefined>;
+            appArmorProfile?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecurityContextAppArmorProfile | undefined>;
+            capabilities?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecurityContextCapabilities | undefined>;
+            /**
+             * Run container in privileged mode.
+             * Processes in privileged containers are essentially equivalent to root on the host.
+             * Defaults to false.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            privileged?: pulumi.Input<boolean | undefined>;
+            /**
+             * procMount denotes the type of proc mount to use for the containers.
+             * The default value is Default which uses the container runtime defaults for
+             * readonly paths and masked paths.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            procMount?: pulumi.Input<string | undefined>;
+            /**
+             * Whether this container has a read-only root filesystem.
+             * Default is false.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            readOnlyRootFilesystem?: pulumi.Input<boolean | undefined>;
+            /**
+             * The GID to run the entrypoint of the container process.
+             * Uses runtime default if unset.
+             * May also be set in PodSecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            runAsGroup?: pulumi.Input<number | undefined>;
+            /**
+             * Indicates that the container must run as a non-root user.
+             * If true, the Kubelet will validate the image at runtime to ensure that it
+             * does not run as UID 0 (root) and fail to start the container if it does.
+             * If unset or false, no such validation will be performed.
+             * May also be set in PodSecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             */
+            runAsNonRoot?: pulumi.Input<boolean | undefined>;
+            /**
+             * The UID to run the entrypoint of the container process.
+             * Defaults to user specified in image metadata if unspecified.
+             * May also be set in PodSecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            runAsUser?: pulumi.Input<number | undefined>;
+            seLinuxOptions?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecurityContextSeLinuxOptions | undefined>;
+            seccompProfile?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecurityContextSeccompProfile | undefined>;
+            windowsOptions?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecurityContextWindowsOptions | undefined>;
+        }
+
+        /**
+         * appArmorProfile is the AppArmor options to use by this container. If set, this profile
+         * overrides the pod's appArmorProfile.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecSecurityContextAppArmorProfile {
+            /**
+             * localhostProfile indicates a profile loaded on the node that should be used.
+             * The profile must be preconfigured on the node to work.
+             * Must match the loaded name of the profile.
+             * Must be set if and only if type is "Localhost".
+             */
+            localhostProfile?: pulumi.Input<string | undefined>;
+            /**
+             * type indicates which kind of AppArmor profile will be applied.
+             * Valid options are:
+             *   Localhost - a profile pre-loaded on the node.
+             *   RuntimeDefault - the container runtime's default profile.
+             *   Unconfined - no AppArmor enforcement.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * appArmorProfile is the AppArmor options to use by this container. If set, this profile
+         * overrides the pod's appArmorProfile.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecSecurityContextAppArmorProfilePatch {
+            /**
+             * localhostProfile indicates a profile loaded on the node that should be used.
+             * The profile must be preconfigured on the node to work.
+             * Must match the loaded name of the profile.
+             * Must be set if and only if type is "Localhost".
+             */
+            localhostProfile?: pulumi.Input<string | undefined>;
+            /**
+             * type indicates which kind of AppArmor profile will be applied.
+             * Valid options are:
+             *   Localhost - a profile pre-loaded on the node.
+             *   RuntimeDefault - the container runtime's default profile.
+             *   Unconfined - no AppArmor enforcement.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The capabilities to add/drop when running containers.
+         * Defaults to the default set of capabilities granted by the container runtime.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecSecurityContextCapabilities {
+            /**
+             * Added capabilities
+             */
+            add?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Removed capabilities
+             */
+            drop?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * The capabilities to add/drop when running containers.
+         * Defaults to the default set of capabilities granted by the container runtime.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecSecurityContextCapabilitiesPatch {
+            /**
+             * Added capabilities
+             */
+            add?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Removed capabilities
+             */
+            drop?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * SecurityContext specifies custom container SecurityContext to be added
+         * to the agent and server containers of the cluster in virtual or shared mode.
+         * This option will override the SecurityContext set by default for virtual mode.
+         */
+        export interface ClusterSpecSecurityContextPatch {
+            /**
+             * AllowPrivilegeEscalation controls whether a process can gain more
+             * privileges than its parent process. This bool directly controls if
+             * the no_new_privs flag will be set on the container process.
+             * AllowPrivilegeEscalation is true always when the container is:
+             * 1) run as Privileged
+             * 2) has CAP_SYS_ADMIN
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            allowPrivilegeEscalation?: pulumi.Input<boolean | undefined>;
+            appArmorProfile?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecurityContextAppArmorProfilePatch | undefined>;
+            capabilities?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecurityContextCapabilitiesPatch | undefined>;
+            /**
+             * Run container in privileged mode.
+             * Processes in privileged containers are essentially equivalent to root on the host.
+             * Defaults to false.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            privileged?: pulumi.Input<boolean | undefined>;
+            /**
+             * procMount denotes the type of proc mount to use for the containers.
+             * The default value is Default which uses the container runtime defaults for
+             * readonly paths and masked paths.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            procMount?: pulumi.Input<string | undefined>;
+            /**
+             * Whether this container has a read-only root filesystem.
+             * Default is false.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            readOnlyRootFilesystem?: pulumi.Input<boolean | undefined>;
+            /**
+             * The GID to run the entrypoint of the container process.
+             * Uses runtime default if unset.
+             * May also be set in PodSecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            runAsGroup?: pulumi.Input<number | undefined>;
+            /**
+             * Indicates that the container must run as a non-root user.
+             * If true, the Kubelet will validate the image at runtime to ensure that it
+             * does not run as UID 0 (root) and fail to start the container if it does.
+             * If unset or false, no such validation will be performed.
+             * May also be set in PodSecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             */
+            runAsNonRoot?: pulumi.Input<boolean | undefined>;
+            /**
+             * The UID to run the entrypoint of the container process.
+             * Defaults to user specified in image metadata if unspecified.
+             * May also be set in PodSecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            runAsUser?: pulumi.Input<number | undefined>;
+            seLinuxOptions?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecurityContextSeLinuxOptionsPatch | undefined>;
+            seccompProfile?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecurityContextSeccompProfilePatch | undefined>;
+            windowsOptions?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSecurityContextWindowsOptionsPatch | undefined>;
+        }
+
+        /**
+         * The SELinux context to be applied to the container.
+         * If unspecified, the container runtime will allocate a random SELinux context for each
+         * container.  May also be set in PodSecurityContext.  If set in both SecurityContext and
+         * PodSecurityContext, the value specified in SecurityContext takes precedence.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecSecurityContextSeLinuxOptions {
+            /**
+             * Level is SELinux level label that applies to the container.
+             */
+            level?: pulumi.Input<string | undefined>;
+            /**
+             * Role is a SELinux role label that applies to the container.
+             */
+            role?: pulumi.Input<string | undefined>;
+            /**
+             * Type is a SELinux type label that applies to the container.
+             */
+            type?: pulumi.Input<string | undefined>;
+            /**
+             * User is a SELinux user label that applies to the container.
+             */
+            user?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The SELinux context to be applied to the container.
+         * If unspecified, the container runtime will allocate a random SELinux context for each
+         * container.  May also be set in PodSecurityContext.  If set in both SecurityContext and
+         * PodSecurityContext, the value specified in SecurityContext takes precedence.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecSecurityContextSeLinuxOptionsPatch {
+            /**
+             * Level is SELinux level label that applies to the container.
+             */
+            level?: pulumi.Input<string | undefined>;
+            /**
+             * Role is a SELinux role label that applies to the container.
+             */
+            role?: pulumi.Input<string | undefined>;
+            /**
+             * Type is a SELinux type label that applies to the container.
+             */
+            type?: pulumi.Input<string | undefined>;
+            /**
+             * User is a SELinux user label that applies to the container.
+             */
+            user?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The seccomp options to use by this container. If seccomp options are
+         * provided at both the pod & container level, the container options
+         * override the pod options.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecSecurityContextSeccompProfile {
+            /**
+             * localhostProfile indicates a profile defined in a file on the node should be used.
+             * The profile must be preconfigured on the node to work.
+             * Must be a descending path, relative to the kubelet's configured seccomp profile location.
+             * Must be set if type is "Localhost". Must NOT be set for any other type.
+             */
+            localhostProfile?: pulumi.Input<string | undefined>;
+            /**
+             * type indicates which kind of seccomp profile will be applied.
+             * Valid options are:
+             *
+             * Localhost - a profile defined in a file on the node should be used.
+             * RuntimeDefault - the container runtime default profile should be used.
+             * Unconfined - no profile should be applied.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The seccomp options to use by this container. If seccomp options are
+         * provided at both the pod & container level, the container options
+         * override the pod options.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterSpecSecurityContextSeccompProfilePatch {
+            /**
+             * localhostProfile indicates a profile defined in a file on the node should be used.
+             * The profile must be preconfigured on the node to work.
+             * Must be a descending path, relative to the kubelet's configured seccomp profile location.
+             * Must be set if type is "Localhost". Must NOT be set for any other type.
+             */
+            localhostProfile?: pulumi.Input<string | undefined>;
+            /**
+             * type indicates which kind of seccomp profile will be applied.
+             * Valid options are:
+             *
+             * Localhost - a profile defined in a file on the node should be used.
+             * RuntimeDefault - the container runtime default profile should be used.
+             * Unconfined - no profile should be applied.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The Windows specific settings applied to all containers.
+         * If unspecified, the options from the PodSecurityContext will be used.
+         * If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
+         * Note that this field cannot be set when spec.os.name is linux.
+         */
+        export interface ClusterSpecSecurityContextWindowsOptions {
+            /**
+             * GMSACredentialSpec is where the GMSA admission webhook
+             * (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the
+             * GMSA credential spec named by the GMSACredentialSpecName field.
+             */
+            gmsaCredentialSpec?: pulumi.Input<string | undefined>;
+            /**
+             * GMSACredentialSpecName is the name of the GMSA credential spec to use.
+             */
+            gmsaCredentialSpecName?: pulumi.Input<string | undefined>;
+            /**
+             * HostProcess determines if a container should be run as a 'Host Process' container.
+             * All of a Pod's containers must have the same effective HostProcess value
+             * (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).
+             * In addition, if HostProcess is true then HostNetwork must also be set to true.
+             */
+            hostProcess?: pulumi.Input<boolean | undefined>;
+            /**
+             * The UserName in Windows to run the entrypoint of the container process.
+             * Defaults to the user specified in image metadata if unspecified.
+             * May also be set in PodSecurityContext. If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             */
+            runAsUserName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The Windows specific settings applied to all containers.
+         * If unspecified, the options from the PodSecurityContext will be used.
+         * If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
+         * Note that this field cannot be set when spec.os.name is linux.
+         */
+        export interface ClusterSpecSecurityContextWindowsOptionsPatch {
+            /**
+             * GMSACredentialSpec is where the GMSA admission webhook
+             * (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the
+             * GMSA credential spec named by the GMSACredentialSpecName field.
+             */
+            gmsaCredentialSpec?: pulumi.Input<string | undefined>;
+            /**
+             * GMSACredentialSpecName is the name of the GMSA credential spec to use.
+             */
+            gmsaCredentialSpecName?: pulumi.Input<string | undefined>;
+            /**
+             * HostProcess determines if a container should be run as a 'Host Process' container.
+             * All of a Pod's containers must have the same effective HostProcess value
+             * (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).
+             * In addition, if HostProcess is true then HostNetwork must also be set to true.
+             */
+            hostProcess?: pulumi.Input<boolean | undefined>;
+            /**
+             * The UserName in Windows to run the entrypoint of the container process.
+             * Defaults to the user specified in image metadata if unspecified.
+             * May also be set in PodSecurityContext. If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             */
+            runAsUserName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ServerAffinity specifies the affinity rules for server pods.
+         * This includes both node affinity and pod affinity/anti-affinity rules.
+         */
+        export interface ClusterSpecServerAffinity {
+            nodeAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinity | undefined>;
+            podAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinity | undefined>;
+            podAntiAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinity | undefined>;
+        }
+
+        /**
+         * Describes node affinity scheduling rules for the pod.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinity {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and adding
+             * "weight" to the sum if the node matches the corresponding matchExpressions; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution | undefined>;
+        }
+
+        /**
+         * Describes node affinity scheduling rules for the pod.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityPatch {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and adding
+             * "weight" to the sum if the node matches the corresponding matchExpressions; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch>[] | undefined>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch | undefined>;
+        }
+
+        /**
+         * An empty preferred scheduling term matches all objects with implicit weight 0
+         * (i.e. it's a no-op). A null preferred scheduling term matches no objects (i.e. is also a no-op).
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            preference?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference | undefined>;
+            /**
+             * Weight associated with matching the corresponding nodeSelectorTerm, in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * An empty preferred scheduling term matches all objects with implicit weight 0
+         * (i.e. it's a no-op). A null preferred scheduling term matches no objects (i.e. is also a no-op).
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            preference?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferencePatch | undefined>;
+            /**
+             * Weight associated with matching the corresponding nodeSelectorTerm, in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * A node selector term, associated with the corresponding weight.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference {
+            /**
+             * A list of node selector requirements by node's labels.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions>[] | undefined>;
+            /**
+             * A list of node selector requirements by node's fields.
+             */
+            matchFields?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressionsPatch {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFieldsPatch {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector term, associated with the corresponding weight.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferencePatch {
+            /**
+             * A list of node selector requirements by node's labels.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressionsPatch>[] | undefined>;
+            /**
+             * A list of node selector requirements by node's fields.
+             */
+            matchFields?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFieldsPatch>[] | undefined>;
+        }
+
+        /**
+         * If the affinity requirements specified by this field are not met at
+         * scheduling time, the pod will not be scheduled onto the node.
+         * If the affinity requirements specified by this field cease to be met
+         * at some point during pod execution (e.g. due to an update), the system
+         * may or may not try to eventually evict the pod from its node.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            /**
+             * Required. A list of node selector terms. The terms are ORed.
+             */
+            nodeSelectorTerms?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms>[] | undefined>;
+        }
+
+        /**
+         * A null or empty node selector term matches no objects. The requirements of
+         * them are ANDed.
+         * The TopologySelectorTerm type implements a subset of the NodeSelectorTerm.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms {
+            /**
+             * A list of node selector requirements by node's labels.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions>[] | undefined>;
+            /**
+             * A list of node selector requirements by node's fields.
+             */
+            matchFields?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressionsPatch {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFieldsPatch {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A null or empty node selector term matches no objects. The requirements of
+         * them are ANDed.
+         * The TopologySelectorTerm type implements a subset of the NodeSelectorTerm.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsPatch {
+            /**
+             * A list of node selector requirements by node's labels.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressionsPatch>[] | undefined>;
+            /**
+             * A list of node selector requirements by node's fields.
+             */
+            matchFields?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFieldsPatch>[] | undefined>;
+        }
+
+        /**
+         * If the affinity requirements specified by this field are not met at
+         * scheduling time, the pod will not be scheduled onto the node.
+         * If the affinity requirements specified by this field cease to be met
+         * at some point during pod execution (e.g. due to an update), the system
+         * may or may not try to eventually evict the pod from its node.
+         */
+        export interface ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            /**
+             * Required. A list of node selector terms. The terms are ORed.
+             */
+            nodeSelectorTerms?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsPatch>[] | undefined>;
+        }
+
+        /**
+         * ServerAffinity specifies the affinity rules for server pods.
+         * This includes both node affinity and pod affinity/anti-affinity rules.
+         */
+        export interface ClusterSpecServerAffinityPatch {
+            nodeAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityNodeAffinityPatch | undefined>;
+            podAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPatch | undefined>;
+            podAntiAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPatch | undefined>;
+        }
+
+        /**
+         * Describes pod affinity scheduling rules (e.g. co-locate this pod in the same node, zone, etc. as some other pod(s)).
+         */
+        export interface ClusterSpecServerAffinityPodAffinity {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and adding
+             * "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+            /**
+             * If the affinity requirements specified by this field are not met at
+             * scheduling time, the pod will not be scheduled onto the node.
+             * If the affinity requirements specified by this field cease to be met
+             * at some point during pod execution (e.g. due to a pod label update), the
+             * system may or may not try to eventually evict the pod from its node.
+             * When there are multiple elements, the lists of nodes corresponding to each
+             * podAffinityTerm are intersected, i.e. all terms must be satisfied.
+             */
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+        }
+
+        /**
+         * Describes pod affinity scheduling rules (e.g. co-locate this pod in the same node, zone, etc. as some other pod(s)).
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPatch {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and adding
+             * "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch>[] | undefined>;
+            /**
+             * If the affinity requirements specified by this field are not met at
+             * scheduling time, the pod will not be scheduled onto the node.
+             * If the affinity requirements specified by this field cease to be met
+             * at some point during pod execution (e.g. due to a pod label update), the
+             * system may or may not try to eventually evict the pod from its node.
+             * When there are multiple elements, the lists of nodes corresponding to each
+             * podAffinityTerm are intersected, i.e. all terms must be satisfied.
+             */
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch>[] | undefined>;
+        }
+
+        /**
+         * The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm | undefined>;
+            /**
+             * weight associated with matching the corresponding podAffinityTerm,
+             * in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            podAffinityTerm?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch | undefined>;
+            /**
+             * weight associated with matching the corresponding podAffinityTerm,
+             * in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * Required. A pod affinity term, associated with the corresponding weight.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Required. A pod affinity term, associated with the corresponding weight.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Defines a set of pods (namely those matching the labelSelector
+         * relative to the given namespace(s)) that this pod should be
+         * co-located (affinity) or not co-located (anti-affinity) with,
+         * where co-located is defined as running on a node whose value of
+         * the label with key <topologyKey> matches that of any node on which
+         * a pod of the set of pods is running
+         */
+        export interface ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Defines a set of pods (namely those matching the labelSelector
+         * relative to the given namespace(s)) that this pod should be
+         * co-located (affinity) or not co-located (anti-affinity) with,
+         * where co-located is defined as running on a node whose value of
+         * the label with key <topologyKey> matches that of any node on which
+         * a pod of the set of pods is running
+         */
+        export interface ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Describes pod anti-affinity scheduling rules (e.g. avoid putting this pod in the same node, zone, etc. as some other pod(s)).
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinity {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the anti-affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling anti-affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and subtracting
+             * "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+            /**
+             * If the anti-affinity requirements specified by this field are not met at
+             * scheduling time, the pod will not be scheduled onto the node.
+             * If the anti-affinity requirements specified by this field cease to be met
+             * at some point during pod execution (e.g. due to a pod label update), the
+             * system may or may not try to eventually evict the pod from its node.
+             * When there are multiple elements, the lists of nodes corresponding to each
+             * podAffinityTerm are intersected, i.e. all terms must be satisfied.
+             */
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+        }
+
+        /**
+         * Describes pod anti-affinity scheduling rules (e.g. avoid putting this pod in the same node, zone, etc. as some other pod(s)).
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPatch {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the anti-affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling anti-affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and subtracting
+             * "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch>[] | undefined>;
+            /**
+             * If the anti-affinity requirements specified by this field are not met at
+             * scheduling time, the pod will not be scheduled onto the node.
+             * If the anti-affinity requirements specified by this field cease to be met
+             * at some point during pod execution (e.g. due to a pod label update), the
+             * system may or may not try to eventually evict the pod from its node.
+             * When there are multiple elements, the lists of nodes corresponding to each
+             * podAffinityTerm are intersected, i.e. all terms must be satisfied.
+             */
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch>[] | undefined>;
+        }
+
+        /**
+         * The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm | undefined>;
+            /**
+             * weight associated with matching the corresponding podAffinityTerm,
+             * in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPatch {
+            podAffinityTerm?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch | undefined>;
+            /**
+             * weight associated with matching the corresponding podAffinityTerm,
+             * in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * Required. A pod affinity term, associated with the corresponding weight.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Required. A pod affinity term, associated with the corresponding weight.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermPatch {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorPatch | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorPatch | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Defines a set of pods (namely those matching the labelSelector
+         * relative to the given namespace(s)) that this pod should be
+         * co-located (affinity) or not co-located (anti-affinity) with,
+         * where co-located is defined as running on a node whose value of
+         * the label with key <topologyKey> matches that of any node on which
+         * a pod of the set of pods is running
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Defines a set of pods (namely those matching the labelSelector
+         * relative to the given namespace(s)) that this pod should be
+         * co-located (affinity) or not co-located (anti-affinity) with,
+         * where co-located is defined as running on a node whose value of
+         * the label with key <topologyKey> matches that of any node on which
+         * a pod of the set of pods is running
+         */
+        export interface ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionPatch {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorPatch | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorPatch | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * EnvVar represents an environment variable present in a Container.
+         */
+        export interface ClusterSpecServerEnvs {
+            /**
+             * Name of the environment variable.
+             * May consist of any printable ASCII characters except '='.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Variable references $(VAR_NAME) are expanded
+             * using the previously defined environment variables in the container and
+             * any service environment variables. If a variable cannot be resolved,
+             * the reference in the input string will be unchanged. Double $$ are reduced
+             * to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
+             * "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
+             * Escaped references will never be expanded, regardless of whether the variable
+             * exists or not.
+             * Defaults to "".
+             */
+            value?: pulumi.Input<string | undefined>;
+            valueFrom?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsValueFrom | undefined>;
+        }
+
+        /**
+         * EnvVar represents an environment variable present in a Container.
+         */
+        export interface ClusterSpecServerEnvsPatch {
+            /**
+             * Name of the environment variable.
+             * May consist of any printable ASCII characters except '='.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Variable references $(VAR_NAME) are expanded
+             * using the previously defined environment variables in the container and
+             * any service environment variables. If a variable cannot be resolved,
+             * the reference in the input string will be unchanged. Double $$ are reduced
+             * to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e.
+             * "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
+             * Escaped references will never be expanded, regardless of whether the variable
+             * exists or not.
+             * Defaults to "".
+             */
+            value?: pulumi.Input<string | undefined>;
+            valueFrom?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsValueFromPatch | undefined>;
+        }
+
+        /**
+         * Source for the environment variable's value. Cannot be used if value is not empty.
+         */
+        export interface ClusterSpecServerEnvsValueFrom {
+            configMapKeyRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsValueFromConfigMapKeyRef | undefined>;
+            fieldRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsValueFromFieldRef | undefined>;
+            fileKeyRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsValueFromFileKeyRef | undefined>;
+            resourceFieldRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsValueFromResourceFieldRef | undefined>;
+            secretKeyRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsValueFromSecretKeyRef | undefined>;
+        }
+
+        /**
+         * Selects a key of a ConfigMap.
+         */
+        export interface ClusterSpecServerEnvsValueFromConfigMapKeyRef {
+            /**
+             * The key to select.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of the referent.
+             * This field is effectively required, but due to backwards compatibility is
+             * allowed to be empty. Instances of this type with an empty value here are
+             * almost certainly wrong.
+             * More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Specify whether the ConfigMap or its key must be defined
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * Selects a key of a ConfigMap.
+         */
+        export interface ClusterSpecServerEnvsValueFromConfigMapKeyRefPatch {
+            /**
+             * The key to select.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of the referent.
+             * This field is effectively required, but due to backwards compatibility is
+             * allowed to be empty. Instances of this type with an empty value here are
+             * almost certainly wrong.
+             * More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Specify whether the ConfigMap or its key must be defined
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
+         * spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
+         */
+        export interface ClusterSpecServerEnvsValueFromFieldRef {
+            /**
+             * Version of the schema the FieldPath is written in terms of, defaults to "v1".
+             */
+            apiVersion?: pulumi.Input<string | undefined>;
+            /**
+             * Path of the field to select in the specified API version.
+             */
+            fieldPath?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`,
+         * spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.
+         */
+        export interface ClusterSpecServerEnvsValueFromFieldRefPatch {
+            /**
+             * Version of the schema the FieldPath is written in terms of, defaults to "v1".
+             */
+            apiVersion?: pulumi.Input<string | undefined>;
+            /**
+             * Path of the field to select in the specified API version.
+             */
+            fieldPath?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * FileKeyRef selects a key of the env file.
+         * Requires the EnvFiles feature gate to be enabled.
+         */
+        export interface ClusterSpecServerEnvsValueFromFileKeyRef {
+            /**
+             * The key within the env file. An invalid key will prevent the pod from starting.
+             * The keys defined within a source may consist of any printable ASCII characters except '='.
+             * During Alpha stage of the EnvFiles feature gate, the key size is limited to 128 characters.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Specify whether the file or its key must be defined. If the file or key
+             * does not exist, then the env var is not published.
+             * If optional is set to true and the specified key does not exist,
+             * the environment variable will not be set in the Pod's containers.
+             *
+             * If optional is set to false and the specified key does not exist,
+             * an error will be returned during Pod creation.
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+            /**
+             * The path within the volume from which to select the file.
+             * Must be relative and may not contain the '..' path or start with '..'.
+             */
+            path?: pulumi.Input<string | undefined>;
+            /**
+             * The name of the volume mount containing the env file.
+             */
+            volumeName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * FileKeyRef selects a key of the env file.
+         * Requires the EnvFiles feature gate to be enabled.
+         */
+        export interface ClusterSpecServerEnvsValueFromFileKeyRefPatch {
+            /**
+             * The key within the env file. An invalid key will prevent the pod from starting.
+             * The keys defined within a source may consist of any printable ASCII characters except '='.
+             * During Alpha stage of the EnvFiles feature gate, the key size is limited to 128 characters.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Specify whether the file or its key must be defined. If the file or key
+             * does not exist, then the env var is not published.
+             * If optional is set to true and the specified key does not exist,
+             * the environment variable will not be set in the Pod's containers.
+             *
+             * If optional is set to false and the specified key does not exist,
+             * an error will be returned during Pod creation.
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+            /**
+             * The path within the volume from which to select the file.
+             * Must be relative and may not contain the '..' path or start with '..'.
+             */
+            path?: pulumi.Input<string | undefined>;
+            /**
+             * The name of the volume mount containing the env file.
+             */
+            volumeName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Source for the environment variable's value. Cannot be used if value is not empty.
+         */
+        export interface ClusterSpecServerEnvsValueFromPatch {
+            configMapKeyRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsValueFromConfigMapKeyRefPatch | undefined>;
+            fieldRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsValueFromFieldRefPatch | undefined>;
+            fileKeyRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsValueFromFileKeyRefPatch | undefined>;
+            resourceFieldRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsValueFromResourceFieldRefPatch | undefined>;
+            secretKeyRef?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerEnvsValueFromSecretKeyRefPatch | undefined>;
+        }
+
+        /**
+         * Selects a resource of the container: only resources limits and requests
+         * (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
+         */
+        export interface ClusterSpecServerEnvsValueFromResourceFieldRef {
+            /**
+             * Container name: required for volumes, optional for env vars
+             */
+            containerName?: pulumi.Input<string | undefined>;
+            /**
+             * Specifies the output format of the exposed resources, defaults to "1"
+             */
+            divisor?: pulumi.Input<number | string | undefined>;
+            /**
+             * Required: resource to select
+             */
+            resource?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Selects a resource of the container: only resources limits and requests
+         * (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.
+         */
+        export interface ClusterSpecServerEnvsValueFromResourceFieldRefPatch {
+            /**
+             * Container name: required for volumes, optional for env vars
+             */
+            containerName?: pulumi.Input<string | undefined>;
+            /**
+             * Specifies the output format of the exposed resources, defaults to "1"
+             */
+            divisor?: pulumi.Input<number | string | undefined>;
+            /**
+             * Required: resource to select
+             */
+            resource?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Selects a key of a secret in the pod's namespace
+         */
+        export interface ClusterSpecServerEnvsValueFromSecretKeyRef {
+            /**
+             * The key of the secret to select from.  Must be a valid secret key.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of the referent.
+             * This field is effectively required, but due to backwards compatibility is
+             * allowed to be empty. Instances of this type with an empty value here are
+             * almost certainly wrong.
+             * More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Specify whether the Secret or its key must be defined
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * Selects a key of a secret in the pod's namespace
+         */
+        export interface ClusterSpecServerEnvsValueFromSecretKeyRefPatch {
+            /**
+             * The key of the secret to select from.  Must be a valid secret key.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of the referent.
+             * This field is effectively required, but due to backwards compatibility is
+             * allowed to be empty. Instances of this type with an empty value here are
+             * almost certainly wrong.
+             * More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Specify whether the Secret or its key must be defined
+             */
+            optional?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * ServerResources specifies resources limits and requests for server nodes.
+         */
+        export interface ClusterSpecServerResources {
+            /**
+             * Claims lists the names of resources, defined in spec.resourceClaims,
+             * that are used by this container.
+             *
+             * This field depends on the
+             * DynamicResourceAllocation feature gate.
+             *
+             * This field is immutable. It can only be set for containers.
+             */
+            claims?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerResourcesClaims>[] | undefined>;
+            /**
+             * Limits describes the maximum amount of compute resources allowed.
+             * More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+             */
+            limits?: pulumi.Input<{[key: string]: pulumi.Input<number | string>} | undefined>;
+            /**
+             * Requests describes the minimum amount of compute resources required.
+             * If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+             * otherwise to an implementation-defined value. Requests cannot exceed Limits.
+             * More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+             */
+            requests?: pulumi.Input<{[key: string]: pulumi.Input<number | string>} | undefined>;
+        }
+
+        /**
+         * ResourceClaim references one entry in PodSpec.ResourceClaims.
+         */
+        export interface ClusterSpecServerResourcesClaims {
+            /**
+             * Name must match the name of one entry in pod.spec.resourceClaims of
+             * the Pod where this field is used. It makes that resource available
+             * inside a container.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Request is the name chosen for a request in the referenced claim.
+             * If empty, everything from the claim is made available, otherwise
+             * only the result of this request.
+             */
+            request?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ResourceClaim references one entry in PodSpec.ResourceClaims.
+         */
+        export interface ClusterSpecServerResourcesClaimsPatch {
+            /**
+             * Name must match the name of one entry in pod.spec.resourceClaims of
+             * the Pod where this field is used. It makes that resource available
+             * inside a container.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Request is the name chosen for a request in the referenced claim.
+             * If empty, everything from the claim is made available, otherwise
+             * only the result of this request.
+             */
+            request?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ServerResources specifies resources limits and requests for server nodes.
+         */
+        export interface ClusterSpecServerResourcesPatch {
+            /**
+             * Claims lists the names of resources, defined in spec.resourceClaims,
+             * that are used by this container.
+             *
+             * This field depends on the
+             * DynamicResourceAllocation feature gate.
+             *
+             * This field is immutable. It can only be set for containers.
+             */
+            claims?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecServerResourcesClaimsPatch>[] | undefined>;
+            /**
+             * Limits describes the maximum amount of compute resources allowed.
+             * More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+             */
+            limits?: pulumi.Input<{[key: string]: pulumi.Input<number | string>} | undefined>;
+            /**
+             * Requests describes the minimum amount of compute resources required.
+             * If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+             * otherwise to an implementation-defined value. Requests cannot exceed Limits.
+             * More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+             */
+            requests?: pulumi.Input<{[key: string]: pulumi.Input<number | string>} | undefined>;
+        }
+
+        /**
+         * Sync specifies the resources types that will be synced from virtual cluster to host cluster.
+         */
+        export interface ClusterSpecSync {
+            configMaps?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncConfigMaps | undefined>;
+            ingresses?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncIngresses | undefined>;
+            persistentVolumeClaims?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncPersistentVolumeClaims | undefined>;
+            priorityClasses?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncPriorityClasses | undefined>;
+            secrets?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncSecrets | undefined>;
+            services?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncServices | undefined>;
+            storageClasses?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncStorageClasses | undefined>;
+        }
+
+        /**
+         * ConfigMaps resources sync configuration.
+         */
+        export interface ClusterSpecSyncConfigMaps {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * ConfigMaps resources sync configuration.
+         */
+        export interface ClusterSpecSyncConfigMapsPatch {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Ingresses resources sync configuration.
+         */
+        export interface ClusterSpecSyncIngresses {
+            /**
+             * DisableTLSSecretTranslation is an on/off switch for translating TLS secrets
+             * from virtual cluster to host cluster
+             */
+            disableTLSSecretTranslation?: pulumi.Input<boolean | undefined>;
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Ingresses resources sync configuration.
+         */
+        export interface ClusterSpecSyncIngressesPatch {
+            /**
+             * DisableTLSSecretTranslation is an on/off switch for translating TLS secrets
+             * from virtual cluster to host cluster
+             */
+            disableTLSSecretTranslation?: pulumi.Input<boolean | undefined>;
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Sync specifies the resources types that will be synced from virtual cluster to host cluster.
+         */
+        export interface ClusterSpecSyncPatch {
+            configMaps?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncConfigMapsPatch | undefined>;
+            ingresses?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncIngressesPatch | undefined>;
+            persistentVolumeClaims?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncPersistentVolumeClaimsPatch | undefined>;
+            priorityClasses?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncPriorityClassesPatch | undefined>;
+            secrets?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncSecretsPatch | undefined>;
+            services?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncServicesPatch | undefined>;
+            storageClasses?: pulumi.Input<inputs.k3k.v1beta1.ClusterSpecSyncStorageClassesPatch | undefined>;
+        }
+
+        /**
+         * PersistentVolumeClaims resources sync configuration.
+         */
+        export interface ClusterSpecSyncPersistentVolumeClaims {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * PersistentVolumeClaims resources sync configuration.
+         */
+        export interface ClusterSpecSyncPersistentVolumeClaimsPatch {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * PriorityClasses resources sync configuration.
+         */
+        export interface ClusterSpecSyncPriorityClasses {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * PriorityClasses resources sync configuration.
+         */
+        export interface ClusterSpecSyncPriorityClassesPatch {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Secrets resources sync configuration.
+         */
+        export interface ClusterSpecSyncSecrets {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Secrets resources sync configuration.
+         */
+        export interface ClusterSpecSyncSecretsPatch {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Services resources sync configuration.
+         */
+        export interface ClusterSpecSyncServices {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Services resources sync configuration.
+         */
+        export interface ClusterSpecSyncServicesPatch {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * StorageClasses resources sync configuration.
+         */
+        export interface ClusterSpecSyncStorageClasses {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * StorageClasses resources sync configuration.
+         */
+        export interface ClusterSpecSyncStorageClassesPatch {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * TokenSecretRef is a Secret reference containing the token used by worker nodes to join the cluster.
+         * The Secret must have a "token" field in its data.
+         */
+        export interface ClusterSpecTokenSecretRef {
+            /**
+             * name is unique within a namespace to reference a secret resource.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * namespace defines the space within which the secret name must be unique.
+             */
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * TokenSecretRef is a Secret reference containing the token used by worker nodes to join the cluster.
+         * The Secret must have a "token" field in its data.
+         */
+        export interface ClusterSpecTokenSecretRefPatch {
+            /**
+             * name is unique within a namespace to reference a secret resource.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * namespace defines the space within which the secret name must be unique.
+             */
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * WorkerResources specifies resources limits and requests for worker nodes.
+         */
+        export interface ClusterSpecWorkerResources {
+            /**
+             * Claims lists the names of resources, defined in spec.resourceClaims,
+             * that are used by this container.
+             *
+             * This field depends on the
+             * DynamicResourceAllocation feature gate.
+             *
+             * This field is immutable. It can only be set for containers.
+             */
+            claims?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecWorkerResourcesClaims>[] | undefined>;
+            /**
+             * Limits describes the maximum amount of compute resources allowed.
+             * More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+             */
+            limits?: pulumi.Input<{[key: string]: pulumi.Input<number | string>} | undefined>;
+            /**
+             * Requests describes the minimum amount of compute resources required.
+             * If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+             * otherwise to an implementation-defined value. Requests cannot exceed Limits.
+             * More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+             */
+            requests?: pulumi.Input<{[key: string]: pulumi.Input<number | string>} | undefined>;
+        }
+
+        /**
+         * ResourceClaim references one entry in PodSpec.ResourceClaims.
+         */
+        export interface ClusterSpecWorkerResourcesClaims {
+            /**
+             * Name must match the name of one entry in pod.spec.resourceClaims of
+             * the Pod where this field is used. It makes that resource available
+             * inside a container.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Request is the name chosen for a request in the referenced claim.
+             * If empty, everything from the claim is made available, otherwise
+             * only the result of this request.
+             */
+            request?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ResourceClaim references one entry in PodSpec.ResourceClaims.
+         */
+        export interface ClusterSpecWorkerResourcesClaimsPatch {
+            /**
+             * Name must match the name of one entry in pod.spec.resourceClaims of
+             * the Pod where this field is used. It makes that resource available
+             * inside a container.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Request is the name chosen for a request in the referenced claim.
+             * If empty, everything from the claim is made available, otherwise
+             * only the result of this request.
+             */
+            request?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * WorkerResources specifies resources limits and requests for worker nodes.
+         */
+        export interface ClusterSpecWorkerResourcesPatch {
+            /**
+             * Claims lists the names of resources, defined in spec.resourceClaims,
+             * that are used by this container.
+             *
+             * This field depends on the
+             * DynamicResourceAllocation feature gate.
+             *
+             * This field is immutable. It can only be set for containers.
+             */
+            claims?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterSpecWorkerResourcesClaimsPatch>[] | undefined>;
+            /**
+             * Limits describes the maximum amount of compute resources allowed.
+             * More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+             */
+            limits?: pulumi.Input<{[key: string]: pulumi.Input<number | string>} | undefined>;
+            /**
+             * Requests describes the minimum amount of compute resources required.
+             * If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+             * otherwise to an implementation-defined value. Requests cannot exceed Limits.
+             * More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+             */
+            requests?: pulumi.Input<{[key: string]: pulumi.Input<number | string>} | undefined>;
+        }
+
+        /**
+         * Status reflects the observed state of the Cluster.
+         */
+        export interface ClusterStatus {
+            /**
+             * ClusterCIDR is the CIDR range for pod IPs.
+             */
+            clusterCIDR?: pulumi.Input<string | undefined>;
+            /**
+             * ClusterDNS is the IP address for the CoreDNS service.
+             */
+            clusterDNS?: pulumi.Input<string | undefined>;
+            /**
+             * Conditions are the individual conditions for the cluster set.
+             */
+            conditions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusConditions>[] | undefined>;
+            /**
+             * HostVersion is the Kubernetes version of the host node.
+             */
+            hostVersion?: pulumi.Input<string | undefined>;
+            /**
+             * KubeletPort specefies the port used by k3k-kubelet in shared mode.
+             */
+            kubeletPort?: pulumi.Input<number | undefined>;
+            /**
+             * Phase is a high-level summary of the cluster's current lifecycle state.
+             */
+            phase?: pulumi.Input<string | undefined>;
+            policy?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicy | undefined>;
+            /**
+             * PolicyName specifies the virtual cluster policy name bound to the virtual cluster.
+             */
+            policyName?: pulumi.Input<string | undefined>;
+            /**
+             * ServiceCIDR is the CIDR range for service IPs.
+             */
+            serviceCIDR?: pulumi.Input<string | undefined>;
+            /**
+             * TLSSANs specifies subject alternative names for the K3s server certificate.
+             */
+            tlsSANs?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Condition contains details for one aspect of the current state of this API Resource.
+         */
+        export interface ClusterStatusConditions {
+            /**
+             * lastTransitionTime is the last time the condition transitioned from one status to another.
+             * This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+             */
+            lastTransitionTime?: pulumi.Input<string | undefined>;
+            /**
+             * message is a human readable message indicating details about the transition.
+             * This may be an empty string.
+             */
+            message?: pulumi.Input<string | undefined>;
+            /**
+             * observedGeneration represents the .metadata.generation that the condition was set based upon.
+             * For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+             * with respect to the current state of the instance.
+             */
+            observedGeneration?: pulumi.Input<number | undefined>;
+            /**
+             * reason contains a programmatic identifier indicating the reason for the condition's last transition.
+             * Producers of specific condition types may define expected values and meanings for this field,
+             * and whether the values are considered a guaranteed API.
+             * The value should be a CamelCase string.
+             * This field may not be empty.
+             */
+            reason?: pulumi.Input<string | undefined>;
+            /**
+             * status of the condition, one of True, False, Unknown.
+             */
+            status?: pulumi.Input<string | undefined>;
+            /**
+             * type of condition in CamelCase or in foo.example.com/CamelCase.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * policy represents the status of the policy applied to this cluster.
+         * This field is set by the VirtualClusterPolicy controller.
+         */
+        export interface ClusterStatusPolicy {
+            agentAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinity | undefined>;
+            /**
+             * HostUsers sets the user namespace for server and agent pods.
+             * If set to true or not present, the pod will be run in the host user namespace.
+             * When set to false, a new userns is created for the pod.
+             * This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature.
+             */
+            hostUsers?: pulumi.Input<boolean | undefined>;
+            /**
+             * name is the name of the VirtualClusterPolicy currently applied to this cluster.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * nodeSelector is a node selector enforced by the active VirtualClusterPolicy.
+             */
+            nodeSelector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            podSecurityContext?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyPodSecurityContext | undefined>;
+            /**
+             * priorityClass is the priority class enforced by the active VirtualClusterPolicy.
+             */
+            priorityClass?: pulumi.Input<string | undefined>;
+            /**
+             * RuntimeClassName specifies alternative runtime class for the
+             * agent and server pods of the cluster in virtual or shared mode.
+             */
+            runtimeClassName?: pulumi.Input<string | undefined>;
+            securityContext?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySecurityContext | undefined>;
+            serverAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinity | undefined>;
+            sync?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySync | undefined>;
+        }
+
+        /**
+         * agentAffinity is the affinity rules for agent pods enforced by the active VirtualClusterPolicy.
+         * This includes both node affinity and pod affinity/anti-affinity rules.
+         */
+        export interface ClusterStatusPolicyAgentAffinity {
+            nodeAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityNodeAffinity | undefined>;
+            podAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAffinity | undefined>;
+            podAntiAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAntiAffinity | undefined>;
+        }
+
+        /**
+         * Describes node affinity scheduling rules for the pod.
+         */
+        export interface ClusterStatusPolicyAgentAffinityNodeAffinity {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and adding
+             * "weight" to the sum if the node matches the corresponding matchExpressions; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution | undefined>;
+        }
+
+        /**
+         * An empty preferred scheduling term matches all objects with implicit weight 0
+         * (i.e. it's a no-op). A null preferred scheduling term matches no objects (i.e. is also a no-op).
+         */
+        export interface ClusterStatusPolicyAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            preference?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference | undefined>;
+            /**
+             * Weight associated with matching the corresponding nodeSelectorTerm, in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * A node selector term, associated with the corresponding weight.
+         */
+        export interface ClusterStatusPolicyAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference {
+            /**
+             * A list of node selector requirements by node's labels.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions>[] | undefined>;
+            /**
+             * A list of node selector requirements by node's fields.
+             */
+            matchFields?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterStatusPolicyAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterStatusPolicyAgentAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * If the affinity requirements specified by this field are not met at
+         * scheduling time, the pod will not be scheduled onto the node.
+         * If the affinity requirements specified by this field cease to be met
+         * at some point during pod execution (e.g. due to an update), the system
+         * may or may not try to eventually evict the pod from its node.
+         */
+        export interface ClusterStatusPolicyAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            /**
+             * Required. A list of node selector terms. The terms are ORed.
+             */
+            nodeSelectorTerms?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms>[] | undefined>;
+        }
+
+        /**
+         * A null or empty node selector term matches no objects. The requirements of
+         * them are ANDed.
+         * The TopologySelectorTerm type implements a subset of the NodeSelectorTerm.
+         */
+        export interface ClusterStatusPolicyAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms {
+            /**
+             * A list of node selector requirements by node's labels.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions>[] | undefined>;
+            /**
+             * A list of node selector requirements by node's fields.
+             */
+            matchFields?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterStatusPolicyAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterStatusPolicyAgentAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Describes pod affinity scheduling rules (e.g. co-locate this pod in the same node, zone, etc. as some other pod(s)).
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAffinity {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and adding
+             * "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+            /**
+             * If the affinity requirements specified by this field are not met at
+             * scheduling time, the pod will not be scheduled onto the node.
+             * If the affinity requirements specified by this field cease to be met
+             * at some point during pod execution (e.g. due to a pod label update), the
+             * system may or may not try to eventually evict the pod from its node.
+             * When there are multiple elements, the lists of nodes corresponding to each
+             * podAffinityTerm are intersected, i.e. all terms must be satisfied.
+             */
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+        }
+
+        /**
+         * The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm | undefined>;
+            /**
+             * weight associated with matching the corresponding podAffinityTerm,
+             * in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * Required. A pod affinity term, associated with the corresponding weight.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Defines a set of pods (namely those matching the labelSelector
+         * relative to the given namespace(s)) that this pod should be
+         * co-located (affinity) or not co-located (anti-affinity) with,
+         * where co-located is defined as running on a node whose value of
+         * the label with key <topologyKey> matches that of any node on which
+         * a pod of the set of pods is running
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Describes pod anti-affinity scheduling rules (e.g. avoid putting this pod in the same node, zone, etc. as some other pod(s)).
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAntiAffinity {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the anti-affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling anti-affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and subtracting
+             * "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+            /**
+             * If the anti-affinity requirements specified by this field are not met at
+             * scheduling time, the pod will not be scheduled onto the node.
+             * If the anti-affinity requirements specified by this field cease to be met
+             * at some point during pod execution (e.g. due to a pod label update), the
+             * system may or may not try to eventually evict the pod from its node.
+             * When there are multiple elements, the lists of nodes corresponding to each
+             * podAffinityTerm are intersected, i.e. all terms must be satisfied.
+             */
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+        }
+
+        /**
+         * The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm | undefined>;
+            /**
+             * weight associated with matching the corresponding podAffinityTerm,
+             * in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * Required. A pod affinity term, associated with the corresponding weight.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Defines a set of pods (namely those matching the labelSelector
+         * relative to the given namespace(s)) that this pod should be
+         * co-located (affinity) or not co-located (anti-affinity) with,
+         * where co-located is defined as running on a node whose value of
+         * the label with key <topologyKey> matches that of any node on which
+         * a pod of the set of pods is running
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyAgentAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * PodSecurityContext specifies custom SecurityContext to be added
+         * to the agent and server pods of the cluster in virtual or shared mode.
+         */
+        export interface ClusterStatusPolicyPodSecurityContext {
+            appArmorProfile?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyPodSecurityContextAppArmorProfile | undefined>;
+            /**
+             * A special supplemental group that applies to all containers in a pod.
+             * Some volume types allow the Kubelet to change the ownership of that volume
+             * to be owned by the pod:
+             *
+             * 1. The owning GID will be the FSGroup
+             * 2. The setgid bit is set (new files created in the volume will be owned by FSGroup)
+             * 3. The permission bits are OR'd with rw-rw----
+             *
+             * If unset, the Kubelet will not modify the ownership and permissions of any volume.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            fsGroup?: pulumi.Input<number | undefined>;
+            /**
+             * fsGroupChangePolicy defines behavior of changing ownership and permission of the volume
+             * before being exposed inside Pod. This field will only apply to
+             * volume types which support fsGroup based ownership(and permissions).
+             * It will have no effect on ephemeral volume types such as: secret, configmaps
+             * and emptydir.
+             * Valid values are "OnRootMismatch" and "Always". If not specified, "Always" is used.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            fsGroupChangePolicy?: pulumi.Input<string | undefined>;
+            /**
+             * The GID to run the entrypoint of the container process.
+             * Uses runtime default if unset.
+             * May also be set in SecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence
+             * for that container.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            runAsGroup?: pulumi.Input<number | undefined>;
+            /**
+             * Indicates that the container must run as a non-root user.
+             * If true, the Kubelet will validate the image at runtime to ensure that it
+             * does not run as UID 0 (root) and fail to start the container if it does.
+             * If unset or false, no such validation will be performed.
+             * May also be set in SecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             */
+            runAsNonRoot?: pulumi.Input<boolean | undefined>;
+            /**
+             * The UID to run the entrypoint of the container process.
+             * Defaults to user specified in image metadata if unspecified.
+             * May also be set in SecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence
+             * for that container.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            runAsUser?: pulumi.Input<number | undefined>;
+            /**
+             * seLinuxChangePolicy defines how the container's SELinux label is applied to all volumes used by the Pod.
+             * It has no effect on nodes that do not support SELinux or to volumes does not support SELinux.
+             * Valid values are "MountOption" and "Recursive".
+             *
+             * "Recursive" means relabeling of all files on all Pod volumes by the container runtime.
+             * This may be slow for large volumes, but allows mixing privileged and unprivileged Pods sharing the same volume on the same node.
+             *
+             * "MountOption" mounts all eligible Pod volumes with `-o context` mount option.
+             * This requires all Pods that share the same volume to use the same SELinux label.
+             * It is not possible to share the same volume among privileged and unprivileged Pods.
+             * Eligible volumes are in-tree FibreChannel and iSCSI volumes, and all CSI volumes
+             * whose CSI driver announces SELinux support by setting spec.seLinuxMount: true in their
+             * CSIDriver instance. Other volumes are always re-labelled recursively.
+             * "MountOption" value is allowed only when SELinuxMount feature gate is enabled.
+             *
+             * If not specified and SELinuxMount feature gate is enabled, "MountOption" is used.
+             * If not specified and SELinuxMount feature gate is disabled, "MountOption" is used for ReadWriteOncePod volumes
+             * and "Recursive" for all other volumes.
+             *
+             * This field affects only Pods that have SELinux label set, either in PodSecurityContext or in SecurityContext of all containers.
+             *
+             * All Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            seLinuxChangePolicy?: pulumi.Input<string | undefined>;
+            seLinuxOptions?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyPodSecurityContextSeLinuxOptions | undefined>;
+            seccompProfile?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyPodSecurityContextSeccompProfile | undefined>;
+            /**
+             * A list of groups applied to the first process run in each container, in
+             * addition to the container's primary GID and fsGroup (if specified).  If
+             * the SupplementalGroupsPolicy feature is enabled, the
+             * supplementalGroupsPolicy field determines whether these are in addition
+             * to or instead of any group memberships defined in the container image.
+             * If unspecified, no additional groups are added, though group memberships
+             * defined in the container image may still be used, depending on the
+             * supplementalGroupsPolicy field.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            supplementalGroups?: pulumi.Input<pulumi.Input<number>[] | undefined>;
+            /**
+             * Defines how supplemental groups of the first container processes are calculated.
+             * Valid values are "Merge" and "Strict". If not specified, "Merge" is used.
+             * (Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled
+             * and the container runtime must implement support for this feature.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            supplementalGroupsPolicy?: pulumi.Input<string | undefined>;
+            /**
+             * Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported
+             * sysctls (by the container runtime) might fail to launch.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            sysctls?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyPodSecurityContextSysctls>[] | undefined>;
+            windowsOptions?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyPodSecurityContextWindowsOptions | undefined>;
+        }
+
+        /**
+         * appArmorProfile is the AppArmor options to use by the containers in this pod.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterStatusPolicyPodSecurityContextAppArmorProfile {
+            /**
+             * localhostProfile indicates a profile loaded on the node that should be used.
+             * The profile must be preconfigured on the node to work.
+             * Must match the loaded name of the profile.
+             * Must be set if and only if type is "Localhost".
+             */
+            localhostProfile?: pulumi.Input<string | undefined>;
+            /**
+             * type indicates which kind of AppArmor profile will be applied.
+             * Valid options are:
+             *   Localhost - a profile pre-loaded on the node.
+             *   RuntimeDefault - the container runtime's default profile.
+             *   Unconfined - no AppArmor enforcement.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The SELinux context to be applied to all containers.
+         * If unspecified, the container runtime will allocate a random SELinux context for each
+         * container.  May also be set in SecurityContext.  If set in
+         * both SecurityContext and PodSecurityContext, the value specified in SecurityContext
+         * takes precedence for that container.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterStatusPolicyPodSecurityContextSeLinuxOptions {
+            /**
+             * Level is SELinux level label that applies to the container.
+             */
+            level?: pulumi.Input<string | undefined>;
+            /**
+             * Role is a SELinux role label that applies to the container.
+             */
+            role?: pulumi.Input<string | undefined>;
+            /**
+             * Type is a SELinux type label that applies to the container.
+             */
+            type?: pulumi.Input<string | undefined>;
+            /**
+             * User is a SELinux user label that applies to the container.
+             */
+            user?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The seccomp options to use by the containers in this pod.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterStatusPolicyPodSecurityContextSeccompProfile {
+            /**
+             * localhostProfile indicates a profile defined in a file on the node should be used.
+             * The profile must be preconfigured on the node to work.
+             * Must be a descending path, relative to the kubelet's configured seccomp profile location.
+             * Must be set if type is "Localhost". Must NOT be set for any other type.
+             */
+            localhostProfile?: pulumi.Input<string | undefined>;
+            /**
+             * type indicates which kind of seccomp profile will be applied.
+             * Valid options are:
+             *
+             * Localhost - a profile defined in a file on the node should be used.
+             * RuntimeDefault - the container runtime default profile should be used.
+             * Unconfined - no profile should be applied.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Sysctl defines a kernel parameter to be set
+         */
+        export interface ClusterStatusPolicyPodSecurityContextSysctls {
+            /**
+             * Name of a property to set
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Value of a property to set
+             */
+            value?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The Windows specific settings applied to all containers.
+         * If unspecified, the options within a container's SecurityContext will be used.
+         * If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
+         * Note that this field cannot be set when spec.os.name is linux.
+         */
+        export interface ClusterStatusPolicyPodSecurityContextWindowsOptions {
+            /**
+             * GMSACredentialSpec is where the GMSA admission webhook
+             * (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the
+             * GMSA credential spec named by the GMSACredentialSpecName field.
+             */
+            gmsaCredentialSpec?: pulumi.Input<string | undefined>;
+            /**
+             * GMSACredentialSpecName is the name of the GMSA credential spec to use.
+             */
+            gmsaCredentialSpecName?: pulumi.Input<string | undefined>;
+            /**
+             * HostProcess determines if a container should be run as a 'Host Process' container.
+             * All of a Pod's containers must have the same effective HostProcess value
+             * (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).
+             * In addition, if HostProcess is true then HostNetwork must also be set to true.
+             */
+            hostProcess?: pulumi.Input<boolean | undefined>;
+            /**
+             * The UserName in Windows to run the entrypoint of the container process.
+             * Defaults to the user specified in image metadata if unspecified.
+             * May also be set in PodSecurityContext. If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             */
+            runAsUserName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * SecurityContext specifies custom container SecurityContext to be added
+         * to the agent and server containers of the cluster in virtual or shared mode.
+         */
+        export interface ClusterStatusPolicySecurityContext {
+            /**
+             * AllowPrivilegeEscalation controls whether a process can gain more
+             * privileges than its parent process. This bool directly controls if
+             * the no_new_privs flag will be set on the container process.
+             * AllowPrivilegeEscalation is true always when the container is:
+             * 1) run as Privileged
+             * 2) has CAP_SYS_ADMIN
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            allowPrivilegeEscalation?: pulumi.Input<boolean | undefined>;
+            appArmorProfile?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySecurityContextAppArmorProfile | undefined>;
+            capabilities?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySecurityContextCapabilities | undefined>;
+            /**
+             * Run container in privileged mode.
+             * Processes in privileged containers are essentially equivalent to root on the host.
+             * Defaults to false.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            privileged?: pulumi.Input<boolean | undefined>;
+            /**
+             * procMount denotes the type of proc mount to use for the containers.
+             * The default value is Default which uses the container runtime defaults for
+             * readonly paths and masked paths.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            procMount?: pulumi.Input<string | undefined>;
+            /**
+             * Whether this container has a read-only root filesystem.
+             * Default is false.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            readOnlyRootFilesystem?: pulumi.Input<boolean | undefined>;
+            /**
+             * The GID to run the entrypoint of the container process.
+             * Uses runtime default if unset.
+             * May also be set in PodSecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            runAsGroup?: pulumi.Input<number | undefined>;
+            /**
+             * Indicates that the container must run as a non-root user.
+             * If true, the Kubelet will validate the image at runtime to ensure that it
+             * does not run as UID 0 (root) and fail to start the container if it does.
+             * If unset or false, no such validation will be performed.
+             * May also be set in PodSecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             */
+            runAsNonRoot?: pulumi.Input<boolean | undefined>;
+            /**
+             * The UID to run the entrypoint of the container process.
+             * Defaults to user specified in image metadata if unspecified.
+             * May also be set in PodSecurityContext.  If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             * Note that this field cannot be set when spec.os.name is windows.
+             */
+            runAsUser?: pulumi.Input<number | undefined>;
+            seLinuxOptions?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySecurityContextSeLinuxOptions | undefined>;
+            seccompProfile?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySecurityContextSeccompProfile | undefined>;
+            windowsOptions?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySecurityContextWindowsOptions | undefined>;
+        }
+
+        /**
+         * appArmorProfile is the AppArmor options to use by this container. If set, this profile
+         * overrides the pod's appArmorProfile.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterStatusPolicySecurityContextAppArmorProfile {
+            /**
+             * localhostProfile indicates a profile loaded on the node that should be used.
+             * The profile must be preconfigured on the node to work.
+             * Must match the loaded name of the profile.
+             * Must be set if and only if type is "Localhost".
+             */
+            localhostProfile?: pulumi.Input<string | undefined>;
+            /**
+             * type indicates which kind of AppArmor profile will be applied.
+             * Valid options are:
+             *   Localhost - a profile pre-loaded on the node.
+             *   RuntimeDefault - the container runtime's default profile.
+             *   Unconfined - no AppArmor enforcement.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The capabilities to add/drop when running containers.
+         * Defaults to the default set of capabilities granted by the container runtime.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterStatusPolicySecurityContextCapabilities {
+            /**
+             * Added capabilities
+             */
+            add?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Removed capabilities
+             */
+            drop?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * The SELinux context to be applied to the container.
+         * If unspecified, the container runtime will allocate a random SELinux context for each
+         * container.  May also be set in PodSecurityContext.  If set in both SecurityContext and
+         * PodSecurityContext, the value specified in SecurityContext takes precedence.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterStatusPolicySecurityContextSeLinuxOptions {
+            /**
+             * Level is SELinux level label that applies to the container.
+             */
+            level?: pulumi.Input<string | undefined>;
+            /**
+             * Role is a SELinux role label that applies to the container.
+             */
+            role?: pulumi.Input<string | undefined>;
+            /**
+             * Type is a SELinux type label that applies to the container.
+             */
+            type?: pulumi.Input<string | undefined>;
+            /**
+             * User is a SELinux user label that applies to the container.
+             */
+            user?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The seccomp options to use by this container. If seccomp options are
+         * provided at both the pod & container level, the container options
+         * override the pod options.
+         * Note that this field cannot be set when spec.os.name is windows.
+         */
+        export interface ClusterStatusPolicySecurityContextSeccompProfile {
+            /**
+             * localhostProfile indicates a profile defined in a file on the node should be used.
+             * The profile must be preconfigured on the node to work.
+             * Must be a descending path, relative to the kubelet's configured seccomp profile location.
+             * Must be set if type is "Localhost". Must NOT be set for any other type.
+             */
+            localhostProfile?: pulumi.Input<string | undefined>;
+            /**
+             * type indicates which kind of seccomp profile will be applied.
+             * Valid options are:
+             *
+             * Localhost - a profile defined in a file on the node should be used.
+             * RuntimeDefault - the container runtime default profile should be used.
+             * Unconfined - no profile should be applied.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The Windows specific settings applied to all containers.
+         * If unspecified, the options from the PodSecurityContext will be used.
+         * If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
+         * Note that this field cannot be set when spec.os.name is linux.
+         */
+        export interface ClusterStatusPolicySecurityContextWindowsOptions {
+            /**
+             * GMSACredentialSpec is where the GMSA admission webhook
+             * (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the
+             * GMSA credential spec named by the GMSACredentialSpecName field.
+             */
+            gmsaCredentialSpec?: pulumi.Input<string | undefined>;
+            /**
+             * GMSACredentialSpecName is the name of the GMSA credential spec to use.
+             */
+            gmsaCredentialSpecName?: pulumi.Input<string | undefined>;
+            /**
+             * HostProcess determines if a container should be run as a 'Host Process' container.
+             * All of a Pod's containers must have the same effective HostProcess value
+             * (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).
+             * In addition, if HostProcess is true then HostNetwork must also be set to true.
+             */
+            hostProcess?: pulumi.Input<boolean | undefined>;
+            /**
+             * The UserName in Windows to run the entrypoint of the container process.
+             * Defaults to the user specified in image metadata if unspecified.
+             * May also be set in PodSecurityContext. If set in both SecurityContext and
+             * PodSecurityContext, the value specified in SecurityContext takes precedence.
+             */
+            runAsUserName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * serverAffinity is the affinity rules for server pods enforced by the active VirtualClusterPolicy.
+         * This includes both node affinity and pod affinity/anti-affinity rules.
+         */
+        export interface ClusterStatusPolicyServerAffinity {
+            nodeAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityNodeAffinity | undefined>;
+            podAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAffinity | undefined>;
+            podAntiAffinity?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAntiAffinity | undefined>;
+        }
+
+        /**
+         * Describes node affinity scheduling rules for the pod.
+         */
+        export interface ClusterStatusPolicyServerAffinityNodeAffinity {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and adding
+             * "weight" to the sum if the node matches the corresponding matchExpressions; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution | undefined>;
+        }
+
+        /**
+         * An empty preferred scheduling term matches all objects with implicit weight 0
+         * (i.e. it's a no-op). A null preferred scheduling term matches no objects (i.e. is also a no-op).
+         */
+        export interface ClusterStatusPolicyServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            preference?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference | undefined>;
+            /**
+             * Weight associated with matching the corresponding nodeSelectorTerm, in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * A node selector term, associated with the corresponding weight.
+         */
+        export interface ClusterStatusPolicyServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreference {
+            /**
+             * A list of node selector requirements by node's labels.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions>[] | undefined>;
+            /**
+             * A list of node selector requirements by node's fields.
+             */
+            matchFields?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterStatusPolicyServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchExpressions {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterStatusPolicyServerAffinityNodeAffinityPreferredDuringSchedulingIgnoredDuringExecutionPreferenceMatchFields {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * If the affinity requirements specified by this field are not met at
+         * scheduling time, the pod will not be scheduled onto the node.
+         * If the affinity requirements specified by this field cease to be met
+         * at some point during pod execution (e.g. due to an update), the system
+         * may or may not try to eventually evict the pod from its node.
+         */
+        export interface ClusterStatusPolicyServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            /**
+             * Required. A list of node selector terms. The terms are ORed.
+             */
+            nodeSelectorTerms?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms>[] | undefined>;
+        }
+
+        /**
+         * A null or empty node selector term matches no objects. The requirements of
+         * them are ANDed.
+         * The TopologySelectorTerm type implements a subset of the NodeSelectorTerm.
+         */
+        export interface ClusterStatusPolicyServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTerms {
+            /**
+             * A list of node selector requirements by node's labels.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions>[] | undefined>;
+            /**
+             * A list of node selector requirements by node's fields.
+             */
+            matchFields?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterStatusPolicyServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchExpressions {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A node selector requirement is a selector that contains values, a key, and an operator
+         * that relates the key and values.
+         */
+        export interface ClusterStatusPolicyServerAffinityNodeAffinityRequiredDuringSchedulingIgnoredDuringExecutionNodeSelectorTermsMatchFields {
+            /**
+             * The label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * An array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. If the operator is Gt or Lt, the values
+             * array must have a single element, which will be interpreted as an integer.
+             * This array is replaced during a strategic merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Describes pod affinity scheduling rules (e.g. co-locate this pod in the same node, zone, etc. as some other pod(s)).
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAffinity {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and adding
+             * "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+            /**
+             * If the affinity requirements specified by this field are not met at
+             * scheduling time, the pod will not be scheduled onto the node.
+             * If the affinity requirements specified by this field cease to be met
+             * at some point during pod execution (e.g. due to a pod label update), the
+             * system may or may not try to eventually evict the pod from its node.
+             * When there are multiple elements, the lists of nodes corresponding to each
+             * podAffinityTerm are intersected, i.e. all terms must be satisfied.
+             */
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+        }
+
+        /**
+         * The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm | undefined>;
+            /**
+             * weight associated with matching the corresponding podAffinityTerm,
+             * in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * Required. A pod affinity term, associated with the corresponding weight.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Defines a set of pods (namely those matching the labelSelector
+         * relative to the given namespace(s)) that this pod should be
+         * co-located (affinity) or not co-located (anti-affinity) with,
+         * where co-located is defined as running on a node whose value of
+         * the label with key <topologyKey> matches that of any node on which
+         * a pod of the set of pods is running
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Describes pod anti-affinity scheduling rules (e.g. avoid putting this pod in the same node, zone, etc. as some other pod(s)).
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAntiAffinity {
+            /**
+             * The scheduler will prefer to schedule pods to nodes that satisfy
+             * the anti-affinity expressions specified by this field, but it may choose
+             * a node that violates one or more of the expressions. The node that is
+             * most preferred is the one with the greatest sum of weights, i.e.
+             * for each node that meets all of the scheduling requirements (resource
+             * request, requiredDuringScheduling anti-affinity expressions, etc.),
+             * compute a sum by iterating through the elements of this field and subtracting
+             * "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
+             * node(s) with the highest sum are the most preferred.
+             */
+            preferredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+            /**
+             * If the anti-affinity requirements specified by this field are not met at
+             * scheduling time, the pod will not be scheduled onto the node.
+             * If the anti-affinity requirements specified by this field cease to be met
+             * at some point during pod execution (e.g. due to a pod label update), the
+             * system may or may not try to eventually evict the pod from its node.
+             * When there are multiple elements, the lists of nodes corresponding to each
+             * podAffinityTerm are intersected, i.e. all terms must be satisfied.
+             */
+            requiredDuringSchedulingIgnoredDuringExecution?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution>[] | undefined>;
+        }
+
+        /**
+         * The weights of all of the matched WeightedPodAffinityTerm fields are added per-node to find the most preferred node(s)
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecution {
+            podAffinityTerm?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm | undefined>;
+            /**
+             * weight associated with matching the corresponding podAffinityTerm,
+             * in the range 1-100.
+             */
+            weight?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * Required. A pod affinity term, associated with the corresponding weight.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTerm {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAntiAffinityPreferredDuringSchedulingIgnoredDuringExecutionPodAffinityTermNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Defines a set of pods (namely those matching the labelSelector
+         * relative to the given namespace(s)) that this pod should be
+         * co-located (affinity) or not co-located (anti-affinity) with,
+         * where co-located is defined as running on a node whose value of
+         * the label with key <topologyKey> matches that of any node on which
+         * a pod of the set of pods is running
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecution {
+            labelSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector | undefined>;
+            /**
+             * MatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both matchLabelKeys and labelSelector.
+             * Also, matchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            matchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * MismatchLabelKeys is a set of pod label keys to select which pods will
+             * be taken into consideration. The keys are used to lookup values from the
+             * incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)`
+             * to select the group of existing pods which pods will be taken into consideration
+             * for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming
+             * pod labels will be ignored. The default value is empty.
+             * The same key is forbidden to exist in both mismatchLabelKeys and labelSelector.
+             * Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
+             */
+            mismatchLabelKeys?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            namespaceSelector?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector | undefined>;
+            /**
+             * namespaces specifies a static list of namespace names that the term applies to.
+             * The term is applied to the union of the namespaces listed in this field
+             * and the ones selected by namespaceSelector.
+             * null or empty namespaces list and null namespaceSelector means "this pod's namespace".
+             */
+            namespaces?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * This pod should be co-located (affinity) or not co-located (anti-affinity) with the pods matching
+             * the labelSelector in the specified namespaces, where co-located is defined as running on a node
+             * whose value of the label with key topologyKey matches that of any node on which any of the
+             * selected pods is running.
+             * Empty topologyKey is not allowed.
+             */
+            topologyKey?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label query over a set of resources, in this case pods.
+         * If it's null, this PodAffinityTerm matches with no Pods.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionLabelSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label query over the set of namespaces that the term applies to.
+         * The term is applied to the union of the namespaces selected by this field
+         * and the ones listed in the namespaces field.
+         * null selector and null or empty namespaces list means "this pod's namespace".
+         * An empty selector ({}) matches all namespaces.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicyServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface ClusterStatusPolicyServerAffinityPodAntiAffinityRequiredDuringSchedulingIgnoredDuringExecutionNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * sync is the SyncConfig enforced by the active VirtualClusterPolicy.
+         */
+        export interface ClusterStatusPolicySync {
+            configMaps?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySyncConfigMaps | undefined>;
+            ingresses?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySyncIngresses | undefined>;
+            persistentVolumeClaims?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySyncPersistentVolumeClaims | undefined>;
+            priorityClasses?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySyncPriorityClasses | undefined>;
+            secrets?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySyncSecrets | undefined>;
+            services?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySyncServices | undefined>;
+            storageClasses?: pulumi.Input<inputs.k3k.v1beta1.ClusterStatusPolicySyncStorageClasses | undefined>;
+        }
+
+        /**
+         * ConfigMaps resources sync configuration.
+         */
+        export interface ClusterStatusPolicySyncConfigMaps {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Ingresses resources sync configuration.
+         */
+        export interface ClusterStatusPolicySyncIngresses {
+            /**
+             * DisableTLSSecretTranslation is an on/off switch for translating TLS secrets
+             * from virtual cluster to host cluster
+             */
+            disableTLSSecretTranslation?: pulumi.Input<boolean | undefined>;
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * PersistentVolumeClaims resources sync configuration.
+         */
+        export interface ClusterStatusPolicySyncPersistentVolumeClaims {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * PriorityClasses resources sync configuration.
+         */
+        export interface ClusterStatusPolicySyncPriorityClasses {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Secrets resources sync configuration.
+         */
+        export interface ClusterStatusPolicySyncSecrets {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Services resources sync configuration.
+         */
+        export interface ClusterStatusPolicySyncServices {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * StorageClasses resources sync configuration.
+         */
+        export interface ClusterStatusPolicySyncStorageClasses {
+            /**
+             * Enabled is an on/off switch for syncing resources.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Selector specifies set of labels of the resources that will be synced, if empty
+             * then all resources of the given type will be synced.
+             */
+            selector?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+    }
+}
+
 export namespace k8s {
     export namespace v1 {
         export interface NetworkAttachmentDefinition {

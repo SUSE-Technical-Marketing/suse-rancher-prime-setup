@@ -51,3 +51,13 @@ export class ClusterKubeconfig extends pulumi.dynamic.Resource {
         super(provider, name, { ...args, rancherKubeconfig: pulumi.secret(args.rancherKubeconfig), kubeconfig: undefined }, { ...opts, additionalSecretOutputs: ["kubeconfig"] }, "lab", "ClusterKubeconfig");
     }
 }
+
+/** The management cluster id (`c-m-...`) in a ClusterKubeconfig's server path: not a secret, unlike the kubeconfig. */
+export function managementClusterId(kubeconfig: pulumi.Output<string>): pulumi.Output<string> {
+    return pulumi.unsecret(kubeconfig.apply(k => {
+        const server: string = JSON.parse(k).clusters[0].cluster.server;
+        const id = /\/k8s\/clusters\/([^/]+)/.exec(server)?.[1];
+        if (!id) throw new Error(`no /k8s/clusters/<id> in ${server}`);
+        return id;
+    }));
+}

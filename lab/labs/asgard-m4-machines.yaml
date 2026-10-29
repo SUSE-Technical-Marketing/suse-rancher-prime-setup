@@ -12,7 +12,7 @@ spec:
   ssh:
     user: lab
     publicKey: { file: ~/.ssh/id_ed25519.pub }
-    privateKey: { $secret: ssh-key }
+    privateKey: "{{ secrets['ssh-key'] }}"
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: Machine
@@ -21,7 +21,7 @@ metadata:
 spec:
   address: machine-01.lab.geeko.me
   user: lab
-  os: leap-16
+  os: leap-16-k8s
   profiles:
     rke2: {}
 ---
@@ -32,7 +32,7 @@ metadata:
 spec:
   address: machine-02.lab.geeko.me
   user: lab
-  os: leap-16
+  os: leap-16-k8s
   profiles:
     rke2: {}
     metallb:
@@ -46,6 +46,6 @@ metadata:
 spec:
   address: machine-03.lab.geeko.me
   user: lab
-  os: leap-16
+  os: leap-16-k8s
   profiles:
     k3s: {}

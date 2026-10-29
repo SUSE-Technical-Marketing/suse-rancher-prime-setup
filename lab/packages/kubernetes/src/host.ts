@@ -32,12 +32,13 @@ export function sshConnection(host: HostAccess): command.types.input.remote.Conn
  * Wait until cloud-init has finished on the host. On failure the command prints the tail of
  * cloud-init's output log, so the Pulumi error shows what went wrong on the VM.
  */
-export function waitForCloudInit(name: string, host: HostAccess, opts?: pulumi.CustomResourceOptions): command.remote.Command {
+export function waitForCloudInit(name: string, host: HostAccess, timeoutSeconds: number, opts?: pulumi.CustomResourceOptions): command.remote.Command {
     return new command.remote.Command(name, {
         connection: sshConnection(host),
         create: [
-            "sudo cloud-init status --wait >/dev/null",
-            "|| { echo 'cloud-init failed; last lines of /var/log/cloud-init-output.log:' >&2;",
+            `sudo timeout ${timeoutSeconds} cloud-init status --wait >/dev/null`,
+            `|| { [ $? = 124 ] && echo 'cloud-init not done after ${timeoutSeconds}s' >&2 || echo 'cloud-init failed' >&2;`,
+            "echo 'last lines of /var/log/cloud-init-output.log:' >&2;",
             "sudo tail -n 40 /var/log/cloud-init-output.log >&2; exit 1; }",
         ].join(" "),
     }, opts);

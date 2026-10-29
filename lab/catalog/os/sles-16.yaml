@@ -6,9 +6,14 @@ metadata:
 spec:
   family: suse
   image: { url: null }
-  registration:
-    suseconnect:
-      regcode: { $secret: scc-regcode-sles }
-  packages: [ curl, git-core, bash-completion, vim, wget, qemu-guest-agent, firewalld ]
-  k8s:
-    packages: [ k3s-selinux ]
+  cloudInit:
+    # Register first: bootcmd runs before cloud-init installs packages, which an unregistered
+    # system can't. cloud-init-per once: on the first boot only.
+    bootcmd:
+      - cloud-init-per once register suseconnect --regcode '{{ secrets["scc-regcode-sles"] }}'
+    package_update: true
+    packages: [ curl, git-core, bash-completion, vim, wget, qemu-guest-agent, firewalld ]
+    runcmd:
+      - systemctl enable --now qemu-guest-agent
+      # Running from the first boot, not only after a reboot.
+      - systemctl enable --now firewalld

@@ -121,12 +121,12 @@ domain: lab.geeko.me           # base DNS domain for every host
 tls:
   acme: letsencrypt            # an AcmeServer (letsencrypt, letsencrypt-staging) or none
   email: me@example.com
-  cloudflare: { $secret: cloudflare-token }
+  cloudflare: "{{ secrets['cloudflare-token'] }}"
 
 ssh:                           # default login installed on every VM
   user: jeroen
   publicKey: { file: ~/.ssh/id_ed25519.pub }
-  privateKey: { $secret: ssh-key }
+  privateKey: "{{ secrets['ssh-key'] }}"
 
 catalog:                       # optional overrides of the engine's defaults (§16)
   components:
@@ -140,9 +140,21 @@ os: { ... }                    # optional extra/overridden OS profiles, §6
 images: { ... }                # optional image sources per OS, §6
 ```
 
-**Secret references.** Anywhere a secret is accepted, the value is `{ $secret: <name> }`. The lab
-file only names secrets; values come from the user's environment (§10). Non-secret file contents
-can be pulled in with `{ file: <path> }`.
+**Secrets are templates.** Anywhere a secret is accepted, the value is a Jinja2 template over the
+personal config's `secrets` (§10): `"{{ secrets.appco }}"`, or with brackets for a name with a dash,
+`"{{ secrets['ssh-key'] }}"`. A secret holding a username and password is used whole where a field
+takes credentials (`credentials: "{{ secrets.harbor }}"`), or by field (`"{{ secrets.scc.password }}"`);
+text around it is fine (`"Bearer {{ secrets.token }}"`). The lab file only names secrets; values come
+from the user's environment (§10).
+
+`validate` renders each template against placeholders: that checks it and finds which secrets it
+uses, and how, so `lab plan` can list them with their shape (a secret used whole is a string, one
+used by `.username` / `.password` is credentials; both at once is an error). The CLI resolves those
+values, and the program renders the templates with them; whatever comes out stays a Pulumi
+secret. A plain value in a secret field works, with a warning in a lab file. Templates using
+`secrets` are allowed in secret fields, in profile settings (chart values), in catalog inputs and
+in OS profiles' `cloudInit`; other strings that aren't templates are left alone. Non-secret file
+contents can be pulled in with `{ file: <path> }`.
 
 ### 5.2 Harvesters
 
@@ -150,15 +162,16 @@ can be pulled in with `{ file: <path> }`.
 harvesters:
   hv-north:
     url: https://hv-north.lab.geeko.me
-    credentials: { $secret: hv-north }      # { username, password }
-    clusterNetwork: mgmt
-    storageClass:                           # created by the lab
+    credentials: "{{ secrets['hv-north'] }}"      # { username, password }
+    clusterNetwork: mgmt                    # default: the catalog's Defaults (§17)
+    storageClass:                           # created by the lab; merged over the Defaults
       name: longhorn-single
       replicas: 1
+      parameters: { staleReplicaTimeout: "30", migratable: "true" }   # Longhorn parameters
     dns:                                    # harvester-dns-controller, always installed
       backend: routeros
       host: 10.29.100.1
-      credentials: { $secret: routeros }
+      credentials: "{{ secrets.routeros }}"
     networks:
       default: vlan100                      # network used by hosts that don't name one
       untagged:                             # always present; dhcp optional (existing DHCP server)
@@ -203,7 +216,7 @@ and downstream pools on each Harvester (§6).
 hosts:
   rancher:
     on: hv-north                 # a harvester name, or `ssh`
-    os: leap-16                  # OS profile (§6)
+    os: leap-16-k8s              # OS profile (§6); the -k8s variant for k3s / RKE2 hosts
     cpu: 4
     memory: 16Gi
     disk: 100Gi
@@ -217,11 +230,11 @@ hosts:
     on: ssh
     address: nuc-01.lab.geeko.me # its existing DNS name (or an IP)
     user: root                   # optional; default = ssh.user
-    os: sles-16                  # describes what is installed; used for package/registration steps
+    os: sles-16-k8s              # what's installed; its packages and runcmd run over SSH
     profiles: {}                 # used as a custom-cluster node in downstream.edge
 ```
 
-- `cpu`, `memory`, `disk` are required for Harvester hosts. There are no size presets.
+- `cpu`, `memory`, `disk` of a Harvester host (and of a downstream pool) default to the catalog's `Defaults` (`vm`: 4 CPUs, 8Gi, 40Gi). There are no size presets.
 - A Harvester host's FQDN is `<host>.<domain>`, registered by the DNS controller. Rancher is
   served at that FQDN by default (`https://rancher.lab.geeko.me`).
 - SSH hosts already have a DNS record. Their `address` is used as-is; the lab creates no records
@@ -243,7 +256,7 @@ profile. `lab profiles` prints the current list with all rules.
 | `sprouter` | requires `kubernetes`; provides `secret-propagation` | `version` | Copies labelled secrets (the wildcard certificate) into every namespace |
 | `traefik` | requires `kubernetes`; uses `load-balancer`; provides `ingress` (replacing the distribution's own Traefik) | `version`, `gatewayApi` | Gateway API CRDs + Traefik with its Gateway provider |
 | `outrider` | requires `kubernetes`; provides `downstream-secrets` | `version` | Propagates annotated secrets to downstream clusters |
-| `rancher` | requires `kubernetes`, `ingress`, `tls`, `secret-propagation`; uses `downstream-secrets` (a Fleet secret can need it, §16.3); secret `adminPassword` | `version`, `hostname`, `adminPassword`, `plugins`, `liz`, `fleet`, `values` | `RancherAccess` |
+| `rancher` | requires `kubernetes`, `ingress`, `tls`, `secret-propagation`; uses `downstream-secrets` (a Fleet secret can need it, §16.3); secret `adminPassword` | `version`, `hostname`, `adminPassword`, `plugins`, `liz`, `fleet`, `values`, `settings` (Rancher settings by name; `server-url` is the engine's), `features` (feature flags, merged over the default `harvester-baremetal-container-workload: true`) | `RancherAccess` |
 | `hauler` | provides `registry` (uses Kubernetes if the host has it, otherwise systemd) | `manifests`, `port` | `RegistryAccess` |
 | `mlm-server` | OS family `suse`; conflicts with `kubernetes` and `mlm-client`; secret `adminPassword` | `version`, `adminPassword`, `products` | `MlmAccess` |
 | `mlm-client` | `server` must name a host running `mlm-server` | `server`, `activationKey` | — |
@@ -259,12 +272,12 @@ profiles:
   traefik: {}
   outrider: {}
   rancher:
-    adminPassword: { $secret: rancher-admin }
+    adminPassword: "{{ secrets['rancher-admin'] }}"
     fleet:
       secrets:
-        appco: { $secret: appco }
-        scc: { $secret: scc }
-        suse-observability-license: { $secret: suse-observability-license }
+        appco: "{{ secrets.appco }}"
+        scc: "{{ secrets.scc }}"
+        suse-observability-license: "{{ secrets['suse-observability-license'] }}"
 ```
 
 Rancher is served at `rancher.<host>.<domain>` (the `hostname` setting changes the first label).
@@ -308,7 +321,7 @@ downstream:
         cpu: 4
         memory: 8Gi
         disk: 60Gi
-        os: sles-16
+        os: sles-16-k8s
         network: vlan100
       - name: workers
         quantity: 2
@@ -316,7 +329,7 @@ downstream:
         cpu: 4
         memory: 16Gi
         disk: 100Gi
-        os: sles-16
+        os: sles-16-k8s
 ```
 
 **Custom** — existing machines join a cluster Rancher defines:
@@ -333,33 +346,90 @@ downstream:
         roles: [etcd, controlplane, worker]
 ```
 
-`labels` are set on the `provisioning.cattle.io` Cluster. Rancher copies them to the Fleet
-cluster, so `fleet.groups` selectors match them.
+**k3k** — a virtual cluster inside another downstream cluster of the same Rancher, imported into
+Rancher the way its UI does it:
+
+```yaml
+downstream:
+  team-blue:
+    type: k3k
+    rancher: rancher
+    parent: apps                 # a harvester or custom cluster of this lab
+    mode: shared                 # shared (its workloads are pods of the parent) | virtual (own nodes, as pods) | hcp
+    servers: 1
+    agents: 0
+    version: v1.33.1-k3s1        # default: the parent's Kubernetes version
+    namespace: k3k-team-blue     # on the parent; the default
+    persistence: { type: dynamic, size: 5Gi }   # etcd on a PVC of the parent's default StorageClass, or type: ephemeral
+    labels: { team: blue }
+```
+
+The engine installs the k3k operator (the `k3k` HelmChart in the catalog) on every parent, once
+however many k3k clusters run in it. Per cluster it creates the `k3k.io` Cluster on the parent
+and waits for it, a `provisioning.cattle.io` Cluster without a spec (an imported cluster) whose
+`ui.rancher/*` annotations make Rancher's UI show it as k3k under its parent, and a Job on the
+parent that applies Rancher's import manifest with the virtual cluster's kubeconfig (its server is
+a Service only reachable from inside the parent; the Job's image is the Defaults `images.kubectl`).
+Then it waits for Ready, like the other clusters. On destroy the Rancher cluster goes first, then
+the k3k Cluster and its namespace; when the parent goes too, what's on it goes with it.
+
+`labels` and `annotations` are set on the `provisioning.cattle.io` Cluster. Rancher copies them to
+the Fleet cluster, so `fleet.groups` selectors match the labels and a `fleet.yaml` reads both
+(`.ClusterLabels`, `.ClusterAnnotations`; the apps use `hosted-domain`).
 
 ---
 
 ## 6. OS profiles
 
-OS profiles are **data, not code**. Each is a YAML document; adding an OS never needs TypeScript
-as long as it belongs to a known family. Only the families (how packages get installed, how
-users and repos are set up) are code, in `packages/os`.
+OS profiles are **data, not code**. Each is a YAML document holding the VM's whole cloud-config;
+adding an OS, or a variant of one, never needs TypeScript. Only the families (how an existing
+machine installs packages over SSH) are code, in `packages/os`.
 
 ```yaml
 # lab/catalog/os/sles-16.yaml
-name: sles-16
-displayName: SUSE Linux Enterprise Server 16.0
-family: suse                       # suse (zypper) | rhel (dnf) | debian (apt)
-image:
-  url: null                        # no public download; needs an images: entry (below)
-defaultUser: sles                  # the image's built-in user, disabled by cloud-init
-registration:
-  suseconnect:
-    regcode: { $secret: scc-regcode-sles }
-packages: [curl, vim, qemu-guest-agent]
-k8s:                               # extra setup when the host runs k3s/RKE2
-  packages: [k3s-selinux]
-cloudInit: {}                      # optional raw cloud-config, merged last
+kind: OperatingSystem
+metadata: { name: sles-16, description: SUSE Linux Enterprise Server 16.0 }
+spec:
+  family: suse                     # suse (zypper) | rhel (dnf) | debian (apt): for Machines
+  image:
+    url: null                      # no public download; needs an images: entry (below)
+  defaultUser: sles                # the image's built-in user, disabled by cloud-init
+  cloudInit:                       # the VM's cloud-config
+    bootcmd:                       # before cloud-init installs packages; once, on the first boot
+      - cloud-init-per once register suseconnect --regcode '{{ secrets["scc-regcode-sles"] }}'
+    package_update: true
+    packages: [curl, vim, qemu-guest-agent]
+    runcmd:
+      - systemctl enable --now qemu-guest-agent
 ```
+
+The engine only adds what depends on the host: the login (the lab's ssh user and key) and the
+hostname. The host's own commands (the distribution install, the profiles' commands) are appended
+to the profile's `runcmd`. A profile can't set the login or hostname keys (`users`,
+`system_info`, `ssh_authorized_keys`, `hostname`, `fqdn`, ...): `validate` rejects them.
+
+Strings in `cloudInit` can be Jinja2 templates (as in §17), with `secrets` (as everywhere, §5.1)
+and `lab` (`name`, `domain`). Registration is such a template: a `bootcmd`, because bootcmd runs
+before cloud-init installs `packages` and an unregistered SLES can't install anything, with
+`cloud-init-per once` so it runs on the first boot only. `validate` renders the templates with
+placeholders, so an unknown name is an error and the secrets they use are needed by the lab; the
+program renders them with the values, and the user data is a Pulumi secret. Shell such as `${x%.*}` or `%{VERSION}` is left alone: only `{{` and `{%`
+start a template (`{% raw %}` keeps one literal).
+
+**Variants are profiles.** Kubernetes nodes need more than a plain VM, so each OS has a `-k8s`
+variant (`leap-16-k8s`, `sles-16-k8s`, `rocky-9-k8s`, `ubuntu-24.04-k8s`) with the SELinux policy
+and Longhorn's needs (iSCSI, NFS, cryptsetup, `iscsid` started), and turns firewalld off, as the
+k3s and RKE2 docs advise (it conflicts with their CNIs and blocks the API and ingress); the plain
+profiles start it on the first boot, so a VM behaves the same before and after a reboot. Use it for every host that runs
+k3s or RKE2, every downstream pool, and every node of a custom cluster; nothing picks it for you.
+The SUSE variants also swap a minimal image's `kernel-default-base` (Leap 16 Minimal-VM) for the
+`kernel-default` of the same version: only that has `iscsi_tcp`, and the same version means the
+running kernel finds it without a reboot. If the repositories no longer have that version,
+cloud-init says so and Longhorn can't attach volumes until the VM runs a full kernel.
+
+**Existing machines** get no user data. A `Machine` gets its profile's `packages` (with the
+family's package manager) and `runcmd` over SSH; any other cloud-config key only applies to VMs,
+and `validate` warns about it.
 
 **Where profiles come from**, later sources winning:
 
@@ -370,16 +440,24 @@ cloudInit: {}                      # optional raw cloud-config, merged last
 
 OS profiles are one section of the catalog (§16).
 
-An entry with `extends: <name>` starts from another profile and overrides only the fields it
-sets, for example a variant with extra packages:
+An entry with `extends: <name>` starts from another profile. Its own fields win, and its
+`cloudInit` is merged into the parent's: lists (`packages`, `runcmd`, ...) are joined, parent
+first; maps are merged; other values are replaced. A variant with extra packages:
 
 ```yaml
 catalog:
   os:
     sles-16-dev:
       extends: sles-16
-      packages: [curl, vim, qemu-guest-agent, git, make]
+      cloudInit: { packages: [git, make] }   # added to sles-16's
 ```
+
+A variant without an `image` of its own boots its parent's: Harvester images and `images:`
+entries go by the name of the profile that sets the image, so `leap-16` and `leap-16-k8s` share
+one download and `images.sles-16` serves `sles-16-k8s` too.
+
+Layers are different from `extends`: a profile of the same name in the personal config or lab
+file replaces the built-in one's fields whole (its `cloudInit` too).
 
 `validate` checks every profile against the schema, that `family` is a known family, that
 `extends` chains end at an existing profile, and that each OS used has an image source.
@@ -533,7 +611,7 @@ Rules are expressed in **capabilities**. Every profile provides its own name, pl
 | `outputs` | Data other profiles on the host can use in their templates, by capability this profile provides (`tls: { secretName: wildcard-cert }`); only from the profile actually providing it on the host | resolver |
 | `settings` | The settings under `profiles.<name>`: a JSON Schema object (subset; `required` inside it) | resolver |
 
-All `{ $secret }` values anywhere in a profile's settings are collected automatically.
+Strings using `secrets` anywhere else in a profile's settings (chart values) are collected too, as string secrets.
 
 The rule checker (`profiles/rules.ts`) and the build order (`profileBuildOrder`, a topological sort
 over `requires`) only read these declarations, from the registry the catalog builds. Downstream
@@ -577,8 +655,8 @@ program's main loop.
 - **Networks** are only created when a host or pool uses them or they have DHCP.
 - **VM readiness** is the KubeVirt `AgentConnected` condition: the guest agent reports the IP,
   which the DNS controller needs. Every OS profile therefore installs `qemu-guest-agent`.
-- **Cloud-init** does registration, repositories and packages in `runcmd`, in that order, because
-  cloud-init's `packages:` module runs before `runcmd` and an unregistered SLES can't install.
+- **Cloud-init** is the OS profile's cloud-config (§6). SLES registration is the profile's once-only `bootcmd`,
+  because cloud-init's `packages:` module runs before `runcmd` and an unregistered SLES can't install.
   No network-data is sent: cloud-init's fallback configures DHCP on the first NIC.
 - **Image uploads from local files** are not implemented yet (download URLs only).
 
@@ -634,17 +712,17 @@ as root on each node with `@pulumi/command` `remote.Command`. Then the Cluster i
 Ready.
 
 A node is any host without a Kubernetes profile: a `Machine`, or a `HarvesterVM` with no
-profiles. A lab VM gets the OS profile's `k8s.packages` from its user data and is waited on until
-cloud-init is done; a `Machine` gets those packages installed over SSH before it registers (it
-has to be registered with its vendor already, and is never waited on for cloud-init).
+profiles, with a `-k8s` OS profile (§6). A lab VM gets that profile's setup from its user data and
+is waited on until cloud-init is done; a `Machine` gets its packages and `runcmd` over SSH before it
+registers (it has to be registered with its vendor already, and is never waited on for cloud-init).
 
 On destroy the Cluster is deleted first, while the nodes' agents still run; then every `Machine`
 node is cleaned up with the RKE2/k3s and `rancher-system-agent` uninstall scripts, because it is
 not deleted. A lab VM is just deleted.
 
 **Profiles on existing machines.** A `Machine` with profiles gets no user data (it may not even
-have cloud-init). What a VM's user data would run (the OS profile's `k8s.packages` when it gets
-Kubernetes, then the profiles' install commands, e.g. the distribution's config file and
+have cloud-init). What a VM's user data would run (the OS profile's `packages` and `runcmd`, then
+the profiles' install commands, e.g. the distribution's config file and
 `install`) runs over SSH as root instead, as one `remote.Command`. Its delete runs the profiles'
 uninstall scripts (a distribution's `uninstall`), last built first, because the machine stays;
 everything the profiles created on the machine's cluster is `deletedWith` that command, as it is
@@ -686,7 +764,7 @@ minutes to hours). Accepted for now; an external mirror can be added later.
 with dynamic providers). For every command it:
 
 1. loads and resolves the lab file,
-2. resolves all `$secret` references,
+2. resolves the secrets the lab's templates use,
 3. logs in to the state backend,
 4. creates or selects the stack named after `lab:`,
 5. writes the resolved lab (non-secret) and the secret values (as Pulumi secrets) into stack config,
@@ -701,7 +779,7 @@ secrets:
   cloudflare-token: env:CF_API_TOKEN
   ssh-key:          file:~/.ssh/id_ed25519
 harvesters:
-  hv-north: { url: https://hv-north.lab.geeko.me, credentials: { $secret: hv-north } }
+  hv-north: { url: https://hv-north.lab.geeko.me, credentials: "{{ secrets['hv-north'] }}" }
 images:
   sles-16: { file: ~/images/SLES-16.0-Minimal-VM.x86_64-Cloud.qcow2 }
 os: {}                    # personal OS profiles (§6)
@@ -789,7 +867,7 @@ sections are left out for brevity.
 ```yaml
 lab: rancher-mlm-airgap
 hosts:
-  rancher:  { on: hv-north, os: leap-16,      cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, rancher: {} } }
+  rancher:  { on: hv-north, os: leap-16-k8s,  cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, rancher: {} } }
   mlm:      { on: hv-north, os: sl-micro-6.1, cpu: 4, memory: 16Gi, disk: 300Gi, profiles: { mlm-server: {} } }
   registry: { on: hv-north, os: leap-16,      cpu: 2, memory: 4Gi,  disk: 200Gi, profiles: { hauler: { manifests: [rancher-2.15] } } }
 ```
@@ -799,7 +877,7 @@ hosts:
 ```yaml
 lab: rancher-harvester-rke2
 hosts:
-  rancher: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi,
+  rancher: { on: hv-north, os: leap-16-k8s, cpu: 4, memory: 16Gi, disk: 100Gi,
              profiles: { k3s: {}, rancher: {} } }
 catalog:
   fleet: { groups: { demo: { matchLabels: { env: demo } } } }
@@ -811,7 +889,7 @@ downstream:
     distro: rke2
     labels: { env: demo }
     pools:
-      - { name: all, quantity: 3, roles: [etcd, controlplane, worker], cpu: 4, memory: 8Gi, disk: 60Gi, os: sles-16 }
+      - { name: all, quantity: 3, roles: [etcd, controlplane, worker], cpu: 4, memory: 8Gi, disk: 60Gi, os: sles-16-k8s }
 ```
 
 **3. MLM managing four Linux distributions**
@@ -831,8 +909,8 @@ hosts:
 ```yaml
 lab: rancher-custom-edge
 hosts:
-  rancher: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, rancher: {} } }
-  nuc-01:  { on: ssh, address: nuc-01.lab.geeko.me, user: root, os: sles-16 }
+  rancher: { on: hv-north, os: leap-16-k8s, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, rancher: {} } }
+  nuc-01:  { on: ssh, address: nuc-01.lab.geeko.me, user: root, os: sles-16-k8s }
 downstream:
   edge:
     type: custom
@@ -852,7 +930,7 @@ downstream:
 | M1 ✅ | Harvester base (per-lab, derived images), Harvester hosts, OS profiles, DNS, unique naming | Plain VMs on one Harvester; `destroy --check` is clean. Deferred: a lab across two Harvesters (advanced), uploading local image files, host TLS with lego (moves to the first profile that needs it, M5/M6) |
 | M2 🟡 | SSH access, `k3s`/`rke2`, cluster TLS (cert-manager + Let's Encrypt), `rancher` (plugins, Fleet, Liz) | See §14.1. Done on asgard with k3s and RKE2, including clean teardown; open: a run with `letsencrypt` (production) and with the Fleet secrets |
 | M3 | Harvester import per harvester, `downstream.type: harvester`, cloud-provider config, labels → Fleet groups, teardown ordering | Reference lab 2 builds and destroys cleanly |
-| M4 🟡 | SSH hosts, `downstream.type: custom`, node cleanup | Reference lab 4. Done on asgard: a custom cluster on a lab VM (`labs/asgard-m4.yaml`), and profiles on `Machine`s (`labs/asgard-m4-machines.yaml` on the bare VMs of `labs/asgard-m4-vms.yaml`: k3s with ServiceLB, RKE2 with MetalLB), each with clean teardown and uninstall; open: a custom cluster on a `Machine` |
+| M4 ✅ | SSH hosts, `downstream.type: custom`, node cleanup | Reference lab 4. Done on asgard: a custom cluster on a lab VM (`labs/asgard-m4.yaml`); profiles on `Machine`s (`labs/asgard-m4-machines.yaml` on the bare VMs of `labs/asgard-m4-vms.yaml`: k3s with ServiceLB, RKE2 with MetalLB); Rancher on a `Machine` with a custom RKE2 cluster on two more (`labs/asgard-m4-custom.yaml`, on the same VMs); each with clean teardown and uninstall |
 | M5 | `hauler` (systemd and Kubernetes modes), manifests | Registry part of reference lab 1 |
 | M6 | `sl-micro-6.1`, `ubuntu-24.04`, `rocky-9`; `mlm-server`, `mlm-client` | Reference labs 1 and 3 |
 | M7 | Docs for lab authors (`lab/README.md`), more examples, `AGENTS.md` | Someone new can write a lab without reading TypeScript |
@@ -885,8 +963,8 @@ install, before the VM exists) and `build` (resources after it is up).
    with the tail of `cloud-init-output.log` when cloud-init failed. Works for Harvester VMs and
    `ssh` hosts alike.
 2. **`k3s` / `rke2`.** Installed from cloud-init as their `KubernetesDistribution` documents say
-   (install command, config file; §17), with the built-in ingress disabled there (Traefik is its own profile), firewall ports opened for the `suse` and `rhel`
-   families, and the OS profile's `k8s.packages`. The kubeconfig is read over SSH, its server
+   (install command, config file; §17), with the built-in ingress disabled there (Traefik is its own profile), on a `-k8s` OS
+   profile (§6), which turns firewalld off. The kubeconfig is read over SSH, its server
    rewritten to the host's address, and kept as a Pulumi secret: the one credential in state,
    encrypted, gone with the lab.
 3. **`cert-manager`.** Chart, Cloudflare token secret, a ClusterIssuer for the `AcmeServer`
@@ -894,7 +972,8 @@ install, before the VM exists) and `build` (resources after it is up).
    `sprouter.geeko.me/enabled`.
 4. **`sprouter`**, **`traefik`** (Gateway API CRDs first), **`outrider`**: as in `pulumi/` today.
 5. **`rancher`.** Rancher Prime chart with the Traefik ingress and the propagated wildcard secret,
-   `server-url`, the `harvester-baremetal-container-workload` feature, wait for the `local` Fleet
+   `server-url`, the profile's `settings` and `features` (by default the
+   `harvester-baremetal-container-workload` feature), wait for the `local` Fleet
    cluster to be Ready, bootstrap the admin password. Produces `RancherAccess`.
 6. **Plugins and Liz** inside the `rancher` profile (they are Rancher extensions).
 7. **Fleet** inside the `rancher` profile: the Fleet secrets named explicitly under
@@ -1023,14 +1102,14 @@ harvester-vm-dhcp-controller:
   Profile document declares them in `lockedValues` (merged last), next to `values` (defaults) and
   `namespace` (§7.6). The merge order is profile `values`, the lab's `values`, `lockedValues`.
   Values that depend on the host or other profiles are Jinja2 templates (§17).
-  `{ $secret: name }` works anywhere in a lab's `values`.
+  `"{{ secrets.name }}"` works anywhere in a lab's `values`.
 
 ```yaml
 hosts:
   rancher:
     profiles:
       rancher:
-        adminPassword: { $secret: rancher-admin }
+        adminPassword: "{{ secrets['rancher-admin'] }}"
         values: { auditLog: { enabled: true } }
 catalog:
   components:
@@ -1067,11 +1146,11 @@ hosts:
   rancher:
     profiles:
       rancher:
-        adminPassword: { $secret: rancher-admin }
+        adminPassword: "{{ secrets['rancher-admin'] }}"
         fleet:
           repos: [lab-setup-base, lab-setup-appco, team-apps]   # default: repos with default: true
 inputs:
-  appco: { $secret: appco }
+  appco: "{{ secrets.appco }}"
 catalog:
   fleet:
     groups: { demo: { matchLabels: { env: demo } } }
@@ -1113,6 +1192,15 @@ passthroughs for anything else Rancher supports: `machineGlobalConfig` and `char
 over the engine's. `machineGlobalConfig.cni` (use `cni`) and `chartValues.harvester-cloud-provider`
 stay engine-owned: setting them is a validation error, like 16.2's protected values.
 
+Every k3s or RKE2 server the lab makes (a single-node host, a downstream pool or custom node with
+the etcd or control-plane role) starts `lab-helm-watch` first: a transient systemd unit that, for
+`timeouts.helmJobWatch` (60m), deletes helm-controller Jobs (`helmcharts.helm.cattle.io/chart`)
+that stay suspended for 90s. helm-controller suspends a Job before it replaces it and sometimes
+never comes back to it; then that chart is never installed (once, the Harvester cloud provider,
+which kept a downstream node tainted for an hour). Deleted, helm-controller makes it again. The
+fix runs on the node because the cluster can't be reached through Rancher before its agent runs.
+`journalctl -u lab-helm-watch` shows what it deleted.
+
 ### 16.6 Secrets and configmaps
 
 Credentials, licenses and settings that clusters need are catalog entries of their own, built from
@@ -1130,16 +1218,16 @@ lab/catalog/
 type: kubernetes.io/basic-auth
 inputs: { appco: credentials }             # input name -> shape (string | credentials)
 data:
-  username: { $input: appco.username }
-  password: { $input: appco.password }
+  username: "{{ inputs.appco.username }}"
+  password: "{{ inputs.appco.password }}"
 
 # secrets/fleet-secrets.yaml (excerpt)
 requires: [downstream-secrets]             # Outrider, on the host it lands on, copies it downstream
 annotations: { outrider.geeko.me/enabled: "true", outrider.geeko.me/namespace: kube-system }
 inputs: { appco: credentials, scc: credentials, suse-observability-license: string }
 data:                                      # a map is stored as a YAML document (a values file)
-  appco-values.yaml: { username: { $input: appco.username }, token: { $input: appco.password } }
-  cert-manager-values.yaml: { letsencrypt: { prod: { email: { $lab: tls.email } } }, cloudflare: { token: { $lab: tls.cloudflare } } }
+  appco-values.yaml: { username: "{{ inputs.appco.username }}", token: "{{ inputs.appco.password }}" }
+  cert-manager-values.yaml: { letsencrypt: { prod: { email: "{{ lab.tls.email }}" } }, cloudflare: { token: "{{ lab.tls.cloudflare }}" } }
 ```
 
 **In the lab file**, `inputs:` gives the values (the personal config can hold defaults, the lab
@@ -1147,8 +1235,8 @@ wins), and hosts and downstream clusters list what they want:
 
 ```yaml
 inputs:
-  appco: { $secret: appco }
-  scc: { username: me, password: { $secret: scc-pw } }
+  appco: "{{ secrets.appco }}"
+  scc: { username: me, password: "{{ secrets['scc-pw'] }}" }
 hosts:
   rancher:
     secrets: [scc-suse-basicauth]                        # default namespace from the definition
@@ -1161,10 +1249,14 @@ downstream:
 Rules, all checked by `validate`:
 
 - **Values.** A `data` value is a single value, or a map or list stored as a YAML document. A key
-  whose refs aren't all given is left out; an object with no keys left isn't created.
-- **Refs instead of text templates.** `{ $input: x.y }` must name an input the object lists, with
-  the right field for its shape (`appco.username`, plain `license`); `{ $lab: … }` reads
-  `tls.email`, `tls.cloudflare` or `domain`.
+  whose inputs aren't all given is left out; an object with no keys left isn't created.
+- **Jinja2 templates.** Strings in `data` are templates over `inputs` and `lab`, as in Profiles.
+  `inputs.<name>` must be an input the object lists, used as its shape says
+  (`inputs.appco.username`, plain `inputs.license`); `lab` has `tls.email`, `tls.cloudflare` and
+  `domain`. A template must give a single value. Each is rendered once by the resolver against
+  placeholders, which checks it and finds what it uses. Without secrets in it, the resolver
+  renders it; with them, it goes to the program as `{ $template, inputs, lab }` with only the
+  values (secret refs) it uses, and the program renders it with the secrets.
 - **Inputs**: a lab can only pass inputs some object takes, in the declared shape; two objects
   declaring the same input with different shapes is an error.
 - **Listed by name means wanted**: an object a host or downstream cluster lists that can't be
@@ -1261,8 +1353,9 @@ document is.
 
 | Kind | `spec` | Catalog section it fills |
 |---|---|---|
-| `KubernetesDistribution` | `version`; `install` (a template with `version`, run as root); `configFile` and `config` (written before installing, with the host's FQDN as a `tls-san`); `withCapability.<capability>` (merged into `config`, lists joined, when another profile on the host provides that capability: `ingress` turns the distribution's own Traefik off, `load-balancer` its ServiceLB, `cloud-provider` sets up an external cloud controller); `kubeconfig`, `kubectl`, `dataDir`; `uninstall` (scripts for custom-cluster machines); `cni` (downstream default) | components (k3s, RKE2) |
+| `KubernetesDistribution` | `version`; `install` (a template with `version`, run as root); `configFile` and `config` (written before installing, with the host's FQDN as a `tls-san`); `withCapability.<capability>` (merged into `config`, lists joined, when another profile on the host provides that capability: `ingress` turns the distribution's own Traefik off, `load-balancer` its ServiceLB, `cloud-provider` sets up an external cloud controller); `kubeconfig`, `kubectl`, `dataDir`; `uninstall` (scripts for custom-cluster machines); `cni` (downstream default). An override's `config` and `withCapability` merge key by key (lists replaced) | components (k3s, RKE2) |
 | `AcmeServer` | `url` (the ACME directory), `ca` (PEM roots, for a CA nothing trusts) | ACME servers (`tls.acme`) |
+| `Defaults` | one, named `default`: `ssh.user` (a lab's `ssh.user`, and a Machine's `user`, default to it), `vm` (`cpu`, `memory`, `disk` of a HarvesterVM or downstream pool that doesn't give them), `harvester.clusterNetwork`, `harvester.storageClass` (`name`, `replicas`, `parameters`), `timeouts.<step>` (durations like `15m`: `harvesterAddon`, `image`, `vmStart`, `vmAddress`, `cloudInit`, `loadBalancerCleanup`, `kubernetesApi`, `resourceReady`, `certificate`, `rancherReady`, `uiPlugin`, `harvesterImport`, `clusterRegistration`, `downstreamReady`, `downstreamDelete`, `helmJobWatch`), `images.kubectl` (an image with kubectl and curl for jobs the engine runs on a cluster: a k3k cluster's import). Later layers override single fields, so a personal config can make one wait longer | what the engine uses where a lab doesn't say (`catalog/defaults.yaml`) |
 | `HelmChart` | `repo`, `chart`, `version`, `namespace` (default for host placements) | components |
 | `Manifest` | `url` (template), `version` | components |
 | `Profile` | `charts` / `distribution`, the rules of §7.6, `outputs`, `settings` (JSON Schema object) | profiles (§16.10) |

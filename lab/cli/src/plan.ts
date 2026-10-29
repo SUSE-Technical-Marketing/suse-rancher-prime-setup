@@ -37,13 +37,19 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
         line("Downstream clusters");
         for (const d of lab.downstream) {
             const labels = Object.entries(d.labels).map(([k, v]) => `${k}=${v}`).join(", ");
+            const annotations = Object.entries(d.annotations).map(([k, v]) => `${k}=${v}`).join(", ");
+            const meta = `${labels ? `, labels ${labels}` : ""}${annotations ? `, annotations ${annotations}` : ""}`;
             if (d.type === "harvester") {
-                line(`  ${d.name}  ${d.distro} on ${d.harvester}, managed by Rancher on ${d.rancher}${labels ? `, labels ${labels}` : ""}`);
+                line(`  ${d.name}  ${d.distro} on ${d.harvester}, managed by Rancher on ${d.rancher}${meta}`);
                 for (const p of d.pools) {
                     line(`    pool ${p.name}: ${p.quantity} × ${p.cpu} CPU / ${p.memory} / ${p.disk}, ${p.os}, network ${p.network} [${p.roles.join(", ")}]`);
                 }
+            } else if (d.type === "k3k") {
+                const persistence = d.persistence?.type === "ephemeral" ? "ephemeral" : `etcd on a ${d.persistence?.size ?? "default-size"} PVC (${d.persistence?.storageClass ?? "default StorageClass"})`;
+                line(`  ${d.name}  k3k ${d.mode} in ${d.parent} (namespace ${d.namespace}), managed by Rancher on ${d.rancher}${meta}`);
+                line(`    ${d.servers} server${d.servers > 1 ? "s" : ""}, ${d.agents} agent${d.agents === 1 ? "" : "s"}, k3s ${d.version ?? "as the parent"}, ${persistence}`);
             } else {
-                line(`  ${d.name}  custom ${d.distro}, managed by Rancher on ${d.rancher}${labels ? `, labels ${labels}` : ""}`);
+                line(`  ${d.name}  custom ${d.distro}, managed by Rancher on ${d.rancher}${meta}`);
                 for (const n of d.nodes) line(`    node ${n.host} [${n.roles.join(", ")}]`);
             }
         }
@@ -174,5 +180,14 @@ export function renderCatalog(catalog: ResolvedCatalog): string {
         `${value.displayName} (${value.family})`,
         shortSource(source.replace(/ \(catalog\.os\.[^)]*\)$/, "")),
     ]));
+    const d = catalog.defaults.value;
+    const src = shortSource(catalog.defaults.source);
+    const duration = (seconds: number) => seconds % 3600 === 0 ? `${seconds / 3600}h` : seconds % 60 === 0 ? `${seconds / 60}m` : `${seconds}s`;
+    out.push("", "Defaults");
+    table([
+        ["harvester.clusterNetwork", d.harvester.clusterNetwork, src],
+        ["harvester.storageClass", `${d.harvester.storageClass.name} (${d.harvester.storageClass.replicas} replica${d.harvester.storageClass.replicas > 1 ? "s" : ""}) ${Object.entries(d.harvester.storageClass.parameters).map(([k, v]) => `${k}=${v}`).join(" ")}`, src],
+        ...Object.entries(d.timeouts).map(([name, seconds]) => [`timeouts.${name}`, duration(seconds), src] as [string, string, string]),
+    ]);
     return out.join("\n");
 }

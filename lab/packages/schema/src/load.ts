@@ -54,7 +54,7 @@ export function loadBuiltinCatalog(dir: string, diags: Diagnostics): CatalogLaye
     return documentsLayer(documents, dir, diags, true);
 }
 
-interface ConfigFile<T> {
+export interface ConfigFile<T> {
     value: T;
     /** Its `include` documents, then the documents after the first one in the file. */
     layers: CatalogLayer[];
@@ -87,7 +87,8 @@ function loadConfigFile<T>(
     };
 }
 
-function loadPersonal(source: string, diags: Diagnostics): ConfigFile<PersonalConfig> | undefined {
+/** The personal config (a missing file is an empty one), with its catalog documents. */
+export function loadPersonal(source: string, diags: Diagnostics): ConfigFile<PersonalConfig> | undefined {
     if (!fs.existsSync(source)) return { value: PersonalConfig.parse({}), layers: [], labDocuments: [] };
     const file = loadConfigFile<PersonalConfig>(source, fs.readFileSync(source, "utf8"), "PersonalConfig", diags, ({ spec }) => {
         const parsed = PersonalConfig.safeParse(spec ?? {});

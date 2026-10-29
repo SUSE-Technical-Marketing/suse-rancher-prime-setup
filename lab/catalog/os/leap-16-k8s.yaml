@@ -1,0 +1,25 @@
+# For k3s / RKE2 nodes: what Longhorn needs on every node. iSCSI for its volumes, NFS for RWX
+# volumes, cryptsetup for encrypted ones.
+apiVersion: lab.geeko.me/v1alpha1
+kind: OperatingSystem
+metadata:
+  name: leap-16-k8s
+  description: openSUSE Leap 16.0, for k3s / RKE2 nodes
+spec:
+  extends: leap-16
+  cloudInit:
+    packages: [ k3s-selinux, open-iscsi, nfs-client, cryptsetup ]
+    runcmd:
+      # Minimal images (Leap 16 Minimal-VM) ship kernel-default-base, which has no iscsi_tcp: swap it
+      # for the kernel-default of the same version, so the running kernel finds the module without a
+      # reboot. kernel-default-base's release is kernel-default's plus three parts (160000.39.1 + .160000.2.28).
+      - |
+        if rpm -q kernel-default-base >/dev/null 2>&1; then
+          r=$(rpm -q --qf '%{VERSION}-%{RELEASE}' kernel-default-base)
+          zypper --non-interactive install --no-recommends --oldpackage "kernel-default = ${r%.*.*.*}" -kernel-default-base \
+            || echo "kernel-default ${r%.*.*.*} not available: Longhorn needs iscsi_tcp" >&2
+        fi
+      - systemctl enable --now iscsid
+      # No firewalld on Kubernetes nodes, as the k3s and RKE2 docs advise: it conflicts with their
+      # CNIs, and would block the API and ingress. Lab VMs sit on lab VLANs.
+      - systemctl disable --now firewalld 2>/dev/null || true

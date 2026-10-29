@@ -45,8 +45,8 @@ describe("resolveSecrets", () => {
 describe("credentialsFrom", () => {
     it("handles a whole-credentials secret and a password secret", () => {
         const secrets = { hv: { username: "admin", password: "x" }, pw: "y" };
-        expect(credentialsFrom({ $secret: "hv" }, secrets)).toEqual({ username: "admin", password: "x" });
-        expect(credentialsFrom({ username: "root", password: { $secret: "pw" } }, secrets)).toEqual({ username: "root", password: "y" });
+        expect(credentialsFrom("{{ secrets.hv }}", secrets)).toEqual({ username: "admin", password: "x" });
+        expect(credentialsFrom({ username: "root", password: "{{ secrets.pw }}" }, secrets)).toEqual({ username: "root", password: "y" });
         expect(credentialsFrom({ username: "root", password: "inline" }, secrets)).toEqual({ username: "root", password: "inline" });
     });
 });

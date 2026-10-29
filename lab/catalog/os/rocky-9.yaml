@@ -8,6 +8,8 @@ spec:
   image:
     url: https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2
   defaultUser: rocky
-  packages: [ curl, git, bash-completion, vim-enhanced, wget, tree, qemu-guest-agent ]
-  k8s:
-    packages: [ container-selinux ]
+  cloudInit:
+    package_update: true
+    packages: [ curl, git, bash-completion, vim-enhanced, wget, tree, qemu-guest-agent ]
+    runcmd:
+      - systemctl enable --now qemu-guest-agent

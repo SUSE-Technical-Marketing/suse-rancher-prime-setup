@@ -2,8 +2,8 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { stringify } from "yaml";
 
-/** A template leaf: a literal, or (part of) one of the lab's secrets. */
-export type ObjectLeaf = string | { $secret: string; key?: "username" | "password" };
+/** A template leaf: a literal, or a template the program renders with the lab's secrets. */
+export type ObjectLeaf = string | { $template: string };
 
 /** A Secret or ConfigMap from the catalog (DESIGN.md §16.6), with its inputs resolved to leaves. */
 export interface ClusterObject {
@@ -23,7 +23,7 @@ export interface ClusterObjectsArgs {
     value(leaf: ObjectLeaf): pulumi.Input<string>;
 }
 
-const isLeafRef = (v: unknown): v is { $secret: string } => typeof v === "object" && v !== null && "$secret" in v;
+const isLeafRef = (v: unknown): v is { $template: string } => typeof v === "object" && v !== null && "$template" in v;
 
 /** Namespaces every cluster has; the others are created (or adopted) first. */
 const BUILT_IN_NAMESPACES = new Set(["default", "kube-system", "kube-public"]);
