@@ -72,11 +72,10 @@ const nodeGroups = computed<any[]>(() => spec.value.nodeGroups ?? []);
 const onAws = computed(() => type.value === "ec2" || type.value === "eks");
 /** Common sizes for lab nodes; any instance type works. */
 const EC2_TYPES = ["t3.medium", "t3.large", "t3.xlarge", "t3.2xlarge", "m6i.large", "m6i.xlarge", "m6i.2xlarge", "c6i.xlarge", "r6i.xlarge"];
-const osHint = (os?: string) => (os && !os.endsWith("-k8s") && catalog.value?.os.some(o => o.name === `${os}-k8s`) ? `use ${os}-k8s for Kubernetes nodes` : undefined);
 
 function addPool() {
-  const k8s = catalog.value?.os.find(o => o.name.endsWith("-k8s") && (type.value !== "ec2" || o.ami))?.name;
-  append(props.index, ["spec", "pools"], { name: pools.value.length ? `pool-${pools.value.length + 1}` : "all", quantity: 1, roles: ["etcd", "controlplane", "worker"], ...(k8s ? { os: k8s } : {}) });
+  const os = catalog.value?.os.find(o => type.value !== "ec2" || o.ami)?.name;
+  append(props.index, ["spec", "pools"], { name: pools.value.length ? `pool-${pools.value.length + 1}` : "all", quantity: 1, roles: ["etcd", "controlplane", "worker"], ...(os ? { os } : {}) });
 }
 function addNodeGroup() {
   append(props.index, ["spec", "nodeGroups"], { name: nodeGroups.value.length ? `group-${nodeGroups.value.length + 1}` : "general", quantity: 2 });
@@ -145,13 +144,13 @@ function addNode() {
           <TextField label="quantity" number required v-bind="bind(['spec', 'pools', i, 'quantity'])" />
           <RolesField v-bind="bind(['spec', 'pools', i, 'roles'])" />
           <template v-if="type === 'ec2'">
-            <SelectField label="OS" required :options="amiOs" :hint="osHint(pool.os) ?? 'OS profiles with an AMI'" v-bind="bind(['spec', 'pools', i, 'os'])" />
+            <SelectField label="OS" required :options="amiOs" hint="OS profiles with an AMI" v-bind="bind(['spec', 'pools', i, 'os'])" />
             <TextField label="instance type" :placeholder="`default ${catalog?.defaults.aws.instanceType}`" list="ec2-types" v-bind="bind(['spec', 'pools', i, 'instanceType'])" />
             <TextField label="disk" :placeholder="`default ${defaults?.disk}`" hint="root volume, gp3" v-bind="bind(['spec', 'pools', i, 'disk'])" />
             <SelectField label="zone" :options="zones" :empty="`the site's first (${zones[0] ?? 'a'})`" v-bind="bind(['spec', 'pools', i, 'zone'])" />
           </template>
           <template v-else>
-            <SelectField label="OS" required :options="osOptions" :hint="osHint(pool.os)" v-bind="bind(['spec', 'pools', i, 'os'])" />
+            <SelectField label="OS" required :options="osOptions" v-bind="bind(['spec', 'pools', i, 'os'])" />
             <TextField label="CPUs" number :placeholder="`default ${defaults?.cpu}`" v-bind="bind(['spec', 'pools', i, 'cpu'])" />
             <TextField label="memory" :placeholder="`default ${defaults?.memory}`" v-bind="bind(['spec', 'pools', i, 'memory'])" />
             <TextField label="disk" :placeholder="`default ${defaults?.disk}`" v-bind="bind(['spec', 'pools', i, 'disk'])" />

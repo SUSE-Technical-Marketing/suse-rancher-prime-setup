@@ -1,8 +1,12 @@
-import { renderTemplates, type CloudInitVars, type OsFamily, type ResolvedOs } from "@lab/schema";
+import { osCloudInit, renderTemplates, type CloudInitVars, type OsFamily, type ResolvedOs } from "@lab/schema";
 import { stringify } from "yaml";
 
 export interface CloudConfigInput {
     os: ResolvedOs;
+    /** A Harvester VM: the OS profile's `harvester` part too (the guest agent). */
+    harvester: boolean;
+    /** It runs Kubernetes: the OS profile's `kubernetes` part too. */
+    kubernetes: boolean;
     /** Left out for machines Rancher provisions: it names them. */
     hostname?: string;
     fqdn?: string;
@@ -34,9 +38,9 @@ const INSTALL: Record<OsFamily, (packages: string[]) => string[]> = {
     ],
 };
 
-/** The OS profile's cloud-config with its templates rendered. */
-function cloudInit(os: ResolvedOs, vars: CloudInitVars): Record<string, unknown> {
-    return renderTemplates(os.cloudInit, vars, "cloudInit", (at, message) => {
+/** The OS profile's cloud-config for a host, its templates rendered. */
+function cloudInit(os: ResolvedOs, config: Record<string, unknown>, vars: CloudInitVars): Record<string, unknown> {
+    return renderTemplates(config, vars, "cloudInit", (at, message) => {
         throw new Error(`OS profile ${os.name}: ${at}: ${message}`);
     }) as Record<string, unknown>;
 }
@@ -49,7 +53,7 @@ const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
  * commands are appended to the profile's `runcmd`.
  */
 export function renderCloudConfig(input: CloudConfigInput): string {
-    const os = cloudInit(input.os, input.vars);
+    const os = cloudInit(input.os, osCloudInit(input.os, { created: true, harvester: input.harvester, kubernetes: input.kubernetes }), input.vars);
     const login = {
         name: input.user.name,
         sudo: "ALL=(ALL) NOPASSWD:ALL",
@@ -70,12 +74,13 @@ export function renderCloudConfig(input: CloudConfigInput): string {
 }
 
 /**
- * Commands (run as root over SSH) that do for an existing machine what a VM's user data would:
- * install the OS profile's `packages` with the family's package manager, then run its `runcmd`.
- * Other cloud-config keys need cloud-init and are skipped (the resolver warns).
+ * Commands (run as root over SSH) that ready an existing machine for Kubernetes: the OS profile's
+ * `kubernetes` part, its `packages` installed with the family's package manager, then its `runcmd`.
+ * Nothing for a machine that doesn't run Kubernetes: it's someone's box, set up as it is. Other
+ * cloud-config keys need cloud-init and are skipped (the resolver warns).
  */
-export function machineSetup(os: ResolvedOs, vars: CloudInitVars): string[] {
-    const config = cloudInit(os, vars);
+export function machineSetup(os: ResolvedOs, vars: CloudInitVars, kubernetes: boolean): string[] {
+    const config = cloudInit(os, osCloudInit(os, { created: false, harvester: false, kubernetes }), vars);
     const packages = list(config.packages).filter((p): p is string => typeof p === "string");
     const runcmd = list(config.runcmd).map(c => (Array.isArray(c) ? c.map(a => quote(String(a))).join(" ") : String(c)));
     return [...(packages.length > 0 ? INSTALL[os.family](packages) : []), ...runcmd];

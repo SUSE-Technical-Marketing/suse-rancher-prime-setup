@@ -47,7 +47,7 @@ metadata:
   name: rancher
 spec:
   harvester: asgard
-  os: leap-16-k8s
+  os: leap-16
   cpu: 4
   memory: 16Gi
   disk: 100Gi
@@ -68,7 +68,7 @@ metadata:
   description: A plain VM that joins the metal cluster, like an existing machine would
 spec:
   harvester: asgard
-  os: leap-16-k8s
+  os: leap-16
   cpu: 4
   memory: 8Gi
   disk: 60Gi

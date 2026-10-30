@@ -25,16 +25,16 @@ kind: HarvesterVM
 metadata: { name: rancher }
 spec:
   harvester: hv
-  os: leap-16-k8s
+  os: leap-16
   profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: "{{ secrets.admin }}" } }
 ---
 kind: DownstreamCluster
 metadata: { name: apps }
-spec: { type: harvester, rancher: rancher, harvester: hv, pools: [ { name: all, quantity: 1, roles: [ etcd, controlplane, worker ], os: leap-16-k8s } ] }
+spec: { type: harvester, rancher: rancher, harvester: hv, pools: [ { name: all, quantity: 1, roles: [ etcd, controlplane, worker ], os: leap-16 } ] }
 ---
 kind: DownstreamCluster
 metadata: { name: edge }
-spec: { type: harvester, rancher: rancher, harvester: hv, distro: k3s, pools: [ { name: all, quantity: 1, roles: [ etcd, controlplane, worker ], os: leap-16-k8s } ] }
+spec: { type: harvester, rancher: rancher, harvester: hv, distro: k3s, pools: [ { name: all, quantity: 1, roles: [ etcd, controlplane, worker ], os: leap-16 } ] }
 ---
 kind: DownstreamCluster
 metadata: { name: team-a }

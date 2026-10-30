@@ -33,7 +33,7 @@ metadata:
   name: rancher
 spec:
   harvester: hv-north
-  os: leap-16-k8s
+  os: leap-16
   cpu: 4
   memory: 16Gi
   disk: 100Gi
@@ -54,7 +54,7 @@ spec:
   # physical machine with an existing DNS record
   address: nuc-01.lab.geeko.me
   user: root
-  os: sles-16-k8s
+  os: sles-16
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: DownstreamCluster

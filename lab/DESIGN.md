@@ -237,7 +237,7 @@ and downstream pools on each Harvester (§6).
 hosts:
   rancher:
     on: hv-north                 # a harvester name, or `ssh`
-    os: leap-16-k8s              # OS profile (§6); the -k8s variant for k3s / RKE2 hosts
+    os: leap-16                  # OS profile (§6)
     cpu: 4
     memory: 16Gi
     disk: 100Gi
@@ -251,7 +251,7 @@ hosts:
     on: ssh
     address: nuc-01.lab.geeko.me # its existing DNS name (or an IP)
     user: root                   # optional; default = ssh.user
-    os: sles-16-k8s              # what's installed; its packages and runcmd run over SSH
+    os: sles-16                  # what's installed; its kubernetes part runs over SSH if it runs Kubernetes
     profiles: {}                 # used as a metal-cluster node in downstream.edge
 ```
 
@@ -344,7 +344,7 @@ downstream:
         cpu: 4
         memory: 8Gi
         disk: 60Gi
-        os: sles-16-k8s
+        os: sles-16
         network: vlan100
       - name: workers
         quantity: 2
@@ -352,7 +352,7 @@ downstream:
         cpu: 4
         memory: 16Gi
         disk: 100Gi
-        os: sles-16-k8s
+        os: sles-16
 ```
 
 **On EC2** — Rancher creates the machines through its Amazon EC2 node driver, in the lab's VPC on
@@ -371,13 +371,13 @@ downstream:
         roles: [etcd, controlplane]
         instanceType: t3.large   # default: Defaults aws.instanceType
         disk: 60Gi               # root volume (gp3); default: Defaults vm.disk
-        os: ubuntu-24.04-k8s     # an OS profile with an ami
+        os: ubuntu-24.04     # an OS profile with an ami
         zone: a                  # default: the site's first zone
       - name: workers
         quantity: 2
         roles: [worker]
         instanceType: m6i.xlarge
-        os: ubuntu-24.04-k8s
+        os: ubuntu-24.04
         zone: b
 ```
 
@@ -520,7 +520,7 @@ created.
 
 ## 6. OS profiles
 
-OS profiles are **data, not code**. Each is a YAML document holding the VM's whole cloud-config;
+OS profiles are **data, not code**. Each is a YAML document holding the host's whole cloud-config;
 adding an OS, or a variant of one, never needs TypeScript. Only the families (how an existing
 machine installs packages over SSH) are code, in `packages/os`.
 
@@ -533,13 +533,23 @@ spec:
   image:
     url: null                      # no public download; needs an images: entry (below)
   defaultUser: sles                # the image's built-in user, disabled by cloud-init
-  cloudInit:                       # the VM's cloud-config
+  cloudInit:                       # a host the lab creates: a VM, a cluster's machine
     bootcmd:                       # before cloud-init installs packages; once, on the first boot
       - cloud-init-per once register suseconnect --regcode '{{ secrets["scc-regcode-sles"] }}'
     package_update: true
-    packages: [curl, vim, qemu-guest-agent]
+    packages: [curl, vim, firewalld]
     runcmd:
-      - systemctl enable --now qemu-guest-agent
+      - systemctl enable --now firewalld
+  harvester:                       # added on Harvester VMs only
+    cloudInit:
+      packages: [qemu-guest-agent]
+      runcmd: [systemctl enable --now qemu-guest-agent]
+  kubernetes:                      # added on every host that runs Kubernetes
+    cloudInit:
+      packages: [k3s-selinux, open-iscsi, nfs-client, cryptsetup]
+      runcmd:
+        - systemctl enable --now iscsid
+        - systemctl disable --now firewalld 2>/dev/null || true
 ```
 
 The engine only adds what depends on the host: the login (the lab's ssh user and key) and the
@@ -548,27 +558,37 @@ to the profile's `runcmd`. A profile can't set the login or hostname keys (`user
 `system_info`, `ssh_authorized_keys`, `hostname`, `fqdn`, ...): `validate` rejects them.
 
 Strings in `cloudInit` can be Jinja2 templates (as in §17), with `secrets` (as everywhere, §5.1)
-and `lab` (`name`, `domain`). Registration is such a template: a `bootcmd`, because bootcmd runs
+and `lab` (`name`, `domain`, `vars`). Registration is such a template: a `bootcmd`, because bootcmd runs
 before cloud-init installs `packages` and an unregistered SLES can't install anything, with
 `cloud-init-per once` so it runs on the first boot only. `validate` renders the templates with
 placeholders, so an unknown name is an error and the secrets they use are needed by the lab; the
 program renders them with the values, and the user data is a Pulumi secret. Shell such as `${x%.*}` or `%{VERSION}` is left alone: only `{{` and `{%`
 start a template (`{% raw %}` keeps one literal).
 
-**Variants are profiles.** Kubernetes nodes need more than a plain VM, so each OS has a `-k8s`
-variant (`leap-16-k8s`, `sles-16-k8s`, `rocky-9-k8s`, `ubuntu-24.04-k8s`) with the SELinux policy
-and Longhorn's needs (iSCSI, NFS, cryptsetup, `iscsid` started), and turns firewalld off, as the
-k3s and RKE2 docs advise (it conflicts with their CNIs and blocks the API and ingress); the plain
-profiles start it on the first boot, so a VM behaves the same before and after a reboot. Use it for every host that runs
-k3s or RKE2, every downstream pool, and every node of a metal cluster; nothing picks it for you.
-The SUSE variants also swap a minimal image's `kernel-default-base` (Leap 16 Minimal-VM) for the
-`kernel-default` of the same version: only that has `iscsi_tcp`, and the same version means the
-running kernel finds it without a reboot. If the repositories no longer have that version,
-cloud-init says so and Longhorn can't attach volumes until the VM runs a full kernel.
+**Sections by where the host runs and what it runs.** A host's cloud-config is put together from
+its OS profile by the engine, from what the host is; the OS is just the OS (`os: leap-16`):
 
-**Existing machines** get no user data. A `Machine` gets its profile's `packages` (with the
-family's package manager) and `runcmd` over SSH; any other cloud-config key only applies to VMs,
-and `validate` warns about it.
+| Host | Gets |
+|---|---|
+| Harvester VM | `cloudInit`, `harvester`, and `kubernetes` when it runs k3s / RKE2 or is a metal cluster's node |
+| Harvester cluster's machine (a pool) | `cloudInit`, `harvester`, `kubernetes` |
+| EC2 cluster's machine | `cloudInit`, `kubernetes` |
+| Existing `Machine` | `kubernetes` when it runs k3s / RKE2 or is a metal cluster's node; otherwise nothing |
+
+`harvester` is the guest agent, which reports the VM's address and lets Harvester shut it down; it
+means nothing on EC2 or on someone's own machine. `kubernetes` has the SELinux policy and Longhorn's
+needs (iSCSI, NFS, cryptsetup, `iscsid` started), and turns firewalld off, as the k3s and RKE2 docs
+advise (it conflicts with their CNIs and blocks the API and ingress); the base starts it on the
+first boot, so a VM behaves the same before and after a reboot. The SUSE profiles' `kubernetes`
+also swaps a minimal image's `kernel-default-base` (Leap 16 Minimal-VM) for the `kernel-default` of
+the same version: only that has `iscsi_tcp`, and the same version means the running kernel finds it
+without a reboot. If the repositories no longer have that version, cloud-init says so and Longhorn
+can't attach volumes until the VM runs a full kernel.
+
+**Existing machines** get no user data, and are someone's own: no base packages, no guest agent, no
+firewall changes. One that runs Kubernetes gets its profile's `kubernetes` `packages` (with the
+family's package manager) and `runcmd` over SSH; any other cloud-config key there only applies to
+VMs, and `validate` warns about it.
 
 **Where profiles come from**, later sources winning:
 
@@ -580,8 +600,8 @@ and `validate` warns about it.
 OS profiles are one section of the catalog (§16).
 
 An entry with `extends: <name>` starts from another profile. Its own fields win, and its
-`cloudInit` is merged into the parent's: lists (`packages`, `runcmd`, ...) are joined, parent
-first; maps are merged; other values are replaced. A variant with extra packages:
+`cloudInit` (and each section's) is merged into the parent's: lists (`packages`, `runcmd`, ...) are
+joined, parent first; maps are merged; other values are replaced. A variant with extra packages:
 
 ```yaml
 catalog:
@@ -592,8 +612,8 @@ catalog:
 ```
 
 A variant without an `image` of its own boots its parent's: Harvester images and `images:`
-entries go by the name of the profile that sets the image, so `leap-16` and `leap-16-k8s` share
-one download and `images.sles-16` serves `sles-16-k8s` too.
+entries go by the name of the profile that sets the image, so `sles-16` and `sles-16-dev` share
+one download and `images.sles-16` serves both.
 
 Layers are different from `extends`: a profile of the same name in the personal config or lab
 file replaces the built-in one's fields whole (its `cloudInit` too).
@@ -865,9 +885,9 @@ as root on each node with `@pulumi/command` `remote.Command`. Then the Cluster i
 Ready.
 
 A node is any host without a Kubernetes profile: a `Machine`, or a `HarvesterVM` with no
-profiles, with a `-k8s` OS profile (§6). A lab VM gets that profile's setup from its user data and
-is waited on until cloud-init is done; a `Machine` gets its packages and `runcmd` over SSH before it
-registers (it has to be registered with its vendor already, and is never waited on for cloud-init).
+profiles; as a Kubernetes host it gets its OS profile's `kubernetes` part (§6). A lab VM gets it from
+its user data and is waited on until cloud-init is done; a `Machine` gets that part's packages and
+`runcmd` over SSH before it registers (it has to be registered with its vendor already, and is never waited on for cloud-init).
 
 On destroy the Cluster is deleted first, while the nodes' agents still run; then every `Machine`
 node is cleaned up with the RKE2/k3s and `rancher-system-agent` uninstall scripts, because it is
@@ -1038,7 +1058,7 @@ sections are left out for brevity.
 ```yaml
 lab: rancher-mlm-airgap
 hosts:
-  rancher:  { on: hv-north, os: leap-16-k8s,  cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, rancher: {} } }
+  rancher:  { on: hv-north, os: leap-16,  cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, rancher: {} } }
   mlm:      { on: hv-north, os: sl-micro-6.1, cpu: 4, memory: 16Gi, disk: 300Gi, profiles: { mlm-server: {} } }
   registry: { on: hv-north, os: leap-16,      cpu: 2, memory: 4Gi,  disk: 200Gi, profiles: { hauler: { manifests: [rancher-2.15] } } }
 ```
@@ -1048,7 +1068,7 @@ hosts:
 ```yaml
 lab: rancher-harvester-rke2
 hosts:
-  rancher: { on: hv-north, os: leap-16-k8s, cpu: 4, memory: 16Gi, disk: 100Gi,
+  rancher: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi,
              profiles: { k3s: {}, rancher: {} } }
 catalog:
   fleet: { groups: { demo: { matchLabels: { env: demo } } } }
@@ -1060,7 +1080,7 @@ downstream:
     distro: rke2
     labels: { env: demo }
     pools:
-      - { name: all, quantity: 3, roles: [etcd, controlplane, worker], cpu: 4, memory: 8Gi, disk: 60Gi, os: sles-16-k8s }
+      - { name: all, quantity: 3, roles: [etcd, controlplane, worker], cpu: 4, memory: 8Gi, disk: 60Gi, os: sles-16 }
 ```
 
 **3. MLM managing four Linux distributions**
@@ -1080,8 +1100,8 @@ hosts:
 ```yaml
 lab: rancher-custom-edge
 hosts:
-  rancher: { on: hv-north, os: leap-16-k8s, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, rancher: {} } }
-  nuc-01:  { on: ssh, address: nuc-01.lab.geeko.me, user: root, os: sles-16-k8s }
+  rancher: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, rancher: {} } }
+  nuc-01:  { on: ssh, address: nuc-01.lab.geeko.me, user: root, os: sles-16 }
 downstream:
   edge:
     type: metal
@@ -1134,8 +1154,8 @@ install, before the VM exists) and `build` (resources after it is up).
    with the tail of `cloud-init-output.log` when cloud-init failed. Works for Harvester VMs and
    `ssh` hosts alike.
 2. **`k3s` / `rke2`.** Installed from cloud-init as their `KubernetesDistribution` documents say
-   (install command, config file; §17), with the built-in ingress disabled there (Traefik is its own profile), on a `-k8s` OS
-   profile (§6), which turns firewalld off. The kubeconfig is read over SSH, its server
+   (install command, config file; §17), with the built-in ingress disabled there (Traefik is its own profile), with the OS
+   profile's `kubernetes` part (§6), which turns firewalld off. The kubeconfig is read over SSH, its server
    rewritten to the host's address, and kept as a Pulumi secret: the one credential in state,
    encrypted, gone with the lab.
 3. **`cert-manager`.** Chart, Cloudflare token secret, a ClusterIssuer for the `AcmeServer`

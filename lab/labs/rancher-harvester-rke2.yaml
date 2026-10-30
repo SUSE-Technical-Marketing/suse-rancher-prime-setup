@@ -38,7 +38,7 @@ metadata:
   name: rancher
 spec:
   harvester: hv-north
-  os: leap-16-k8s
+  os: leap-16
   cpu: 4
   memory: 16Gi
   disk: 100Gi
@@ -67,7 +67,7 @@ spec:
       cpu: 4
       memory: 8Gi
       disk: 60Gi
-      os: sles-16-k8s
+      os: sles-16
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: ClusterGroup

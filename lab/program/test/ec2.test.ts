@@ -31,7 +31,7 @@ kind: HarvesterVM
 metadata: { name: rancher }
 spec:
   harvester: hv
-  os: leap-16-k8s
+  os: leap-16
   profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: "{{ secrets.admin }}" }, public-ingress: {} }
 ---
 kind: DownstreamCluster
@@ -42,8 +42,8 @@ spec:
   site: eu
   labels: { where: aws }
   pools:
-    - { name: cp, quantity: 1, roles: [ etcd, controlplane ], os: ubuntu-24.04-k8s }
-    - { name: workers, quantity: 2, roles: [ worker ], os: rocky-9-k8s, instanceType: m6i.xlarge, disk: 100Gi, zone: b }
+    - { name: cp, quantity: 1, roles: [ etcd, controlplane ], os: ubuntu-24.04 }
+    - { name: workers, quantity: 2, roles: [ worker ], os: rocky-9, instanceType: m6i.xlarge, disk: 100Gi, zone: b }
 `;
 
 /** No profile makes a Rancher public yet: a stub in a copy of the catalog, which the program then skips. */
@@ -87,7 +87,7 @@ describe("ec2 clusters", () => {
 
         // The credential Rancher uses for the site; the AMIs looked up once per OS and kept.
         expect(one("pulumi-nodejs:dynamic/lab:Amazonec2Credential", "rancher/aws-credential/eu")).toMatchObject({ name: "eu", region: "eu-west-1" });
-        expect(one("pulumi-nodejs:dynamic/lab:Pinned", "aws/eu/ami/rocky-9-k8s")).toMatchObject({ value: "ami-792107900819" });
+        expect(one("pulumi-nodejs:dynamic/lab:Pinned", "aws/eu/ami/rocky-9")).toMatchObject({ value: "ami-792107900819" });
 
         const config = (pool: string) => one("kubernetes:rke-machine-config.cattle.io/v1:Amazonec2Config", `downstream/cloud/${pool}`);
         expect(config("cp")).toMatchObject({

@@ -31,7 +31,7 @@ kind: HarvesterVM
 metadata: { name: rancher }
 spec:
   harvester: hv
-  os: leap-16-k8s
+  os: leap-16
   profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: "{{ secrets.admin }}" }, public-ingress: {} }
 ---
 kind: DownstreamCluster

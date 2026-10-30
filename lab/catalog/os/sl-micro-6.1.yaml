@@ -11,6 +11,9 @@ spec:
     # system can't. cloud-init-per once: on the first boot only.
     bootcmd:
       - cloud-init-per once register suseconnect --regcode '{{ secrets["scc-regcode-slmicro"] }}'
-    packages: [ qemu-guest-agent ]
-    runcmd:
-      - systemctl enable --now qemu-guest-agent
+  # On Harvester VMs only: the guest agent reports the VM's address and lets Harvester shut it down.
+  harvester:
+    cloudInit:
+      packages: [ qemu-guest-agent ]
+      runcmd:
+        - systemctl enable --now qemu-guest-agent

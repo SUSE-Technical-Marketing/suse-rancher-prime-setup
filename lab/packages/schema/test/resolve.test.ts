@@ -174,7 +174,7 @@ hosts:
 `);
         expect(errors(result)).toEqual([
             'hosts.vm.on: unknown Harvester "hv-south"; known: hv-north',
-            'hosts.vm2.os: unknown OS profile "windows-11"; known: leap-16, leap-16-k8s, rocky-9, rocky-9-k8s, sl-micro-6.1, sles-16, sles-16-k8s, ubuntu-24.04, ubuntu-24.04-k8s',
+            'hosts.vm2.os: unknown OS profile "windows-11"; known: leap-16, rocky-9, sl-micro-6.1, sles-16, ubuntu-24.04',
             'hosts.vm2.network: network "vlan42" doesn\'t exist on harvester "hv-north"; known: untagged',
             'hosts.client.profiles.mlm-client.server: host "vm2" doesn\'t run mlm-server',
         ]);
@@ -210,11 +210,12 @@ downstream:
         ]);
     });
 
-    it("warns about a metal-cluster node without its OS's -k8s variant", () => {
+    it("knows which hosts run Kubernetes: their OS profile's kubernetes part applies", () => {
         const result = load(`${BASE}
 hosts:
-  rancher: { on: hv-north, os: leap-16-k8s, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ${RANCHER_STACK} } }
+  rancher: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ${RANCHER_STACK} } }
   node: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 40Gi }
+  plain: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 40Gi }
 downstream:
   edge:
     type: metal
@@ -222,8 +223,7 @@ downstream:
     nodes: [{ host: node, roles: [etcd, controlplane, worker] }]
 `);
         expect(errors(result)).toEqual([]);
-        expect(result.diagnostics.warnings.map(d => `${resolverPath(d.path)}: ${d.message}`)).toContain(
-            'downstream.edge.nodes[0].host: host "node" runs leap-16; a metal-cluster node needs Kubernetes\' prerequisites: use leap-16-k8s');
+        expect(Object.fromEntries(result.lab!.hosts.map(h => [h.name, h.kubernetes]))).toEqual({ rancher: true, node: true, plain: false });
     });
 
     it("needs an image source for OSes without a public image", () => {
@@ -297,16 +297,16 @@ downstream:
 
 describe("TLS", () => {
     it("needs an ACME server for cert-manager", () => {
-        const result = load(`${BASE.replace("acme: letsencrypt-staging", "acme: none")}hosts:\n  r: { on: hv-north, os: leap-16-k8s, profiles: { ${RANCHER_STACK} } }\n`);
+        const result = load(`${BASE.replace("acme: letsencrypt-staging", "acme: none")}hosts:\n  r: { on: hv-north, os: leap-16, profiles: { ${RANCHER_STACK} } }\n`);
         expect(errors(result)).toContain("hosts.r.profiles.cert-manager: issues certificates from the lab's ACME server; set tls.acme (and tls.email, tls.cloudflare), not none");
     });
 });
 
 describe("k3k clusters", () => {
-    const POOL = "pools: [{ name: a, quantity: 1, roles: [etcd, controlplane, worker], os: leap-16-k8s }]";
+    const POOL = "pools: [{ name: a, quantity: 1, roles: [etcd, controlplane, worker], os: leap-16 }]";
     const lab = (extra: string) => `${BASE}hosts:
-  r1: { on: hv-north, os: leap-16-k8s, profiles: { ${RANCHER_STACK} } }
-  r2: { on: hv-north, os: leap-16-k8s, profiles: { ${RANCHER_STACK} } }
+  r1: { on: hv-north, os: leap-16, profiles: { ${RANCHER_STACK} } }
+  r2: { on: hv-north, os: leap-16, profiles: { ${RANCHER_STACK} } }
 downstream:
   apps: { type: harvester, rancher: r1, harvester: hv-north, ${POOL} }
   other: { type: harvester, rancher: r2, harvester: hv-north, ${POOL} }
@@ -338,11 +338,11 @@ describe("AWS sites and ec2 clusters", () => {
         fs.cpSync(path.resolve(__dirname, "..", "..", "..", "catalog"), catalogDir, { recursive: true });
         fs.writeFileSync(path.join(catalogDir, "profiles", "public-ingress.yaml"), "apiVersion: lab.geeko.me/v1alpha1\nkind: Profile\nmetadata: { name: public-ingress, description: test stub }\nspec: { requires: [ kubernetes ] }\n");
     });
-    const POOL = "{ name: all, quantity: 1, roles: [etcd, controlplane, worker], os: ubuntu-24.04-k8s }";
+    const POOL = "{ name: all, quantity: 1, roles: [etcd, controlplane, worker], os: ubuntu-24.04 }";
     const lab = (site: string, cluster: string, publicRancher = true) => `${BASE}awsSites:
   eu: ${site}
 hosts:
-  vm: { on: hv-north, os: leap-16-k8s, profiles: { ${RANCHER_STACK}${publicRancher ? ", public-ingress: {}" : ""} } }
+  vm: { on: hv-north, os: leap-16, profiles: { ${RANCHER_STACK}${publicRancher ? ", public-ingress: {}" : ""} } }
 downstream:
   cloud: ${cluster}
 `;
@@ -355,7 +355,7 @@ downstream:
     it("cuts a subnet per zone from the VPC and fills in the pools", () => {
         const result = loadPublic(lab(
             "{ region: eu-west-1, credentials: \"{{ secrets.aws }}\", zones: [a, c], ttl: 8h }",
-            `{ type: ec2, rancher: vm, site: eu, pools: [ ${POOL}, { name: workers, quantity: 2, roles: [worker], os: rocky-9-k8s, instanceType: m6i.xlarge, disk: 100Gi, zone: c } ] }`,
+            `{ type: ec2, rancher: vm, site: eu, pools: [ ${POOL}, { name: workers, quantity: 2, roles: [worker], os: rocky-9, instanceType: m6i.xlarge, disk: 100Gi, zone: c } ] }`,
         ));
         expect(errors(result)).toEqual([]);
         expect(result.lab!.awsSites).toEqual([{
@@ -365,11 +365,11 @@ downstream:
         const cloud = result.lab!.downstream.find(d => d.name === "cloud")!;
         expect(cloud).toMatchObject({ type: "ec2", site: "eu", distro: "rke2" });
         expect(cloud.type === "ec2" && cloud.pools).toEqual([
-            { name: "all", quantity: 1, roles: ["etcd", "controlplane", "worker"], os: "ubuntu-24.04-k8s", instanceType: "t3.large", disk: "40Gi", zone: "a" },
-            { name: "workers", quantity: 2, roles: ["worker"], os: "rocky-9-k8s", instanceType: "m6i.xlarge", disk: "100Gi", zone: "c" },
+            { name: "all", quantity: 1, roles: ["etcd", "controlplane", "worker"], os: "ubuntu-24.04", instanceType: "t3.large", disk: "40Gi", zone: "a" },
+            { name: "workers", quantity: 2, roles: ["worker"], os: "rocky-9", instanceType: "m6i.xlarge", disk: "100Gi", zone: "c" },
         ]);
         expect(result.lab!.secrets).toMatchObject({ aws: { fields: ["accessKey", "secretKey"] } });
-        expect(result.lab!.os["rocky-9-k8s"].ami).toMatchObject({ owner: "792107900819", user: "rocky" });
+        expect(result.lab!.os["rocky-9"].ami).toMatchObject({ owner: "792107900819", user: "rocky" });
     });
 
     it("takes the region and keys from the personal config", () => {
@@ -386,9 +386,9 @@ downstream:
         ]);
         expect(errors(loadPublic(lab(
             "{ region: eu-west-1, credentials: \"{{ secrets.aws }}\" }",
-            "{ type: ec2, rancher: vm, site: eu, pools: [ { name: a, quantity: 1, roles: [etcd, controlplane], os: leap-16-k8s, zone: c } ] }",
+            "{ type: ec2, rancher: vm, site: eu, pools: [ { name: a, quantity: 1, roles: [etcd, controlplane], os: leap-16, zone: c } ] }",
         )))).toEqual([
-            "downstream.cloud.pools[0].os: OS profile leap-16-k8s has no AMI (ami: owner and name) to boot EC2 machines from",
+            "downstream.cloud.pools[0].os: OS profile leap-16 has no AMI (ami: owner and name) to boot EC2 machines from",
             "downstream.cloud.pools[0].zone: the site eu has no subnet in zone c; its zones: a, b",
             "downstream.cloud: no node has the worker role; a cluster needs at least one of each",
         ]);
@@ -496,8 +496,9 @@ describe("OS profiles", () => {
 catalog:
   os:
     leap-16-dev:
-      extends: leap-16-k8s
+      extends: leap-16
       cloudInit: { packages: [make], runcmd: [make install], timezone: UTC }
+      kubernetes: { cloudInit: { packages: [helm] } }
 hosts:
   vm: { on: hv-north, os: leap-16-dev, cpu: 2, memory: 4Gi, disk: 20Gi }
   plain: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi }
@@ -505,11 +506,14 @@ hosts:
         expect(diagnostics.errors).toEqual([]);
         const dev = lab!.os["leap-16-dev"];
         expect(dev.family).toBe("suse");
-        expect(dev.cloudInit.packages).toEqual(["curl", "git-core", "bash-completion", "vim", "wget", "tree", "qemu-guest-agent", "firewalld", "k3s-selinux", "open-iscsi", "nfs-client", "cryptsetup", "make"]);
-        expect((dev.cloudInit.runcmd as string[]).at(0)).toBe("systemctl enable --now qemu-guest-agent");
+        expect(dev.cloudInit.packages).toEqual(["curl", "git-core", "bash-completion", "vim", "wget", "tree", "firewalld", "make"]);
+        expect((dev.cloudInit.runcmd as string[]).at(0)).toBe("systemctl enable --now firewalld");
+        // The Harvester and Kubernetes parts are inherited, and extended the same way.
+        expect(dev.harvester.packages).toEqual(["qemu-guest-agent"]);
+        expect(dev.kubernetes.packages).toEqual(["k3s-selinux", "open-iscsi", "nfs-client", "cryptsetup", "helm"]);
         expect((dev.cloudInit.runcmd as string[]).at(-1)).toBe("make install");
         expect(dev.cloudInit).toMatchObject({ package_update: true, timezone: "UTC" });
-        // Both variants boot leap-16's image: one download.
+        // Both boot leap-16's image: one download.
         expect(lab!.harvesters[0].images).toEqual([{ os: "leap-16", source: { kind: "url", url: expect.stringContaining("Leap-16.0") } }]);
     });
 
@@ -517,8 +521,8 @@ hosts:
         const result = load(`${BASE}\ncatalog:\n  os:\n    mine: { extends: leap-16, cloudInit: { runcmd: [\"echo {{ secrets.tok }} {{ lab.domain }}\", \"echo {{ secrets.tok.user }}\", \"echo {{ nope }}\"] } }\nhosts:\n  vm: { on: hv-north, os: mine, cpu: 2, memory: 4Gi, disk: 20Gi }\n`);
         // After leap-16's own runcmd.
         expect(errors(result).filter(e => e.startsWith("cloudInit"))).toEqual([
-            "cloudInit.runcmd[3]: secret \"tok\" is used both as string and as a map with user",
-            "cloudInit.runcmd[4]: template: attempted to output null or undefined value",
+            "cloudInit.runcmd[2]: secret \"tok\" is used both as string and as a map with user",
+            "cloudInit.runcmd[3]: template: attempted to output null or undefined value",
         ]);
         const ok = load(`${BASE}\ncatalog:\n  os:\n    mine: { extends: leap-16, cloudInit: { runcmd: [\"echo {{ secrets['reg-code'] }} {{ secrets.scc.password }}\"] } }\nhosts:\n  vm: { on: hv-north, os: mine, cpu: 2, memory: 4Gi, disk: 20Gi }\n`);
         expect(errors(ok)).toEqual([]);
@@ -1166,7 +1170,7 @@ hosts:
 });
 
 describe("secret templates", () => {
-    const vm = (profiles: string) => `${BASE.replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: \"{{ secrets.hv }}\" }")}hosts:\n  vm: { on: hv-north, os: leap-16-k8s, profiles: { ${profiles} } }\n`;
+    const vm = (profiles: string) => `${BASE.replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: \"{{ secrets.hv }}\" }")}hosts:\n  vm: { on: hv-north, os: leap-16, profiles: { ${profiles} } }\n`;
 
     it("registers each secret with the shape it's used in: whole, or by username and password", () => {
         const result = load(vm(`${RANCHER_STACK.replace("rancher: {", "rancher: { values: { auth: \"Basic {{ secrets.reg.username }}:{{ secrets.reg.password }}\" }, ")}`));
@@ -1175,7 +1179,7 @@ describe("secret templates", () => {
     });
 
     it("rejects a secret used in two shapes, an unknown field, and credentials that aren't one secret", () => {
-        const result = load(`${BASE.replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: \"admin:{{ secrets.hv }}\" }")}hosts:\n  vm: { on: hv-north, os: leap-16-k8s, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.cf.password }}\", values: { x: \"{{ secrets['ssh-key'].token }}\", y: \"{{ secrets.ra['a b'] }}\" } } } }\n`);
+        const result = load(`${BASE.replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: \"admin:{{ secrets.hv }}\" }")}hosts:\n  vm: { on: hv-north, os: leap-16, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.cf.password }}\", values: { x: \"{{ secrets['ssh-key'].token }}\", y: \"{{ secrets.ra['a b'] }}\" } } } }\n`);
         expect(errors(result)).toEqual([
             "harvesters.hv-north.credentials: credentials are one secret ({{ secrets.name }}) or { username, password }",
             "hosts.vm.profiles.rancher.values.y: secrets.ra: \"a b\" can't be a field of a secret",
@@ -1186,13 +1190,13 @@ describe("secret templates", () => {
     });
 
     it("collects the fields of map secrets across their uses", () => {
-        const result = load(`${BASE}hosts:\n  vm: { on: hv-north, os: leap-16-k8s, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.ra }}\", values: { a: \"{{ secrets.aws.accessKey }}\", b: \"{{ secrets.aws.secretKey | trim }}\", c: \"{{ secrets.reg.username }}\" } } } }\n`);
+        const result = load(`${BASE}hosts:\n  vm: { on: hv-north, os: leap-16, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.ra }}\", values: { a: \"{{ secrets.aws.accessKey }}\", b: \"{{ secrets.aws.secretKey | trim }}\", c: \"{{ secrets.reg.username }}\" } } } }\n`);
         expect(errors(result)).toEqual([]);
         expect(result.lab!.secrets).toMatchObject({ aws: { fields: ["accessKey", "secretKey"] }, reg: "credentials" });
     });
 
     it("follows paths into map secrets, for a field or a map inside one", () => {
-        const result = load(`${BASE.replace("\"{{ secrets.cf }}\"", "\"{{ secrets.cf.tunnel.token }}\"").replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: \"{{ secrets.infra['hv-north'] }}\" }")}hosts:\n  vm: { on: hv-north, os: leap-16-k8s, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.ra }}\", values: { a: \"{{ secrets.cf.token }}\", b: \"x-{{ secrets.cf.tunnel.id | trim }}\" } } } }\n`);
+        const result = load(`${BASE.replace("\"{{ secrets.cf }}\"", "\"{{ secrets.cf.tunnel.token }}\"").replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: \"{{ secrets.infra['hv-north'] }}\" }")}hosts:\n  vm: { on: hv-north, os: leap-16, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.ra }}\", values: { a: \"{{ secrets.cf.token }}\", b: \"x-{{ secrets.cf.tunnel.id | trim }}\" } } } }\n`);
         expect(errors(result)).toEqual([]);
         expect(result.lab!.secrets).toMatchObject({ cf: { fields: ["token", "tunnel.id", "tunnel.token"] }, infra: { fields: ["hv-north.password", "hv-north.username"] } });
         const secrets = { cf: { token: "t", tunnel: { token: "tt", id: "i" } }, infra: { "hv-north": { username: "u", password: "p" } } };

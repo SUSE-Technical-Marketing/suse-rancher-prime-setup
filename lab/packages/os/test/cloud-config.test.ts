@@ -4,13 +4,13 @@ import { parse } from "yaml";
 import { machineSetup, renderCloudConfig } from "../src";
 
 const base: ResolvedOs = {
-    name: "test", displayName: "Test", family: "suse", imageUrl: null, image: "test", cloudInit: {},
+    name: "test", displayName: "Test", family: "suse", imageUrl: null, image: "test", cloudInit: {}, harvester: {}, kubernetes: {},
 };
 const user = { name: "lab", publicKey: "ssh-ed25519 AAAA lab" };
 const vars = { secrets: { "scc-regcode": "REG-123" }, lab: { name: "lab1", domain: "lab.example.com", vars: {} } };
 
 function render(os: Partial<ResolvedOs>, extra: Partial<Parameters<typeof renderCloudConfig>[0]> = {}) {
-    const text = renderCloudConfig({ os: { ...base, ...os }, hostname: "vm", fqdn: "vm.lab.example.com", user, vars, ...extra });
+    const text = renderCloudConfig({ os: { ...base, ...os }, harvester: false, kubernetes: false, hostname: "vm", fqdn: "vm.lab.example.com", user, vars, ...extra });
     expect(text.startsWith("#cloud-config\n")).toBe(true);
     return parse(text);
 }
@@ -41,6 +41,21 @@ describe("renderCloudConfig", () => {
         expect(cfg.runcmd).toEqual(["systemctl enable --now iscsid", "curl -sfL https://get.k3s.io | sh -"]);
     });
 
+    it("adds the Harvester part on Harvester VMs and the Kubernetes part on Kubernetes nodes", () => {
+        const os = {
+            cloudInit: { packages: ["vim", "firewalld"], runcmd: ["systemctl enable --now firewalld"] },
+            harvester: { packages: ["qemu-guest-agent"], runcmd: ["systemctl enable --now qemu-guest-agent"] },
+            kubernetes: { packages: ["open-iscsi"], runcmd: ["systemctl disable --now firewalld"] },
+        };
+        expect(render(os)).toMatchObject({ packages: ["vim", "firewalld"], runcmd: ["systemctl enable --now firewalld"] });
+        // An EC2 node: no guest agent.
+        expect(render(os, { kubernetes: true })).toMatchObject({ packages: ["vim", "firewalld", "open-iscsi"], runcmd: ["systemctl enable --now firewalld", "systemctl disable --now firewalld"] });
+        expect(render(os, { harvester: true, kubernetes: true })).toMatchObject({
+            packages: ["vim", "firewalld", "qemu-guest-agent", "open-iscsi"],
+            runcmd: ["systemctl enable --now firewalld", "systemctl enable --now qemu-guest-agent", "systemctl disable --now firewalld"],
+        });
+    });
+
     it("renders the profile's templates with its secrets and the lab", () => {
         const cfg = render({ cloudInit: { bootcmd: ["cloud-init-per once register suseconnect --regcode '{{ secrets[\"scc-regcode\"] }}'"], fqdn_suffix: "{{ lab.domain }}" } });
         expect(cfg.bootcmd).toEqual(["cloud-init-per once register suseconnect --regcode 'REG-123'"]);
@@ -50,17 +65,23 @@ describe("renderCloudConfig", () => {
 });
 
 describe("machineSetup", () => {
-    it("installs the profile's packages with the family's package manager, then runs its runcmd", () => {
-        const os = { ...base, cloudInit: { packages: ["vim", "it's"], runcmd: ["systemctl enable --now iscsid", ["echo", "a b"]], write_files: [] } };
-        expect(machineSetup(os, vars)).toEqual([
+    it("installs the profile's Kubernetes packages with the family's package manager, then runs its runcmd", () => {
+        const os = { ...base, kubernetes: { packages: ["vim", "it's"], runcmd: ["systemctl enable --now iscsid", ["echo", "a b"]], write_files: [] } };
+        expect(machineSetup(os, vars, true)).toEqual([
             "zypper --non-interactive --gpg-auto-import-keys refresh",
             `zypper --non-interactive install --no-recommends 'vim' 'it'\\''s'`,
             "systemctl enable --now iscsid",
             "'echo' 'a b'",
         ]);
-        expect(machineSetup({ ...os, family: "rhel" }, vars)[0]).toBe(`dnf -y install 'vim' 'it'\\''s'`);
-        expect(machineSetup({ ...os, family: "debian" }, vars).slice(0, 2)).toEqual(["apt-get update", `DEBIAN_FRONTEND=noninteractive apt-get install -y 'vim' 'it'\\''s'`]);
-        expect(machineSetup(base, vars)).toEqual([]);
-        expect(machineSetup({ ...base, cloudInit: { runcmd: ["echo {{ secrets['scc-regcode'] }}"] } }, vars)).toEqual(["echo REG-123"]);
+        expect(machineSetup({ ...os, family: "rhel" }, vars, true)[0]).toBe(`dnf -y install 'vim' 'it'\\''s'`);
+        expect(machineSetup({ ...os, family: "debian" }, vars, true).slice(0, 2)).toEqual(["apt-get update", `DEBIAN_FRONTEND=noninteractive apt-get install -y 'vim' 'it'\\''s'`]);
+        expect(machineSetup(base, vars, true)).toEqual([]);
+        expect(machineSetup({ ...base, kubernetes: { runcmd: ["echo {{ secrets['scc-regcode'] }}"] } }, vars, true)).toEqual(["echo REG-123"]);
+    });
+
+    it("leaves an existing machine as it is: no base or Harvester part, and nothing without Kubernetes", () => {
+        const os = { ...base, cloudInit: { packages: ["vim", "firewalld"] }, harvester: { packages: ["qemu-guest-agent"] }, kubernetes: { packages: ["open-iscsi"] } };
+        expect(machineSetup(os, vars, false)).toEqual([]);
+        expect(machineSetup(os, vars, true)).toEqual(["zypper --non-interactive --gpg-auto-import-keys refresh", "zypper --non-interactive install --no-recommends 'open-iscsi'"]);
     });
 });

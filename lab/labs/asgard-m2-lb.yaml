@@ -46,7 +46,7 @@ metadata:
   name: rancher
 spec:
   harvester: asgard
-  os: leap-16-k8s
+  os: leap-16
   cpu: 4
   memory: 16Gi
   disk: 100Gi

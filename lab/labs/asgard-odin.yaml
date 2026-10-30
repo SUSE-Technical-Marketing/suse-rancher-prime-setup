@@ -46,7 +46,7 @@ metadata:
   name: odin
 spec:
   harvester: asgard
-  os: leap-16-k8s
+  os: leap-16
   cpu: 4
   memory: 8Gi
   disk: 40Gi
@@ -88,4 +88,4 @@ spec:
       cpu: 12
       memory: 40Gi
       disk: 500Gi
-      os: leap-16-k8s
+      os: leap-16

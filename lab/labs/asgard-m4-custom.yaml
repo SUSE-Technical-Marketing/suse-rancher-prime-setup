@@ -27,7 +27,7 @@ metadata:
 spec:
   address: machine-01.lab.geeko.me
   user: lab
-  os: leap-16-k8s
+  os: leap-16
   profiles:
     k3s: {}
     cert-manager: {}
@@ -43,7 +43,7 @@ metadata:
 spec:
   address: machine-02.lab.geeko.me
   user: lab
-  os: leap-16-k8s
+  os: leap-16
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: Machine
@@ -52,7 +52,7 @@ metadata:
 spec:
   address: machine-03.lab.geeko.me
   user: lab
-  os: leap-16-k8s
+  os: leap-16
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: DownstreamCluster

@@ -12,6 +12,20 @@ spec:
   ami: { owner: "792107900819", name: "Rocky-9-EC2-Base-9.*x86_64", user: rocky }
   cloudInit:
     package_update: true
-    packages: [ curl, git, bash-completion, vim-enhanced, wget, tree, qemu-guest-agent ]
-    runcmd:
-      - systemctl enable --now qemu-guest-agent
+    packages: [ curl, git, bash-completion, vim-enhanced, wget, tree ]
+  # On Harvester VMs only: the guest agent reports the VM's address and lets Harvester shut it down.
+  harvester:
+    cloudInit:
+      packages: [ qemu-guest-agent ]
+      runcmd:
+        - systemctl enable --now qemu-guest-agent
+  # For k3s / RKE2 nodes: what Longhorn needs on every node. iSCSI for its volumes, NFS for RWX
+  # volumes, cryptsetup for encrypted ones.
+  kubernetes:
+    cloudInit:
+      packages: [ container-selinux, iscsi-initiator-utils, nfs-utils, cryptsetup ]
+      runcmd:
+        - systemctl enable --now iscsid
+        # No firewalld on Kubernetes nodes, as the k3s and RKE2 docs advise: it conflicts with their
+        # CNIs, and would block the API and ingress. Lab VMs sit on lab VLANs.
+        - systemctl disable --now firewalld 2>/dev/null || true

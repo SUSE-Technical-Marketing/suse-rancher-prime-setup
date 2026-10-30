@@ -53,7 +53,7 @@ spec: { networks: { ... } }
 ---
 kind: HarvesterVM                          # a VM the lab creates on a Harvester
 metadata: { name: rancher }
-spec: { harvester: asgard, os: leap-16-k8s, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ... } }   # -k8s: for k3s / RKE2
+spec: { harvester: asgard, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ... } }
 ---
 kind: Machine                              # an existing machine, reached over SSH
 metadata: { name: nuc-01 }
@@ -69,7 +69,7 @@ spec: { region: eu-west-1, credentials: "{{ secrets.aws }}", ttl: 8h }
 ---
 kind: DownstreamCluster                    # machines Rancher creates on EC2 (its Rancher must be public)
 metadata: { name: cloud }
-spec: { type: ec2, rancher: rancher, site: aws-eu, pools: [ { name: all, quantity: 1, roles: [ etcd, controlplane, worker ], os: ubuntu-24.04-k8s } ] }
+spec: { type: ec2, rancher: rancher, site: aws-eu, pools: [ { name: all, quantity: 1, roles: [ etcd, controlplane, worker ], os: ubuntu-24.04 } ] }
 ---
 kind: DownstreamCluster                    # an EKS cluster Rancher creates and manages (its Rancher must be public)
 metadata: { name: eks }

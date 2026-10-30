@@ -15,7 +15,28 @@ export interface ResolvedOs {
     defaultUser?: string;
     /** Its image on AWS: the newest AMI of `owner` matching `name`; `user` is its login. */
     ami?: { owner: string; name: string; user?: string };
+    /** For hosts the lab creates. */
     cloudInit: Record<string, unknown>;
+    /** Added on Harvester VMs. */
+    harvester: Record<string, unknown>;
+    /** Added on hosts that run Kubernetes; all an existing machine gets. */
+    kubernetes: Record<string, unknown>;
+}
+
+/** Where a host's cloud-config goes, which picks the OS profile's sections. */
+export interface OsTarget {
+    /** A host the lab creates (a VM, a cluster's machine), not an existing machine. */
+    created: boolean;
+    harvester: boolean;
+    kubernetes: boolean;
+}
+
+/** The OS profile's cloud-config for a host: the base for one the lab creates, then the Harvester and Kubernetes parts it needs. */
+export function osCloudInit(os: ResolvedOs, target: OsTarget): Record<string, unknown> {
+    let out: Record<string, unknown> = target.created ? os.cloudInit : {};
+    if (target.harvester && target.created) out = extendCloudInit(out, os.harvester);
+    if (target.kubernetes) out = extendCloudInit(out, os.kubernetes);
+    return out;
 }
 
 /** A profile as found in one of the layers, with the file it came from for error messages. */
@@ -89,6 +110,8 @@ export function resolveOsProfiles(layers: Record<string, OsLayerEntry>[], diags:
                     ...inherited,
                     ...own,
                     cloudInit: extendCloudInit(inherited.cloudInit ?? {}, own.cloudInit ?? {}),
+                    harvester: { cloudInit: extendCloudInit(inherited.harvester?.cloudInit ?? {}, own.harvester?.cloudInit ?? {}) },
+                    kubernetes: { cloudInit: extendCloudInit(inherited.kubernetes?.cloudInit ?? {}, own.kubernetes?.cloudInit ?? {}) },
                     imageOf: own.image !== undefined ? name : inherited.imageOf,
                 } : null;
             }
@@ -109,8 +132,12 @@ export function resolveOsProfiles(layers: Record<string, OsLayerEntry>[], diags:
             continue;
         }
         const cloudInit = profile.cloudInit ?? {};
-        for (const key of ENGINE_CLOUD_INIT_KEYS.filter(k => k in cloudInit)) {
-            diags.error(entry.source, `${name}.cloudInit.${key}`, "set by the engine (the lab's ssh user and the host's name)");
+        const harvester = profile.harvester?.cloudInit ?? {};
+        const kubernetes = profile.kubernetes?.cloudInit ?? {};
+        for (const [section, config] of [["cloudInit", cloudInit], ["harvester.cloudInit", harvester], ["kubernetes.cloudInit", kubernetes]] as const) {
+            for (const key of ENGINE_CLOUD_INIT_KEYS.filter(k => k in config)) {
+                diags.error(entry.source, `${name}.${section}.${key}`, "set by the engine (the lab's ssh user and the host's name)");
+            }
         }
         resolved[name] = {
             name,
@@ -121,6 +148,8 @@ export function resolveOsProfiles(layers: Record<string, OsLayerEntry>[], diags:
             defaultUser: profile.defaultUser,
             ...(profile.ami ? { ami: profile.ami } : {}),
             cloudInit,
+            harvester,
+            kubernetes,
         };
     }
     return resolved;

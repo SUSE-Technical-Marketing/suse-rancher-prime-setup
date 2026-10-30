@@ -25,13 +25,19 @@ export const OsProfileInput = z.strictObject({
      */
     ami: z.strictObject({ owner: z.string().min(1), name: z.string().min(1), user: z.string().min(1).optional() }).optional(),
     /**
-     * The VM's cloud-config (packages, runcmd, bootcmd, write_files, ...). Strings may be Jinja2
-     * templates with `secrets` (the personal config's, as everywhere: a registration code) and `lab`
-     * (`name`, `domain`). The engine adds the login and the
-     * hostname, and appends the host's own commands (k3s / RKE2) to `runcmd`. A variant (one for
-     * Kubernetes nodes) is another profile that `extends` this one.
+     * The cloud-config of a host the lab creates (packages, runcmd, bootcmd, write_files, ...).
+     * Strings may be Jinja2 templates with `secrets` (the personal config's, as everywhere: a
+     * registration code) and `lab` (`name`, `domain`, `vars`). The engine adds the login and the
+     * hostname, and appends the host's own commands (k3s / RKE2) to `runcmd`.
      */
     cloudInit: z.record(z.string(), z.unknown()).optional(),
+    /** Added on Harvester VMs only (the guest agent): not on EC2 machines or existing ones. */
+    harvester: z.strictObject({ cloudInit: z.record(z.string(), z.unknown()).optional() }).optional(),
+    /**
+     * Added on every host that runs Kubernetes (k3s / RKE2, a cluster's node): what Longhorn needs,
+     * no firewalld. The only part an existing machine gets, and only then.
+     */
+    kubernetes: z.strictObject({ cloudInit: z.record(z.string(), z.unknown()).optional() }).optional(),
 });
 export type OsProfileInput = z.infer<typeof OsProfileInput>;
 

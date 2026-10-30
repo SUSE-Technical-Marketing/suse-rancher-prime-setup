@@ -72,10 +72,10 @@ function amiOf(site: string, osName: string): pulumi.Output<string> {
 // --- Hosts and their profiles --------------------------------------------------------------------
 /** What an OS profile's cloud-init templates use: the lab's secrets (kept secret), its name and domain. */
 const osVars = (): pulumi.Output<CloudInitVars> => secrets().apply(s => cloudInitVars({ name: lab.name, domain: lab.domain, vars: lab.vars }, s));
-/** A machine's setup over SSH; secret when its OS profile's cloud-init uses secrets. */
-const machineCommands = (os: ResolvedOs): pulumi.Output<string[]> => {
-    const commands = osVars().apply(vars => machineSetup(os, vars));
-    return usesSecrets(JSON.stringify(os.cloudInit)) ? pulumi.secret(commands) : commands;
+/** An existing machine's setup over SSH (its OS profile's Kubernetes part, if it runs Kubernetes); secret when that uses secrets. */
+const machineCommands = (os: ResolvedOs, kubernetes: boolean): pulumi.Output<string[]> => {
+    const commands = osVars().apply(vars => machineSetup(os, vars, kubernetes));
+    return kubernetes && usesSecrets(JSON.stringify(os.kubernetes)) ? pulumi.secret(commands) : commands;
 };
 const privateKey = lab.ssh ? secretString(lab.ssh.privateKey) : pulumi.output("");
 const hostOutputs: Record<string, { fqdn: string; address: pulumi.Output<string> }> = {};
@@ -98,6 +98,8 @@ for (const host of lab.hosts) {
         const os = lab.os[host.os];
         const userData = osVars().apply(vars => renderCloudConfig({
             os,
+            harvester: true,
+            kubernetes: host.kubernetes,
             hostname: host.name,
             fqdn: host.fqdn,
             user: { name: lab.ssh!.user, publicKey: lab.ssh!.publicKey },
@@ -138,7 +140,7 @@ for (const host of lab.hosts) {
         // and when the lab goes the profiles are uninstalled, because the machine stays.
         const setup = new command.remote.Command(`${host.name}/setup`, {
             connection: sshConnection(access),
-            create: machineCommands(lab.os[host.os]).apply(setup => asRoot([...setup, ...runcmd].join(" && "))),
+            create: machineCommands(lab.os[host.os], host.kubernetes).apply(setup => asRoot([...setup, ...runcmd].join(" && "))),
             delete: asRoot(runExisting(profileUninstall(lab, host))),
         });
         setUp = [setup];
@@ -198,11 +200,16 @@ function awsCredential(rancherHost: string, site: string): Amazonec2Credential {
     }, { dependsOn: rancher.ready });
 }
 
-/** A node's user data on a machine Rancher creates: its OS profile's, the lab's login, and with a server the helm Job watch. */
-function poolUserData(osName: string, distro: "rke2" | "k3s", roles: string[]): pulumi.Output<string> {
+/**
+ * A node's user data on a machine Rancher creates: its OS profile's, Kubernetes part included (and
+ * the Harvester part on a Harvester VM), the lab's login, and with a server the helm Job watch.
+ */
+function poolUserData(osName: string, distro: "rke2" | "k3s", roles: string[], harvester: boolean): pulumi.Output<string> {
     const os = lab.os[osName];
     return pulumi.secret(osVars().apply(vars => renderCloudConfig({
         os,
+        harvester,
+        kubernetes: true,
         user: { name: lab.ssh!.user, publicKey: lab.ssh!.publicKey },
         defaultUser: true,
         vars,
@@ -233,7 +240,7 @@ for (const d of lab.downstream) {
                     host: access,
                     roles: node.roles,
                     // A lab VM got its OS profile's setup from its user data; a machine gets it now.
-                    prepare: host.kind === "ssh" ? machineCommands(lab.os[host.os]) : [],
+                    prepare: host.kind === "ssh" ? machineCommands(lab.os[host.os], true) : [],
                     after: ready,
                     deletedWith: machine,
                 };
@@ -295,7 +302,7 @@ for (const d of lab.downstream) {
                     ami: amiOf(d.site, pool.os),
                     sshUser: os.ami!.user ?? os.defaultUser ?? "ec2-user",
                     subnetId: network.subnets[pool.zone].id,
-                    userData: poolUserData(pool.os, d.distro, pool.roles),
+                    userData: poolUserData(pool.os, d.distro, pool.roles, false),
                 };
             }),
             // The machines go before their network does.
@@ -332,7 +339,7 @@ for (const d of lab.downstream) {
             ...pool,
             image: base.images[lab.os[pool.os].image].id,
             network: base.networks[pool.network!],
-            userData: poolUserData(pool.os, d.distro, pool.roles),
+            userData: poolUserData(pool.os, d.distro, pool.roles, true),
         })),
         after: [credential, base.namespace, ...base.ready],
     });

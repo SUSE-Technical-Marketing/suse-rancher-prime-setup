@@ -19,14 +19,6 @@ const harvester = computed(() => views.value.find(d => d.kind === "Harvester" &&
 const networks = computed(() => ["untagged", ...((harvester.value?.spec?.networks?.vlans ?? []) as any[]).map(n => `vlan${n.id}`)]);
 const osOptions = computed(() => (catalog.value?.os ?? []).map(o => ({ value: o.name, label: `${o.name} — ${o.displayName}` })));
 
-/** k3s / RKE2 on the host, but not a -k8s OS profile: Longhorn and the SELinux policy would be missing. */
-const k8sProfile = computed(() => Object.keys(v.value.spec?.profiles ?? {}).find(n => catalog.value?.profiles.find(p => p.name === n)?.distribution));
-const k8sVariant = computed(() => {
-  const os = v.value.spec?.os as string | undefined;
-  if (!k8sProfile.value || !os || os.endsWith("-k8s")) return undefined;
-  const variant = `${os}-k8s`;
-  return catalog.value?.os.some(o => o.name === variant) ? variant : undefined;
-});
 
 function setProfile(name: string, settings: Record<string, unknown> | undefined) {
   set(["spec", "profiles", name], settings ?? {});
@@ -45,10 +37,6 @@ function setProfile(name: string, settings: Record<string, unknown> | undefined)
         <TextField v-if="!isVm" label="user" :placeholder="`default: the lab's ssh user`" v-bind="bind('spec.user')" />
         <SelectField label="OS" required :options="osOptions" :hint="isVm ? undefined : 'what the machine runs; its packages and runcmd run over SSH'" v-bind="bind('spec.os')" />
       </div>
-      <p v-if="k8sVariant" class="warn-text">
-        {{ k8sProfile }} runs here: use {{ k8sVariant }}, which has the SELinux policy and what Longhorn needs.
-        <button type="button" class="link" @click="set('spec.os', k8sVariant)">Use {{ k8sVariant }}</button>
-      </p>
       <div v-if="isVm" class="grid">
         <TextField label="CPUs" number :placeholder="`default ${defaults?.cpu}`" v-bind="bind('spec.cpu')" />
         <TextField label="memory" :placeholder="`default ${defaults?.memory}`" v-bind="bind('spec.memory')" />

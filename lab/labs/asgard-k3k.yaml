@@ -47,7 +47,7 @@ metadata:
   name: odin
 spec:
   harvester: asgard
-  os: leap-16-k8s
+  os: leap-16
   cpu: 4
   memory: 8Gi
   disk: 40Gi
@@ -79,7 +79,7 @@ spec:
       cpu: 8
       memory: 16Gi
       disk: 80Gi
-      os: leap-16-k8s
+      os: leap-16
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: DownstreamCluster

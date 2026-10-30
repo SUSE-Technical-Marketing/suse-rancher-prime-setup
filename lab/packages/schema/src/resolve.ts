@@ -106,6 +106,8 @@ interface ResolvedHostBase {
     outputs: Record<string, Record<string, unknown>>;
     /** DNS name the host is reached at. */
     fqdn: string;
+    /** It runs Kubernetes (a k3s / RKE2 profile, or a metal cluster's node): its OS profile's `kubernetes` part applies. */
+    kubernetes: boolean;
 }
 
 export interface ResolvedHarvesterHost extends ResolvedHostBase {
@@ -287,6 +289,8 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 else if (typeof value === "object" && value !== null) for (const [k, v] of Object.entries(value)) walk(v, `${at}.${k}`);
             };
             walk(os.cloudInit, "cloudInit");
+            walk(os.harvester, "harvester.cloudInit");
+            walk(os.kubernetes, "kubernetes.cloudInit");
         }
         return os;
     };
@@ -460,6 +464,10 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         return result;
     };
     const hosts = new Map<string, ResolvedHost>();
+    // Kubernetes on a host: its own distribution, or Rancher's as a metal cluster's node.
+    const metalNodes = new Set(Object.values(lab.downstream).flatMap(d => (d.type === "metal" ? d.nodes.map(n => n.host) : [])));
+    const runsKubernetes = (name: string, profiles: Record<string, unknown>) =>
+        metalNodes.has(name) || Object.keys(profiles).some(p => registry[p]?.distribution);
     for (const [name, h] of Object.entries(lab.hosts)) {
         const at = `hosts.${name}`;
         useOs(h.os, `${at}.os`);
@@ -469,11 +477,12 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 if (h[field] !== undefined) diags.error(L, `${at}.${field}`, `doesn't apply to an ssh host`);
             }
             if (!h.address) diags.error(L, `${at}.address`, "required for an ssh host (its DNS name or IP)");
-            // An existing machine gets no user data: only its packages and commands run, over SSH.
-            const ignored = Object.keys(allOs[h.os]?.cloudInit ?? {}).filter(k => !MACHINE_CLOUD_INIT_KEYS.includes(k));
-            if (ignored.length > 0) diags.warning(L, `${at}.os`, `OS profile ${h.os}: ${ignored.join(", ")} only apply to VMs; a machine only gets its packages and runcmd, over SSH`);
+            // An existing machine gets no user data: only its OS profile's Kubernetes packages and commands, over SSH.
+            const kubernetes = runsKubernetes(name, h.profiles);
+            const ignored = Object.keys(kubernetes ? allOs[h.os]?.kubernetes ?? {} : {}).filter(k => !MACHINE_CLOUD_INIT_KEYS.includes(k));
+            if (ignored.length > 0) diags.warning(L, `${at}.os`, `OS profile ${h.os}: kubernetes.cloudInit.${ignored.join(", ")} only apply to VMs; a machine only gets its packages and runcmd, over SSH`);
             hosts.set(name, {
-                kind: "ssh", name, os: h.os, profiles: parseProfiles(h.profiles, at), profileOrder: [], capabilities: [], providers: {}, charts: [], chartValues: {}, outputs: {},
+                kind: "ssh", name, os: h.os, profiles: parseProfiles(h.profiles, at), profileOrder: [], capabilities: [], providers: {}, charts: [], chartValues: {}, outputs: {}, kubernetes,
                 address: h.address ?? "", fqdn: h.address ?? "", user: h.user ?? lab.ssh?.user ?? catalog.defaults.value.ssh.user,
             });
         } else {
@@ -486,6 +495,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             needImage(harvester.name, h.os);
             hosts.set(name, {
                 kind: "harvester", name, os: h.os, profiles: parseProfiles(h.profiles, at), profileOrder: [], capabilities: [], providers: {}, charts: [], chartValues: {}, outputs: {}, fqdn: `${name}.${lab.domain}`,
+                kubernetes: runsKubernetes(name, h.profiles),
                 harvester: harvester.name, cpu: h.cpu ?? vmDefaults.cpu, memory: h.memory ?? vmDefaults.memory, disk: h.disk ?? vmDefaults.disk,
                 network: checkNetwork(harvester, h.network, `${at}.network`), macAddress: h.macAddress,
             });
@@ -704,10 +714,6 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 metalNodeOwner.set(node.host, name);
                 const blocking = blocksMetalClusterNode(registry, host.profiles);
                 if (blocking.length > 0) diags.error(L, nodeAt, `host "${node.host}" can't join a metal cluster: it runs ${blocking.join(", ")}, which can't share a host with Kubernetes`);
-                // The -k8s variant of an OS readies a host for Kubernetes; without it registration fails late.
-                if (!host.os.endsWith("-k8s") && allOs[`${host.os}-k8s`]) {
-                    diags.warning(L, nodeAt, `host "${node.host}" runs ${host.os}; a metal-cluster node needs Kubernetes' prerequisites: use ${host.os}-k8s`);
-                }
             });
             downstream.push({ ...d, name });
         }

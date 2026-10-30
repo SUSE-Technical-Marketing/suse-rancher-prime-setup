@@ -21,7 +21,7 @@ metadata:
 spec:
   address: machine-01.lab.geeko.me
   user: lab
-  os: leap-16-k8s
+  os: leap-16
   profiles:
     rke2: {}
 ---
@@ -32,7 +32,7 @@ metadata:
 spec:
   address: machine-02.lab.geeko.me
   user: lab
-  os: leap-16-k8s
+  os: leap-16
   profiles:
     rke2: {}
     metallb:
@@ -46,6 +46,6 @@ metadata:
 spec:
   address: machine-03.lab.geeko.me
   user: lab
-  os: leap-16-k8s
+  os: leap-16
   profiles:
     k3s: {}

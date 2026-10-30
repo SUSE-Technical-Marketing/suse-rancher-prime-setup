@@ -108,7 +108,7 @@ kind: Machine
 metadata: { name: box }
 spec:
   address: "box.{{ lab.domain }}"
-  os: leap-16-k8s
+  os: leap-16
   profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: "{{ secrets.ra }}" } }
 ---
 kind: Machine

@@ -12,6 +12,17 @@ spec:
   ami: { owner: "099720109477", name: "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*", user: ubuntu }
   cloudInit:
     package_update: true
-    packages: [ curl, git, bash-completion, vim, wget, tree, qemu-guest-agent ]
-    runcmd:
-      - systemctl enable --now qemu-guest-agent
+    packages: [ curl, git, bash-completion, vim, wget, tree ]
+  # On Harvester VMs only: the guest agent reports the VM's address and lets Harvester shut it down.
+  harvester:
+    cloudInit:
+      packages: [ qemu-guest-agent ]
+      runcmd:
+        - systemctl enable --now qemu-guest-agent
+  # For k3s / RKE2 nodes: what Longhorn needs on every node. iSCSI for its volumes, NFS for RWX
+  # volumes, cryptsetup for encrypted ones.
+  kubernetes:
+    cloudInit:
+      packages: [ open-iscsi, nfs-common, cryptsetup ]
+      runcmd:
+        - systemctl enable --now iscsid
