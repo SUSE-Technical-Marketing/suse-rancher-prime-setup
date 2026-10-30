@@ -20,14 +20,14 @@ spec:
             password: "{{ settings.suseRegistry | field('password') }}"
           # NGC logins are always the user $oauthtoken with an API key.
           nvidia:
-            username: "{{ '$oauthtoken' if settings.nvidia else '' }}"
-            password: "{{ settings.nvidia | default('') }}"
+            username: "{{ settings.nvidia | field('username') }}"
+            password: "{{ settings.nvidia | field('password') }}"
   # On Rancher's own (local) cluster: the chart waits for Rancher's Fleet and UI-plugin CRDs.
   requires: [ rancher ]
   secretFields:
     - { field: applicationCollection, shape: credentials }
     - { field: suseRegistry, shape: credentials }
-    - nvidia
+    - { field: nvidia, shape: credentials }
   settings:
     type: object
     required: [ applicationCollection, suseRegistry ]
@@ -40,7 +40,7 @@ spec:
         $ref: credentials
         description: SUSE registry login for the AI charts (registry.suse.com/ai), e.g. "{{ secrets.scc }}"
       nvidia:
-        $ref: secretOrString
+        $ref: credentials
         description: NVIDIA NGC API key, for NIM blueprints, e.g. "{{ secrets.nvidia }}"
       values:
         $ref: chartValues

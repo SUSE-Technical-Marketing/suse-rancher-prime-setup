@@ -9,7 +9,7 @@ export type AiFactorySettings = {
     /** SUSE registry login for the AI charts (registry.suse.com/ai), e.g. "{{ secrets.scc }}" */
     suseRegistry: Credentials;
     /** NVIDIA NGC API key, for NIM blueprints, e.g. "{{ secrets.nvidia }}" */
-    nvidia?: string;
+    nvidia?: Credentials;
     /** Extra Helm values for aif-operator, merged over the engine's */
     values?: Record<string, unknown>;
 };

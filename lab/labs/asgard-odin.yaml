@@ -10,7 +10,7 @@ spec:
 
   tls:
     # Staging while iterating: Let's Encrypt allows 5 certificates per week for the same names.
-    acme: letsencrypt-staging
+    acme: letsencrypt
     email: jeroen@vanerp.info
     cloudflare: "{{ secrets.cloudflare.token }}"
 
@@ -60,11 +60,15 @@ spec:
     outrider: {}
     rancher:
       adminPassword: "{{ secrets['rancher-admin'] }}"
+    ai-factory:
+      applicationCollection: "{{ secrets.appco }}"
+      suseRegistry: "{{ secrets.scc }}"
+      nvidia: "{{ secrets.nvidia }}"
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: DownstreamCluster
 metadata:
-  name: athena
+  name: heimdall
 spec:
   type: harvester
   rancher: odin
@@ -75,7 +79,6 @@ spec:
   # Longhorn (apps/platform), needs-storage the storage class (apps/base).
   labels:
     needs-observability: "true"
-    needs-traefik: "true"
     needs-storage: "true"
   annotations:
     hosted-domain: "{{ lab.domain }}"
@@ -89,3 +92,58 @@ spec:
       memory: 40Gi
       disk: 500Gi
       os: leap-16
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: DownstreamCluster
+metadata:
+  name: freya
+spec:
+  type: harvester
+  rancher: odin
+  harvester: asgard
+  distro: rke2
+  pools:
+    - name: all
+      quantity: 1
+      roles:
+        - etcd
+        - controlplane
+        - worker
+      os: leap-16
+      memory: 16Gi
+      disk: 100Gi
+      network: vlan20
+  labels:
+    needs-storage: "true"
+    needs-security: "true"
+  annotations:
+    hosted-domain: "{{ lab.domain }}"
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Machine
+metadata:
+  name: dgx-spark
+spec:
+  address: dgx-spark.lab.geeko.me
+  os: leap-16
+  profiles: {}
+  user: jeroen
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: DownstreamCluster
+metadata:
+  name: dgx
+spec:
+  type: metal
+  rancher: odin
+  distro: rke2
+  nodes:
+    - host: dgx-spark
+      roles:
+        - etcd
+        - controlplane
+        - worker
+  annotations:
+    hosted-domain: "{{ lab.domain }} "
+  labels:
+    has-gpu: nvidia
