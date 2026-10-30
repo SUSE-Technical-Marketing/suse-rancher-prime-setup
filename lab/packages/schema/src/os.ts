@@ -28,7 +28,7 @@ export interface OsLayerEntry {
 export interface CloudInitVars {
     /** The lab's secrets, resolved (only the program has them). */
     secrets: Record<string, unknown>;
-    lab: { name: string; domain: string };
+    lab: { name: string; domain: string; vars: Record<string, unknown> };
 }
 
 export const cloudInitVars = (lab: CloudInitVars["lab"], secrets: Record<string, unknown>): CloudInitVars => ({ secrets, lab });

@@ -330,6 +330,11 @@ export const LabFile = z.strictObject({
     include: Include,
     /** Values for the inputs of catalog secrets and configmaps (§16.6). */
     inputs: Inputs.default({}),
+    /**
+     * The lab's own values, any keys at any depth, for templates to refer to: `{{ lab.vars.team }}`
+     * in the lab's documents (§5.1), in profiles' chart values and in OS profiles' cloud-init.
+     */
+    vars: z.record(z.string(), z.unknown()).default({}),
     harvesters: z.record(dnsLabel, HarvesterInput).default({}),
     awsSites: z.record(dnsLabel, AwsSiteInput).default({}),
     hosts: z.record(dnsLabel, HostInput).default({}),

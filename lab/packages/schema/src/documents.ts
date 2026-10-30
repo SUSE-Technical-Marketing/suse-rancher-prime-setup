@@ -3,10 +3,11 @@ import { z } from "zod";
 import { AcmeServerInput, CatalogLayer, DefaultsInput } from "./catalog";
 import { Diagnostics } from "./diagnostics";
 import { ClusterSelector, FleetHelmOpInput, FleetRepoInput } from "./fleet";
+import { LabRefs, labRefsFrom, labRefsOf, renderLabRefs } from "./lab-refs";
 import { ConfigMapInput, SecretInput } from "./objects";
 import { awsZone, cidr, dnsLabel, duration, osName, quantity, TIMEOUTS } from "./primitives";
 import { ProfileInput } from "./profiles";
-import { AwsSiteInput, DownstreamInput, HarvesterInput, HarvesterVMSpec, MachineSpec, OsProfileInput, VersionValue } from "./schema";
+import { AwsSiteInput, DownstreamInput, HarvesterInput, HarvesterVMSpec, LabSpec, MachineSpec, OsProfileInput, VersionValue } from "./schema";
 
 // Catalog, lab and personal config files are Kubernetes-style documents (DESIGN.md §17):
 // `apiVersion`, `kind`, `metadata`, `spec`. A file can hold several, separated by `---`.
@@ -193,14 +194,18 @@ export interface ParsedFile {
     main?: { kind: FileKind; name: string; description?: string; spec: unknown };
     documents: CatalogDocument[];
     labDocuments: LabDocument[];
+    /** A lab file's references (`{{ lab.domain }}`), from its Lab document: for the files it includes. */
+    refs?: LabRefs;
 }
 
 /**
  * Parse a file of documents. `main` says which file kind the first document must be (a lab file
  * starts with `kind: Lab`); every other document is a catalog document.
  */
-export function parseDocuments(text: string, source: string, diags: Diagnostics, main?: FileKind): ParsedFile {
+export function parseDocuments(text: string, source: string, diags: Diagnostics, main?: FileKind, refs: LabRefs = {}): ParsedFile {
     const result: ParsedFile = { documents: [], labDocuments: [] };
+    // The Lab document's references, rendered in it and in the lab documents after it (§5.1).
+    const render = (spec: unknown, at: string) => renderLabRefs(spec ?? {}, result.refs ?? refs, at, (p, m) => diags.error(source, p, m));
     yamlDocuments(text, source, diags).forEach((raw, i) => {
         const header = Header.safeParse(raw);
         const where = `document ${i + 1}`;
@@ -225,7 +230,17 @@ export function parseDocuments(text: string, source: string, diags: Diagnostics,
                 diags.addZodError(source, meta.error, ["metadata"]);
                 return;
             }
-            result.main = { kind: main, name: meta.data.name ?? "", description: meta.data.description, spec: spec ?? {} };
+            if (main !== "Lab") {
+                result.main = { kind: main, name: meta.data.name ?? "", description: meta.data.description, spec: spec ?? {} };
+                return;
+            }
+            // The Lab document first, with itself as written; the lab's other documents then see it
+            // rendered, with its defaults (`lab.tls.acme`).
+            result.refs = labRefsOf({ name: meta.data.name, spec });
+            const rendered = render(spec, "spec") as Record<string, unknown>;
+            const checked = LabSpec.safeParse(rendered);
+            result.refs = labRefsFrom(meta.data.name ?? "", checked.success ? checked.data as Record<string, unknown> : rendered);
+            result.main = { kind: main, name: meta.data.name ?? "", description: meta.data.description, spec: rendered };
             return;
         }
         if ((FILE_KINDS as readonly string[]).includes(kind)) {
@@ -239,7 +254,7 @@ export function parseDocuments(text: string, source: string, diags: Diagnostics,
                 diags.addZodError(source, meta.error, [`${kind}/${String((metadata as { name?: unknown })?.name ?? `(document ${i + 1})`)}`, "metadata"]);
                 return;
             }
-            const parsedSpec = (labDef.spec as z.ZodType).safeParse(spec ?? {});
+            const parsedSpec = (labDef.spec as z.ZodType).safeParse(render(spec, docAt(kind, meta.data.name, "spec")));
             if (!parsedSpec.success) {
                 diags.addZodError(source, parsedSpec.error, [docAt(kind, meta.data.name), "spec"]);
                 return;

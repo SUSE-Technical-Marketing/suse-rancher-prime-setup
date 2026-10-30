@@ -78,7 +78,7 @@ spec:
     needs-traefik: "true"
     needs-storage: "true"
   annotations:
-    hosted-domain: lab.geeko.me
+    hosted-domain: "{{ lab.domain }}"
   machineGlobalConfig:
     disable: [ traefik ]
   pools:

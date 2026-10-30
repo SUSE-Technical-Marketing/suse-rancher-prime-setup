@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { CatalogLayer, ResolvedCatalog, resolveCatalog } from "./catalog";
 import { Diagnostics } from "./diagnostics";
+import type { LabRefs } from "./lab-refs";
 import { CatalogDocument, docAt, documentsLayer, FileKind, LabDocument, LabKind, parseDocuments } from "./documents";
 import { resolveLab, ResolveResult } from "./resolve";
 import { LabFile, LabSpec, PersonalConfig } from "./schema";
@@ -25,7 +26,7 @@ function yamlFiles(target: string): string[] {
 }
 
 /** The documents in files or directories (none of them may be a lab file or personal config). */
-function readDocuments(targets: string[], diags: Diagnostics, from?: { source: string; at: string }): { documents: CatalogDocument[]; labDocuments: LabDocument[] } {
+function readDocuments(targets: string[], diags: Diagnostics, from?: { source: string; at: string }, refs?: LabRefs): { documents: CatalogDocument[]; labDocuments: LabDocument[] } {
     const documents: CatalogDocument[] = [];
     const labDocuments: LabDocument[] = [];
     targets.forEach((target, i) => {
@@ -34,7 +35,7 @@ function readDocuments(targets: string[], diags: Diagnostics, from?: { source: s
             return;
         }
         for (const file of yamlFiles(target)) {
-            const parsed = parseDocuments(fs.readFileSync(file, "utf8"), file, diags);
+            const parsed = parseDocuments(fs.readFileSync(file, "utf8"), file, diags, undefined, refs);
             documents.push(...parsed.documents);
             labDocuments.push(...parsed.labDocuments);
         }
@@ -79,7 +80,7 @@ function loadConfigFile<T>(
     const value = toValue(parsed.main);
     if (!value.ok) return undefined;
     const dir = path.dirname(path.resolve(source));
-    const included = readDocuments(value.include.map(p => path.resolve(dir, p.replace(/^~(?=$|\/)/, os.homedir()))), diags, { source, at: "spec.include" });
+    const included = readDocuments(value.include.map(p => path.resolve(dir, p.replace(/^~(?=$|\/)/, os.homedir()))), diags, { source, at: "spec.include" }, parsed.refs);
     return {
         value: value.value,
         layers: [documentsLayer(included.documents, source, diags, false), documentsLayer(parsed.documents, source, diags, false)],

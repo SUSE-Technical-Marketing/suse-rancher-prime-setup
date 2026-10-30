@@ -9,6 +9,7 @@ export * from "./objects";
 export * from "./settings-schema";
 export * from "./templates";
 export * from "./secrets";
+export * from "./lab-refs";
 export * from "./os";
 export * from "./resolve";
 export * from "./load";

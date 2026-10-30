@@ -129,7 +129,7 @@ function addNode() {
       <h3>Fleet</h3>
       <div class="grid">
         <KeyValue label="labels" hint="Fleet groups select on these; apps look for needs-traefik, needs-longhorn, needs-storage, needs-observability, …" v-bind="bind('spec.labels')" />
-        <KeyValue label="annotations" hint="fleet.yaml reads them as .ClusterAnnotations, e.g. hosted-domain" v-bind="bind('spec.annotations')" />
+        <KeyValue label="annotations" hint="fleet.yaml reads them as .ClusterAnnotations, e.g. hosted-domain: {{ lab.domain }}" v-bind="bind('spec.annotations')" />
       </div>
     </section>
 

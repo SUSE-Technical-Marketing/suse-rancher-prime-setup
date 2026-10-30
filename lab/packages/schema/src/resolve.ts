@@ -144,6 +144,8 @@ export type ResolvedDownstream = { name: string } & (
 export interface ResolvedLab {
     name: string;
     domain: string;
+    /** The Lab document's `vars`, references rendered; secrets still templates. */
+    vars: Record<string, unknown>;
     tls: LabFile["tls"];
     /** The AcmeServer `tls.acme` names; none for `tls.acme: none`. */
     acme?: ResolvedAcmeServer;
@@ -278,7 +280,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             usedOs[name] = os;
             // Rendered for real by the program, with the secrets' values; this checks the templates and
             // finds the secrets they use (a registration code, say).
-            const vars = { lab: { name: lab.lab, domain: lab.domain } };
+            const vars = { lab: { name: lab.lab, domain: lab.domain, vars: lab.vars } };
             const walk = (value: unknown, at: string): void => {
                 if (typeof value === "string") { if (isTemplate(value)) useTemplate(value, "string", `OS profile ${name}`, at, vars); }
                 else if (Array.isArray(value)) value.forEach((v, i) => walk(v, `${at}[${i}]`));
@@ -532,7 +534,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             const ctx: TemplateContext = {
                 settings: host.profiles[name],
                 host: { name: host.name, fqdn: host.fqdn },
-                lab: { name: lab.lab, domain: lab.domain, tls: { acme: lab.tls.acme, privateCA: !!acme?.ca, ...(lab.tls.email ? { email: lab.tls.email } : {}) } },
+                lab: { name: lab.lab, domain: lab.domain, vars: lab.vars, tls: { acme: lab.tls.acme, privateCA: !!acme?.ca, ...(lab.tls.email ? { email: lab.tls.email } : {}) } },
                 outputs: Object.fromEntries(Object.entries(host.outputs).filter(([cap]) => waitFor.has(cap))),
             };
             host.chartValues[name] = {
@@ -784,7 +786,15 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         }
     }
 
-    // --- Top level: TLS, SSH, unused harvesters --------------------------------------------------
+    // --- Top level: vars, TLS, SSH, unused harvesters --------------------------------------------
+    // A secret in vars ("{{ secrets.token }}") is fetched like any other: a template that reads it gets the value.
+    const walkVars = (value: unknown, at: string): void => {
+        if (typeof value === "string") { if (usesSecrets(value)) useTemplate(value, "string", L, at); }
+        else if (Array.isArray(value)) value.forEach((v, i) => walkVars(v, `${at}[${i}]`));
+        else if (typeof value === "object" && value !== null) for (const [k, v] of Object.entries(value)) walkVars(v, `${at}.${k}`);
+    };
+    walkVars(lab.vars, "vars");
+
     const anyHosts = hosts.size > 0;
     if (anyHosts && lab.tls.acme !== "none") {
         if (!lab.tls.email) diags.error(L, "tls.email", `required for ACME (tls.acme: ${lab.tls.acme})`);
@@ -833,6 +843,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         lab: {
             name: lab.lab,
             domain: lab.domain,
+            vars: lab.vars,
             tls: lab.tls,
             ...(acme ? { acme } : {}),
             ssh,

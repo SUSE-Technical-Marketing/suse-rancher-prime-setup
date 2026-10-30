@@ -150,6 +150,22 @@ deeper into nested maps: `"{{ secrets.cloudflare.tunnel.token }}"` for a field, 
 `credentials: "{{ secrets.infra.harvester }}"` for a map inside one. Text around it is fine (`"Bearer {{ secrets.token }}"`). The lab file only names secrets; values come from the
 user's environment (§10).
 
+**References to the lab.** Any string in the lab file's Lab document and its Harvester, AwsSite,
+HarvesterVM, Machine and DownstreamCluster documents (in the file or one it includes) can refer to
+`lab`: the Lab document's spec with its `name`, as profile templates see it (§17). So
+`hosted-domain: "{{ lab.domain }}"`, `address: "nuc.{{ lab.domain }}"`, `"{{ lab.tls.email }}"`,
+`"{{ lab.ssh.user }}"`. For values of your own, the Lab document has `vars`: any keys at any depth
+(`vars: { team: tmm, dns: { zone: geeko.me } }`, then `"{{ lab.vars.dns.zone }}"`), checked like the
+rest; profiles' chart values and OS profiles' cloud-init see `lab.vars` too, and a secret in it
+(`token: "{{ secrets.tok }}"`) is fetched like any other. The Lab document is rendered first (`email: "admin@{{ lab.domain }}"` works,
+a value that is a reference itself can't be referred to inside it); the other documents see it
+rendered, with its schema defaults (`lab.tls.acme`). They're rendered when the file loads, before
+the documents are checked, so a rendered address is checked as an address. A reference to anything
+the Lab document doesn't have (`lab.spec.domain`, `lab.tls.mail`, a bare `domain`), even under a
+`default` filter, is an error at that field naming what it does have, never left in the lab as text. Values using secrets are rendered
+later, with the secrets (§10); catalog documents have templates of their own (§17). A `{{` that has
+to stay one is written `{{ '{{' }}`.
+
 `validate` renders each template against placeholders: that checks it and finds which secrets it
 uses, and how, so `lab plan` can list them with their shape (a secret used whole is a string; one
 used by field is a map with at least those fields, credentials when they're `username` and
@@ -467,7 +483,8 @@ the k3k Cluster and its namespace; when the parent goes too, what's on it goes w
 
 `labels` and `annotations` are set on the `provisioning.cattle.io` Cluster. Rancher copies them to
 the Fleet cluster, so `fleet.groups` selectors match the labels and a `fleet.yaml` reads both
-(`.ClusterLabels`, `.ClusterAnnotations`; the apps use `hosted-domain`).
+(`.ClusterLabels`, `.ClusterAnnotations`; the apps use `hosted-domain`, usually
+`hosted-domain: "{{ lab.domain }}"`, §5.1).
 
 ### 5.6 AWS sites
 
@@ -1580,7 +1597,7 @@ in strict mode (an undefined variable is an error at the value's path, naming th
 |---|---|
 | `settings` | the profile's settings on this host, defaults applied |
 | `host` | `name`, `fqdn` |
-| `lab` | `name`, `domain`, `tls.acme`, `tls.privateCA` (the AcmeServer has a `ca`: Let's Encrypt staging), `tls.email` |
+| `lab` | `name`, `domain`, `vars` (the Lab document's own values, §5.1), `tls.acme`, `tls.privateCA` (the AcmeServer has a `ca`: Let's Encrypt staging), `tls.email` |
 | `outputs` | by capability: the `outputs` the profile on this host providing it declares; only for capabilities this profile `requires`, `uses` or `requiresWhen`, so it can't read a profile built after it |
 
 A secret setting reaches a chart through the `field` filter: `"{{ settings.applicationCollection |

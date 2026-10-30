@@ -1201,6 +1201,13 @@ describe("secret templates", () => {
         expect(renderSecretTemplate("x-{{ secrets.cf.tunnel.id }}", secrets)).toBe("x-i");
     });
 
+    it("fetches the secrets the lab's vars use", () => {
+        const result = load(`${BASE}vars: { token: "{{ secrets.tok }}", header: "Bearer {{ secrets['api-key'] }}", plain: 1 }\n`);
+        expect(errors(result)).toEqual([]);
+        expect(result.lab!.secrets).toMatchObject({ tok: "string", "api-key": "string" });
+        expect(result.lab!.vars).toEqual({ token: "{{ secrets.tok }}", header: "Bearer {{ secrets['api-key'] }}", plain: 1 });
+    });
+
     it("warns about plain values in secret fields, and errors on credentials written as one plain string", () => {
         const result = load(BASE.replace("\"{{ secrets.cf }}\"", "my-token").replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: admin }"));
         expect(errors(result)).toEqual(["harvesters.hv-north.credentials: credentials are one secret (\"{{ secrets.name }}\") or { username, password }"]);

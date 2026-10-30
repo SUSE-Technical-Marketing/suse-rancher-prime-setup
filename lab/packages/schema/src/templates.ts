@@ -34,7 +34,7 @@ export interface TemplateContext {
     settings: Record<string, unknown>;
     host: { name: string; fqdn: string };
     /** `tls.privateCA`: the ACME server's CA isn't trusted by default (Let's Encrypt staging). */
-    lab: { name: string; domain: string; tls: { acme: string; privateCA: boolean; email?: string } };
+    lab: { name: string; domain: string; vars: Record<string, unknown>; tls: { acme: string; privateCA: boolean; email?: string } };
     /** By capability: what the profiles on the same host that provide it declare under `outputs`. */
     outputs: Record<string, Record<string, unknown>>;
 }

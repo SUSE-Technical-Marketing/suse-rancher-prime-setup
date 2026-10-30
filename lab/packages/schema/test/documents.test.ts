@@ -93,6 +93,138 @@ spec: {}
         expect(errors(loadLab({ labFile: write("plain.yaml", LAB), personalConfig: personal }))).toEqual(['spec.colour: unknown field "colour"']);
     });
 
+    it("renders references to the Lab document in the lab's documents, and those it includes", () => {
+        write("refs/hosts.yaml", "kind: Machine\nmetadata: { name: shared }\nspec: { address: \"shared.{{ lab.domain }}\", os: leap-16 }\n");
+        const lab = write("refs.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: refs }
+spec:
+  domain: lab.example.com
+  tls: { acme: letsencrypt, email: "admin@{{ lab.domain }}", cloudflare: "{{ secrets.cf }}" }
+  ssh: { user: lab, publicKey: "ssh-ed25519 AAAA", privateKey: "{{ secrets.k }}" }
+  include: [refs]
+---
+kind: Machine
+metadata: { name: box }
+spec:
+  address: "box.{{ lab.domain }}"
+  os: leap-16-k8s
+  profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: "{{ secrets.ra }}" } }
+---
+kind: Machine
+metadata: { name: loops }
+spec: { address: "{% for p in ['loops'] %}{{ p }}{% endfor %}.{{ lab.domain | lower }}", os: leap-16 }
+---
+kind: DownstreamCluster
+metadata: { name: edge }
+spec:
+  type: metal
+  rancher: box
+  annotations: { hosted-domain: "{{ lab.domain }}", owner: "{{ lab.name }}", contact: "{{ lab.tls.email }}", acme: "{{ lab.tls.acme }}", user: "{{ lab.ssh.user }}" }
+  nodes: [ { host: shared, roles: [ etcd, controlplane, worker ] } ]
+`);
+        const result = loadLab({ labFile: lab, personalConfig: noPersonal() });
+        expect(errors(result)).toEqual([]);
+        expect(Object.fromEntries(result.lab!.hosts.map(h => [h.name, h.fqdn]))).toEqual({ box: "box.lab.example.com", loops: "loops.lab.example.com", shared: "shared.lab.example.com" });
+        // Lab values that are references themselves arrive rendered.
+        expect(result.lab!.downstream[0].annotations).toEqual({ "hosted-domain": "lab.example.com", owner: "refs", contact: "admin@lab.example.com", acme: "letsencrypt", user: "lab" });
+        expect(result.lab!.tls.email).toBe("admin@lab.example.com");
+        // Secrets stay templates, rendered with their values later.
+        expect(result.lab!.tls.cloudflare).toBe("{{ secrets.cf }}");
+    });
+
+    it("has vars: any keys, for references, themselves referring to the Lab document", () => {
+        const lab = write("vars.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: vars }
+spec:
+  domain: lab.example.com
+  tls: { acme: none }
+  ssh: { publicKey: "ssh-ed25519 AAAA", privateKey: "{{ secrets.k }}" }
+  vars:
+    team: tmm
+    contact: "admin@{{ lab.domain }}"
+    dns: { zone: geeko.me, servers: [ 10.0.0.1, 10.0.0.2 ] }
+---
+kind: Machine
+metadata: { name: box }
+spec: { address: "box.{{ lab.vars.dns.zone }}", os: leap-16, user: "{{ lab.vars.team }}" }
+---
+kind: Machine
+metadata: { name: dns }
+spec: { address: "{{ lab.vars.dns.servers[1] }}", os: leap-16 }
+---
+kind: Machine
+metadata: { name: typo }
+spec: { address: "{{ lab.vars.taem }}", os: leap-16 }
+`);
+        expect(errors(loadLab({ labFile: lab, personalConfig: noPersonal() }))).toEqual([
+            'Machine/typo.spec.address: unknown reference "lab.vars.taem"; lab.vars has lab.vars.contact, lab.vars.dns, lab.vars.team',
+        ]);
+        fs.writeFileSync(lab, fs.readFileSync(lab, "utf8").replace("lab.vars.taem", "lab.vars.team"));
+        const result = loadLab({ labFile: lab, personalConfig: noPersonal() });
+        expect(errors(result)).toEqual([]);
+        expect(result.lab!.hosts.map(h => `${h.name} ${h.fqdn} ${(h as { user?: string }).user}`)).toEqual(["box box.geeko.me tmm", "dns 10.0.0.2 lab", "typo tmm lab"]);
+        // vars reach the resolved lab rendered, for profiles and cloud-init.
+        expect(result.lab!.vars).toEqual({ team: "tmm", contact: "admin@lab.example.com", dns: { zone: "geeko.me", servers: ["10.0.0.1", "10.0.0.2"] } });
+    });
+
+    it("rejects references to anything the Lab document doesn't have, wherever they are", () => {
+        write("dangling/hosts.yaml", "kind: Machine\nmetadata: { name: inc }\nspec: { address: \"{{ lab.spec.domain }}\", os: leap-16 }\n");
+        const lab = write("dangling.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: dangling }
+spec:
+  domain: lab.example.com
+  include: [dangling]
+---
+kind: Machine
+metadata: { name: a }
+spec: { address: "{{ lab.domian }}", os: leap-16 }
+---
+kind: Machine
+metadata: { name: e }
+spec: { address: "e.{{ domain }}", os: leap-16 }
+---
+kind: Machine
+metadata: { name: b }
+spec: { address: "{{ lab.missing | default('x') }}", os: leap-16 }
+---
+kind: Machine
+metadata: { name: c }
+spec: { address: "{{ lab }}", os: leap-16 }
+---
+kind: Machine
+metadata: { name: d }
+spec: { address: "{{ lab.domain", os: leap-16 }
+---
+kind: Machine
+metadata: { name: f }
+spec: { address: "{{ lab.tls.mail }}", os: leap-16 }
+`);
+        const result = loadLab({ labFile: lab, personalConfig: noPersonal() });
+        expect(result.diagnostics.errors.map(d => `${path.relative(tmp, d.source)}: ${d.path}: ${d.message}`)).toEqual([
+            'dangling.yaml: Machine/a.spec.address: unknown reference "lab.domian"; lab has lab.domain, lab.images, lab.include, lab.inputs, lab.name, lab.tls, lab.vars',
+            'dangling.yaml: Machine/e.spec.address: unknown reference "domain"; a lab file\'s templates can use lab (the Lab document: lab.domain, lab.images, lab.include, lab.inputs, lab.name, lab.tls, lab.vars) and secrets',
+            'dangling.yaml: Machine/b.spec.address: unknown reference "lab.missing"; lab has lab.domain, lab.images, lab.include, lab.inputs, lab.name, lab.tls, lab.vars',
+            // The whole Lab document is a map, not an address.
+            "dangling.yaml: Machine/c.spec.address: Invalid input: expected string, received object",
+            expect.stringMatching(/^dangling\.yaml: Machine\/d\.spec\.address: template: /),
+            'dangling.yaml: Machine/f.spec.address: unknown reference "lab.tls.mail"; lab.tls has lab.tls.acme',
+            'dangling/hosts.yaml: Machine/inc.spec.address: unknown reference "lab.spec.domain"; lab has lab.domain, lab.images, lab.include, lab.inputs, lab.name, lab.tls, lab.vars',
+        ]);
+    });
+
+    it("can't refer to a Lab value that is a reference itself, within the Lab document", () => {
+        const lab = write("self.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: self }
+spec:
+  domain: "{{ lab.domain }}"
+`);
+        expect(errors(loadLab({ labFile: lab, personalConfig: noPersonal() }))).toContain("spec.domain: lab.domain is a template itself; refer to what it's made of");
+    });
+
     it("assembles a lab from its Harvester, HarvesterVM, Machine and DownstreamCluster documents", () => {
         write("shared/hosts.yaml", "kind: HarvesterVM\nmetadata: { name: vm }\nspec: { harvester: hv, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, colour: blue }\n");
         const lab = write("composed.yaml", `apiVersion: lab.geeko.me/v1alpha1

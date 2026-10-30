@@ -58,6 +58,14 @@ const keyIsFile = computed(() => typeof get("spec.ssh.publicKey") !== "string");
       </div>
     </section>
 
+    <section>
+      <h3>Vars</h3>
+      <p class="muted">Your own values, any keys: the lab's documents, profiles and cloud-init refer to them as <code v-pre>{{ lab.vars.team }}</code>.</p>
+      <div class="grid">
+        <YamlField label="vars" hint="e.g. team: tmm, or nested maps and lists; values may use {{ lab.domain }} and secrets" v-bind="bind('spec.vars')" />
+      </div>
+    </section>
+
     <details class="advanced">
       <summary>More</summary>
       <div class="grid">

@@ -71,7 +71,7 @@ function amiOf(site: string, osName: string): pulumi.Output<string> {
 
 // --- Hosts and their profiles --------------------------------------------------------------------
 /** What an OS profile's cloud-init templates use: the lab's secrets (kept secret), its name and domain. */
-const osVars = (): pulumi.Output<CloudInitVars> => secrets().apply(s => cloudInitVars({ name: lab.name, domain: lab.domain }, s));
+const osVars = (): pulumi.Output<CloudInitVars> => secrets().apply(s => cloudInitVars({ name: lab.name, domain: lab.domain, vars: lab.vars }, s));
 /** A machine's setup over SSH; secret when its OS profile's cloud-init uses secrets. */
 const machineCommands = (os: ResolvedOs): pulumi.Output<string[]> => {
     const commands = osVars().apply(vars => machineSetup(os, vars));

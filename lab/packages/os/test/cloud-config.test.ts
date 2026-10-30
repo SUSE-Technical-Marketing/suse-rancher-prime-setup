@@ -7,7 +7,7 @@ const base: ResolvedOs = {
     name: "test", displayName: "Test", family: "suse", imageUrl: null, image: "test", cloudInit: {},
 };
 const user = { name: "lab", publicKey: "ssh-ed25519 AAAA lab" };
-const vars = { secrets: { "scc-regcode": "REG-123" }, lab: { name: "lab1", domain: "lab.example.com" } };
+const vars = { secrets: { "scc-regcode": "REG-123" }, lab: { name: "lab1", domain: "lab.example.com", vars: {} } };
 
 function render(os: Partial<ResolvedOs>, extra: Partial<Parameters<typeof renderCloudConfig>[0]> = {}) {
     const text = renderCloudConfig({ os: { ...base, ...os }, hostname: "vm", fqdn: "vm.lab.example.com", user, vars, ...extra });

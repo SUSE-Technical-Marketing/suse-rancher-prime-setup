@@ -123,6 +123,13 @@ with a dash (`"{{ secrets['ssh-key'] }}"`), a field of a map secret by name (`"{
 or with text around it (`"Bearer {{ secrets.token }}"`). Quote
 them: YAML reads a bare `{` as a map.
 
+Any value in the lab's own documents can also refer to the Lab document, as `lab` (its spec and
+`name`): `"{{ lab.domain }}"`, `"{{ lab.name }}"`, `"{{ lab.tls.email }}"`, e.g.
+`hosted-domain: "{{ lab.domain }}"` on a cluster. `validate` rejects a reference to anything the Lab
+document doesn't have (`lab.spec.domain`, a typo), so none is left in the lab as text. Values of
+your own go under `vars` in the Lab document, any keys: `vars: { team: tmm }`, then
+`"{{ lab.vars.team }}"`; profiles and cloud-init can use them too.
+
 ## Catalog: the defaults
 
 What a lab installs by default is data in [`catalog/`](catalog), one document per thing, in
