@@ -3,7 +3,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { provisioning } from "@lab/crds";
 import { kubeRequest } from "@lab/kube";
-import { asRoot, deepMerge, helmJobWatch, HostAccess, KubeWait, runExisting, sshConnection } from "@lab/kubernetes";
+import { asRoot, deepMerge, helmJobWatch, HostAccess, KubeWait, runExisting, runUploaded, sshConnection, stepScript } from "@lab/kubernetes";
 import type { ResolvedDistribution, Timeouts } from "@lab/schema";
 import { ClusterKubeconfig, managementClusterId } from "./cluster-kubeconfig";
 import { ClusterRegistration } from "./registration";
@@ -111,9 +111,14 @@ export class MetalCluster extends pulumi.ComponentResource {
             // A server node (etcd or control plane) gets the watcher for helm-controller Jobs left suspended.
             const watch = node.roles.some(r => r !== "worker") ? [helmJobWatch(args.distribution, args.timeouts.helmJobWatch)] : [];
             const steps = pulumi.output(node.prepare ?? []).apply(prepare => [...prepare, ...watch]);
+            // Uploaded as a script (it holds the registration token: removed once it ran) and run as
+            // one; a changed one runs again in place.
+            const script = pulumi.secret(pulumi.all([steps, registration.nodeCommand]).apply(([steps, cmd]) => stepScript([...steps, `${cmd} ${flags}`])));
             return new command.remote.Command(`${name}/node/${node.host.name}/register`, {
                 connection: sshConnection(node.host),
-                create: pulumi.secret(pulumi.all([steps, registration.nodeCommand]).apply(([steps, cmd]) => asRoot([...steps, `${cmd} ${flags}`].join(" && ")))),
+                create: runUploaded("register"),
+                update: runUploaded("register"),
+                stdin: script,
             }, { parent: this, dependsOn: [registration, cleanups[i]], deletedWith: this.cluster });
         });
 

@@ -4,7 +4,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { AwsNetwork, awsProfile, labTags, Pinned } from "@lab/aws";
 import { HarvesterBase, HarvesterCloudConfig, HarvesterVm } from "@lab/harvester";
-import { asRoot, ClusterObjects, helmApp, helmJobWatch, HostAccess, runExisting, sshConnection, waitForCloudInit } from "@lab/kubernetes";
+import { asRoot, ClusterObjects, helmApp, helmJobWatch, HostAccess, runExisting, runUploaded, sshConnection, stepScript, waitForCloudInit } from "@lab/kubernetes";
 import { Amazonec2Credential, Ec2Cluster, EksCluster, HarvesterCluster, HarvesterCredential, HarvesterImport, K3kCluster, MetalCluster, RancherAccess } from "@lab/rancher";
 import { machineSetup, renderCloudConfig } from "@lab/os";
 import { AWS_CREDENTIAL_FIELDS, cloudInitVars, usesSecrets, type CloudInitVars, type ResolvedLab, type ResolvedOs } from "@lab/schema";
@@ -138,9 +138,14 @@ for (const host of lab.hosts) {
         // An existing machine gets no user data (it may not even have cloud-init): what a VM's would
         // do (the OS profile's packages and runcmd, the profiles' commands) runs over SSH instead,
         // and when the lab goes the profiles are uninstalled, because the machine stays.
+        // Uploaded as a script and run as one, like a VM's runcmd. A changed script runs again in
+        // place (update), not as a replacement, which would uninstall the profiles first.
+        const script = machineCommands(lab.os[host.os], host.kubernetes).apply(setup => stepScript([...setup, ...runcmd]));
         const setup = new command.remote.Command(`${host.name}/setup`, {
             connection: sshConnection(access),
-            create: machineCommands(lab.os[host.os], host.kubernetes).apply(setup => asRoot([...setup, ...runcmd].join(" && "))),
+            create: runUploaded("setup"),
+            update: runUploaded("setup"),
+            stdin: script,
             delete: asRoot(runExisting(profileUninstall(lab, host))),
         });
         setUp = [setup];

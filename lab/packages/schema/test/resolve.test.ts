@@ -795,15 +795,15 @@ hosts:
 `;
     const credentials = (result: LoadResult) => result.lab!.hosts[0].chartValues["ai-factory"].entries[0].lockedValues.credentials as Record<string, unknown>;
 
-    it("hands the chart secret templates for each login's fields, and the NGC user", () => {
+    it("hands the chart secret templates for each login's fields", () => {
         const result = load(lab(`applicationCollection: "{{ secrets.appco }}", suseRegistry: "{{ secrets.scc }}", nvidia: "{{ secrets.nvidia }}"`));
         expect(errors(result)).toEqual([]);
         expect(credentials(result)).toEqual({
             applicationCollection: { username: "{{ secrets.appco.username }}", password: "{{ secrets.appco.password }}" },
             suseRegistry: { username: "{{ secrets.scc.username }}", password: "{{ secrets.scc.password }}" },
-            nvidia: { username: "$oauthtoken", password: "{{ secrets.nvidia }}" },
+            nvidia: { username: "{{ secrets.nvidia.username }}", password: "{{ secrets.nvidia.password }}" },
         });
-        expect(result.lab!.secrets).toMatchObject({ appco: "credentials", scc: "credentials", nvidia: "string" });
+        expect(result.lab!.secrets).toMatchObject({ appco: "credentials", scc: "credentials", nvidia: "credentials" });
     });
 
     it("takes a login as a username with a password secret, and leaves NVIDIA out when not given", () => {

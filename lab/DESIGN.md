@@ -281,7 +281,7 @@ profile. `lab profiles` prints the current list with all rules.
 | `hauler` | provides `registry` (uses Kubernetes if the host has it, otherwise systemd) | `manifests`, `port` | `RegistryAccess` |
 | `mlm-server` | OS family `suse`; conflicts with `kubernetes` and `mlm-client`; secret `adminPassword` | `version`, `adminPassword`, `products` | `MlmAccess` |
 | `mlm-client` | `server` must name a host running `mlm-server` | `server`, `activationKey` | — |
-| `ai-factory` | requires `rancher`; secrets `applicationCollection`, `suseRegistry` (credentials), `nvidia` | `version`, `applicationCollection` (required), `suseRegistry` (required; SCC), `nvidia` (the NGC API key), `values` | SUSE AI Factory on Rancher's cluster: the `aif-operator` chart, which installs the `aif-ui` extension and gets the registry logins as values, so its Settings need no Test and Apply |
+| `ai-factory` | requires `rancher`; secrets `applicationCollection`, `suseRegistry`, `nvidia` (credentials) | `version`, `applicationCollection` (required), `suseRegistry` (required; SCC), `nvidia` (the NGC login: user `$oauthtoken`, the API key as password), `values` | SUSE AI Factory on Rancher's cluster: the `aif-operator` chart, which installs the `aif-ui` extension and gets the registry logins as values, so its Settings need no Test and Apply |
 
 The apps a cluster needs are separate profiles, so they compose: a host can run Traefik without
 Rancher, or cert-manager for its own workloads. A Rancher host lists them all:

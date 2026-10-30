@@ -42,7 +42,7 @@ describe("ai-factory", () => {
         registered = await runProgram(LAB, {
             secrets: {
                 "ssh-key": "k", hv: { username: "u", password: "p" }, admin: "a", cloudflare: { token: "c" },
-                appco: { username: "ac-user", password: "ac-token" }, scc: { username: "scc-user", password: "scc-pass" }, nvidia: "ngc-key",
+                appco: { username: "ac-user", password: "ac-token" }, scc: { username: "scc-user", password: "scc-pass" }, nvidia: { username: "$oauthtoken", password: "ngc-key" },
             },
         });
         const release = registered.find(r => r.type === "kubernetes:helm.sh/v3:Release" && r.name === "rancher/ai-factory/chart");

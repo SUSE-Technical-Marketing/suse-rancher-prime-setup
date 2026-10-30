@@ -13,6 +13,31 @@ export interface HostAccess {
 const quote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
 /** Run a shell script as root over SSH, whether the login is root or a passwordless sudoer. */
+/**
+ * Commands as a script for an existing machine, as cloud-init runs a VM's `runcmd`: each as written,
+ * one after the other, stopping at the first that fails. Each is its own group, so a multi-line one
+ * works (an OS profile's `if … fi` block) and so does `cmd || true`; only a command's own result
+ * counts, a failure inside it (`systemctl stop x; …`) is its business. Each step says which it is,
+ * and a failure which one failed.
+ */
+export function stepScript(commands: string[]): string {
+    const n = commands.length;
+    return ["#!/bin/sh", ...commands.flatMap((c, i) => [
+        `echo "lab: step ${i + 1}/${n}" >&2`,
+        `{\n${c.trimEnd()}\n} || { rc=$?; echo "lab: step ${i + 1}/${n} failed (exit $rc)" >&2; exit $rc; }`,
+    ]), ""].join("\n");
+}
+
+/**
+ * The remote command that runs a script given on its stdin, as root: stored root-only under
+ * /var/lib/lab as `<name>.sh`, run with sh, and removed once it succeeds (it can hold a
+ * registration token); a failed one stays there, to look at.
+ */
+export function runUploaded(name: string): string {
+    const file = `/var/lib/lab/${name.replace(/[^A-Za-z0-9._-]/g, "-")}.sh`;
+    return asRoot(`umask 077 && mkdir -p /var/lib/lab && cat > ${file} && sh ${file} && rm -f ${file}`);
+}
+
 export const asRoot = (script: string) => `if [ "$(id -u)" -eq 0 ]; then sh -c ${quote(script)}; else sudo -n sh -c ${quote(script)}; fi`;
 
 /** Run the scripts that exist of `scripts` (uninstall scripts, as root); missing ones are skipped. */
