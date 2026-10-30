@@ -38,34 +38,33 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #071d19;
-    --panel: var(--pine);
-    --panel-2: #12423a;
-    --text: #e8f3ef;
-    --muted: #9db8b0;
-    --border: #1f544a;
-    --accent: var(--jungle);
-    --accent-text: var(--pine);
-    --accent-strong: var(--jungle);
-    --link: #7f9cff;
-    --bar: #04120f;
-    --bar-text: #ffffff;
-    --ok: var(--mint);
-    --warn: var(--persimmon);
-    --bad: #ff8a80;
-    --ok-bg: #134a3c;
-    --warn-bg: #4a2a19;
-    --bad-bg: #4a1f1f;
-    --focus: #7f9cff;
-    --cat-infra: #4fc3d9;
-    --cat-machine: #a3bdb6;
-    --cat-cluster: #6f9eef;
-    --cat-virtual: #b08cf0;
-    --cat-aws: #f0a050;
-    color-scheme: dark;
-  }
+/* Dark: as the system says, or as chosen in the header (theme.ts). */
+:root[data-theme="dark"] {
+  --bg: #071d19;
+  --panel: var(--pine);
+  --panel-2: #12423a;
+  --text: #e8f3ef;
+  --muted: #9db8b0;
+  --border: #1f544a;
+  --accent: var(--jungle);
+  --accent-text: var(--pine);
+  --accent-strong: var(--jungle);
+  --link: #7f9cff;
+  --bar: #04120f;
+  --bar-text: #ffffff;
+  --ok: var(--mint);
+  --warn: var(--persimmon);
+  --bad: #ff8a80;
+  --ok-bg: #134a3c;
+  --warn-bg: #4a2a19;
+  --bad-bg: #4a1f1f;
+  --focus: #7f9cff;
+  --cat-infra: #4fc3d9;
+  --cat-machine: #a3bdb6;
+  --cat-cluster: #6f9eef;
+  --cat-virtual: #b08cf0;
+  --cat-aws: #f0a050;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -130,10 +129,11 @@ h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: 
 .top .file { display: flex; align-items: center; gap: 4px; margin-right: auto; color: var(--mint); }
 .top .open { width: auto; }
 .dot { color: var(--persimmon); font-size: 10px; }
-.status { font-size: 12px; padding: 2px 8px; border: none; border-radius: 10px; background: none; color: var(--muted); cursor: pointer; }
-.status.ok { background: var(--ok-bg); color: var(--ok); }
-.status.warn { background: var(--warn-bg); color: var(--warn); }
-.status.bad { background: var(--bad-bg); color: var(--bad); }
+.top .status { font-size: 12px; padding: 2px 8px; border: none; border-radius: 10px; background: none; color: var(--bar-text); cursor: pointer; }
+.top .status.ok { background: var(--ok-bg); color: var(--ok); }
+.top .status.warn { background: var(--warn-bg); color: var(--warn); }
+.top .status.bad { background: var(--bad-bg); color: var(--bad); }
+.top .theme { --cat: var(--bar-text); display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
 .banner { margin: 0; padding: 8px 16px; background: var(--bad-bg); color: var(--bad); display: flex; justify-content: space-between; }
 .loading { padding: 24px 16px; }
 

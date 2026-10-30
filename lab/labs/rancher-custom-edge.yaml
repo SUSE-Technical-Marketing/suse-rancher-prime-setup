@@ -1,4 +1,4 @@
-# Reference lab 4: Rancher with a custom RKE2 cluster on a physical machine.
+# Reference lab 4: Rancher with a metal RKE2 cluster on a physical machine.
 apiVersion: lab.geeko.me/v1alpha1
 kind: Lab
 metadata:
@@ -9,7 +9,7 @@ spec:
   tls:
     acme: letsencrypt
     email: lab@geeko.me
-    cloudflare: "{{ secrets['cloudflare-token'] }}"
+    cloudflare: "{{ secrets.cloudflare.token }}"
 
   ssh:
     user: lab
@@ -61,7 +61,7 @@ kind: DownstreamCluster
 metadata:
   name: edge
 spec:
-  type: custom
+  type: metal
   rancher: rancher
   distro: rke2
   labels: { env: edge }

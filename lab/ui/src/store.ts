@@ -149,6 +149,13 @@ export function removeDoc(index: number) {
     changed();
 }
 
+/** The Cloudflare token among the personal config's secrets: `cloudflare.token` unless only another is there. */
+function cloudflareSecret(): string {
+    const strings = (catalog.value?.personal.secrets ?? []).filter(s => s.shape === "string");
+    const found = ["cloudflare.token", "cloudflare-token", "cloudflare"].find(n => strings.some(s => s.name === n)) ?? "cloudflare.token";
+    return found === "cloudflare-token" ? "{{ secrets['cloudflare-token'] }}" : `{{ secrets.${found} }}`;
+}
+
 /** A new lab: just its Lab document, with the team's usual settings. */
 export function newLabText(name: string): string {
     return new Document({
@@ -157,7 +164,7 @@ export function newLabText(name: string): string {
         metadata: { name },
         spec: {
             domain: "lab.geeko.me",
-            tls: { acme: "letsencrypt-staging", cloudflare: "{{ secrets['cloudflare-token'] }}" },
+            tls: { acme: "letsencrypt-staging", cloudflare: cloudflareSecret() },
             ssh: { publicKey: { file: "~/.ssh/id_ed25519.pub" }, privateKey: "{{ secrets['ssh-key'] }}" },
         },
     }).toString();

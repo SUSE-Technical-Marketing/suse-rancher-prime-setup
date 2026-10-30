@@ -10,10 +10,16 @@ export interface ChartSpec {
 
 /**
  * A profile's chart (DESIGN.md §17): the chart at its version, the namespace its Profile document
- * names, and the document's default and locked values.
+ * names, and the document's default and locked values (outputs once secrets are rendered into them).
  */
 export interface ProfileChartSpec extends ChartSpec {
     namespace: string;
+    defaults: pulumi.Input<Record<string, unknown>>;
+    lockedValues: pulumi.Input<Record<string, unknown>>;
+}
+
+/** A profile's chart with its values as the resolver rendered them: plain, for builders that read them. */
+export interface RenderedProfileChart extends ProfileChartSpec {
     defaults: Record<string, unknown>;
     lockedValues: Record<string, unknown>;
 }
@@ -23,13 +29,13 @@ export interface HelmAppArgs extends ChartSpec {
     /** Release name; defaults to the chart's last path segment. */
     releaseName?: string;
     /** Defaults (a Profile's `values`), under everything else. */
-    defaults?: Record<string, unknown>;
+    defaults?: pulumi.Input<Record<string, unknown>>;
     /** The values the component computes. */
     values?: pulumi.Input<Record<string, unknown>>;
     /** The lab's own values for this chart, merged over `values` (protected paths are validated earlier). */
     extraValues?: pulumi.Input<Record<string, unknown>>;
     /** Merged last (a Profile's `lockedValues`). */
-    lockedValues?: Record<string, unknown>;
+    lockedValues?: pulumi.Input<Record<string, unknown>>;
 }
 
 const isMap = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -54,8 +60,8 @@ export function mergeValues(...layers: Record<string, unknown>[]): Record<string
  */
 export function helmApp(name: string, args: HelmAppArgs, opts: pulumi.CustomResourceOptions): k8s.helm.v3.Release {
     const releaseName = args.releaseName ?? args.chart.split("/").pop()!;
-    const values = pulumi.all([args.values ?? {}, args.extraValues ?? {}]).apply(([computed, extra]) =>
-        mergeValues(args.defaults ?? {}, computed as Record<string, unknown>, extra as Record<string, unknown>, args.lockedValues ?? {}));
+    const values = pulumi.all([args.defaults ?? {}, args.values ?? {}, args.extraValues ?? {}, args.lockedValues ?? {}]).apply(([defaults, computed, extra, locked]) =>
+        mergeValues(defaults as Record<string, unknown>, computed as Record<string, unknown>, extra as Record<string, unknown>, locked as Record<string, unknown>));
     return new k8s.helm.v3.Release(name, {
         name: releaseName,
         chart: args.chart,

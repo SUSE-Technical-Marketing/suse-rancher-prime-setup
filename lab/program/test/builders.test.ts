@@ -16,6 +16,6 @@ describe("profile builders", () => {
 
     it("leave the chart-only profiles to the generic builder", () => {
         const generic = Object.values(catalog!.profiles).filter(p => p.chart && !BUILDERS[p.name as keyof typeof BUILDERS]).map(p => p.name).sort();
-        expect(generic).toEqual(["outrider", "sprouter"]);
+        expect(generic).toEqual(["ai-factory", "outrider", "sprouter"]);
     });
 });

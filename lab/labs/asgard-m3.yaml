@@ -11,7 +11,7 @@ spec:
     # Staging while iterating: Let's Encrypt allows 5 certificates per week for the same names.
     acme: letsencrypt-staging
     email: jeroen@vanerp.info
-    cloudflare: "{{ secrets['cloudflare-token'] }}"
+    cloudflare: "{{ secrets.cloudflare.token }}"
 
   ssh:
     user: lab

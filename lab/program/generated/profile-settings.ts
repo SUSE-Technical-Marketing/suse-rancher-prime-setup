@@ -1,6 +1,19 @@
 // Generated from the Profile documents in lab/catalog/ by `mise run profile-types`. Don't edit.
 import type { Credentials } from "@lab/schema";
 
+/** Settings of the `ai-factory` profile: SUSE AI Factory on Rancher: its operator and UI extension, logged in to the registries its blueprints install from */
+export type AiFactorySettings = {
+    version?: string;
+    /** SUSE Application Collection login (dp.apps.rancher.io), e.g. "{{ secrets.appco }}" */
+    applicationCollection: Credentials;
+    /** SUSE registry login for the AI charts (registry.suse.com/ai), e.g. "{{ secrets.scc }}" */
+    suseRegistry: Credentials;
+    /** NVIDIA NGC API key, for NIM blueprints, e.g. "{{ secrets.nvidia }}" */
+    nvidia?: string;
+    /** Extra Helm values for aif-operator, merged over the engine's */
+    values?: Record<string, unknown>;
+};
+
 /** Settings of the `cert-manager` profile: cert-manager with Let's Encrypt issuers (Cloudflare DNS-01) and a wildcard certificate for the host */
 export type CertManagerSettings = {
     version?: string;
@@ -100,6 +113,7 @@ export type TraefikSettings = {
 
 /** Profile name -> its settings. */
 export interface ProfileSettings {
+    "ai-factory": AiFactorySettings;
     "cert-manager": CertManagerSettings;
     "harvester-cloud-provider": HarvesterCloudProviderSettings;
     "hauler": HaulerSettings;

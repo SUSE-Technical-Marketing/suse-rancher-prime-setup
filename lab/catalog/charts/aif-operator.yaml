@@ -1,0 +1,10 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: aif-operator
+  description: SUSE AI Factory's operator; it installs the aif-ui Rancher extension itself
+spec:
+  # helm show all oci://ghcr.io/suse/chart/aif-operator --version 2.3.1 (releases: github.com/SUSE/aif)
+  chart: oci://ghcr.io/suse/chart/aif-operator
+  version: 2.3.1
+  namespace: aif-operator

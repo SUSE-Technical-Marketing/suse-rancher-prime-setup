@@ -1,6 +1,6 @@
-# M4 test lab: a custom cluster on existing machines (`Machine`), here the bare VMs of
+# M4 test lab: a metal cluster on existing machines (`Machine`), here the bare VMs of
 # labs/asgard-m4-vms.yaml. It uses no Harvester, so it claims none. Rancher runs on machine-01 (k3s
-# with its own Traefik and ServiceLB); machine-02 (all roles) and machine-03 (worker) join a custom
+# with its own Traefik and ServiceLB); machine-02 (all roles) and machine-03 (worker) join a metal
 # RKE2 cluster and are cleaned up again on destroy.
 apiVersion: lab.geeko.me/v1alpha1
 kind: Lab
@@ -13,7 +13,7 @@ spec:
     # Staging while iterating: Let's Encrypt allows 5 certificates per week for the same names.
     acme: letsencrypt-staging
     email: jeroen@vanerp.info
-    cloudflare: "{{ secrets['cloudflare-token'] }}"
+    cloudflare: "{{ secrets.cloudflare.token }}"
 
   ssh:
     user: lab
@@ -59,7 +59,7 @@ kind: DownstreamCluster
 metadata:
   name: edge
 spec:
-  type: custom
+  type: metal
   rancher: machine-01
   distro: rke2
   labels: { env: edge }

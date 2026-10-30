@@ -7,7 +7,7 @@ export type Payload =
     | { type: "profile"; name: string; from?: number }
     | { type: "host"; index: number };
 
-export type Block = "Harvester" | "HarvesterVM" | "RancherVM" | "Machine" | "DownstreamCluster" | "AwsSite" | "Ec2Cluster" | "EksCluster" | "K3kCluster";
+export type Block = "Harvester" | "HarvesterVM" | "RancherVM" | "Machine" | "DownstreamCluster" | "AwsSite" | "Ec2Cluster" | "EksCluster" | "MetalCluster" | "K3kCluster";
 
 export const dragging = shallowRef<Payload>();
 const MIME = "application/x-lab-composer";

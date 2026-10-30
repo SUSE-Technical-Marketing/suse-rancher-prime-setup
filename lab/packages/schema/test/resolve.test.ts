@@ -100,7 +100,7 @@ describe("reference labs", () => {
         expect(lab!.secrets).toEqual({
             "hv-north": "credentials",
             routeros: "credentials",
-            "cloudflare-token": "string",
+            cloudflare: { fields: ["token"] },
             "ssh-key": "string",
             "rancher-admin": "string",
             "mlm-admin": "string",
@@ -195,19 +195,35 @@ downstream:
         expect(errors(result)).toEqual(["downstream.apps: no node has the etcd, controlplane roles; a cluster needs at least one of each"]);
     });
 
-    it("rejects a custom-cluster node that runs its own Kubernetes", () => {
+    it("rejects a metal-cluster node that runs its own Kubernetes", () => {
         const result = load(`${BASE}
 hosts:
   rancher: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ${RANCHER_STACK} } }
 downstream:
   edge:
-    type: custom
+    type: metal
     rancher: rancher
     nodes: [{ host: rancher, roles: [etcd, controlplane, worker] }]
 `);
         expect(errors(result)).toEqual([
-            'downstream.edge.nodes[0].host: host "rancher" can\'t join a custom cluster: it runs k3s, which can\'t share a host with Kubernetes',
+            'downstream.edge.nodes[0].host: host "rancher" can\'t join a metal cluster: it runs k3s, which can\'t share a host with Kubernetes',
         ]);
+    });
+
+    it("warns about a metal-cluster node without its OS's -k8s variant", () => {
+        const result = load(`${BASE}
+hosts:
+  rancher: { on: hv-north, os: leap-16-k8s, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ${RANCHER_STACK} } }
+  node: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 40Gi }
+downstream:
+  edge:
+    type: metal
+    rancher: rancher
+    nodes: [{ host: node, roles: [etcd, controlplane, worker] }]
+`);
+        expect(errors(result)).toEqual([]);
+        expect(result.diagnostics.warnings.map(d => `${resolverPath(d.path)}: ${d.message}`)).toContain(
+            'downstream.edge.nodes[0].host: host "node" runs leap-16; a metal-cluster node needs Kubernetes\' prerequisites: use leap-16-k8s');
     });
 
     it("needs an image source for OSes without a public image", () => {
@@ -308,7 +324,7 @@ ${extra}`;
         const result = load(lab("  a: { type: k3k, rancher: r1, parent: nope }\n  b: { type: k3k, rancher: r1, parent: apps }\n  c: { type: k3k, rancher: r1, parent: b }\n  d: { type: k3k, rancher: r1, parent: other }\n"));
         expect(errors(result)).toEqual([
             'downstream.a.parent: unknown downstream cluster "nope"; known: apps, b, c, d, other',
-            'downstream.c.parent: "b" is a k3k cluster itself; a k3k cluster runs in a harvester, ec2, eks or custom cluster',
+            'downstream.c.parent: "b" is a k3k cluster itself; a k3k cluster runs in a harvester, ec2, eks or metal cluster',
             'downstream.d.parent: "other" is managed by the Rancher on r2, this cluster by the one on r1; they must be the same',
         ]);
     });
@@ -768,6 +784,44 @@ spec: { timeouts: { downstreamReady: soon, nope: 1m } }
     });
 });
 
+describe("ai-factory", () => {
+    const lab = (settings: string) => `${BASE}
+hosts:
+  rancher: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ${RANCHER_STACK}, ai-factory: { ${settings} } } }
+`;
+    const credentials = (result: LoadResult) => result.lab!.hosts[0].chartValues["ai-factory"].entries[0].lockedValues.credentials as Record<string, unknown>;
+
+    it("hands the chart secret templates for each login's fields, and the NGC user", () => {
+        const result = load(lab(`applicationCollection: "{{ secrets.appco }}", suseRegistry: "{{ secrets.scc }}", nvidia: "{{ secrets.nvidia }}"`));
+        expect(errors(result)).toEqual([]);
+        expect(credentials(result)).toEqual({
+            applicationCollection: { username: "{{ secrets.appco.username }}", password: "{{ secrets.appco.password }}" },
+            suseRegistry: { username: "{{ secrets.scc.username }}", password: "{{ secrets.scc.password }}" },
+            nvidia: { username: "$oauthtoken", password: "{{ secrets.nvidia }}" },
+        });
+        expect(result.lab!.secrets).toMatchObject({ appco: "credentials", scc: "credentials", nvidia: "string" });
+    });
+
+    it("takes a login as a username with a password secret, and leaves NVIDIA out when not given", () => {
+        const result = load(lab(`applicationCollection: { username: me, password: "{{ secrets['appco-token'] }}" }, suseRegistry: "{{ secrets.scc }}"`));
+        expect(errors(result)).toEqual([]);
+        expect(credentials(result).applicationCollection).toEqual({ username: "me", password: "{{ secrets['appco-token'] }}" });
+        expect(credentials(result).nvidia).toEqual({ username: "", password: "" });
+    });
+
+    it("needs both registry logins, and Rancher on the host", () => {
+        const host = (settings: string) => load(`${BASE}
+hosts:
+  vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, ai-factory: { ${settings} } } }
+`);
+        expect(errors(host(""))).toEqual([
+            "hosts.vm.profiles.ai-factory.applicationCollection: required",
+            "hosts.vm.profiles.ai-factory.suseRegistry: required",
+        ]);
+        expect(errors(host(`applicationCollection: "{{ secrets.appco }}", suseRegistry: "{{ secrets.scc }}"`)).join("\n")).toMatch(/ai-factory.*rancher/);
+    });
+});
+
 describe("downstream passthroughs", () => {
     const lab = (extra: string) => `${BASE}
 hosts:
@@ -801,7 +855,7 @@ hosts:
   vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { nope: {}, k3s: { versoin: x }, hauler: { port: 70000 } } }
 `);
         expect(errors(result)).toEqual([
-            'hosts.vm.profiles: unknown profile "nope"; known: cert-manager, harvester-cloud-provider, hauler, k3s, metallb, mlm-client, mlm-server, outrider, rancher, rke2, sprouter, traefik',
+            'hosts.vm.profiles: unknown profile "nope"; known: ai-factory, cert-manager, harvester-cloud-provider, hauler, k3s, metallb, mlm-client, mlm-server, outrider, rancher, rke2, sprouter, traefik',
             'hosts.vm.profiles.k3s.versoin: unknown field "versoin"',
             "hosts.vm.profiles.hauler.port: Too big: expected number to be <=65535",
         ]);

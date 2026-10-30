@@ -25,7 +25,7 @@ spec:
   # Full path: sudo's secure_path on SUSE doesn't include /usr/local/bin.
   kubectl: /usr/local/bin/k3s kubectl
   dataDir: /var/lib/rancher/k3s
-  # Run on a custom cluster's existing machines when the lab goes; missing ones are skipped.
+  # Run on a metal cluster's existing machines when the lab goes; missing ones are skipped.
   uninstall: [ /usr/local/bin/k3s-uninstall.sh, /usr/local/bin/k3s-agent-uninstall.sh ]
   # Downstream clusters' default CNI.
   cni: flannel

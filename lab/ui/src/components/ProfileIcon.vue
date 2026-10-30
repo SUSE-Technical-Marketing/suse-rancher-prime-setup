@@ -30,8 +30,5 @@ const icon = computed(() => iconRef(profile.value?.icon ?? "puzzle").value);
   color: var(--ink); background: color-mix(in srgb, var(--c) 16%, var(--panel)); border: 1.5px solid var(--ink);
 }
 /* The same hues, lighter, on dark panels. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .picon { --ink: color-mix(in srgb, var(--c) 55%, white); background: color-mix(in srgb, var(--c) 30%, var(--panel)); }
-}
 :root[data-theme="dark"] .picon { --ink: color-mix(in srgb, var(--c) 55%, white); background: color-mix(in srgb, var(--c) 30%, var(--panel)); }
 </style>

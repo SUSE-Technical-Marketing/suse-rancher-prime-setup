@@ -9,7 +9,7 @@ spec:
   tls:
     acme: letsencrypt
     email: lab@geeko.me
-    cloudflare: "{{ secrets['cloudflare-token'] }}"
+    cloudflare: "{{ secrets.cloudflare.token }}"
 
   ssh:
     user: lab

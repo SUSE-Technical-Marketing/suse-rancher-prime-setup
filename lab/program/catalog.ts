@@ -1,4 +1,4 @@
-import type { ChartSpec, ProfileChartSpec } from "@lab/kubernetes";
+import type { ChartSpec, RenderedProfileChart } from "@lab/kubernetes";
 import { renderTemplates, type ResolvedComponent, type ResolvedDistribution, type ResolvedHost, type ResolvedLab, type VersionValue } from "@lab/schema";
 
 // Everything installed comes from the catalog's components (`lab/catalog/components.yaml`,
@@ -88,7 +88,7 @@ export function manifest(key: string, lab: ResolvedLab): string {
  * A profile's chart: its HelmChart at its version (the profile's own `version` setting wins), the
  * namespace its Profile document names, and the document's default and locked values.
  */
-export function profileChart(profile: string, host: ResolvedHost, lab: ResolvedLab, own?: string): ProfileChartSpec {
+export function profileChart(profile: string, host: ResolvedHost, lab: ResolvedLab, own?: string): RenderedProfileChart {
     const p = lab.profileCharts[profile];
     if (!p) throw new Error(`profile ${profile} has no charts in the catalog`);
     // Its own chart (the first in `charts`), with the values the resolver rendered for this host.

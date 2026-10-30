@@ -82,7 +82,7 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
                 line(`  ${d.name}  k3k ${d.mode} in ${d.parent} (namespace ${d.namespace}), managed by Rancher on ${d.rancher}${meta}`);
                 line(`    ${d.servers} server${d.servers > 1 ? "s" : ""}, ${d.agents} agent${d.agents === 1 ? "" : "s"}, k3s ${d.version ?? "as the parent"}, ${persistence}`);
             } else {
-                line(`  ${d.name}  custom ${d.distro}, managed by Rancher on ${d.rancher}${meta}`);
+                line(`  ${d.name}  metal ${d.distro}, managed by Rancher on ${d.rancher}${meta}`);
                 for (const n of d.nodes) line(`    node ${n.host} [${n.roles.join(", ")}]`);
             }
         }

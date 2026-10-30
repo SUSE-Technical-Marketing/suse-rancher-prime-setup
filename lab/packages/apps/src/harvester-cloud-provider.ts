@@ -1,9 +1,11 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { onCluster, profileHelmApp } from "@lab/kubernetes";
+import { onCluster, profileHelmApp, type RenderedProfileChart } from "@lab/kubernetes";
 import { ChartArgs } from "./charts";
 
 export interface HarvesterCloudProviderArgs extends ChartArgs {
+    /** As the resolver rendered it: the secret's name is read from its locked values. */
+    chart: RenderedProfileChart;
     /** Kubeconfig for the cloud provider's Harvester service account (secret). */
     cloudConfig: pulumi.Input<string>;
 }

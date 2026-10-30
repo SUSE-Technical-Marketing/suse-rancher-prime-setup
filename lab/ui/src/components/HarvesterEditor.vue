@@ -15,7 +15,9 @@ const { v, bind, set } = useDoc(() => props.index);
 const name = computed(() => v.value.metadata?.name ?? "");
 const fromPersonal = computed(() => catalog.value?.personal.harvesters.includes(name.value));
 const vlans = computed<any[]>(() => v.value.spec?.networks?.vlans ?? []);
-const networks = computed(() => ["untagged", ...vlans.value.map(n => `vlan${n.id}`)]);
+/** The default's choices besides untagged, which is the empty choice: no default means untagged. */
+const vlanNames = computed(() => vlans.value.map(n => `vlan${n.id}`));
+const defaultNetwork = computed(() => (v.value.spec?.networks?.default === "untagged" ? undefined : v.value.spec?.networks?.default));
 const bools = [{ value: "true", label: "true" }, { value: "false", label: "false" }];
 
 function addVlan() {
@@ -55,7 +57,8 @@ function addVlan() {
     <section>
       <h3>Networks</h3>
       <div class="grid">
-        <SelectField label="default" :options="networks" empty="untagged" hint="where hosts and pools go unless they say" v-bind="bind('spec.networks.default')" />
+        <SelectField label="default" :options="vlanNames" empty="untagged" hint="where hosts and pools go unless they say"
+          :model-value="defaultNetwork" :problem="bind('spec.networks.default').problem" @update:model-value="x => set('spec.networks.default', x)" />
       </div>
       <div v-for="(vlan, i) in vlans" :key="i" class="card">
         <header>

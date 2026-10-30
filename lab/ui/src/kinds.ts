@@ -34,5 +34,6 @@ export const BLOCK_KIND: Record<Block, { category: Category; icon: string }> = {
     DownstreamCluster: { category: "cluster", icon: "ship-wheel" },
     Ec2Cluster: { category: "cluster", icon: "ship-wheel" },
     EksCluster: { category: "cluster", icon: "ship-wheel" },
+    MetalCluster: { category: "cluster", icon: "ship-wheel" },
     K3kCluster: { category: "virtual", icon: "boxes" },
 };

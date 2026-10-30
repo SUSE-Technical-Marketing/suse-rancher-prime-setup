@@ -10,7 +10,7 @@ spec:
   tls:
     acme: letsencrypt
     email: jeroen@vanerp.info
-    cloudflare: "{{ secrets['cloudflare-token'] }}"
+    cloudflare: "{{ secrets.cloudflare.token }}"
 
   ssh:
     user: lab

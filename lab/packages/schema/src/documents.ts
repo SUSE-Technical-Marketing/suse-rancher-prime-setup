@@ -66,7 +66,7 @@ export const CATALOG_KINDS = {
             /** kubectl on the host, with whatever it needs to find the kubeconfig. */
             kubectl: z.string().min(1).optional(),
             dataDir: z.string().min(1).optional(),
-            /** Uninstall scripts, run on a custom cluster's existing machines; missing ones are skipped. */
+            /** Uninstall scripts, run on a metal cluster's existing machines; missing ones are skipped. */
             uninstall: z.array(z.string().min(1)).optional(),
             /** Downstream clusters' default CNI. */
             cni: z.string().min(1).optional(),

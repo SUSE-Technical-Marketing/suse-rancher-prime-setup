@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lab composer</title>
+    <script>
+      // The theme before the first paint; src/theme.ts keeps it up to date.
+      (() => {
+        let t = null;
+        try { t = localStorage.getItem("lab-theme"); } catch {}
+        document.documentElement.dataset.theme = t === "light" || t === "dark" ? t : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=SUSE:wght@300..700&family=SUSE+Mono:wght@400;600&display=swap" rel="stylesheet" />

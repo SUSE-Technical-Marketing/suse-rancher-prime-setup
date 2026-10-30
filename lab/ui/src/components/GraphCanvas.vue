@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { addBlock, addK3k, addNode, addProfile, defaultNetwork, removeProfile, runsKubernetes } from "../compose";
+import { addBlock, addK3k, addNode, addProfile, canBeNode, defaultNetwork, removeProfile, runsKubernetes } from "../compose";
 import { dragging, end, start, target, type Payload } from "../dnd";
 import { catalog, file, problems, removeDoc, selected, views } from "../store";
 import { kindOf, type Category } from "../kinds";
@@ -65,7 +65,7 @@ function describeBox(d: { v: any; index: number }): Pick<Box, "label" | "title" 
     case "DownstreamCluster": {
       const t = typeOf(d);
       if (t === "k3k") return { label: `k3k · ${s.mode ?? "shared"}`, title, sub: `${s.servers ?? 1} server · ${s.agents ?? 0} agents · ${s.namespace ?? `k3k-${title}`}`, chips: Object.entries(s.labels ?? {}).map(([k, v]) => `${k}=${v}`) };
-      if (t === "custom") return { label: `custom · ${s.distro ?? "rke2"}`, title, sub: `${(s.nodes ?? []).length} node(s)`, chips: Object.entries(s.labels ?? {}).map(([k, v]) => `${k}=${v}`) };
+      if (t === "metal") return { label: `metal · ${s.distro ?? "rke2"}`, title, sub: `${(s.nodes ?? []).length} node(s)`, chips: Object.entries(s.labels ?? {}).map(([k, v]) => `${k}=${v}`) };
       if (t === "ec2") return {
         label: `ec2 · ${s.distro ?? "rke2"}`, title, chips: Object.entries(s.labels ?? {}).map(([k, v]) => `${k}=${v}`),
         sub: ((s.pools ?? []) as any[]).map(p => `${p.quantity ?? 1}× ${p.instanceType ?? catalog.value?.defaults.aws.instanceType}`).join(", ") || "no pools",
@@ -166,7 +166,7 @@ const edges = computed(() => {
     if (t === "k3k") { add(find(["DownstreamCluster"], s.parent), "inside"); continue; }
     if (t === "harvester") add(find(["Harvester"], s.harvester), "runs");
     if (t === "ec2" || t === "eks") add(find(["AwsSite"], s.site), "runs");
-    if (t === "custom") for (const n of (s.nodes ?? []) as { host?: string }[]) add(find(["HarvesterVM", "Machine"], n.host), "node");
+    if (t === "metal") for (const n of (s.nodes ?? []) as { host?: string }[]) add(find(["HarvesterVM", "Machine"], n.host), "node");
   }
   return out;
 });
@@ -256,14 +256,16 @@ const accepts = (b: Box, p: Payload) => {
     if (b.kind === "Harvester") return ["HarvesterVM", "RancherVM", "DownstreamCluster"].includes(p.block);
     if (b.kind === "AwsSite") return p.block === "Ec2Cluster" || p.block === "EksCluster";
     if (b.kind === "DownstreamCluster") return p.block === "K3kCluster" && !b.label.startsWith("k3k");
+    if (b.kind === "HarvesterVM" || b.kind === "Machine") return p.block === "MetalCluster" && canBeNode(b.index);
   }
-  if (p.type === "host") return b.label.startsWith("custom") && !runsKubernetes(p.index);
+  if (p.type === "host") return b.label.startsWith("metal") && !runsKubernetes(p.index);
   return false;
 };
 const dropOn = (b: Box) => target(p => accepts(b, p), p => {
   if (p.type === "profile") { addProfile(b.index, p.name); if (p.from !== undefined) removeProfile(p.from, p.name); }
   else if (p.type === "block" && b.kind === "Harvester") addBlock(p.block, b.title, defaultNetwork(b.title));
   else if (p.type === "block" && b.kind === "AwsSite") addBlock(p.block, b.title);
+  else if (p.type === "block" && (b.kind === "HarvesterVM" || b.kind === "Machine")) addBlock(p.block, b.title);
   else if (p.type === "block") addK3k(b.title);
   else if (p.type === "host") addNode(b.index, views.value[p.index]?.metadata?.name ?? "");
 }, on => (over.value = on ? b.index : undefined));
@@ -380,8 +382,6 @@ const profileInfo = (name: string) => catalog.value?.profiles.find(p => p.name =
 .gtoken { position: absolute; z-index: 1; display: inline-flex; border-radius: 50%; cursor: grab; box-shadow: 0 0 0 2px var(--panel-2); }
 .gtoken:hover { transform: scale(1.12); }
 .hint { font-style: italic; }
-@media (prefers-color-scheme: dark) {
-  .edge.manages { stroke: #6f9eef; }
-  .edge.inside { stroke: #b08cf0; }
-}
+:root[data-theme="dark"] .edge.manages { stroke: #6f9eef; }
+:root[data-theme="dark"] .edge.inside { stroke: #b08cf0; }
 </style>

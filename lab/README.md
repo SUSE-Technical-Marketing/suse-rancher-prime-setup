@@ -101,7 +101,7 @@ metadata: { name: me }
 spec:
   secrets:
     hv-north:         { username: admin, password: "cmd:pass show lab/hv-north" }
-    cloudflare-token: env:CF_API_TOKEN
+    cloudflare:       { token: env:CF_API_TOKEN }
     ssh-key:          file:~/.ssh/id_ed25519
     rancher-admin:    "cmd:pass show lab/rancher-admin"
     aws:              { accessKey: AKIA..., secretKey: "cmd:pass show lab/aws" }

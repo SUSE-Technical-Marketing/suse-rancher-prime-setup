@@ -6,6 +6,25 @@ import * as nunjucks from "nunjucks";
 
 const env = new nunjucks.Environment(null, { autoescape: false, throwOnUndefined: true });
 
+/** `{{ secrets.x }}` (or a path into it), exactly: its expression. */
+const SECRET = /^\s*\{\{-?\s*(secrets(?:\.\s*[A-Za-z_]\w*|\[\s*'[^']+'\s*\]|\[\s*"[^"]+"\s*\])+)\s*-?\}\}\s*$/;
+
+/**
+ * `field('username')`: one field of a credentials (or other map) setting, for a chart value. Of a
+ * secret template, the template for that field (`{{ secrets.appco }}` -> `{{ secrets.appco.username }}`),
+ * rendered with the secrets' values only when the lab is built; of a map, its value. Nothing gives "".
+ */
+env.addFilter("field", (value: unknown, field: string) => {
+    if (value === undefined || value === null || value === "") return "";
+    if (typeof value === "string") {
+        const m = SECRET.exec(value);
+        if (!m) throw new Error(`field('${field}'): expects a secret ("{{ secrets.name }}") or a map, not a plain string`);
+        return /^[A-Za-z_]\w*$/.test(field) ? `{{ ${m[1]}.${field} }}` : `{{ ${m[1]}['${field}'] }}`;
+    }
+    if (typeof value === "object" && !Array.isArray(value)) return (value as Record<string, unknown>)[field] ?? "";
+    throw new Error(`field('${field}'): expects a secret or a map`);
+});
+
 const WHOLE = /^\s*\{\{([\s\S]*)\}\}\s*$/;
 export const isTemplate = (s: string) => s.includes("{{") || s.includes("{%");
 

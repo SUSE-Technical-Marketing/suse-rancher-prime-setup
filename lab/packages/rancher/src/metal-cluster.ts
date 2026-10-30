@@ -9,7 +9,7 @@ import { ClusterKubeconfig, managementClusterId } from "./cluster-kubeconfig";
 import { ClusterRegistration } from "./registration";
 import { RancherAccess } from "./server";
 
-export interface CustomClusterNode {
+export interface MetalClusterNode {
     host: HostAccess;
     roles: ("etcd" | "controlplane" | "worker")[];
     /** Shell commands run as root before the node registers (the OS's packages for Kubernetes). */
@@ -20,14 +20,14 @@ export interface CustomClusterNode {
     deletedWith?: pulumi.Resource;
 }
 
-export interface CustomClusterArgs {
+export interface MetalClusterArgs {
     rancher: RancherAccess;
     /** Its KubernetesDistribution document: the default CNI and the uninstall scripts. */
     distribution: ResolvedDistribution;
     kubernetesVersion: string;
     labels: Record<string, string>;
     annotations: Record<string, string>;
-    nodes: CustomClusterNode[];
+    nodes: MetalClusterNode[];
     /** CNI; default the distribution's `cni`. */
     cni?: string;
     /** The lab's own `machineGlobalConfig` and `chartValues`, merged over the engine's. */
@@ -52,15 +52,16 @@ const nodeCleanup = (d: ResolvedDistribution) => runExisting([...d.uninstall, SY
  * On destroy the Cluster is deleted first, while the nodes' agents still run, and then every node
  * that isn't a lab VM is cleaned up with the uninstall scripts: the machine itself stays.
  */
-export class CustomCluster extends pulumi.ComponentResource {
+export class MetalCluster extends pulumi.ComponentResource {
     readonly cluster: provisioning.v1.Cluster;
     /** A provider for the new cluster (through Rancher); resources on it are deleted with the cluster. */
     readonly provider: k8s.Provider;
     /** Rancher's management cluster id (`c-m-...`). */
     readonly clusterId: pulumi.Output<string>;
 
-    constructor(name: string, args: CustomClusterArgs, opts?: pulumi.ComponentResourceOptions) {
-        super("lab:rancher:CustomCluster", name, {}, opts);
+    constructor(name: string, args: MetalClusterArgs, opts?: pulumi.ComponentResourceOptions) {
+        // Called a custom cluster in Rancher, and here until it was renamed: the alias keeps existing stacks' clusters.
+        super("lab:rancher:MetalCluster", name, {}, { ...opts, aliases: [...(opts?.aliases ?? []), { type: "lab:rancher:CustomCluster" }] });
         const clusterName = name.split("/").pop()!;
 
         // Created before the Cluster so that they're deleted after it.

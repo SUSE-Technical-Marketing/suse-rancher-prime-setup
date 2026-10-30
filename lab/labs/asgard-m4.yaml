@@ -1,4 +1,4 @@
-# M4 test lab: Rancher on one VM on asgard (as asgard-m3), and a custom RKE2 cluster on a second VM
+# M4 test lab: Rancher on one VM on asgard (as asgard-m3), and a metal RKE2 cluster on a second VM
 # that stands in for an existing machine. Harvester url and credentials come from the personal config.
 apiVersion: lab.geeko.me/v1alpha1
 kind: Lab
@@ -11,7 +11,7 @@ spec:
     # Staging while iterating: Let's Encrypt allows 5 certificates per week for the same names.
     acme: letsencrypt-staging
     email: jeroen@vanerp.info
-    cloudflare: "{{ secrets['cloudflare-token'] }}"
+    cloudflare: "{{ secrets.cloudflare.token }}"
 
   ssh:
     user: lab
@@ -65,7 +65,7 @@ apiVersion: lab.geeko.me/v1alpha1
 kind: HarvesterVM
 metadata:
   name: edge-01
-  description: A plain VM that joins the custom cluster, like an existing machine would
+  description: A plain VM that joins the metal cluster, like an existing machine would
 spec:
   harvester: asgard
   os: leap-16-k8s
@@ -78,7 +78,7 @@ kind: DownstreamCluster
 metadata:
   name: edge
 spec:
-  type: custom
+  type: metal
   rancher: rancher
   distro: rke2
   labels: { env: edge }

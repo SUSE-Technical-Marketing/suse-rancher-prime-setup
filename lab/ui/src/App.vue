@@ -11,9 +11,16 @@ import LabEditor from "./components/LabEditor.vue";
 import Palette from "./components/Palette.vue";
 import SidePane from "./components/SidePane.vue";
 import GraphCanvas from "./components/GraphCanvas.vue";
+import KindIcon from "./components/KindIcon.vue";
+import { nextTheme, theme } from "./theme";
 import { catalog, check, dirty, docOf, drawer, drawerTab, file, load, newLabText, selected, sideTab, text, views } from "./store";
 
 const labs = ref<string[]>([]);
+const THEMES = {
+  system: { icon: "sun-moon", label: "System", title: "Light or dark as your system is; click for light" },
+  light: { icon: "sun", label: "Light", title: "Light; click for dark" },
+  dark: { icon: "moon", label: "Dark", title: "Dark; click to follow your system" },
+} as const;
 const error = ref("");
 const checking = ref(false);
 const saving = ref(false);
@@ -158,6 +165,9 @@ window.addEventListener("beforeunload", e => { if (dirty.value) e.preventDefault
       </select>
       <button type="button" @click="create">New</button>
       <button type="button" class="primary" :disabled="saving || (!dirty && !!file)" @click="save">{{ saving ? "Saving…" : "Save" }}</button>
+      <button type="button" class="theme" :title="THEMES[theme].title" :aria-label="`Theme: ${THEMES[theme].label}`" @click="theme = nextTheme(theme)">
+        <KindIcon :icon="THEMES[theme].icon" :size="15" />{{ THEMES[theme].label }}
+      </button>
       <button v-if="status.text" type="button" class="status" :class="status.cls" title="Show the problems" @click="showProblems">{{ status.text }}</button>
     </header>
     <p v-if="error" class="banner">{{ error }} <button type="button" class="icon" @click="error = ''">×</button></p>

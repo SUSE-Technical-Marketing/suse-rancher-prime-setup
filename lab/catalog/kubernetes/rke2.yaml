@@ -30,7 +30,7 @@ spec:
   kubeconfig: /etc/rancher/rke2/rke2.yaml
   kubectl: /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml
   dataDir: /var/lib/rancher/rke2
-  # Run on a custom cluster's existing machines when the lab goes; missing ones are skipped.
+  # Run on a metal cluster's existing machines when the lab goes; missing ones are skipped.
   uninstall: [ /usr/local/bin/rke2-uninstall.sh, /opt/rke2/bin/rke2-uninstall.sh, /usr/bin/rke2-uninstall.sh ]
   # Downstream clusters' default CNI.
   cni: calico

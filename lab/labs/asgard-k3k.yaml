@@ -13,7 +13,7 @@ spec:
     # accept a publicly trusted certificate (agent-tls-mode system-store). 5 certificates a week per name set.
     acme: letsencrypt
     email: jeroen@vanerp.info
-    cloudflare: "{{ secrets['cloudflare-token'] }}"
+    cloudflare: "{{ secrets.cloudflare.token }}"
 
   ssh:
     user: jeroen

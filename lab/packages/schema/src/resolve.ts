@@ -11,7 +11,7 @@ import { ResolvedOs } from "./os";
 /** cloud-config keys an existing machine (no user data) gets, over SSH instead (packages are always refreshed first). */
 export const MACHINE_CLOUD_INIT_KEYS = ["packages", "runcmd", "package_update"];
 import { Profiles } from "./profiles";
-import { activeRequirements, blocksCustomClusterNode, checkHostProfiles, describeCapability, hostCapabilities, profileBuildOrder } from "./profiles/rules";
+import { activeRequirements, blocksMetalClusterNode, checkHostProfiles, describeCapability, hostCapabilities, profileBuildOrder } from "./profiles/rules";
 import {
     AWS_CREDENTIAL_FIELDS, AwsCredentials, Credentials, DownstreamInput, durationSeconds, HarvesterInput, ImageSource, LabFile, NODE_ROLES,
     PersonalConfig, VersionValue,
@@ -601,7 +601,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
     }
 
     // --- Downstream clusters -------------------------------------------------------------------
-    const customNodeOwner = new Map<string, string>();
+    const metalNodeOwner = new Map<string, string>();
     const downstream: ResolvedDownstream[] = [];
     for (const [name, d] of Object.entries(lab.downstream)) {
         const at = `downstream.${name}`;
@@ -618,7 +618,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         if (d.type === "k3k") {
             const parent = lab.downstream[d.parent];
             if (!parent) diags.error(L, `${at}.parent`, `unknown downstream cluster "${d.parent}"; known: ${Object.keys(lab.downstream).filter(n => n !== name).sort().join(", ") || "none"}`);
-            else if (parent.type === "k3k") diags.error(L, `${at}.parent`, `"${d.parent}" is a k3k cluster itself; a k3k cluster runs in a harvester, ec2, eks or custom cluster`);
+            else if (parent.type === "k3k") diags.error(L, `${at}.parent`, `"${d.parent}" is a k3k cluster itself; a k3k cluster runs in a harvester, ec2, eks or metal cluster`);
             else if (parent.rancher !== d.rancher) diags.error(L, `${at}.parent`, `"${d.parent}" is managed by the Rancher on ${parent.rancher}, this cluster by the one on ${d.rancher}; they must be the same`);
             downstream.push({ ...d, name, namespace: d.namespace ?? `k3k-${name}` });
             continue;
@@ -697,11 +697,15 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                     diags.error(L, nodeAt, `unknown host "${node.host}"`);
                     return;
                 }
-                const owner = customNodeOwner.get(node.host);
+                const owner = metalNodeOwner.get(node.host);
                 if (owner) diags.error(L, nodeAt, `host "${node.host}" is already a node of downstream cluster "${owner}"`);
-                customNodeOwner.set(node.host, name);
-                const blocking = blocksCustomClusterNode(registry, host.profiles);
-                if (blocking.length > 0) diags.error(L, nodeAt, `host "${node.host}" can't join a custom cluster: it runs ${blocking.join(", ")}, which can't share a host with Kubernetes`);
+                metalNodeOwner.set(node.host, name);
+                const blocking = blocksMetalClusterNode(registry, host.profiles);
+                if (blocking.length > 0) diags.error(L, nodeAt, `host "${node.host}" can't join a metal cluster: it runs ${blocking.join(", ")}, which can't share a host with Kubernetes`);
+                // The -k8s variant of an OS readies a host for Kubernetes; without it registration fails late.
+                if (!host.os.endsWith("-k8s") && allOs[`${host.os}-k8s`]) {
+                    diags.warning(L, nodeAt, `host "${node.host}" runs ${host.os}; a metal-cluster node needs Kubernetes' prerequisites: use ${host.os}-k8s`);
+                }
             });
             downstream.push({ ...d, name });
         }
@@ -784,7 +788,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
     const anyHosts = hosts.size > 0;
     if (anyHosts && lab.tls.acme !== "none") {
         if (!lab.tls.email) diags.error(L, "tls.email", `required for ACME (tls.acme: ${lab.tls.acme})`);
-        if (!lab.tls.cloudflare) diags.error(L, "tls.cloudflare", `required for ACME DNS-01, e.g. "{{ secrets['cloudflare-token'] }}"`);
+        if (!lab.tls.cloudflare) diags.error(L, "tls.cloudflare", `required for ACME DNS-01, e.g. "{{ secrets.cloudflare.token }}"`);
     }
     useSecretOrString(lab.tls.cloudflare, L, "tls.cloudflare");
     // cert-manager issues the lab's certificates from its ACME server: without one it has nothing to do.

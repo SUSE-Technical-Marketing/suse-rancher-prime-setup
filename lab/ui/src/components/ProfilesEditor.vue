@@ -34,7 +34,7 @@ const hasSettings = (p?: CatalogProfile) => !!p && Object.keys(p.settings.proper
 <template>
   <section class="profiles">
     <h3>Profiles</h3>
-    <p v-if="enabled.length === 0" class="muted">No profiles: a bare VM or machine (a custom-cluster node, for example).</p>
+    <p v-if="enabled.length === 0" class="muted">No profiles: a bare VM or machine (a metal-cluster node, for example).</p>
     <div v-for="name in enabled" :key="name" class="profile">
       <header>
         <button type="button" class="disclose" :aria-expanded="!!open[name]" @click="open[name] = !open[name]">

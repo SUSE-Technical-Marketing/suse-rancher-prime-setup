@@ -18,6 +18,7 @@ const BLOCKS: { block: Block; label: string; hint: string }[] = [
   { block: "AwsSite", label: "AWS site", hint: "an AWS account and region; the lab gets its own VPC there: drop on the board" },
   { block: "Ec2Cluster", label: "EC2 cluster", hint: "machines Rancher creates on AWS (needs a public Rancher): drop on an AWS site" },
   { block: "EksCluster", label: "EKS cluster", hint: "an EKS cluster Rancher creates and manages (needs a public Rancher): drop on an AWS site" },
+  { block: "MetalCluster", label: "Metal cluster", hint: "Rancher installs Kubernetes on the lab's Machines or bare VMs: drop on one, then drop more on the cluster" },
   { block: "K3kCluster", label: "k3k cluster", hint: "a virtual cluster inside another, imported into Rancher: drop on a cluster" },
 ];
 

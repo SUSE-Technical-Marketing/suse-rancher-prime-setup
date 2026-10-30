@@ -25,7 +25,7 @@ code from `pulumi/modules` is ported (copied and adapted), not imported.
 - Lab files contain no secrets and can be shared.
 - Supported building blocks (v1): Harvester VMs and existing SSH hosts; openSUSE/SLES/SL Micro/
   Ubuntu/Rocky guests; k3s/RKE2; Rancher (plugins, Fleet); Rancher-provisioned clusters on
-  Harvester and custom clusters on existing machines; Hauler; Multi-Linux Manager server + clients.
+  Harvester clusters and metal clusters on existing machines; Hauler; Multi-Linux Manager server + clients.
 
 **Non-goals**
 
@@ -121,7 +121,7 @@ domain: lab.geeko.me           # base DNS domain for every host
 tls:
   acme: letsencrypt            # an AcmeServer (letsencrypt, letsencrypt-staging) or none
   email: me@example.com
-  cloudflare: "{{ secrets['cloudflare-token'] }}"
+  cloudflare: "{{ secrets.cloudflare.token }}"
 
 ssh:                           # default login installed on every VM
   user: jeroen
@@ -236,7 +236,7 @@ hosts:
     address: nuc-01.lab.geeko.me # its existing DNS name (or an IP)
     user: root                   # optional; default = ssh.user
     os: sles-16-k8s              # what's installed; its packages and runcmd run over SSH
-    profiles: {}                 # used as a custom-cluster node in downstream.edge
+    profiles: {}                 # used as a metal-cluster node in downstream.edge
 ```
 
 - `cpu`, `memory`, `disk` of a Harvester host (and of a downstream pool) default to the catalog's `Defaults` (`vm`: 4 CPUs, 8Gi, 40Gi). There are no size presets.
@@ -265,6 +265,7 @@ profile. `lab profiles` prints the current list with all rules.
 | `hauler` | provides `registry` (uses Kubernetes if the host has it, otherwise systemd) | `manifests`, `port` | `RegistryAccess` |
 | `mlm-server` | OS family `suse`; conflicts with `kubernetes` and `mlm-client`; secret `adminPassword` | `version`, `adminPassword`, `products` | `MlmAccess` |
 | `mlm-client` | `server` must name a host running `mlm-server` | `server`, `activationKey` | — |
+| `ai-factory` | requires `rancher`; secrets `applicationCollection`, `suseRegistry` (credentials), `nvidia` | `version`, `applicationCollection` (required), `suseRegistry` (required; SCC), `nvidia` (the NGC API key), `values` | SUSE AI Factory on Rancher's cluster: the `aif-operator` chart, which installs the `aif-ui` extension and gets the registry logins as values, so its Settings need no Test and Apply |
 
 The apps a cluster needs are separate profiles, so they compose: a host can run Traefik without
 Rancher, or cert-manager for its own workloads. A Rancher host lists them all:
@@ -422,12 +423,13 @@ rejects an `ec2` or `eks` cluster whose Rancher host doesn't provide `public-ing
 does yet: that's the Cloudflare tunnel operator's `public-ingress` profile, still to come. Until
 then they can be validated and previewed only with a stub profile (the tests do this).
 
-**Custom** — existing machines join a cluster Rancher defines:
+**Metal** — Rancher installs Kubernetes on the lab's own hosts (what Rancher calls a custom
+cluster: it doesn't create the machines, the lab supplies them):
 
 ```yaml
 downstream:
   edge:
-    type: custom
+    type: metal
     rancher: rancher
     distro: rke2
     labels: { env: edge }
@@ -444,7 +446,7 @@ downstream:
   team-blue:
     type: k3k
     rancher: rancher
-    parent: apps                 # a harvester or custom cluster of this lab
+    parent: apps                 # a harvester or metal cluster of this lab
     mode: shared                 # shared (its workloads are pods of the parent) | virtual (own nodes, as pods) | hcp
     servers: 1
     agents: 0
@@ -541,7 +543,7 @@ variant (`leap-16-k8s`, `sles-16-k8s`, `rocky-9-k8s`, `ubuntu-24.04-k8s`) with t
 and Longhorn's needs (iSCSI, NFS, cryptsetup, `iscsid` started), and turns firewalld off, as the
 k3s and RKE2 docs advise (it conflicts with their CNIs and blocks the API and ingress); the plain
 profiles start it on the first boot, so a VM behaves the same before and after a reboot. Use it for every host that runs
-k3s or RKE2, every downstream pool, and every node of a custom cluster; nothing picks it for you.
+k3s or RKE2, every downstream pool, and every node of a metal cluster; nothing picks it for you.
 The SUSE variants also swap a minimal image's `kernel-default-base` (Leap 16 Minimal-VM) for the
 `kernel-default` of the same version: only that has `iscsi_tcp`, and the same version means the
 running kernel finds it without a reboot. If the repositories no longer have that version,
@@ -637,7 +639,7 @@ per host:        VM (Harvester) | SSH target ─► cloud-init done ─► TLS c
                    ─► profiles (rancher, hauler, mlm-server, mlm-client)
 per rancher:     install ─► local cluster Ready ─► bootstrap ─► plugins, fleet
                    ─► import each harvester used by downstream (once per harvester)
-per downstream:  cloud credential + machine configs ─► Cluster ─► (custom: run registration on nodes)
+per downstream:  cloud credential + machine configs ─► Cluster ─► (metal: run registration on nodes)
                    ─► Ready ─► kubeconfig
 mlm:             server up ─► products synced ─► activation keys ─► clients bootstrap
 ```
@@ -735,8 +737,8 @@ Strings using `secrets` anywhere else in a profile's settings (chart values) are
 
 The rule checker (`profiles/rules.ts`) and the build order (`profileBuildOrder`, a topological sort
 over `requires`) only read these declarations, from the registry the catalog builds. Downstream
-checks use capabilities too: a custom cluster needs a host providing `rancher`, and a
-custom-cluster node may not run anything that provides or conflicts with `kubernetes`. Resolved
+checks use capabilities too: a metal cluster needs a host providing `rancher`, and a
+metal-cluster node may not run anything that provides or conflicts with `kubernetes`. Resolved
 hosts carry their capabilities, so the program never needs the registry.
 
 The **builders** live in `program/profiles.ts`, typed against `ProfileSettings`, which is generated
@@ -835,9 +837,11 @@ Ready, bootstrap the admin password, UI plugins, Fleet secrets/groups/repos, opt
 
 The `HarvesterConfig` and `Cluster` classes for steps 4–5 come from `@lab/crds` (§12).
 
-### 9.3 Custom clusters
+### 9.3 Metal clusters
 
-Same Cluster object without machine pools (`CustomCluster` in `@lab/rancher`). The node command
+Same Cluster object without machine pools (`MetalCluster` in `@lab/rancher`; Rancher calls it a custom
+cluster, and the component was `CustomCluster` until it was renamed: an alias keeps existing stacks'
+clusters). The node command
 comes from the cluster's `ClusterRegistrationToken` (the insecure one with Let's Encrypt staging;
 the token itself from the Secret it names), gets the node's role flags and `--node-name`, and runs
 as root on each node with `@pulumi/command` `remote.Command`. Then the Cluster is waited on until
@@ -908,7 +912,7 @@ everything that is per person rather than per lab:
 ```yaml
 secrets:
   hv-north:         { username: admin, password: "cmd:pass show lab/hv-north" }
-  cloudflare-token: env:CF_API_TOKEN
+  cloudflare:       { token: env:CF_API_TOKEN }
   ssh-key:          file:~/.ssh/id_ed25519
 harvesters:
   hv-north: { url: https://hv-north.lab.geeko.me, credentials: "{{ secrets['hv-north'] }}" }
@@ -1054,7 +1058,7 @@ hosts:
   leap-01:  { on: hv-north, os: leap-16,      cpu: 2, memory: 4Gi,  disk: 40Gi,  profiles: { mlm-client: { server: mlm } } }
 ```
 
-**4. Rancher + custom cluster on a physical machine**
+**4. Rancher + metal cluster on a physical machine**
 
 ```yaml
 lab: rancher-custom-edge
@@ -1063,7 +1067,7 @@ hosts:
   nuc-01:  { on: ssh, address: nuc-01.lab.geeko.me, user: root, os: sles-16-k8s }
 downstream:
   edge:
-    type: custom
+    type: metal
     rancher: rancher
     distro: rke2
     labels: { env: edge }
@@ -1080,7 +1084,7 @@ downstream:
 | M1 ✅ | Harvester base (per-lab, derived images), Harvester hosts, OS profiles, DNS, unique naming | Plain VMs on one Harvester; `destroy --check` is clean. Deferred: a lab across two Harvesters (advanced), uploading local image files, host TLS with lego (moves to the first profile that needs it, M5/M6) |
 | M2 🟡 | SSH access, `k3s`/`rke2`, cluster TLS (cert-manager + Let's Encrypt), `rancher` (plugins, Fleet, Liz) | See §14.1. Done on asgard with k3s and RKE2, including clean teardown; open: a run with `letsencrypt` (production) and with the Fleet secrets |
 | M3 | Harvester import per harvester, `downstream.type: harvester`, cloud-provider config, labels → Fleet groups, teardown ordering | Reference lab 2 builds and destroys cleanly |
-| M4 ✅ | SSH hosts, `downstream.type: custom`, node cleanup | Reference lab 4. Done on asgard: a custom cluster on a lab VM (`labs/asgard-m4.yaml`); profiles on `Machine`s (`labs/asgard-m4-machines.yaml` on the bare VMs of `labs/asgard-m4-vms.yaml`: k3s with ServiceLB, RKE2 with MetalLB); Rancher on a `Machine` with a custom RKE2 cluster on two more (`labs/asgard-m4-custom.yaml`, on the same VMs); each with clean teardown and uninstall |
+| M4 ✅ | SSH hosts, `downstream.type: metal` (was `custom`), node cleanup | Reference lab 4. Done on asgard: a metal cluster on a lab VM (`labs/asgard-m4.yaml`); profiles on `Machine`s (`labs/asgard-m4-machines.yaml` on the bare VMs of `labs/asgard-m4-vms.yaml`: k3s with ServiceLB, RKE2 with MetalLB); Rancher on a `Machine` with a metal RKE2 cluster on two more (`labs/asgard-m4-custom.yaml`, on the same VMs); each with clean teardown and uninstall |
 | M5 | `hauler` (systemd and Kubernetes modes), manifests | Registry part of reference lab 1 |
 | M6 | `sl-micro-6.1`, `ubuntu-24.04`, `rocky-9`; `mlm-server`, `mlm-client` | Reference labs 1 and 3 |
 | M7 | Docs for lab authors (`lab/README.md`), more examples, `AGENTS.md` | Someone new can write a lab without reading TypeScript |
@@ -1342,7 +1346,7 @@ passthroughs for anything else Rancher supports: `machineGlobalConfig` and `char
 over the engine's. `machineGlobalConfig.cni` (use `cni`) and `chartValues.harvester-cloud-provider`
 stay engine-owned: setting them is a validation error, like 16.2's protected values.
 
-Every k3s or RKE2 server the lab makes (a single-node host, a downstream pool or custom node with
+Every k3s or RKE2 server the lab makes (a single-node host, a downstream pool or metal-cluster node with
 the etcd or control-plane role) starts `lab-helm-watch` first: a transient systemd unit that, for
 `timeouts.helmJobWatch` (60m), deletes helm-controller Jobs (`helmcharts.helm.cattle.io/chart`)
 that stay suspended for 90s. helm-controller suspends a Job before it replaces it and sometimes
@@ -1503,7 +1507,7 @@ document is.
 
 | Kind | `spec` | Catalog section it fills |
 |---|---|---|
-| `KubernetesDistribution` | `version`; `install` (a template with `version`, run as root); `configFile` and `config` (written before installing, with the host's FQDN as a `tls-san`); `withCapability.<capability>` (merged into `config`, lists joined, when another profile on the host provides that capability: `ingress` turns the distribution's own Traefik off, `load-balancer` its ServiceLB, `cloud-provider` sets up an external cloud controller); `kubeconfig`, `kubectl`, `dataDir`; `uninstall` (scripts for custom-cluster machines); `cni` (downstream default). An override's `config` and `withCapability` merge key by key (lists replaced) | components (k3s, RKE2) |
+| `KubernetesDistribution` | `version`; `install` (a template with `version`, run as root); `configFile` and `config` (written before installing, with the host's FQDN as a `tls-san`); `withCapability.<capability>` (merged into `config`, lists joined, when another profile on the host provides that capability: `ingress` turns the distribution's own Traefik off, `load-balancer` its ServiceLB, `cloud-provider` sets up an external cloud controller); `kubeconfig`, `kubectl`, `dataDir`; `uninstall` (scripts for metal-cluster machines); `cni` (downstream default). An override's `config` and `withCapability` merge key by key (lists replaced) | components (k3s, RKE2) |
 | `AcmeServer` | `url` (the ACME directory), `ca` (PEM roots, for a CA nothing trusts) | ACME servers (`tls.acme`) |
 | `Defaults` | one, named `default`: `ssh.user` (a lab's `ssh.user`, and a Machine's `user`, default to it), `vm` (`cpu`, `memory`, `disk` of a HarvesterVM or downstream pool that doesn't give them), `harvester.clusterNetwork`, `harvester.storageClass` (`name`, `replicas`, `parameters`), `timeouts.<step>` (durations like `15m`: `harvesterAddon`, `image`, `vmStart`, `vmAddress`, `cloudInit`, `loadBalancerCleanup`, `kubernetesApi`, `resourceReady`, `certificate`, `rancherReady`, `uiPlugin`, `harvesterImport`, `clusterRegistration`, `downstreamReady`, `downstreamDelete`, `helmJobWatch`), `aws` (`vpcCidr`, `zones` and `instanceType` of an AwsSite, EC2 pool or EKS node group that doesn't give them; `eksVersion` of an EKS cluster), `images.kubectl` (an image with kubectl and curl for jobs the engine runs on a cluster: a k3k cluster's import). Later layers override single fields, so a personal config can make one wait longer | what the engine uses where a lab doesn't say (`catalog/defaults.yaml`) |
 | `HelmChart` | `repo`, `chart`, `version`, `namespace` (default for host placements) | components |
@@ -1567,6 +1571,12 @@ in strict mode (an undefined variable is an error at the value's path, naming th
 | `host` | `name`, `fqdn` |
 | `lab` | `name`, `domain`, `tls.acme`, `tls.privateCA` (the AcmeServer has a `ca`: Let's Encrypt staging), `tls.email` |
 | `outputs` | by capability: the `outputs` the profile on this host providing it declares; only for capabilities this profile `requires`, `uses` or `requiresWhen`, so it can't read a profile built after it |
+
+A secret setting reaches a chart through the `field` filter: `"{{ settings.applicationCollection |
+field('username') }}"` gives `"{{ secrets.appco.username }}"` for `applicationCollection:
+"{{ secrets.appco }}"` (or the `username` of a `{ username, password }` map, and `""` for an unset
+setting). The program renders such secret templates in a chart-only profile's values when it
+builds the lab, as a secret output, so the values stay encrypted in the state.
 
 A profile whose requirements aren't met on a host isn't rendered there (the rules report that). The
 program gets plain values; the protected paths are the leaves of `lockedValues`, templates or not.

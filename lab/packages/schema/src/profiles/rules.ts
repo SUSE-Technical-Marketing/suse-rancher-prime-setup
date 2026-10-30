@@ -166,8 +166,8 @@ export function profileBuildOrder(registry: ProfileRegistry, profiles: Profiles)
     return order;
 }
 
-/** Whether a host may become a node of a Rancher custom cluster, which brings its own Kubernetes. */
-export function blocksCustomClusterNode(registry: ProfileRegistry, profiles: Profiles): string[] {
+/** Whether a host may become a node of a metal cluster, which brings its own Kubernetes. */
+export function blocksMetalClusterNode(registry: ProfileRegistry, profiles: Profiles): string[] {
     return activeProfiles(profiles).filter(n => {
         const def = registry[n];
         return capabilitiesOf(def).includes("kubernetes") || (def.conflicts ?? []).includes("kubernetes");

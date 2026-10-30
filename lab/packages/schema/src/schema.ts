@@ -257,7 +257,8 @@ export const DownstreamInput = z.discriminatedUnion("type", [
         nodeGroups: z.array(EksNodeGroup).min(1),
     }),
     z.strictObject({
-        type: z.literal("custom"),
+        /** Rancher installs Kubernetes on the lab's own hosts (Machines, bare VMs): Rancher's "custom" cluster. */
+        type: z.literal("metal"),
         rancher: z.string(),
         distro: z.enum(["rke2", "k3s"]).default("rke2"),
         version: z.string().optional(),

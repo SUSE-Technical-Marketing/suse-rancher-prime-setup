@@ -1,0 +1,47 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: ai-factory
+  description: "SUSE AI Factory on Rancher: its operator and UI extension, logged in to the registries its blueprints install from"
+spec:
+  icon: brain-circuit              # in the lab UI (lucide.dev/icons)
+  charts:
+    - chart: aif-operator
+      namespace: aif-operator
+      # The chart makes the registry secrets and the Settings that point at them: what the AI
+      # Factory settings page's Test and Apply would do. Logins left out are left for that page.
+      lockedValues:
+        credentials:
+          applicationCollection:
+            username: "{{ settings.applicationCollection | field('username') }}"
+            password: "{{ settings.applicationCollection | field('password') }}"
+          suseRegistry:
+            username: "{{ settings.suseRegistry | field('username') }}"
+            password: "{{ settings.suseRegistry | field('password') }}"
+          # NGC logins are always the user $oauthtoken with an API key.
+          nvidia:
+            username: "{{ '$oauthtoken' if settings.nvidia else '' }}"
+            password: "{{ settings.nvidia | default('') }}"
+  # On Rancher's own (local) cluster: the chart waits for Rancher's Fleet and UI-plugin CRDs.
+  requires: [ rancher ]
+  secretFields:
+    - { field: applicationCollection, shape: credentials }
+    - { field: suseRegistry, shape: credentials }
+    - nvidia
+  settings:
+    type: object
+    required: [ applicationCollection, suseRegistry ]
+    properties:
+      version: { type: string }
+      applicationCollection:
+        $ref: credentials
+        description: SUSE Application Collection login (dp.apps.rancher.io), e.g. "{{ secrets.appco }}"
+      suseRegistry:
+        $ref: credentials
+        description: SUSE registry login for the AI charts (registry.suse.com/ai), e.g. "{{ secrets.scc }}"
+      nvidia:
+        $ref: secretOrString
+        description: NVIDIA NGC API key, for NIM blueprints, e.g. "{{ secrets.nvidia }}"
+      values:
+        $ref: chartValues
+        description: Extra Helm values for aif-operator, merged over the engine's

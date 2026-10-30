@@ -6,7 +6,7 @@ export * from "./cloud-credential";
 export * from "./node-driver-cluster";
 export * from "./downstream";
 export * from "./ec2-cluster";
-export * from "./custom-cluster";
+export * from "./metal-cluster";
 export * from "./harvester-import";
 export * from "./cluster-kubeconfig";
 export * from "./k3k-cluster";

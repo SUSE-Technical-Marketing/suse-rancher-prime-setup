@@ -2,7 +2,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { CertManager, ChartProfile, HarvesterCloudProvider, MetalLb, Traefik } from "@lab/apps";
 import { HarvesterCloudConfig } from "@lab/harvester";
-import { ClusterAccess, clusterFromHost, ClusterObjects, Distro, distroInstall, helmApp, helmJobWatch, HostAccess, KubeWait } from "@lab/kubernetes";
+import { ClusterAccess, clusterFromHost, ClusterObjects, Distro, distroInstall, helmApp, helmJobWatch, HostAccess, KubeWait, type ProfileChartSpec, type RenderedProfileChart } from "@lab/kubernetes";
 import { Fleet, RancherAccess, RancherServer, UiPlugins } from "@lab/rancher";
 import type { ResolvedHost, ResolvedLab } from "@lab/schema";
 import type { ProfileSettings } from "./generated/profile-settings";
@@ -247,6 +247,14 @@ type AnyBuilder = ProfileBuilder<ProfileName>;
  * For a profile with a chart and no builder: install the chart once the profiles it requires or
  * uses are ready, and report the release under each of its capabilities.
  */
+/**
+ * A profile's chart with the secrets its templates name rendered into its values (`field('username')`
+ * of a credentials setting gives `{{ secrets.appco.username }}`), kept secret.
+ */
+function withSecrets(chart: RenderedProfileChart): ProfileChartSpec {
+    return { ...chart, defaults: chartValuesWithSecrets(chart.defaults) ?? {}, lockedValues: chartValuesWithSecrets(chart.lockedValues) ?? {} };
+}
+
 function chartProfileBuilder(name: string): AnyBuilder {
     return {
         build(ctx, settings) {
@@ -259,7 +267,7 @@ function chartProfileBuilder(name: string): AnyBuilder {
             const done = p.entries.some(e => e.kind === "chart" && e.main)
                 ? [new ChartProfile(`${host.name}/${name}`, {
                     cluster: need(ctx, "kubernetes"),
-                    chart: profileChart(name, host, lab, s.version),
+                    chart: withSecrets(profileChart(name, host, lab, s.version)),
                     values: chartValuesWithSecrets(s.values),
                     after,
                 }).release]
@@ -291,8 +299,9 @@ function installEntries(lab: ResolvedLab, host: ResolvedHost, profile: string, c
                 ...chart(entry.chart, lab, rendered.version),
                 namespace: entry.namespace,
                 releaseName: entry.chart,
-                defaults: rendered.values,
-                lockedValues: rendered.lockedValues,
+                // A profile's templates can name secrets (`field('username')` of a credentials setting): rendered here, kept secret.
+                defaults: chartValuesWithSecrets(rendered.values) ?? {},
+                lockedValues: chartValuesWithSecrets(rendered.lockedValues) ?? {},
             }, opts);
         }
         done.push(resource);

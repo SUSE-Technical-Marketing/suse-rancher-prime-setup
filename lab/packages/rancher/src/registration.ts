@@ -16,7 +16,7 @@ interface RegistrationInputs {
 
 /**
  * How to join a cluster Rancher knows but doesn't provision, from its registration token: the
- * command that registers a machine with a custom cluster, and the manifest an imported cluster
+ * command that registers a machine with a metal (Rancher: custom) cluster, and the manifest an imported cluster
  * applies (a k3k cluster). Newer Rancher keeps the token itself in a Secret next to it.
  */
 const registrationProvider: pulumi.dynamic.ResourceProvider = {

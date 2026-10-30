@@ -5,7 +5,7 @@ import * as pulumi from "@pulumi/pulumi";
 import { AwsNetwork, awsProfile, labTags, Pinned } from "@lab/aws";
 import { HarvesterBase, HarvesterCloudConfig, HarvesterVm } from "@lab/harvester";
 import { asRoot, ClusterObjects, helmApp, helmJobWatch, HostAccess, runExisting, sshConnection, waitForCloudInit } from "@lab/kubernetes";
-import { Amazonec2Credential, CustomCluster, Ec2Cluster, EksCluster, HarvesterCluster, HarvesterCredential, HarvesterImport, K3kCluster, RancherAccess } from "@lab/rancher";
+import { Amazonec2Credential, Ec2Cluster, EksCluster, HarvesterCluster, HarvesterCredential, HarvesterImport, K3kCluster, MetalCluster, RancherAccess } from "@lab/rancher";
 import { machineSetup, renderCloudConfig } from "@lab/os";
 import { AWS_CREDENTIAL_FIELDS, cloudInitVars, usesSecrets, type CloudInitVars, type ResolvedLab, type ResolvedOs } from "@lab/schema";
 import { buildHostProfiles, profileCloudInit, profileUninstall } from "./profiles";
@@ -81,8 +81,8 @@ const privateKey = lab.ssh ? secretString(lab.ssh.privateKey) : pulumi.output(""
 const hostOutputs: Record<string, { fqdn: string; address: pulumi.Output<string> }> = {};
 const rancherUrls: Record<string, string> = {};
 const rancherAccess: Record<string, RancherAccess> = {};
-/** Hosts that are nodes of a custom cluster: Rancher installs Kubernetes on them. */
-const customNodes = new Set(lab.downstream.flatMap(d => d.type === "custom" ? d.nodes.map(n => n.host) : []));
+/** Hosts that are nodes of a metal cluster: Rancher installs Kubernetes on them. */
+const metalNodes = new Set(lab.downstream.flatMap(d => d.type === "metal" ? d.nodes.map(n => n.host) : []));
 /** How to reach every host that has to be, and when it's ready for that, and the VM if it is one. */
 const nodeAccess: Record<string, { access: HostAccess; ready: pulumi.Resource[]; machine?: pulumi.Resource }> = {};
 
@@ -127,7 +127,7 @@ for (const host of lab.hosts) {
     }
     hostOutputs[host.name] = { fqdn: host.fqdn, address };
 
-    if (host.profileOrder.length === 0 && !customNodes.has(host.name)) continue;
+    if (host.profileOrder.length === 0 && !metalNodes.has(host.name)) continue;
     const access: HostAccess = { name: host.name, fqdn: host.fqdn, address, user: host.kind === "ssh" ? host.user : lab.ssh!.user, privateKey };
     let setUp: pulumi.Resource[] = [];
     if (host.kind === "harvester") {
@@ -211,12 +211,12 @@ function poolUserData(osName: string, distro: "rke2" | "k3s", roles: string[]): 
 }
 
 const downstreamNames: string[] = [];
-/** The harvester, ec2, eks and custom clusters, by name: k3k clusters run in them. */
-const builtClusters: Record<string, CustomCluster | HarvesterCluster | Ec2Cluster | EksCluster> = {};
+/** The harvester, ec2, eks and metal clusters, by name: k3k clusters run in them. */
+const builtClusters: Record<string, MetalCluster | HarvesterCluster | Ec2Cluster | EksCluster> = {};
 for (const d of lab.downstream) {
     if (d.type === "k3k") continue;
-    if (d.type === "custom") {
-        const cluster = new CustomCluster(`downstream/${d.name}`, {
+    if (d.type === "metal") {
+        const cluster = new MetalCluster(`downstream/${d.name}`, {
             rancher: rancherAccess[d.rancher],
             distribution: distribution(d.distro, lab),
             kubernetesVersion: d.version ?? version(d.distro, lab),

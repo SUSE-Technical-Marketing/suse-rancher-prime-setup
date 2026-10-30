@@ -48,7 +48,7 @@ spec:
     rancherReady: 20m         # Rancher's local cluster Ready, and its admin password set
     uiPlugin: 10m             # a UI plugin installed
     harvesterImport: 20m      # each step of importing a Harvester into Rancher (until it's Ready), or removing it
-    clusterRegistration: 5m   # Rancher's registration command for a custom cluster
+    clusterRegistration: 5m   # Rancher's registration command for a metal cluster
     downstreamReady: 60m      # a downstream cluster Ready
     downstreamDelete: 30m     # a downstream cluster removed
     helmJobWatch: 60m         # how long a new k3s / RKE2 server deletes helm-controller install Jobs stuck suspended
