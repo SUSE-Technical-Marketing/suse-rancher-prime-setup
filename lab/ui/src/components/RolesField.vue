@@ -2,7 +2,7 @@
 import Field from "./Field.vue";
 
 const ROLES = ["etcd", "controlplane", "worker"] as const;
-const props = defineProps<{ modelValue?: unknown; label?: string }>();
+const props = defineProps<{ modelValue?: unknown; label?: string; problem?: string }>();
 const emit = defineEmits<{ "update:modelValue": [value: string[] | undefined] }>();
 const has = (r: string) => Array.isArray(props.modelValue) && props.modelValue.includes(r);
 function toggle(r: string) {
@@ -12,7 +12,7 @@ function toggle(r: string) {
 </script>
 
 <template>
-  <Field :label="label ?? 'roles'" required>
+  <Field :label="label ?? 'roles'" required :problem="problem">
     <span class="roles">
       <label v-for="r in ROLES" :key="r" class="check"><input type="checkbox" :checked="has(r)" @change="toggle(r)" /> {{ r }}</label>
     </span>

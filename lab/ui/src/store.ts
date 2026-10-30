@@ -26,6 +26,10 @@ export const dirty = ref(false);
 export const selected = ref(0);
 /** Whether the selected document's form is open (the drawer over the side pane). */
 export const drawer = ref(false);
+/** The drawer's tab: the document's form, or its YAML. */
+export const drawerTab = ref<"form" | "yaml">("form");
+/** The side pane's tab, under the drawer. */
+export const sideTab = ref<"yaml" | "plan" | "problems">("yaml");
 export const parseError = ref("");
 export const catalog = shallowRef<Catalog>();
 export const check = shallowRef<CheckResult>();
@@ -80,6 +84,28 @@ export function setText(source: string) {
     docs.value = parsed;
     if (selected.value >= parsed.length) selected.value = Math.max(0, parsed.length - 1);
     changed();
+}
+
+/** One document's text, for its own YAML tab. */
+export function docText(index: number): string {
+    void version.value;
+    const d = docs.value[index];
+    if (!d) return "";
+    d.directives!.docStart = null;
+    const out = d.toString({ lineWidth: 0 });
+    d.directives!.docStart = index > 0 ? true : null;
+    return out;
+}
+
+/** One document's YAML tab, edited by hand: applied when it parses as one document; else what's wrong. */
+export function setDocText(index: number, source: string): string | undefined {
+    const parsed = parse(source);
+    if (typeof parsed === "string") return parsed;
+    if (parsed.length !== 1) return "one document here: add others from the palette or in the lab's YAML";
+    if (!docs.value[index]) return undefined;
+    docs.value = docs.value.map((d, i) => (i === index ? parsed[0] : d));
+    changed();
+    return undefined;
 }
 
 const node = (d: Document, value: unknown) => (typeof value === "object" && value !== null ? d.createNode(value) : value);

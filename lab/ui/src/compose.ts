@@ -51,7 +51,7 @@ export function addBlock(block: Block, on?: string, network?: string) {
         case "AwsSite": {
             const mine = catalog.value?.personal.awsSites.find(s => !views.value.some(v => v.kind === "AwsSite" && v.metadata?.name === s.name));
             // Not in the personal config: the first secret there holding AWS keys, if any.
-            const keys = catalog.value?.personal.secrets.find(s => s.fields?.includes("accessKey") && s.fields.includes("secretKey"))?.name;
+            const keys = catalog.value?.personal.secrets.find(s => s.fields?.includes("accessKey") && s.fields.includes("secretKey"))?.path;
             return addDoc("AwsSite", freeName("AwsSite", mine?.name ?? "aws"), mine || !keys ? {} : { credentials: secretTemplate(keys) });
         }
         case "Ec2Cluster":

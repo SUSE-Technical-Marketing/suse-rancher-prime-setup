@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { api } from "./api";
 import AwsSiteEditor from "./components/AwsSiteEditor.vue";
+import DocYaml from "./components/DocYaml.vue";
 import DownstreamEditor from "./components/DownstreamEditor.vue";
 import GenericEditor from "./components/GenericEditor.vue";
 import HarvesterEditor from "./components/HarvesterEditor.vue";
@@ -10,7 +11,7 @@ import LabEditor from "./components/LabEditor.vue";
 import Palette from "./components/Palette.vue";
 import SidePane from "./components/SidePane.vue";
 import GraphCanvas from "./components/GraphCanvas.vue";
-import { catalog, check, dirty, drawer, file, load, newLabText, selected, text, views } from "./store";
+import { catalog, check, dirty, docOf, drawer, drawerTab, file, load, newLabText, selected, sideTab, text, views } from "./store";
 
 const labs = ref<string[]>([]);
 const error = ref("");
@@ -22,6 +23,14 @@ function edit(index: number) {
 }
 
 const current = computed(() => views.value[selected.value]);
+/** The open document's own problems, over its form. */
+const currentProblems = computed(() => (check.value?.diagnostics ?? []).filter(d => docOf(d.path).index === selected.value));
+/** The status in the header opens the problems. */
+function showProblems() {
+  drawer.value = false;
+  sideTab.value = "problems";
+}
+window.addEventListener("keydown", e => { if (e.key === "Escape" && drawer.value) drawer.value = false; });
 const editor = computed(() => {
   switch (current.value?.kind) {
     case "Lab": return LabEditor;
@@ -149,7 +158,7 @@ window.addEventListener("beforeunload", e => { if (dirty.value) e.preventDefault
       </select>
       <button type="button" @click="create">New</button>
       <button type="button" class="primary" :disabled="saving || (!dirty && !!file)" @click="save">{{ saving ? "Saving…" : "Save" }}</button>
-      <span class="status" :class="status.cls">{{ status.text }}</span>
+      <button v-if="status.text" type="button" class="status" :class="status.cls" title="Show the problems" @click="showProblems">{{ status.text }}</button>
     </header>
     <p v-if="error" class="banner">{{ error }} <button type="button" class="icon" @click="error = ''">×</button></p>
     <main v-if="catalog" class="layout">
@@ -161,10 +170,21 @@ window.addEventListener("beforeunload", e => { if (dirty.value) e.preventDefault
         <SidePane />
         <aside v-if="drawer && current" class="drawer" aria-label="Edit">
           <div class="drawer-bar">
-            <span class="muted">Editing</span>
-            <button type="button" class="icon" title="Close" @click="drawer = false">×</button>
+            <div class="tabs" role="tablist">
+              <button role="tab" :aria-selected="drawerTab === 'form'" @click="drawerTab = 'form'">Form</button>
+              <button role="tab" :aria-selected="drawerTab === 'yaml'" @click="drawerTab = 'yaml'">YAML</button>
+            </div>
+            <span class="muted drawer-title">{{ current.kind }} {{ current.metadata?.name }}</span>
+            <button type="button" class="close" title="Back to the lab's YAML, plan and problems (Esc)" @click="drawer = false">Close ×</button>
           </div>
-          <component :is="editor" :key="selected" :index="selected" />
+          <ul v-if="currentProblems.length" class="problems doc-problems">
+            <li v-for="(d, i) in currentProblems" :key="i" :class="d.level">
+              <span v-if="docOf(d.path).field" class="mono">{{ docOf(d.path).field }}</span>
+              <span>{{ d.message }}</span>
+            </li>
+          </ul>
+          <component :is="editor" v-if="drawerTab === 'form'" :key="selected" :index="selected" />
+          <DocYaml v-else :key="`yaml-${selected}`" :index="selected" />
         </aside>
       </div>
     </main>

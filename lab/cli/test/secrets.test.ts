@@ -68,6 +68,16 @@ describe("resolveSecrets", () => {
             'secret "list": secret "list" must be a string, and it\'s a list',
         ]);
     });
+
+    it("resolves fields deep in a map secret, and only those", () => {
+        const { values, problems } = resolveSecrets(
+            { cf: { fields: ["token", "tunnel.token"] }, infra: { fields: ["hv.password", "hv.username"] }, bad: { fields: ["a.b"] } },
+            { cf: { token: "t", tunnel: { token: "env:TT", id: "cmd:exit 9" } }, infra: { hv: { username: "u", password: "p" }, other: "o" }, bad: { a: "flat" } },
+            { env: { TT: "from-env" }, configDir: dir },
+        );
+        expect(values).toEqual({ cf: { token: "t", tunnel: { token: "from-env" } }, infra: { hv: { username: "u", password: "p" } } });
+        expect(problems).toEqual(['secret "bad": secret "bad" must be a map with a.b (it has a)']);
+    });
 });
 
 describe("credentialsFrom", () => {

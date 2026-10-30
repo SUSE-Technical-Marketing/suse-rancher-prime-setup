@@ -60,17 +60,21 @@ function shapeOf(v: unknown): "string" | "credentials" | "map" | "other" {
     return typeof v.username === "string" && typeof v.password === "string" ? "credentials" : "map";
 }
 
+/**
+ * A secret and every field in it, by path (`cloudflare`, `cloudflare.token`, `cloudflare.tunnel.id`):
+ * shapes and a map's field names, never values.
+ */
+function secretPaths(at: string[], v: unknown): { name: string; path: string[]; shape: ReturnType<typeof shapeOf>; fields?: string[] }[] {
+    const here = { name: at.join("."), path: at, shape: shapeOf(v), ...(isMap(v) ? { fields: Object.keys(v).sort() } : {}) };
+    return isMap(v) ? [here, ...Object.entries(v).flatMap(([k, x]) => secretPaths([...at, k], x))] : [here];
+}
+
 function personalInfo() {
     const diags = new Diagnostics();
     const personal = loadPersonal(personalConfig, diags)?.value;
     return {
         source: personalConfig,
-        secrets: Object.entries(personal?.secrets ?? {}).map(([name, v]) => ({
-            name,
-            shape: shapeOf(v),
-            // A map's field names (never its values): `accessKey`, `secretKey`.
-            ...(isMap(v) ? { fields: Object.keys(v).sort() } : {}),
-        })),
+        secrets: Object.entries(personal?.secrets ?? {}).flatMap(([name, v]) => secretPaths([name], v)),
         harvesters: Object.keys(personal?.harvesters ?? {}),
         awsSites: Object.entries(personal?.awsSites ?? {}).map(([name, s]) => ({ name, region: s.region })),
         problems: diags.items.map(d => `${d.path ? `${d.path}: ` : ""}${d.message}`),

@@ -145,8 +145,9 @@ personal config's `secrets` (§10): `"{{ secrets.appco }}"`, or with brackets fo
 `"{{ secrets['ssh-key'] }}"`. A secret can be a map: one holding a username and password is used
 whole where a field takes credentials (`credentials: "{{ secrets.harbor }}"`), or by field
 (`"{{ secrets.scc.password }}"`); AWS keys are a map with `accessKey` and `secretKey`
-(`credentials: "{{ secrets.aws }}"` on an AwsSite, or `"{{ secrets.aws.accessKey }}"`). Text around
-it is fine (`"Bearer {{ secrets.token }}"`). The lab file only names secrets; values come from the
+(`credentials: "{{ secrets.aws }}"` on an AwsSite, or `"{{ secrets.aws.accessKey }}"`). A path goes
+deeper into nested maps: `"{{ secrets.cloudflare.tunnel.token }}"` for a field, or
+`credentials: "{{ secrets.infra.harvester }}"` for a map inside one. Text around it is fine (`"Bearer {{ secrets.token }}"`). The lab file only names secrets; values come from the
 user's environment (§10).
 
 `validate` renders each template against placeholders: that checks it and finds which secrets it
@@ -924,7 +925,8 @@ os: {}                    # personal OS profiles (§6)
 - the `secrets:` section of the personal config, whose values may be literal, `env:VAR`,
   `file:path`, or `cmd:<command>` (for password managers).
 
-A secret the lab uses is a string, or a map whose fields the lab uses are strings. Anything else in
+A secret the lab uses is a string, or a map whose fields the lab uses (by path, `tunnel.token`) are
+strings. Anything else in
 `secrets:` (a nested map another tool reads, a list) is let through when the file loads, and only
 a lab that uses it gets an error naming the secret and what it holds, never its value. Only the
 used fields are resolved, so a `cmd:` in a field no lab uses never runs. A personal config that

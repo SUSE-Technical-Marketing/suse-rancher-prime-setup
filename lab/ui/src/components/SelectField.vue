@@ -5,13 +5,13 @@ import Field from "./Field.vue";
 defineProps<{
   modelValue?: unknown; label?: string; hint?: string; required?: boolean;
   options: (string | { value: string; label: string })[];
-  empty?: string;
+  empty?: string; problem?: string;
 }>();
 const emit = defineEmits<{ "update:modelValue": [value: string | undefined] }>();
 </script>
 
 <template>
-  <Field :label="label" :hint="hint" :required="required">
+  <Field :label="label" :hint="hint" :required="required" :problem="problem">
     <select :value="modelValue ?? ''" @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value || undefined)">
       <option v-if="empty !== undefined || modelValue === undefined" value="">{{ empty ?? "—" }}</option>
       <option

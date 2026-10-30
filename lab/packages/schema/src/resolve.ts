@@ -309,9 +309,23 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         const withServer = (dhcp: typeof h.networks.untagged.dhcp, at: string) => {
             if (!dhcp) return undefined;
             const server = dhcp.server ?? nthAddress(dhcp.cidr, 2);
-            if (!inCidr(server, dhcp.cidr)) diags.error(L, `${at}.server`, `${server} is outside ${dhcp.cidr}`);
-            for (const [i, ip] of [dhcp.gateway, ...dhcp.range].entries()) {
-                if (!inCidr(ip, dhcp.cidr)) diags.error(L, `${at}.${i === 0 ? "gateway" : `range[${i - 1}]`}`, `${ip} is outside ${dhcp.cidr}`);
+            const [base, bits] = dhcp.cidr.split("/");
+            if (nthAddress(dhcp.cidr, 0) !== base) diags.error(L, `${at}.cidr`, `${dhcp.cidr} isn't the start of its range; use ${nthAddress(dhcp.cidr, 0)}/${bits}`);
+            const last = nthAddress(dhcp.cidr, 2 ** (32 - Number(bits)) - 1);
+            const named = [["server", server], ["gateway", dhcp.gateway], ["range[0]", dhcp.range[0]], ["range[1]", dhcp.range[1]]] as const;
+            for (const [field, ip] of named) {
+                if (!inCidr(ip, dhcp.cidr)) diags.error(L, `${at}.${field}`, `${ip} is outside ${dhcp.cidr}`);
+                else if (ip === nthAddress(dhcp.cidr, 0)) diags.error(L, `${at}.${field}`, `${ip} is the network's own address`);
+                else if (ip === last) diags.error(L, `${at}.${field}`, `${ip} is the network's broadcast address`);
+            }
+            if (toInt(dhcp.range[0]) > toInt(dhcp.range[1])) diags.error(L, `${at}.range`, "start is after end");
+            else for (const [what, ip] of [["gateway", dhcp.gateway], ["DHCP server", server]] as const) {
+                if (toInt(ip) >= toInt(dhcp.range[0]) && toInt(ip) <= toInt(dhcp.range[1])) diags.error(L, `${at}.range`, `contains the ${what} ${ip}`);
+            }
+            if (server === dhcp.gateway) {
+                diags.error(L, `${at}.server`, dhcp.server
+                    ? `${server} is also the gateway; the DHCP server needs an address of its own`
+                    : `the DHCP server defaults to ${server}, which is the gateway; set server to a free address`);
             }
             return { ...dhcp, server };
         };

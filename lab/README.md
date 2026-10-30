@@ -119,7 +119,8 @@ as an environment variable `LAB_SECRET_<NAME>` (for example `LAB_SECRET_HV_NORTH
 
 Lab files only name secrets, as Jinja2 templates: `"{{ secrets.appco }}"`, with brackets for a name
 with a dash (`"{{ secrets['ssh-key'] }}"`), a field of a map secret by name (`"{{ secrets.scc.password }}"`,
-`"{{ secrets.aws.accessKey }}"`), or with text around it (`"Bearer {{ secrets.token }}"`). Quote
+`"{{ secrets.aws.accessKey }}"`) or by path into nested maps (`"{{ secrets.cloudflare.tunnel.token }}"`),
+or with text around it (`"Bearer {{ secrets.token }}"`). Quote
 them: YAML reads a bare `{` as a map.
 
 ## Catalog: the defaults

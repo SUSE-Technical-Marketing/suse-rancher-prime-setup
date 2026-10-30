@@ -2,7 +2,7 @@ import { isTemplate, renderTemplate } from "./templates";
 
 // Secrets in lab files, the personal config and catalog documents are Jinja2 templates over
 // `secrets` (DESIGN.md §10): "{{ secrets.appco }}", "{{ secrets['ssh-key'] }}" (a name with a dash),
-// "{{ secrets.scc.password }}", "{{ secrets.aws.accessKey }}", or text around them
+// "{{ secrets.scc.password }}", "{{ secrets.cloudflare.tunnel.token }}", or text around them
 // ("Bearer {{ secrets.token }}"). The values only exist in the CLI and the program; the resolver
 // renders each template against placeholders to check it and to find which secrets it uses, and how.
 
@@ -40,48 +40,72 @@ export interface SecretUse {
     shape: SecretShape;
 }
 
-/** `{{ secrets.name }}` or `{{ secrets['name'] }}` and nothing else: the secret itself, any shape. */
-const WHOLE = /^\s*\{\{-?\s*secrets\s*(?:\.\s*([A-Za-z_][\w]*)|\[\s*'([^']+)'\s*\]|\[\s*"([^"]+)"\s*\])\s*-?\}\}\s*$/;
+/** `{{ secrets.name }}`, `{{ secrets['name'] }}` or a path into one (`{{ secrets.cloudflare.tunnel.token }}`) and nothing else. */
+const PATH = /^\s*\{\{-?\s*secrets((?:\s*(?:\.\s*[A-Za-z_][\w]*|\[\s*'[^']+'\s*\]|\[\s*"[^"]+"\s*\]))+)\s*-?\}\}\s*$/;
+/** What a field of a secret may be called. */
+const FIELD = /^[A-Za-z_][\w-]*$/;
+const SEGMENT = /\.\s*([A-Za-z_][\w]*)|\[\s*'([^']+)'\s*\]|\[\s*"([^"]+)"\s*\]/g;
+
+/** The path a template is exactly (the secret's name, then fields), or undefined when it's anything more. */
+export function secretPath(template: string): string[] | undefined {
+    const m = PATH.exec(template);
+    return m ? [...m[1].matchAll(SEGMENT)].map(s => s[1] ?? s[2] ?? s[3]) : undefined;
+}
 
 /** The secret a template is exactly, or undefined when it's anything more. */
 export function wholeSecret(template: string): string | undefined {
-    const m = WHOLE.exec(template);
-    return m ? (m[1] ?? m[2] ?? m[3]) : undefined;
+    const path = secretPath(template);
+    return path?.length === 1 ? path[0] : undefined;
+}
+
+/** A field's value in a map secret, by a dotted path (`tunnel.token`). */
+export function fieldAt(value: unknown, field: string): unknown {
+    return field.split(".").reduce<unknown>((v, k) => (typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>)[k] : undefined), value);
+}
+
+/** What a secret must be for a use of it at a path to have `shape`: a map with that path's fields. */
+function shapeAt(rest: string[], shape: SecretShape): SecretShape {
+    if (!rest.length) return shape;
+    const at = rest.join(".");
+    return shape === "string" ? mapShape([at]) : mapShape(shapeFields(shape).map(f => `${at}.${f}`));
 }
 
 /**
  * `secrets` for a dry run: every name exists. A secret is a string placeholder (so filters work on
- * it); reading a field of it (`.password`, `.accessKey`) makes it a map with that field. Uses are
- * known after the render.
+ * it); reading a field of it (`.password`, `.tunnel.token`) makes it a map with that field, by its
+ * dotted path. Uses are known after the render.
  */
 export function secretPlaceholders(): { secrets: Record<string, unknown>; uses: () => SecretUse[]; badField: () => string | undefined } {
     const used = new Set<string>();
     const fields = new Map<string, Set<string>>();
     let bad: string | undefined;
-    const placeholder = (name: string) => new Proxy(new String("x"), {
+    const placeholder = (name: string, path: string[]): unknown => new Proxy(new String("x"), {
         get(target, key) {
             if (typeof key === "string" && !(key in String.prototype) && !/^\d+$/.test(key)) {
-                if (!/^[A-Za-z_][\w-]*$/.test(key)) {
-                    bad ??= `secrets.${name}: "${key}" can't be a field of a secret`;
+                if (!FIELD.test(key)) {
+                    bad ??= `secrets.${[name, ...path].join(".")}: "${key}" can't be a field of a secret`;
                     return undefined;
                 }
-                fields.set(name, (fields.get(name) ?? new Set()).add(key));
-                return "x";
+                const field = [...path, key];
+                fields.set(name, (fields.get(name) ?? new Set()).add(field.join(".")));
+                return placeholder(name, field);
             }
             const v = Reflect.get(target, key, target);
             return typeof v === "function" ? v.bind(target) : v;
         },
     });
+    /** A field read on the way to a deeper one (`tunnel` for `tunnel.token`) is a map, not a field. */
+    const leaves = (set: Set<string>) => [...set].filter(f => ![...set].some(o => o.startsWith(`${f}.`)));
     return {
         secrets: new Proxy({}, {
             get: (_t, name) => {
                 if (typeof name !== "string") return undefined;
                 used.add(name);
-                return placeholder(name);
+                return placeholder(name, []);
             },
             has: () => true,
         }),
-        uses: () => [...used].map(name => ({ name, shape: fields.has(name) ? mapShape(fields.get(name)!) : "string" as const })),
+        uses: () => [...used].map(name => ({ name, shape: fields.has(name) ? mapShape(leaves(fields.get(name)!)) : "string" as const })),
         badField: () => bad,
     };
 }
@@ -98,8 +122,9 @@ export interface SecretCheck {
  * the other names the template may use (`lab` in an OS profile's cloud-init).
  */
 export function checkSecretTemplate(template: string, shape: SecretShape, vars: Record<string, unknown> = {}): SecretCheck {
-    const whole = wholeSecret(template);
-    if (whole) return { uses: [{ name: whole, shape }] };
+    const path = secretPath(template);
+    // A field the dry run would reject ("a b") takes the long way, for its message.
+    if (path && path.slice(1).every(k => FIELD.test(k))) return { uses: [{ name: path[0], shape: shapeAt(path.slice(1), shape) }] };
     const dry = secretPlaceholders();
     try {
         const out = renderTemplate(template, { ...vars, secrets: dry.secrets });
@@ -120,10 +145,10 @@ export const usesSecrets = (s: string) => isTemplate(s) && /\bsecrets\b/.test(s)
 
 /** Render a secret template with the resolved values: a string, or a map for a whole map secret. */
 export function renderSecretTemplate(template: string, secrets: Record<string, unknown>): unknown {
-    const whole = wholeSecret(template);
-    if (whole) {
-        if (!(whole in secrets)) throw new Error(`secret "${whole}" is not resolved`);
-        return secrets[whole];
+    const path = secretPath(template);
+    if (path) {
+        if (!(path[0] in secrets)) throw new Error(`secret "${path[0]}" is not resolved`);
+        return path.length === 1 ? secrets[path[0]] : fieldAt(secrets[path[0]], path.slice(1).join("."));
     }
     return renderTemplate(template, { secrets });
 }

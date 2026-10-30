@@ -6,6 +6,7 @@ export interface SettingSchema {
     description?: string;
     $ref?: string;
     enum?: (string | number | boolean)[];
+    pattern?: string;
     anyOf?: SettingSchema[];
     oneOf?: SettingSchema[];
     default?: unknown;
@@ -32,9 +33,12 @@ export interface CatalogProfile {
 
 export type SecretShape = "string" | "credentials";
 
-/** A personal-config secret: its shape, and a map's field names (never values). */
+/** A personal-config secret, or a field in one: its shape, and a map's field names (never values). */
 export interface PersonalSecret {
+    /** The path, dotted: `cloudflare.token`. */
     name: string;
+    /** The secret's name, then the fields to it. */
+    path: string[];
     /** `other`: a value no field can use (a list, a number). */
     shape: SecretShape | "map" | "other";
     fields?: string[];

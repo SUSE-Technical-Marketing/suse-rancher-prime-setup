@@ -3,7 +3,7 @@ import { ref, watch } from "vue";
 import Field from "./Field.vue";
 
 // A map of strings (labels, annotations, Rancher settings) or of booleans (feature flags).
-const props = defineProps<{ modelValue?: Record<string, unknown>; label?: string; hint?: string; boolean?: boolean; keyPlaceholder?: string }>();
+const props = defineProps<{ modelValue?: Record<string, unknown>; label?: string; hint?: string; boolean?: boolean; keyPlaceholder?: string; problem?: string }>();
 const emit = defineEmits<{ "update:modelValue": [value: Record<string, unknown> | undefined] }>();
 
 const rows = ref<{ key: string; value: string }[]>([]);
@@ -29,7 +29,7 @@ function drop(i: number) {
 </script>
 
 <template>
-  <Field :label="label" :hint="hint" wide>
+  <Field :label="label" :hint="hint" wide :problem="problem">
     <div class="kv">
       <div v-for="(r, i) in rows" :key="i" class="kv-row">
         <input v-model="r.key" :placeholder="keyPlaceholder ?? 'key'" spellcheck="false" @change="commit" />

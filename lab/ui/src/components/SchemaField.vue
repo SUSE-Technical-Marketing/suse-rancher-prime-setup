@@ -28,7 +28,7 @@ const kind = computed(() => {
   if (x.type === "boolean") return "boolean";
   if (x.type === "integer" || x.type === "number") return "number";
   if (x.type === "string") return "text";
-  if (x.type === "array") return x.items && (x.items.type === "string" || x.items.$ref === "dnsLabel" || x.items.$ref === "dnsName") ? "list" : "yaml";
+  if (x.type === "array") return x.items && (x.items.type === "string" || x.items.$ref === "ipv4" || x.items.$ref === "dnsLabel" || x.items.$ref === "dnsName") ? "list" : "yaml";
   if (x.type === "object" && x.properties) return "object";
   if (x.type === "object" && typeof x.additionalProperties === "object") {
     const v = x.additionalProperties;
@@ -52,11 +52,11 @@ const boolOptions = computed(() => [
 <template>
   <SecretField v-if="kind === 'secret'" :label="label" :hint="hint" :required="required" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />
   <CredentialsField v-else-if="kind === 'credentials'" :label="label" :hint="hint" :required="required" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />
-  <TextField v-else-if="kind === 'text'" :label="label" :hint="hint" :required="required" :placeholder="placeholder" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />
+  <TextField v-else-if="kind === 'text'" :format="s.$ref === 'ipv4' ? 'ip' : undefined" :pattern="s.pattern" :label="label" :hint="hint" :required="required" :placeholder="placeholder" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />
   <TextField v-else-if="kind === 'number'" number :label="label" :hint="hint" :required="required" :placeholder="placeholder" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />
   <SelectField v-else-if="kind === 'enum'" :label="label" :hint="hint" :required="required" :options="(s.enum ?? []).map(String)" :empty="placeholder ?? 'default'" :model-value="modelValue === undefined ? undefined : String(modelValue)" @update:model-value="v => emit('update:modelValue', v)" />
   <SelectField v-else-if="kind === 'boolean'" :label="label" :hint="hint" :options="boolOptions" :empty="placeholder ?? 'default'" :model-value="modelValue === undefined ? undefined : String(modelValue)" @update:model-value="v => emit('update:modelValue', v === undefined ? undefined : v === 'true')" />
-  <ListField v-else-if="kind === 'list'" :label="label" :hint="hint" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />
+  <ListField v-else-if="kind === 'list'" :format="s.items?.$ref === 'ipv4' ? 'ip' : undefined" :pattern="s.items?.pattern" :label="label" :hint="hint" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />
   <KeyValue v-else-if="kind === 'map' || kind === 'boolMap'" :label="label" :hint="hint" :boolean="kind === 'boolMap'" :model-value="modelValue as any" @update:model-value="v => emit('update:modelValue', v)" />
   <fieldset v-else-if="kind === 'object'" class="nested">
     <legend>{{ label }}</legend>

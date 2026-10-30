@@ -130,7 +130,7 @@ h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: 
 .top .file { display: flex; align-items: center; gap: 4px; margin-right: auto; color: var(--mint); }
 .top .open { width: auto; }
 .dot { color: var(--persimmon); font-size: 10px; }
-.status { font-size: 12px; padding: 2px 8px; border-radius: 10px; }
+.status { font-size: 12px; padding: 2px 8px; border: none; border-radius: 10px; background: none; color: var(--muted); cursor: pointer; }
 .status.ok { background: var(--ok-bg); color: var(--ok); }
 .status.warn { background: var(--warn-bg); color: var(--warn); }
 .status.bad { background: var(--bad-bg); color: var(--bad); }
@@ -174,6 +174,8 @@ h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: 
 .field.wide { grid-column: 1 / -1; }
 .field-label { font-size: 12px; font-weight: 600; }
 .field-hint { font-size: 12px; color: var(--muted); }
+.field-problem { font-size: 12px; color: var(--bad); }
+.field.invalid input, .field.invalid select, .field.invalid textarea { border-color: var(--bad); }
 .req { color: var(--bad); margin-left: 2px; }
 .secret { display: flex; gap: 6px; }
 .secret select { width: 6.5em; flex: none; }
@@ -225,7 +227,14 @@ details.advanced[open] summary { margin-bottom: 10px; }
   position: absolute; inset: 0; overflow: auto; padding: 0 16px 32px;
   background: var(--bg); border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
 }
-.drawer-bar { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 10px 0; background: var(--bg); }
+.drawer-bar { position: sticky; top: 0; z-index: 1; display: flex; gap: 10px; align-items: center; margin: 0 -16px 12px; padding: 0 16px; background: var(--bg); border-bottom: 1px solid var(--border); }
+.drawer-bar .tabs { border-bottom: none; }
+.drawer-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.drawer-bar .close { font-size: 12px; padding: 4px 10px; }
+.doc-problems { margin-bottom: 12px; font-size: 12.5px; }
+.doc-problems .mono { font-size: 12px; }
+.docyaml { display: flex; flex-direction: column; gap: 8px; height: calc(100% - 64px); min-height: 360px; }
+.docyaml .yaml { flex: 1; min-height: 300px; resize: none; white-space: pre; overflow: auto; }
 .drawer .editor { max-width: none; }
 .drawer .grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
 

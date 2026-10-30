@@ -206,7 +206,7 @@ function addNode() {
       <summary>More</summary>
       <div class="grid">
         <template v-if="type === 'eks'">
-          <ListField label="API access from" placeholder="default anywhere (0.0.0.0/0)" hint="CIDRs that may reach the EKS API endpoint directly; Rancher's proxy works regardless" v-bind="bind('spec.publicAccessSources')" />
+          <ListField label="API access from" format="cidr" placeholder="default anywhere (0.0.0.0/0)" hint="CIDRs that may reach the EKS API endpoint directly; Rancher's proxy works regardless" v-bind="bind('spec.publicAccessSources')" />
           <ListField label="control plane logs" placeholder="none" hint="to CloudWatch: api, audit, authenticator, controllerManager, scheduler" v-bind="bind('spec.logging')" />
         </template>
         <template v-else-if="type !== 'k3k'">

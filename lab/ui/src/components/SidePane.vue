@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { catalog, check, docOf, drawer, parseError, selected, setText, text } from "../store";
+import { catalog, check, docOf, drawer, drawerTab, parseError, selected, setText, sideTab as tab, text } from "../store";
 
 // The lab as YAML (editable: applied when it parses), `lab plan`, and the problems.
-const tab = ref<"yaml" | "plan" | "problems">("yaml");
 const draft = ref(text.value);
 let editing = false;
 watch(text, t => { if (!editing) draft.value = t; });
@@ -22,6 +21,7 @@ function open(path: string) {
   const { index } = docOf(path);
   if (index < 0) return;
   selected.value = index;
+  drawerTab.value = "form";
   drawer.value = true;
 }
 </script>

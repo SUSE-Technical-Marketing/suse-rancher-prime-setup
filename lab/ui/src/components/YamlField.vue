@@ -4,7 +4,7 @@ import { parse, stringify } from "yaml";
 import Field from "./Field.vue";
 
 // Anything without a form of its own (chart values, passthrough config), as YAML.
-const props = defineProps<{ modelValue?: unknown; label?: string; hint?: string; rows?: number }>();
+const props = defineProps<{ modelValue?: unknown; label?: string; hint?: string; rows?: number; problem?: string }>();
 const emit = defineEmits<{ "update:modelValue": [value: unknown] }>();
 
 const textOf = (v: unknown) => (v === undefined ? "" : stringify(v, { lineWidth: 0 }).trimEnd());
@@ -29,7 +29,7 @@ function commit() {
 </script>
 
 <template>
-  <Field :label="label" :hint="error || hint" wide>
+  <Field :label="label" :hint="error || hint" wide :problem="error ? undefined : problem">
     <textarea v-model="text" class="mono" :class="{ invalid: error }" :rows="rows ?? 4" spellcheck="false" @change="commit" />
   </Field>
 </template>

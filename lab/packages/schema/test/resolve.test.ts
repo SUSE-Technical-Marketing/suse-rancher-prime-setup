@@ -453,6 +453,21 @@ describe("Harvester load balancer", () => {
         ]);
     });
 
+    it("checks a DHCP network's addresses against each other", () => {
+        const net = (dhcp: string) => BASE.replace("hv-north: {}", `hv-north: { networks: { vlans: [{ id: 20, dhcp: ${dhcp} }] } }`);
+        expect(errors(load(net("{ cidr: 10.29.20.5/24, gateway: 10.29.20.255, range: [10.29.20.150, 10.29.20.100] }")))).toEqual([
+            "harvesters.hv-north.networks.vlans[0].dhcp.cidr: 10.29.20.5/24 isn't the start of its range; use 10.29.20.0/24",
+            "harvesters.hv-north.networks.vlans[0].dhcp.gateway: 10.29.20.255 is the network's broadcast address",
+            "harvesters.hv-north.networks.vlans[0].dhcp.range: start is after end",
+        ]);
+        expect(errors(load(net("{ cidr: 10.29.20.0/24, gateway: 10.29.20.2, range: [10.29.20.0, 10.29.20.150] }")))).toEqual([
+            "harvesters.hv-north.networks.vlans[0].dhcp.range[0]: 10.29.20.0 is the network's own address",
+            "harvesters.hv-north.networks.vlans[0].dhcp.range: contains the gateway 10.29.20.2",
+            "harvesters.hv-north.networks.vlans[0].dhcp.range: contains the DHCP server 10.29.20.2",
+            "harvesters.hv-north.networks.vlans[0].dhcp.server: the DHCP server defaults to 10.29.20.2, which is the gateway; set server to a free address",
+        ]);
+    });
+
     it("only runs on Harvester VMs", () => {
         const result = load(`${BASE}\nhosts:\n  box: { on: ssh, address: box.example.com, os: leap-16, profiles: { k3s: {}, harvester-cloud-provider: {} } }\n`);
         expect(errors(result)).toEqual(["hosts.box.profiles.harvester-cloud-provider: only runs on Harvester VMs"]);
@@ -1071,6 +1086,16 @@ describe("secret templates", () => {
         const result = load(`${BASE}hosts:\n  vm: { on: hv-north, os: leap-16-k8s, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.ra }}\", values: { a: \"{{ secrets.aws.accessKey }}\", b: \"{{ secrets.aws.secretKey | trim }}\", c: \"{{ secrets.reg.username }}\" } } } }\n`);
         expect(errors(result)).toEqual([]);
         expect(result.lab!.secrets).toMatchObject({ aws: { fields: ["accessKey", "secretKey"] }, reg: "credentials" });
+    });
+
+    it("follows paths into map secrets, for a field or a map inside one", () => {
+        const result = load(`${BASE.replace("\"{{ secrets.cf }}\"", "\"{{ secrets.cf.tunnel.token }}\"").replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: \"{{ secrets.infra['hv-north'] }}\" }")}hosts:\n  vm: { on: hv-north, os: leap-16-k8s, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.ra }}\", values: { a: \"{{ secrets.cf.token }}\", b: \"x-{{ secrets.cf.tunnel.id | trim }}\" } } } }\n`);
+        expect(errors(result)).toEqual([]);
+        expect(result.lab!.secrets).toMatchObject({ cf: { fields: ["token", "tunnel.id", "tunnel.token"] }, infra: { fields: ["hv-north.password", "hv-north.username"] } });
+        const secrets = { cf: { token: "t", tunnel: { token: "tt", id: "i" } }, infra: { "hv-north": { username: "u", password: "p" } } };
+        expect(renderSecretTemplate("{{ secrets.cf.tunnel.token }}", secrets)).toBe("tt");
+        expect(renderSecretTemplate("{{ secrets.infra['hv-north'] }}", secrets)).toEqual({ username: "u", password: "p" });
+        expect(renderSecretTemplate("x-{{ secrets.cf.tunnel.id }}", secrets)).toBe("x-i");
     });
 
     it("warns about plain values in secret fields, and errors on credentials written as one plain string", () => {

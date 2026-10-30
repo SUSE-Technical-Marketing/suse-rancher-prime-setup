@@ -37,7 +37,8 @@ const REGIONS = ["eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1", "eu-nort
     <section>
       <h3>Account</h3>
       <p v-if="mine" class="muted">Region and keys can come from your personal config (awsSites.{{ name }}); set them here only to override.</p>
-      <p v-else class="warn-text">{{ name || "This site" }} isn't in your personal config: give its region and keys here or there.</p>
+      <p v-else-if="!v.spec?.region || !v.spec?.credentials" class="warn-text">{{ name || "This site" }} isn't in your personal config: give its region and keys here or there.</p>
+      <p v-else class="muted">Not in your personal config: the region and keys here are the ones used.</p>
       <div class="grid">
         <TextField label="region" :placeholder="mine?.region ? `from your config: ${mine.region}` : 'eu-west-1'" list="aws-regions" v-bind="bind('spec.region')" />
         <datalist id="aws-regions"><option v-for="r in REGIONS" :key="r" :value="r" /></datalist>
@@ -49,7 +50,7 @@ const REGIONS = ["eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1", "eu-nort
       <h3>Network</h3>
       <p class="muted">The lab's own VPC, with a public subnet per zone and a security group for its machines. Several labs can share an account.</p>
       <div class="grid">
-        <TextField label="VPC CIDR" :placeholder="`default ${aws?.vpcCidr}`" hint="a /16 to /24; each zone gets a sixteenth" v-bind="bind('spec.vpc.cidr')" />
+        <TextField label="VPC CIDR" format="cidr" :placeholder="`default ${aws?.vpcCidr}`" hint="a /16 to /24; each zone gets a sixteenth" v-bind="bind('spec.vpc.cidr')" />
         <ListField label="zones" :placeholder="`default ${(aws?.zones ?? []).join(', ')}`" hint="by letter; pick others where the account lacks a or b" v-bind="bind('spec.zones')" />
       </div>
       <p v-if="subnets.length" class="muted mono">{{ subnets.join(" · ") }}</p>
