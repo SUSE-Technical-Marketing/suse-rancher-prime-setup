@@ -97,6 +97,10 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
         for (const r of f.repos) {
             line(`  repo ${r.namespace === "fleet-default" ? "" : `${r.namespace}/`}${r.name}  ${r.url}@${r.branch} ${r.paths.join(" ")}${r.target ? ` → ${r.target}` : ""}`);
         }
+        for (const h of f.helmOps) {
+            const to = h.target ?? (h.selector ? Object.entries(h.selector.matchLabels ?? {}).map(([k, v]) => `${k}=${v}`).join(",") || "selector" : "nowhere");
+            line(`  helmop ${h.namespace === "fleet-default" ? "" : `${h.namespace}/`}${h.name}  ${h.chart}${h.version ? ` ${h.version}` : ""} from ${h.repo} → ${to}`);
+        }
         for (const s of f.skipped) line(`  skipped ${s.what}: needs ${s.missing.join(", ")}`);
     }
 
@@ -195,6 +199,13 @@ export function renderCatalog(catalog: ResolvedCatalog): string {
         fleetSource(source),
     ]));
     out.push("  (* default: created when a rancher profile doesn't list fleet.repos)");
+    out.push("", "FleetHelmOp");
+    table(Object.entries(catalog.fleet.helmOps).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value, source }]) => [
+        `${name}${value.default ? " *" : ""}`,
+        `${value.chart ?? "?"}${value.version ? ` ${value.version}` : ""}${value.helm ? `  helm: ${value.helm.secret}` : ""}`,
+        fleetSource(source),
+    ]));
+    out.push("  (* default: created when a rancher profile doesn't list fleet.helmOps)");
     for (const [section, entries] of [["SecretTemplate", catalog.secrets], ["ConfigMapTemplate", catalog.configmaps]] as const) {
         if (Object.keys(entries).length === 0) continue;
         out.push("", section);

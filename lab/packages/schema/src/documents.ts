@@ -2,7 +2,7 @@ import { parseAllDocuments } from "yaml";
 import { z } from "zod";
 import { AcmeServerInput, CatalogLayer, DefaultsInput } from "./catalog";
 import { Diagnostics } from "./diagnostics";
-import { ClusterSelector, FleetRepoInput } from "./fleet";
+import { ClusterSelector, FleetHelmOpInput, FleetRepoInput } from "./fleet";
 import { ConfigMapInput, SecretInput } from "./objects";
 import { awsZone, cidr, dnsLabel, duration, osName, quantity, TIMEOUTS } from "./primitives";
 import { ProfileInput } from "./profiles";
@@ -110,6 +110,7 @@ export const CATALOG_KINDS = {
     SecretTemplate: { name: dnsLabel, spec: ObjectTemplateSpec(true) },
     ConfigMapTemplate: { name: dnsLabel, spec: ObjectTemplateSpec(false) },
     FleetRepo: { name: dnsLabel, spec: FleetRepoInput },
+    FleetHelmOp: { name: dnsLabel, spec: FleetHelmOpInput },
     ClusterGroup: { name: dnsLabel, spec: z.strictObject({ selector: ClusterSelector.optional() }) },
     UiPluginRepository: {
         name: dnsLabel,
@@ -274,7 +275,7 @@ export function documentsLayer(docs: CatalogDocument[], source: string, diags: D
     const layer: CatalogLayer = {
         source,
         components: {}, componentSources: {}, componentDescriptions: {}, profiles: {},
-        secrets: {}, configmaps: {}, fleet: { groups: {}, repos: {} }, plugins: {}, pluginSources: {}, os: {}, acme: {},
+        secrets: {}, configmaps: {}, fleet: { groups: {}, repos: {}, helmOps: {} }, plugins: {}, pluginSources: {}, os: {}, acme: {},
     };
     const seen = new Map<string, string>();
     for (const d of docs) {
@@ -324,6 +325,9 @@ export function documentsLayer(docs: CatalogDocument[], source: string, diags: D
             }
             case "FleetRepo":
                 layer.fleet.repos[d.name] = { value: spec as FleetRepoInput, source: d.source };
+                break;
+            case "FleetHelmOp":
+                layer.fleet.helmOps[d.name] = { value: spec as FleetHelmOpInput, source: d.source };
                 break;
             case "ClusterGroup":
                 if (spec.selector) layer.fleet.groups[d.name] = { value: spec.selector as ClusterSelector, source: d.source };

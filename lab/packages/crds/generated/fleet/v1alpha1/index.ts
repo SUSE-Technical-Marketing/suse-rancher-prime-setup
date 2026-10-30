@@ -35,6 +35,21 @@ export type GitRepoPatch = import("./gitRepoPatch").GitRepoPatch;
 export const GitRepoPatch: typeof import("./gitRepoPatch").GitRepoPatch = null as any;
 utilities.lazyLoad(exports, ["GitRepoPatch"], () => require("./gitRepoPatch"));
 
+export { HelmOpArgs } from "./helmOp";
+export type HelmOp = import("./helmOp").HelmOp;
+export const HelmOp: typeof import("./helmOp").HelmOp = null as any;
+utilities.lazyLoad(exports, ["HelmOp"], () => require("./helmOp"));
+
+export { HelmOpListArgs } from "./helmOpList";
+export type HelmOpList = import("./helmOpList").HelmOpList;
+export const HelmOpList: typeof import("./helmOpList").HelmOpList = null as any;
+utilities.lazyLoad(exports, ["HelmOpList"], () => require("./helmOpList"));
+
+export { HelmOpPatchArgs } from "./helmOpPatch";
+export type HelmOpPatch = import("./helmOpPatch").HelmOpPatch;
+export const HelmOpPatch: typeof import("./helmOpPatch").HelmOpPatch = null as any;
+utilities.lazyLoad(exports, ["HelmOpPatch"], () => require("./helmOpPatch"));
+
 
 const _module = {
     version: utilities.getVersion(),
@@ -52,6 +67,12 @@ const _module = {
                 return new GitRepoList(name, <any>undefined, { urn })
             case "kubernetes:fleet.cattle.io/v1alpha1:GitRepoPatch":
                 return new GitRepoPatch(name, <any>undefined, { urn })
+            case "kubernetes:fleet.cattle.io/v1alpha1:HelmOp":
+                return new HelmOp(name, <any>undefined, { urn })
+            case "kubernetes:fleet.cattle.io/v1alpha1:HelmOpList":
+                return new HelmOpList(name, <any>undefined, { urn })
+            case "kubernetes:fleet.cattle.io/v1alpha1:HelmOpPatch":
+                return new HelmOpPatch(name, <any>undefined, { urn })
             default:
                 throw new Error(`unknown resource type ${type}`);
         }

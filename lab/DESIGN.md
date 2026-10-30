@@ -1270,16 +1270,27 @@ catalog:
     rancher: { repo: https://releases.rancher.com/server-charts/latest, version: v2.14.3 }   # community Rancher
 ```
 
-### 16.3 Fleet: repos and groups
+### 16.3 Fleet: repos, HelmOps and groups
 
-Fleet is two catalog sections, one GitRepo per file, so each can be read, overridden and added on
-its own. The secrets its bundles need are ordinary catalog secrets (16.6).
+Fleet is three catalog sections, one GitRepo or HelmOp per file, so each can be read, overridden and
+added on its own. The secrets its bundles need are ordinary catalog secrets (16.6).
 
 ```
 lab/catalog/fleet/
   groups.yaml                              # ClusterGroups by name
   repos/<name>.yaml                        # one GitRepo each
+  helmops/<name>.yaml                      # one HelmOp each
 ```
+
+**HelmOps** are for charts too big for a GitRepo. Fleet puts a GitRepo's remote charts, every file of
+them, in the Bundle; etcd refuses one over ~1.5 MiB (`etcdserver: request is too large`), and the
+whole repo stops. A HelmOp's Bundle only names the chart: Fleet's agents pull it from the repo
+themselves (on by default since Fleet 0.13). `FleetHelmOp` has a fleet.yaml's helm fields (`repo`,
+`chart`, `version`, `releaseName`, `values` with Fleet's `${ }` templates, `valuesFrom`),
+`defaultNamespace`, `labels`, `diff`, and a `target` group or a cluster `selector`; `default`,
+`helm.secret` and `uses` as a repo's. A `rancher` profile creates the defaults, or the ones its
+`fleet.helmOps` lists. suse-observability is one: it was `apps/platform/suse-observability`, and its
+chart's subcharts made the `lab-setup-platform` repo fail.
 
 ```yaml
 # repos/lab-setup-appco.yaml

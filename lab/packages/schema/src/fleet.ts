@@ -3,8 +3,8 @@ import { Diagnostics } from "./diagnostics";
 import { dnsLabel } from "./primitives";
 import { Objects } from "./objects";
 
-// Fleet in the catalog (DESIGN.md §16.3): GitRepos and the ClusterGroups they target. The secrets
-// their bundles need are catalog secrets (§16.6), placed on the Rancher cluster.
+// Fleet in the catalog (DESIGN.md §16.3): GitRepos, HelmOps and the ClusterGroups they target. The
+// secrets their bundles need are catalog secrets (§16.6), placed on the Rancher cluster.
 
 /** A ClusterGroup's cluster selector. */
 export const ClusterSelector = z.strictObject({
@@ -38,9 +38,47 @@ export const FleetRepoInput = z.strictObject({
 });
 export type FleetRepoInput = z.infer<typeof FleetRepoInput>;
 
+/**
+ * One HelmOp: a chart that Fleet's agents install straight from its repo. Unlike a chart in a
+ * GitRepo, the chart itself never goes into the Bundle, so a big one (suse-observability) stays
+ * under etcd's request limit.
+ */
+export const FleetHelmOpInput = z.strictObject({
+    description: z.string().optional(),
+    /** Created by a `rancher` profile that doesn't list `fleet.helmOps`. */
+    default: z.boolean().optional(),
+    /** A Helm repository (https://) or an OCI registry (oci://). */
+    repo: z.string().min(1).optional(),
+    chart: z.string().min(1).optional(),
+    version: z.string().min(1).optional(),
+    releaseName: z.string().min(1).optional(),
+    /** Where the chart goes on the downstream clusters. */
+    defaultNamespace: z.string().min(1).optional(),
+    /** The HelmOp's namespace on the Rancher cluster; default fleet-default. */
+    namespace: z.string().min(1).optional(),
+    /** Helm values; Fleet's `${ }` templates over the target cluster work in them, as in a fleet.yaml. */
+    values: z.record(z.string(), z.unknown()).optional(),
+    /** As in a fleet.yaml: values from ConfigMaps and Secrets on the downstream cluster. */
+    valuesFrom: z.array(z.record(z.string(), z.unknown())).optional(),
+    /** Copied to the Bundle, for other bundles' dependsOn. */
+    labels: z.record(z.string(), z.string()).optional(),
+    /** A ClusterGroup from `catalog.fleet.groups`. */
+    target: dnsLabel.optional(),
+    /** Or the clusters with these labels. Neither: none (a HelmOp has no default targets). */
+    selector: ClusterSelector.optional(),
+    /** Fleet's `diff` options, as in a fleet.yaml. */
+    diff: z.record(z.string(), z.unknown()).optional(),
+    /** The catalog secret with the login for a private repo (helmSecretName). */
+    helm: z.strictObject({ secret: dnsLabel }).optional(),
+    /** Catalog secrets placed with it when they can be built, like a repo's `uses`. */
+    uses: z.array(dnsLabel).optional(),
+});
+export type FleetHelmOpInput = z.infer<typeof FleetHelmOpInput>;
+
 export const FleetCatalogInput = z.strictObject({
     groups: z.record(dnsLabel, ClusterSelector).default({}),
     repos: z.record(dnsLabel, FleetRepoInput).default({}),
+    helmOps: z.record(dnsLabel, FleetHelmOpInput).default({}),
 });
 export type FleetCatalogInput = z.infer<typeof FleetCatalogInput>;
 
@@ -48,6 +86,8 @@ export type FleetCatalogInput = z.infer<typeof FleetCatalogInput>;
 export const FleetSettings = z.strictObject({
     /** GitRepos to create, by catalog name; default: the catalog repos with `default: true`. `[]`: none. */
     repos: z.array(dnsLabel).optional(),
+    /** HelmOps to create, by catalog name; default: the catalog HelmOps with `default: true`. `[]`: none. */
+    helmOps: z.array(dnsLabel).optional(),
 });
 export type FleetSettings = z.infer<typeof FleetSettings>;
 
@@ -63,9 +103,27 @@ export interface ResolvedFleetRepo {
     helm?: { secret: string; repoURLRegex?: string };
 }
 
+export interface ResolvedFleetHelmOp {
+    name: string;
+    namespace: string;
+    repo: string;
+    chart: string;
+    version?: string;
+    releaseName?: string;
+    defaultNamespace?: string;
+    values?: Record<string, unknown>;
+    valuesFrom?: Record<string, unknown>[];
+    labels?: Record<string, string>;
+    target?: string;
+    selector?: ClusterSelector;
+    diff?: Record<string, unknown>;
+    helmSecret?: string;
+}
+
 export interface ResolvedFleet {
     groups: Record<string, ClusterSelector>;
     repos: ResolvedFleetRepo[];
+    helmOps: ResolvedFleetHelmOp[];
     /** Repos that aren't created, and what they wait for (shown by `lab plan`). */
     skipped: { what: string; missing: string[] }[];
 }
@@ -73,7 +131,7 @@ export interface ResolvedFleet {
 type Sourced<T> = { value: T; source: string };
 
 export interface FleetContext {
-    catalog: { groups: Record<string, Sourced<ClusterSelector>>; repos: Record<string, Sourced<FleetRepoInput>> };
+    catalog: { groups: Record<string, Sourced<ClusterSelector>>; repos: Record<string, Sourced<FleetRepoInput>>; helmOps: Record<string, Sourced<FleetHelmOpInput>> };
     fleet: FleetSettings;
     /** The host running Rancher, its capabilities, and the profile's path for messages. */
     host: string;
@@ -86,12 +144,12 @@ export interface FleetContext {
 
 const DEFAULT_NAMESPACE = "fleet-default";
 
-/** Pick a `rancher` profile's GitRepos from the catalog and place the secrets they need. */
+/** Pick a `rancher` profile's GitRepos and HelmOps from the catalog and place the secrets they need. */
 export function resolveFleet(ctx: FleetContext): ResolvedFleet {
     const { diags, at, labSource: L, catalog, objects } = ctx;
     // Every catalog group is created: repos target them, and so can anything made in the UI.
     const groups = Object.fromEntries(Object.entries(catalog.groups).map(([name, g]) => [name, g.value]));
-    const result: ResolvedFleet = { groups, repos: [], skipped: [] };
+    const result: ResolvedFleet = { groups, repos: [], helmOps: [], skipped: [] };
 
     const explicit = ctx.fleet.repos !== undefined;
     const selected = ctx.fleet.repos ?? Object.keys(catalog.repos).sort().filter(r => catalog.repos[r].value.default);
@@ -140,6 +198,65 @@ export function resolveFleet(ctx: FleetContext): ResolvedFleet {
             paths: repo.paths ?? [],
             target: repo.target,
             helm: repo.helm,
+        });
+    });
+
+    const explicitOps = ctx.fleet.helmOps !== undefined;
+    const pickedOps = ctx.fleet.helmOps ?? Object.keys(catalog.helmOps).sort().filter(h => catalog.helmOps[h].value.default);
+    pickedOps.forEach((name, i) => {
+        const pickAt = `${at}.fleet.helmOps[${i}]`;
+        const entry = catalog.helmOps[name];
+        if (!entry) {
+            diags.error(L, pickAt, `unknown Fleet HelmOp "${name}"; known: ${Object.keys(catalog.helmOps).sort().join(", ") || "none"}`);
+            return;
+        }
+        const { value: op, source } = entry;
+        const oAt = `catalog.fleet.helmOps.${name}`;
+        if (!op.repo || !op.chart) {
+            diags.error(source, oAt, "needs a repo and a chart");
+            return;
+        }
+        if (op.target && op.selector) {
+            diags.error(source, oAt, "has both a target and a selector; give one");
+            return;
+        }
+        if (op.target && !catalog.groups[op.target]) {
+            diags.error(source, `${oAt}.target`, `no ClusterGroup "${op.target}" in catalog.fleet.groups`);
+            return;
+        }
+        if (!op.target && !op.selector) diags.warning(source, oAt, "has no target or selector, so Fleet installs it nowhere");
+        const namespace = op.namespace ?? DEFAULT_NAMESPACE;
+        const place = (secret: string, required: boolean, secretAt: string) => objects.place("Secret", secret, {
+            target: { host: ctx.host }, capabilities: ctx.capabilities, namespace, required,
+            source: required ? L : source, at: required ? pickAt : secretAt,
+        });
+        if (op.helm) {
+            if (!objects.exists("Secret", op.helm.secret)) {
+                diags.error(source, `${oAt}.helm.secret`, `no catalog secret "${op.helm.secret}"`);
+                return;
+            }
+            const helm = place(op.helm.secret, explicitOps, `${oAt}.helm.secret`);
+            if (!helm.ok) {
+                result.skipped.push({ what: `HelmOp ${name}`, missing: helm.missing });
+                return;
+            }
+        }
+        (op.uses ?? []).forEach((secret, j) => {
+            if (!objects.exists("Secret", secret)) diags.error(source, `${oAt}.uses[${j}]`, `no catalog secret "${secret}"`);
+            else place(secret, false, `${oAt}.uses[${j}]`);
+        });
+        result.helmOps.push({
+            name, namespace, repo: op.repo, chart: op.chart,
+            ...(op.version ? { version: op.version } : {}),
+            ...(op.releaseName ? { releaseName: op.releaseName } : {}),
+            ...(op.defaultNamespace ? { defaultNamespace: op.defaultNamespace } : {}),
+            ...(op.values ? { values: op.values } : {}),
+            ...(op.valuesFrom ? { valuesFrom: op.valuesFrom } : {}),
+            ...(op.labels ? { labels: op.labels } : {}),
+            ...(op.target ? { target: op.target } : {}),
+            ...(op.selector ? { selector: op.selector } : {}),
+            ...(op.diff ? { diff: op.diff } : {}),
+            ...(op.helm ? { helmSecret: op.helm.secret } : {}),
         });
     });
     return result;

@@ -9792,6 +9792,2834 @@ export namespace fleet {
             transitioning?: pulumi.Input<boolean | undefined>;
         }
 
+        /**
+         * HelmOp describes a helm chart information.
+         * The resource contains the necessary information to deploy the chart to target clusters.
+         */
+        export interface HelmOp {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"fleet.cattle.io/v1alpha1" | undefined>;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"HelmOp" | undefined>;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta | undefined>;
+            spec?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpec | undefined>;
+            status?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpStatus | undefined>;
+        }
+
+        export interface HelmOpSpec {
+            allowedTargetNamespaceSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecAllowedTargetNamespaceSelector | undefined>;
+            /**
+             * ContentsID stores the contents id when deploying contents using an OCI registry.
+             */
+            contentsId?: pulumi.Input<string | undefined>;
+            correctDrift?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecCorrectDrift | undefined>;
+            /**
+             * CreateNamespace controls whether Fleet creates the target namespace on
+             * downstream clusters during Helm installs. When nil, the default behavior
+             * is to create the namespace (backward-compatible). Set to false by the
+             * controller when Policy requires a ServiceAccount and does not explicitly
+             * allow namespace creation. This does not affect namespaceLabels/
+             * namespaceAnnotations patching, which is always attempted (when set) as
+             * the deployment's ServiceAccount and gated by downstream RBAC.
+             */
+            createNamespace?: pulumi.Input<boolean | undefined>;
+            /**
+             * DefaultNamespace is the namespace to use for resources that do not
+             * specify a namespace. This field is not used to enforce or lock down
+             * the deployment to a specific namespace.
+             */
+            defaultNamespace?: pulumi.Input<string | undefined>;
+            /**
+             * DeleteCRDResources deletes CRDs. Warning! this will also delete all your Custom Resources.
+             */
+            deleteCRDResources?: pulumi.Input<boolean | undefined>;
+            /**
+             * DeleteNamespace can be used to delete the deployed namespace when removing the bundle
+             */
+            deleteNamespace?: pulumi.Input<boolean | undefined>;
+            /**
+             * DependsOn refers to the bundles which must be ready before this bundle can be deployed.
+             */
+            dependsOn?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDependsOn>[] | undefined>;
+            diff?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDiff | undefined>;
+            /**
+             * DownstreamResources points to resources to be copied into downstream clusters, from the bundle's
+             * namespace.
+             */
+            downstreamResources?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDownstreamResources>[] | undefined>;
+            /**
+             * ForceSyncGeneration is used to force a redeployment
+             */
+            forceSyncGeneration?: pulumi.Input<number | undefined>;
+            helm?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecHelm | undefined>;
+            helmOpOptions?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecHelmOpOptions | undefined>;
+            /**
+             * HelmSecretName contains the auth secret with the credentials to access
+             * a private Helm repository.
+             */
+            helmSecretName?: pulumi.Input<string | undefined>;
+            ignore?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecIgnore | undefined>;
+            /**
+             * InsecureSkipTLSverify will use insecure HTTPS to clone the helm app resource.
+             */
+            insecureSkipTLSVerify?: pulumi.Input<boolean | undefined>;
+            /**
+             * KeepResources can be used to keep the deployed resources when removing the bundle
+             */
+            keepResources?: pulumi.Input<boolean | undefined>;
+            kustomize?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecKustomize | undefined>;
+            /**
+             * Labels are copied to the bundle and can be used in a
+             * dependsOn.selector.
+             */
+            labels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * TargetNamespace if present will assign all resource to this
+             * namespace and if any cluster scoped resource exists the deployment
+             * will fail.
+             */
+            namespace?: pulumi.Input<string | undefined>;
+            /**
+             * NamespaceAnnotations are annotations that will be appended to the namespace created by Fleet.
+             */
+            namespaceAnnotations?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * NamespaceLabels are labels that will be appended to the namespace created by Fleet.
+             */
+            namespaceLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * Overwrites indicates which resources, if any, come from this bundle and overwrite another existing bundle.
+             * This flag is set internally by Fleet, and should not be altered by users.
+             */
+            overwrites?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecOverwrites>[] | undefined>;
+            /**
+             * Paused if set to true, will stop any BundleDeployments from being updated. It will be marked as out of sync.
+             */
+            paused?: pulumi.Input<boolean | undefined>;
+            /**
+             * PollingInterval is how often to check the Helm repository for new updates.
+             */
+            pollingInterval?: pulumi.Input<string | undefined>;
+            /**
+             * Resources contains the resources that were read from the bundle's
+             * path. This includes the content of downloaded helm charts.
+             */
+            resources?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecResources>[] | undefined>;
+            rolloutStrategy?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecRolloutStrategy | undefined>;
+            /**
+             * ServiceAccount which will be used to perform this deployment.
+             */
+            serviceAccount?: pulumi.Input<string | undefined>;
+            /**
+             * TargetCustomizationMode controls how targetCustomizations from fleet.yaml
+             * are evaluated. "FirstMatch" (default) stops at the first matching entry.
+             * "AllMatches" applies all matching entries in order, merging them.
+             */
+            targetCustomizationMode?: pulumi.Input<string | undefined>;
+            /**
+             * TargetRestrictions is an allow list, which controls if a bundledeployment is created for a target.
+             */
+            targetRestrictions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetRestrictions>[] | undefined>;
+            /**
+             * Targets refer to the clusters which will be deployed to.
+             * Targets are evaluated in order and the first one to match is used.
+             */
+            targets?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargets>[] | undefined>;
+            /**
+             * ValuesHash is the hash of the values used to render the Helm chart.
+             * It changes when any values from fleet.yaml, values from ValuesFiles or values from target
+             * customization changes.
+             */
+            valuesHash?: pulumi.Input<string | undefined>;
+            yaml?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecYaml | undefined>;
+        }
+
+        /**
+         * AllowedTargetNamespaceSelector restricts deployments to namespaces matching this selector.
+         * Propagated from GitRepoRestriction and validated by the agent on the downstream cluster.
+         */
+        export interface HelmOpSpecAllowedTargetNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecAllowedTargetNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecAllowedTargetNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecAllowedTargetNamespaceSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * AllowedTargetNamespaceSelector restricts deployments to namespaces matching this selector.
+         * Propagated from GitRepoRestriction and validated by the agent on the downstream cluster.
+         */
+        export interface HelmOpSpecAllowedTargetNamespaceSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecAllowedTargetNamespaceSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * CorrectDrift specifies how drift correction should work.
+         */
+        export interface HelmOpSpecCorrectDrift {
+            /**
+             * Enabled correct drift if true.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Force helm rollback with --force option will be used if true. This will try to recreate all resources in the release.
+             */
+            force?: pulumi.Input<boolean | undefined>;
+            /**
+             * KeepFailHistory keeps track of failed rollbacks in the helm history.
+             */
+            keepFailHistory?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * CorrectDrift specifies how drift correction should work.
+         */
+        export interface HelmOpSpecCorrectDriftPatch {
+            /**
+             * Enabled correct drift if true.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Force helm rollback with --force option will be used if true. This will try to recreate all resources in the release.
+             */
+            force?: pulumi.Input<boolean | undefined>;
+            /**
+             * KeepFailHistory keeps track of failed rollbacks in the helm history.
+             */
+            keepFailHistory?: pulumi.Input<boolean | undefined>;
+        }
+
+        export interface HelmOpSpecDependsOn {
+            /**
+             * AcceptedStates is a list of BundleDeployment state that are considered acceptable for this dependency.
+             * If the dependency is in one of these states, it will not block the deployment of the dependent bundle.
+             * Valid Values should match the StateRank keys, except for WaitingForDependency, which is rejected:
+             * it would unblock this bundle exactly when its dependency became blocked on a dependency of its own.
+             * If not specified, default to ["Ready"]: only fully ready dependencies are accepted
+             * Example: ["Ready", "Modified"] will accept dependencies that are either ready or have drifted from their desired state.
+             */
+            acceptedStates?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Name of the bundle.
+             */
+            name?: pulumi.Input<string | undefined>;
+            selector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDependsOnSelector | undefined>;
+        }
+
+        export interface HelmOpSpecDependsOnPatch {
+            /**
+             * AcceptedStates is a list of BundleDeployment state that are considered acceptable for this dependency.
+             * If the dependency is in one of these states, it will not block the deployment of the dependent bundle.
+             * Valid Values should match the StateRank keys, except for WaitingForDependency, which is rejected:
+             * it would unblock this bundle exactly when its dependency became blocked on a dependency of its own.
+             * If not specified, default to ["Ready"]: only fully ready dependencies are accepted
+             * Example: ["Ready", "Modified"] will accept dependencies that are either ready or have drifted from their desired state.
+             */
+            acceptedStates?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Name of the bundle.
+             */
+            name?: pulumi.Input<string | undefined>;
+            selector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDependsOnSelectorPatch | undefined>;
+        }
+
+        /**
+         * Selector matching bundle's labels.
+         */
+        export interface HelmOpSpecDependsOnSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDependsOnSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecDependsOnSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecDependsOnSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Selector matching bundle's labels.
+         */
+        export interface HelmOpSpecDependsOnSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDependsOnSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Diff can be used to ignore the modified state of objects which are amended at runtime.
+         */
+        export interface HelmOpSpecDiff {
+            /**
+             * ComparePatches match a resource and remove fields, or the resource itself from the check for modifications.
+             */
+            comparePatches?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDiffComparePatches>[] | undefined>;
+        }
+
+        /**
+         * ComparePatch matches a resource and removes fields from the check for modifications.
+         */
+        export interface HelmOpSpecDiffComparePatches {
+            /**
+             * APIVersion is the apiVersion of the resource to match.
+             */
+            apiVersion?: pulumi.Input<string | undefined>;
+            /**
+             * JSONPointers ignore diffs at a certain JSON path.
+             */
+            jsonPointers?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Kind is the kind of the resource to match.
+             */
+            kind?: pulumi.Input<string | undefined>;
+            /**
+             * Name is the name of the resource to match.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Namespace is the namespace of the resource to match.
+             */
+            namespace?: pulumi.Input<string | undefined>;
+            /**
+             * Operations remove a JSON path from the resource.
+             */
+            operations?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDiffComparePatchesOperations>[] | undefined>;
+        }
+
+        /**
+         * Operation of a ComparePatch, usually:
+         * * "remove" to remove a specific path in a resource
+         * * "ignore" to remove the entire resource from checks for modifications.
+         */
+        export interface HelmOpSpecDiffComparePatchesOperations {
+            /**
+             * Op is usually "remove" or "ignore"
+             */
+            op?: pulumi.Input<string | undefined>;
+            /**
+             * Path is the JSON path to remove. Not needed if Op is "ignore".
+             */
+            path?: pulumi.Input<string | undefined>;
+            /**
+             * Value is usually empty.
+             */
+            value?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Operation of a ComparePatch, usually:
+         * * "remove" to remove a specific path in a resource
+         * * "ignore" to remove the entire resource from checks for modifications.
+         */
+        export interface HelmOpSpecDiffComparePatchesOperationsPatch {
+            /**
+             * Op is usually "remove" or "ignore"
+             */
+            op?: pulumi.Input<string | undefined>;
+            /**
+             * Path is the JSON path to remove. Not needed if Op is "ignore".
+             */
+            path?: pulumi.Input<string | undefined>;
+            /**
+             * Value is usually empty.
+             */
+            value?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ComparePatch matches a resource and removes fields from the check for modifications.
+         */
+        export interface HelmOpSpecDiffComparePatchesPatch {
+            /**
+             * APIVersion is the apiVersion of the resource to match.
+             */
+            apiVersion?: pulumi.Input<string | undefined>;
+            /**
+             * JSONPointers ignore diffs at a certain JSON path.
+             */
+            jsonPointers?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Kind is the kind of the resource to match.
+             */
+            kind?: pulumi.Input<string | undefined>;
+            /**
+             * Name is the name of the resource to match.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Namespace is the namespace of the resource to match.
+             */
+            namespace?: pulumi.Input<string | undefined>;
+            /**
+             * Operations remove a JSON path from the resource.
+             */
+            operations?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDiffComparePatchesOperationsPatch>[] | undefined>;
+        }
+
+        /**
+         * Diff can be used to ignore the modified state of objects which are amended at runtime.
+         */
+        export interface HelmOpSpecDiffPatch {
+            /**
+             * ComparePatches match a resource and remove fields, or the resource itself from the check for modifications.
+             */
+            comparePatches?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDiffComparePatchesPatch>[] | undefined>;
+        }
+
+        /**
+         * DownstreamResource contains identifiers for a resource to be copied from the parent bundle's namespace to each
+         * downstream cluster.
+         */
+        export interface HelmOpSpecDownstreamResources {
+            kind?: pulumi.Input<string | undefined>;
+            name?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * DownstreamResource contains identifiers for a resource to be copied from the parent bundle's namespace to each
+         * downstream cluster.
+         */
+        export interface HelmOpSpecDownstreamResourcesPatch {
+            kind?: pulumi.Input<string | undefined>;
+            name?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Helm options for the deployment, like the chart name, repo and values.
+         */
+        export interface HelmOpSpecHelm {
+            /**
+             * Atomic sets the --atomic flag when Helm is performing an upgrade
+             */
+            atomic?: pulumi.Input<boolean | undefined>;
+            /**
+             * Chart can refer to any go-getter URL or OCI registry based helm
+             * chart URL. The chart will be downloaded.
+             */
+            chart?: pulumi.Input<string | undefined>;
+            /**
+             * DisableDNS can be used to customize Helm's EnableDNS option, which Fleet sets to `true` by default.
+             */
+            disableDNS?: pulumi.Input<boolean | undefined>;
+            /**
+             * DisableDependencyUpdate allows skipping chart dependencies update
+             */
+            disableDependencyUpdate?: pulumi.Input<boolean | undefined>;
+            /**
+             * DisablePreProcess disables template processing in values
+             */
+            disablePreProcess?: pulumi.Input<boolean | undefined>;
+            /**
+             * Force allows to override immutable resources. This could be dangerous.
+             */
+            force?: pulumi.Input<boolean | undefined>;
+            /**
+             * MaxHistory limits the maximum number of revisions saved per release by Helm.
+             */
+            maxHistory?: pulumi.Input<number | undefined>;
+            /**
+             * ReleaseName sets a custom release name to deploy the chart as. If
+             * not specified a release name will be generated by combining the
+             * invoking GitRepo.name + GitRepo.path.
+             */
+            releaseName?: pulumi.Input<string | undefined>;
+            /**
+             * Repo is the name of the HTTPS helm repo to download the chart from.
+             */
+            repo?: pulumi.Input<string | undefined>;
+            /**
+             * SkipSchemaValidation allows skipping schema validation against the chart values
+             */
+            skipSchemaValidation?: pulumi.Input<boolean | undefined>;
+            /**
+             * TakeOwnership makes helm skip the check for its own annotations
+             */
+            takeOwnership?: pulumi.Input<boolean | undefined>;
+            /**
+             * Template Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings. Unlike .values, content of each key will be templated
+             * first, before serializing to yaml. This allows to template complex values,
+             * like ranges and maps.
+             * templateValues keys have precedence over values keys in case of conflict.
+             */
+            templateValues?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * TimeoutSeconds is the time to wait for Helm operations.
+             */
+            timeoutSeconds?: pulumi.Input<number | undefined>;
+            /**
+             * Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings.
+             */
+            values?: pulumi.Input<{[key: string]: any} | undefined>;
+            /**
+             * ValuesFiles is a list of files to load values from.
+             */
+            valuesFiles?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * ValuesFrom loads the values from configmaps and secrets.
+             */
+            valuesFrom?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecHelmValuesFrom>[] | undefined>;
+            /**
+             * Version of the chart to download
+             */
+            version?: pulumi.Input<string | undefined>;
+            /**
+             * WaitForJobs if set and timeoutSeconds provided, will wait until all
+             * Jobs have been completed before marking the GitRepo as ready. It
+             * will wait for as long as timeoutSeconds
+             */
+            waitForJobs?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * HelmOpOptions stores the options relative to HelmOp resources
+         * Non-nil HelmOpOptions indicate that the source of resources is a Helm chart,
+         * not a git repository.
+         */
+        export interface HelmOpSpecHelmOpOptions {
+            /**
+             * CABundle is a PEM encoded CA bundle used to validate TLS connections to
+             * the Helm registry. It is resolved by the controller (which has access to
+             * Rancher's cattle-system CA secrets, if any) and stored here so the agent can use
+             * it without requiring access to those secrets.
+             */
+            helmOpCABundle?: pulumi.Input<string | undefined>;
+            /**
+             * InsecureSkipTLSverify will use insecure HTTPS to clone the helm app resource.
+             */
+            helmOpInsecureSkipTLSVerify?: pulumi.Input<boolean | undefined>;
+            /**
+             * SecretName stores the secret name for storing credentials when accessing
+             * a remote helm repository defined in a HelmOp resource
+             */
+            helmOpSecretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * HelmOpOptions stores the options relative to HelmOp resources
+         * Non-nil HelmOpOptions indicate that the source of resources is a Helm chart,
+         * not a git repository.
+         */
+        export interface HelmOpSpecHelmOpOptionsPatch {
+            /**
+             * CABundle is a PEM encoded CA bundle used to validate TLS connections to
+             * the Helm registry. It is resolved by the controller (which has access to
+             * Rancher's cattle-system CA secrets, if any) and stored here so the agent can use
+             * it without requiring access to those secrets.
+             */
+            helmOpCABundle?: pulumi.Input<string | undefined>;
+            /**
+             * InsecureSkipTLSverify will use insecure HTTPS to clone the helm app resource.
+             */
+            helmOpInsecureSkipTLSVerify?: pulumi.Input<boolean | undefined>;
+            /**
+             * SecretName stores the secret name for storing credentials when accessing
+             * a remote helm repository defined in a HelmOp resource
+             */
+            helmOpSecretName?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Helm options for the deployment, like the chart name, repo and values.
+         */
+        export interface HelmOpSpecHelmPatch {
+            /**
+             * Atomic sets the --atomic flag when Helm is performing an upgrade
+             */
+            atomic?: pulumi.Input<boolean | undefined>;
+            /**
+             * Chart can refer to any go-getter URL or OCI registry based helm
+             * chart URL. The chart will be downloaded.
+             */
+            chart?: pulumi.Input<string | undefined>;
+            /**
+             * DisableDNS can be used to customize Helm's EnableDNS option, which Fleet sets to `true` by default.
+             */
+            disableDNS?: pulumi.Input<boolean | undefined>;
+            /**
+             * DisableDependencyUpdate allows skipping chart dependencies update
+             */
+            disableDependencyUpdate?: pulumi.Input<boolean | undefined>;
+            /**
+             * DisablePreProcess disables template processing in values
+             */
+            disablePreProcess?: pulumi.Input<boolean | undefined>;
+            /**
+             * Force allows to override immutable resources. This could be dangerous.
+             */
+            force?: pulumi.Input<boolean | undefined>;
+            /**
+             * MaxHistory limits the maximum number of revisions saved per release by Helm.
+             */
+            maxHistory?: pulumi.Input<number | undefined>;
+            /**
+             * ReleaseName sets a custom release name to deploy the chart as. If
+             * not specified a release name will be generated by combining the
+             * invoking GitRepo.name + GitRepo.path.
+             */
+            releaseName?: pulumi.Input<string | undefined>;
+            /**
+             * Repo is the name of the HTTPS helm repo to download the chart from.
+             */
+            repo?: pulumi.Input<string | undefined>;
+            /**
+             * SkipSchemaValidation allows skipping schema validation against the chart values
+             */
+            skipSchemaValidation?: pulumi.Input<boolean | undefined>;
+            /**
+             * TakeOwnership makes helm skip the check for its own annotations
+             */
+            takeOwnership?: pulumi.Input<boolean | undefined>;
+            /**
+             * Template Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings. Unlike .values, content of each key will be templated
+             * first, before serializing to yaml. This allows to template complex values,
+             * like ranges and maps.
+             * templateValues keys have precedence over values keys in case of conflict.
+             */
+            templateValues?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * TimeoutSeconds is the time to wait for Helm operations.
+             */
+            timeoutSeconds?: pulumi.Input<number | undefined>;
+            /**
+             * Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings.
+             */
+            values?: pulumi.Input<{[key: string]: any} | undefined>;
+            /**
+             * ValuesFiles is a list of files to load values from.
+             */
+            valuesFiles?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * ValuesFrom loads the values from configmaps and secrets.
+             */
+            valuesFrom?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecHelmValuesFromPatch>[] | undefined>;
+            /**
+             * Version of the chart to download
+             */
+            version?: pulumi.Input<string | undefined>;
+            /**
+             * WaitForJobs if set and timeoutSeconds provided, will wait until all
+             * Jobs have been completed before marking the GitRepo as ready. It
+             * will wait for as long as timeoutSeconds
+             */
+            waitForJobs?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * Define helm values that can come from configmap, secret or external. Credit: https://github.com/fluxcd/helm-operator/blob/0cfea875b5d44bea995abe7324819432070dfbdc/pkg/apis/helm.fluxcd.io/v1/types_helmrelease.go#L439
+         */
+        export interface HelmOpSpecHelmValuesFrom {
+            configMapKeyRef?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecHelmValuesFromConfigMapKeyRef | undefined>;
+            secretKeyRef?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecHelmValuesFromSecretKeyRef | undefined>;
+        }
+
+        /**
+         * The reference to a config map with release values.
+         */
+        export interface HelmOpSpecHelmValuesFromConfigMapKeyRef {
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The reference to a config map with release values.
+         */
+        export interface HelmOpSpecHelmValuesFromConfigMapKeyRefPatch {
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Define helm values that can come from configmap, secret or external. Credit: https://github.com/fluxcd/helm-operator/blob/0cfea875b5d44bea995abe7324819432070dfbdc/pkg/apis/helm.fluxcd.io/v1/types_helmrelease.go#L439
+         */
+        export interface HelmOpSpecHelmValuesFromPatch {
+            configMapKeyRef?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecHelmValuesFromConfigMapKeyRefPatch | undefined>;
+            secretKeyRef?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecHelmValuesFromSecretKeyRefPatch | undefined>;
+        }
+
+        /**
+         * The reference to a secret with release values.
+         */
+        export interface HelmOpSpecHelmValuesFromSecretKeyRef {
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The reference to a secret with release values.
+         */
+        export interface HelmOpSpecHelmValuesFromSecretKeyRefPatch {
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * IgnoreOptions can be used to ignore fields when monitoring the bundle.
+         */
+        export interface HelmOpSpecIgnore {
+            /**
+             * Conditions is a list of conditions to be ignored when monitoring the Bundle.
+             */
+            conditions?: pulumi.Input<pulumi.Input<{[key: string]: pulumi.Input<string>}>[] | undefined>;
+        }
+
+        /**
+         * IgnoreOptions can be used to ignore fields when monitoring the bundle.
+         */
+        export interface HelmOpSpecIgnorePatch {
+            /**
+             * Conditions is a list of conditions to be ignored when monitoring the Bundle.
+             */
+            conditions?: pulumi.Input<pulumi.Input<{[key: string]: pulumi.Input<string>}>[] | undefined>;
+        }
+
+        /**
+         * Kustomize options for the deployment, like the dir containing the
+         * kustomization.yaml file.
+         */
+        export interface HelmOpSpecKustomize {
+            /**
+             * Dir points to a custom folder for kustomize resources. This folder must contain
+             * a kustomization.yaml file.
+             */
+            dir?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Kustomize options for the deployment, like the dir containing the
+         * kustomization.yaml file.
+         */
+        export interface HelmOpSpecKustomizePatch {
+            /**
+             * Dir points to a custom folder for kustomize resources. This folder must contain
+             * a kustomization.yaml file.
+             */
+            dir?: pulumi.Input<string | undefined>;
+        }
+
+        export interface HelmOpSpecOverwrites {
+            kind?: pulumi.Input<string | undefined>;
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        export interface HelmOpSpecOverwritesPatch {
+            kind?: pulumi.Input<string | undefined>;
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        export interface HelmOpSpecPatch {
+            allowedTargetNamespaceSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecAllowedTargetNamespaceSelectorPatch | undefined>;
+            /**
+             * ContentsID stores the contents id when deploying contents using an OCI registry.
+             */
+            contentsId?: pulumi.Input<string | undefined>;
+            correctDrift?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecCorrectDriftPatch | undefined>;
+            /**
+             * CreateNamespace controls whether Fleet creates the target namespace on
+             * downstream clusters during Helm installs. When nil, the default behavior
+             * is to create the namespace (backward-compatible). Set to false by the
+             * controller when Policy requires a ServiceAccount and does not explicitly
+             * allow namespace creation. This does not affect namespaceLabels/
+             * namespaceAnnotations patching, which is always attempted (when set) as
+             * the deployment's ServiceAccount and gated by downstream RBAC.
+             */
+            createNamespace?: pulumi.Input<boolean | undefined>;
+            /**
+             * DefaultNamespace is the namespace to use for resources that do not
+             * specify a namespace. This field is not used to enforce or lock down
+             * the deployment to a specific namespace.
+             */
+            defaultNamespace?: pulumi.Input<string | undefined>;
+            /**
+             * DeleteCRDResources deletes CRDs. Warning! this will also delete all your Custom Resources.
+             */
+            deleteCRDResources?: pulumi.Input<boolean | undefined>;
+            /**
+             * DeleteNamespace can be used to delete the deployed namespace when removing the bundle
+             */
+            deleteNamespace?: pulumi.Input<boolean | undefined>;
+            /**
+             * DependsOn refers to the bundles which must be ready before this bundle can be deployed.
+             */
+            dependsOn?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDependsOnPatch>[] | undefined>;
+            diff?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDiffPatch | undefined>;
+            /**
+             * DownstreamResources points to resources to be copied into downstream clusters, from the bundle's
+             * namespace.
+             */
+            downstreamResources?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecDownstreamResourcesPatch>[] | undefined>;
+            /**
+             * ForceSyncGeneration is used to force a redeployment
+             */
+            forceSyncGeneration?: pulumi.Input<number | undefined>;
+            helm?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecHelmPatch | undefined>;
+            helmOpOptions?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecHelmOpOptionsPatch | undefined>;
+            /**
+             * HelmSecretName contains the auth secret with the credentials to access
+             * a private Helm repository.
+             */
+            helmSecretName?: pulumi.Input<string | undefined>;
+            ignore?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecIgnorePatch | undefined>;
+            /**
+             * InsecureSkipTLSverify will use insecure HTTPS to clone the helm app resource.
+             */
+            insecureSkipTLSVerify?: pulumi.Input<boolean | undefined>;
+            /**
+             * KeepResources can be used to keep the deployed resources when removing the bundle
+             */
+            keepResources?: pulumi.Input<boolean | undefined>;
+            kustomize?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecKustomizePatch | undefined>;
+            /**
+             * Labels are copied to the bundle and can be used in a
+             * dependsOn.selector.
+             */
+            labels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * TargetNamespace if present will assign all resource to this
+             * namespace and if any cluster scoped resource exists the deployment
+             * will fail.
+             */
+            namespace?: pulumi.Input<string | undefined>;
+            /**
+             * NamespaceAnnotations are annotations that will be appended to the namespace created by Fleet.
+             */
+            namespaceAnnotations?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * NamespaceLabels are labels that will be appended to the namespace created by Fleet.
+             */
+            namespaceLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * Overwrites indicates which resources, if any, come from this bundle and overwrite another existing bundle.
+             * This flag is set internally by Fleet, and should not be altered by users.
+             */
+            overwrites?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecOverwritesPatch>[] | undefined>;
+            /**
+             * Paused if set to true, will stop any BundleDeployments from being updated. It will be marked as out of sync.
+             */
+            paused?: pulumi.Input<boolean | undefined>;
+            /**
+             * PollingInterval is how often to check the Helm repository for new updates.
+             */
+            pollingInterval?: pulumi.Input<string | undefined>;
+            /**
+             * Resources contains the resources that were read from the bundle's
+             * path. This includes the content of downloaded helm charts.
+             */
+            resources?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecResourcesPatch>[] | undefined>;
+            rolloutStrategy?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPatch | undefined>;
+            /**
+             * ServiceAccount which will be used to perform this deployment.
+             */
+            serviceAccount?: pulumi.Input<string | undefined>;
+            /**
+             * TargetCustomizationMode controls how targetCustomizations from fleet.yaml
+             * are evaluated. "FirstMatch" (default) stops at the first matching entry.
+             * "AllMatches" applies all matching entries in order, merging them.
+             */
+            targetCustomizationMode?: pulumi.Input<string | undefined>;
+            /**
+             * TargetRestrictions is an allow list, which controls if a bundledeployment is created for a target.
+             */
+            targetRestrictions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsPatch>[] | undefined>;
+            /**
+             * Targets refer to the clusters which will be deployed to.
+             * Targets are evaluated in order and the first one to match is used.
+             */
+            targets?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsPatch>[] | undefined>;
+            /**
+             * ValuesHash is the hash of the values used to render the Helm chart.
+             * It changes when any values from fleet.yaml, values from ValuesFiles or values from target
+             * customization changes.
+             */
+            valuesHash?: pulumi.Input<string | undefined>;
+            yaml?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecYamlPatch | undefined>;
+        }
+
+        /**
+         * BundleResource represents the content of a single resource from the bundle, like a YAML manifest.
+         */
+        export interface HelmOpSpecResources {
+            /**
+             * The content of the resource, can be compressed.
+             */
+            content?: pulumi.Input<string | undefined>;
+            /**
+             * Encoding is either empty or "base64+gz".
+             */
+            encoding?: pulumi.Input<string | undefined>;
+            /**
+             * Name of the resource, can include the bundle's internal path.
+             */
+            name?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * BundleResource represents the content of a single resource from the bundle, like a YAML manifest.
+         */
+        export interface HelmOpSpecResourcesPatch {
+            /**
+             * The content of the resource, can be compressed.
+             */
+            content?: pulumi.Input<string | undefined>;
+            /**
+             * Encoding is either empty or "base64+gz".
+             */
+            encoding?: pulumi.Input<string | undefined>;
+            /**
+             * Name of the resource, can include the bundle's internal path.
+             */
+            name?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * RolloutStrategy controls the rollout of bundles, by defining
+         * partitions, canaries and percentages for cluster availability.
+         */
+        export interface HelmOpSpecRolloutStrategy {
+            /**
+             * A number or percentage of how to automatically partition clusters if no
+             * specific partitioning strategy is configured.
+             * default: 25%
+             */
+            autoPartitionSize?: pulumi.Input<number | string | undefined>;
+            /**
+             * AutoPartitionThreshold is the minimum number of clusters that need to be
+             * present before auto-partitioning is enabled. If the number of target
+             * clusters is less than this value, all clusters will be placed in a single
+             * partition.
+             * default: 200
+             */
+            autoPartitionThreshold?: pulumi.Input<number | undefined>;
+            /**
+             * MaxNew is the maximum number of new BundleDeployments that can be created
+             * in a single reconciliation. This limits the rate at which new deployments
+             * are staged when a bundle is first applied to many clusters.
+             * default: 50
+             */
+            maxNew?: pulumi.Input<number | undefined>;
+            /**
+             * A number or percentage of clusters that can be unavailable during an update
+             * of a bundle. This follows the same basic approach as a deployment rollout
+             * strategy. Once the number of clusters meets unavailable state update will be
+             * paused. Default value is 100% which doesn't take effect on update.
+             * default: 100%
+             */
+            maxUnavailable?: pulumi.Input<number | string | undefined>;
+            /**
+             * A number or percentage of cluster partitions that can be unavailable during
+             * an update of a bundle.
+             * default: 0
+             */
+            maxUnavailablePartitions?: pulumi.Input<number | string | undefined>;
+            /**
+             * A list of definitions of partitions.  If any target clusters do not match
+             * the configuration they are added to partitions at the end following the
+             * autoPartitionSize.
+             */
+            partitions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitions>[] | undefined>;
+        }
+
+        /**
+         * Partition defines a separate rollout strategy for a set of clusters.
+         */
+        export interface HelmOpSpecRolloutStrategyPartitions {
+            /**
+             * A cluster group name to include in this partition
+             */
+            clusterGroup?: pulumi.Input<string | undefined>;
+            clusterGroupSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterGroupSelector | undefined>;
+            /**
+             * ClusterName is the name of a cluster to include in this partition
+             */
+            clusterName?: pulumi.Input<string | undefined>;
+            clusterSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterSelector | undefined>;
+            /**
+             * A number or percentage of clusters that can be unavailable in this
+             * partition before this partition is treated as done.
+             * default: 10%
+             */
+            maxUnavailable?: pulumi.Input<number | string | undefined>;
+            /**
+             * A user-friendly name given to the partition used for Display (optional).
+             */
+            name?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Selector matching cluster group labels to include in this partition
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterGroupSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterGroupSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterGroupSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterGroupSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Selector matching cluster group labels to include in this partition
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterGroupSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterGroupSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Selector matching cluster labels to include in this partition
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Selector matching cluster labels to include in this partition
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * Partition defines a separate rollout strategy for a set of clusters.
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsPatch {
+            /**
+             * A cluster group name to include in this partition
+             */
+            clusterGroup?: pulumi.Input<string | undefined>;
+            clusterGroupSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterGroupSelectorPatch | undefined>;
+            /**
+             * ClusterName is the name of a cluster to include in this partition
+             */
+            clusterName?: pulumi.Input<string | undefined>;
+            clusterSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterSelectorPatch | undefined>;
+            /**
+             * A number or percentage of clusters that can be unavailable in this
+             * partition before this partition is treated as done.
+             * default: 10%
+             */
+            maxUnavailable?: pulumi.Input<number | string | undefined>;
+            /**
+             * A user-friendly name given to the partition used for Display (optional).
+             */
+            name?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * RolloutStrategy controls the rollout of bundles, by defining
+         * partitions, canaries and percentages for cluster availability.
+         */
+        export interface HelmOpSpecRolloutStrategyPatch {
+            /**
+             * A number or percentage of how to automatically partition clusters if no
+             * specific partitioning strategy is configured.
+             * default: 25%
+             */
+            autoPartitionSize?: pulumi.Input<number | string | undefined>;
+            /**
+             * AutoPartitionThreshold is the minimum number of clusters that need to be
+             * present before auto-partitioning is enabled. If the number of target
+             * clusters is less than this value, all clusters will be placed in a single
+             * partition.
+             * default: 200
+             */
+            autoPartitionThreshold?: pulumi.Input<number | undefined>;
+            /**
+             * MaxNew is the maximum number of new BundleDeployments that can be created
+             * in a single reconciliation. This limits the rate at which new deployments
+             * are staged when a bundle is first applied to many clusters.
+             * default: 50
+             */
+            maxNew?: pulumi.Input<number | undefined>;
+            /**
+             * A number or percentage of clusters that can be unavailable during an update
+             * of a bundle. This follows the same basic approach as a deployment rollout
+             * strategy. Once the number of clusters meets unavailable state update will be
+             * paused. Default value is 100% which doesn't take effect on update.
+             * default: 100%
+             */
+            maxUnavailable?: pulumi.Input<number | string | undefined>;
+            /**
+             * A number or percentage of cluster partitions that can be unavailable during
+             * an update of a bundle.
+             * default: 0
+             */
+            maxUnavailablePartitions?: pulumi.Input<number | string | undefined>;
+            /**
+             * A list of definitions of partitions.  If any target clusters do not match
+             * the configuration they are added to partitions at the end following the
+             * autoPartitionSize.
+             */
+            partitions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsPatch>[] | undefined>;
+        }
+
+        /**
+         * BundleTargetRestriction is used internally by Fleet and should not be modified.
+         * It acts as an allow list, restricting BundleDeployment creation to only those clusters
+         * that are explicitly listed in the GitRepo targets.
+         */
+        export interface HelmOpSpecTargetRestrictions {
+            clusterGroup?: pulumi.Input<string | undefined>;
+            clusterGroupSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterGroupSelector | undefined>;
+            clusterName?: pulumi.Input<string | undefined>;
+            clusterSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterSelector | undefined>;
+            name?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterGroupSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterGroupSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterGroupSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterGroupSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterGroupSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterGroupSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * BundleTargetRestriction is used internally by Fleet and should not be modified.
+         * It acts as an allow list, restricting BundleDeployment creation to only those clusters
+         * that are explicitly listed in the GitRepo targets.
+         */
+        export interface HelmOpSpecTargetRestrictionsPatch {
+            clusterGroup?: pulumi.Input<string | undefined>;
+            clusterGroupSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterGroupSelectorPatch | undefined>;
+            clusterName?: pulumi.Input<string | undefined>;
+            clusterSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterSelectorPatch | undefined>;
+            name?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * BundleTarget declares clusters to deploy to. Fleet will merge the
+         * BundleDeploymentOptions from customizations into this struct.
+         */
+        export interface HelmOpSpecTargets {
+            allowedTargetNamespaceSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsAllowedTargetNamespaceSelector | undefined>;
+            /**
+             * ClusterGroup to match a specific cluster group by name.
+             */
+            clusterGroup?: pulumi.Input<string | undefined>;
+            clusterGroupSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsClusterGroupSelector | undefined>;
+            /**
+             * ClusterName to match a specific cluster by name that will be
+             * selected
+             */
+            clusterName?: pulumi.Input<string | undefined>;
+            clusterSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsClusterSelector | undefined>;
+            correctDrift?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsCorrectDrift | undefined>;
+            /**
+             * CreateNamespace controls whether Fleet creates the target namespace on
+             * downstream clusters during Helm installs. When nil, the default behavior
+             * is to create the namespace (backward-compatible). Set to false by the
+             * controller when Policy requires a ServiceAccount and does not explicitly
+             * allow namespace creation. This does not affect namespaceLabels/
+             * namespaceAnnotations patching, which is always attempted (when set) as
+             * the deployment's ServiceAccount and gated by downstream RBAC.
+             */
+            createNamespace?: pulumi.Input<boolean | undefined>;
+            /**
+             * DefaultNamespace is the namespace to use for resources that do not
+             * specify a namespace. This field is not used to enforce or lock down
+             * the deployment to a specific namespace.
+             */
+            defaultNamespace?: pulumi.Input<string | undefined>;
+            /**
+             * DeleteCRDResources deletes CRDs. Warning! this will also delete all your Custom Resources.
+             */
+            deleteCRDResources?: pulumi.Input<boolean | undefined>;
+            /**
+             * DeleteNamespace can be used to delete the deployed namespace when removing the bundle
+             */
+            deleteNamespace?: pulumi.Input<boolean | undefined>;
+            diff?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsDiff | undefined>;
+            /**
+             * DoNotDeploy if set to true, will not deploy to this target.
+             */
+            doNotDeploy?: pulumi.Input<boolean | undefined>;
+            /**
+             * DownstreamResources points to resources to be copied into downstream clusters, from the bundle's
+             * namespace.
+             */
+            downstreamResources?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsDownstreamResources>[] | undefined>;
+            /**
+             * ForceSyncGeneration is used to force a redeployment
+             */
+            forceSyncGeneration?: pulumi.Input<number | undefined>;
+            helm?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsHelm | undefined>;
+            ignore?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsIgnore | undefined>;
+            /**
+             * KeepResources can be used to keep the deployed resources when removing the bundle
+             */
+            keepResources?: pulumi.Input<boolean | undefined>;
+            kustomize?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsKustomize | undefined>;
+            /**
+             * Name of target. This value is largely for display and logging. If
+             * not specified a default name of the format "target000" will be used
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * TargetNamespace if present will assign all resource to this
+             * namespace and if any cluster scoped resource exists the deployment
+             * will fail.
+             */
+            namespace?: pulumi.Input<string | undefined>;
+            /**
+             * NamespaceAnnotations are annotations that will be appended to the namespace created by Fleet.
+             */
+            namespaceAnnotations?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * NamespaceLabels are labels that will be appended to the namespace created by Fleet.
+             */
+            namespaceLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * Overwrites indicates which resources, if any, come from this bundle and overwrite another existing bundle.
+             * This flag is set internally by Fleet, and should not be altered by users.
+             */
+            overwrites?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsOverwrites>[] | undefined>;
+            /**
+             * ServiceAccount which will be used to perform this deployment.
+             */
+            serviceAccount?: pulumi.Input<string | undefined>;
+            yaml?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsYaml | undefined>;
+        }
+
+        /**
+         * AllowedTargetNamespaceSelector restricts deployments to namespaces matching this selector.
+         * Propagated from GitRepoRestriction and validated by the agent on the downstream cluster.
+         */
+        export interface HelmOpSpecTargetsAllowedTargetNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsAllowedTargetNamespaceSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetsAllowedTargetNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetsAllowedTargetNamespaceSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * AllowedTargetNamespaceSelector restricts deployments to namespaces matching this selector.
+         * Propagated from GitRepoRestriction and validated by the agent on the downstream cluster.
+         */
+        export interface HelmOpSpecTargetsAllowedTargetNamespaceSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsAllowedTargetNamespaceSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * ClusterGroupSelector is a selector to match cluster groups.
+         */
+        export interface HelmOpSpecTargetsClusterGroupSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsClusterGroupSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetsClusterGroupSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetsClusterGroupSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * ClusterGroupSelector is a selector to match cluster groups.
+         */
+        export interface HelmOpSpecTargetsClusterGroupSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsClusterGroupSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * ClusterSelector is a selector to match clusters. The structure is
+         * the standard metav1.LabelSelector format. If clusterGroupSelector or
+         * clusterGroup is specified, clusterSelector will be used only to
+         * further refine the selection after clusterGroupSelector and
+         * clusterGroup is evaluated.
+         */
+        export interface HelmOpSpecTargetsClusterSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsClusterSelectorMatchExpressions>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetsClusterSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetsClusterSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator?: pulumi.Input<string | undefined>;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * ClusterSelector is a selector to match clusters. The structure is
+         * the standard metav1.LabelSelector format. If clusterGroupSelector or
+         * clusterGroup is specified, clusterSelector will be used only to
+         * further refine the selection after clusterGroupSelector and
+         * clusterGroup is evaluated.
+         */
+        export interface HelmOpSpecTargetsClusterSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsClusterSelectorMatchExpressionsPatch>[] | undefined>;
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+        }
+
+        /**
+         * CorrectDrift specifies how drift correction should work.
+         */
+        export interface HelmOpSpecTargetsCorrectDrift {
+            /**
+             * Enabled correct drift if true.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Force helm rollback with --force option will be used if true. This will try to recreate all resources in the release.
+             */
+            force?: pulumi.Input<boolean | undefined>;
+            /**
+             * KeepFailHistory keeps track of failed rollbacks in the helm history.
+             */
+            keepFailHistory?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * CorrectDrift specifies how drift correction should work.
+         */
+        export interface HelmOpSpecTargetsCorrectDriftPatch {
+            /**
+             * Enabled correct drift if true.
+             */
+            enabled?: pulumi.Input<boolean | undefined>;
+            /**
+             * Force helm rollback with --force option will be used if true. This will try to recreate all resources in the release.
+             */
+            force?: pulumi.Input<boolean | undefined>;
+            /**
+             * KeepFailHistory keeps track of failed rollbacks in the helm history.
+             */
+            keepFailHistory?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * Diff can be used to ignore the modified state of objects which are amended at runtime.
+         */
+        export interface HelmOpSpecTargetsDiff {
+            /**
+             * ComparePatches match a resource and remove fields, or the resource itself from the check for modifications.
+             */
+            comparePatches?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsDiffComparePatches>[] | undefined>;
+        }
+
+        /**
+         * ComparePatch matches a resource and removes fields from the check for modifications.
+         */
+        export interface HelmOpSpecTargetsDiffComparePatches {
+            /**
+             * APIVersion is the apiVersion of the resource to match.
+             */
+            apiVersion?: pulumi.Input<string | undefined>;
+            /**
+             * JSONPointers ignore diffs at a certain JSON path.
+             */
+            jsonPointers?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Kind is the kind of the resource to match.
+             */
+            kind?: pulumi.Input<string | undefined>;
+            /**
+             * Name is the name of the resource to match.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Namespace is the namespace of the resource to match.
+             */
+            namespace?: pulumi.Input<string | undefined>;
+            /**
+             * Operations remove a JSON path from the resource.
+             */
+            operations?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsDiffComparePatchesOperations>[] | undefined>;
+        }
+
+        /**
+         * Operation of a ComparePatch, usually:
+         * * "remove" to remove a specific path in a resource
+         * * "ignore" to remove the entire resource from checks for modifications.
+         */
+        export interface HelmOpSpecTargetsDiffComparePatchesOperations {
+            /**
+             * Op is usually "remove" or "ignore"
+             */
+            op?: pulumi.Input<string | undefined>;
+            /**
+             * Path is the JSON path to remove. Not needed if Op is "ignore".
+             */
+            path?: pulumi.Input<string | undefined>;
+            /**
+             * Value is usually empty.
+             */
+            value?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Operation of a ComparePatch, usually:
+         * * "remove" to remove a specific path in a resource
+         * * "ignore" to remove the entire resource from checks for modifications.
+         */
+        export interface HelmOpSpecTargetsDiffComparePatchesOperationsPatch {
+            /**
+             * Op is usually "remove" or "ignore"
+             */
+            op?: pulumi.Input<string | undefined>;
+            /**
+             * Path is the JSON path to remove. Not needed if Op is "ignore".
+             */
+            path?: pulumi.Input<string | undefined>;
+            /**
+             * Value is usually empty.
+             */
+            value?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ComparePatch matches a resource and removes fields from the check for modifications.
+         */
+        export interface HelmOpSpecTargetsDiffComparePatchesPatch {
+            /**
+             * APIVersion is the apiVersion of the resource to match.
+             */
+            apiVersion?: pulumi.Input<string | undefined>;
+            /**
+             * JSONPointers ignore diffs at a certain JSON path.
+             */
+            jsonPointers?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Kind is the kind of the resource to match.
+             */
+            kind?: pulumi.Input<string | undefined>;
+            /**
+             * Name is the name of the resource to match.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Namespace is the namespace of the resource to match.
+             */
+            namespace?: pulumi.Input<string | undefined>;
+            /**
+             * Operations remove a JSON path from the resource.
+             */
+            operations?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsDiffComparePatchesOperationsPatch>[] | undefined>;
+        }
+
+        /**
+         * Diff can be used to ignore the modified state of objects which are amended at runtime.
+         */
+        export interface HelmOpSpecTargetsDiffPatch {
+            /**
+             * ComparePatches match a resource and remove fields, or the resource itself from the check for modifications.
+             */
+            comparePatches?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsDiffComparePatchesPatch>[] | undefined>;
+        }
+
+        /**
+         * DownstreamResource contains identifiers for a resource to be copied from the parent bundle's namespace to each
+         * downstream cluster.
+         */
+        export interface HelmOpSpecTargetsDownstreamResources {
+            kind?: pulumi.Input<string | undefined>;
+            name?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * DownstreamResource contains identifiers for a resource to be copied from the parent bundle's namespace to each
+         * downstream cluster.
+         */
+        export interface HelmOpSpecTargetsDownstreamResourcesPatch {
+            kind?: pulumi.Input<string | undefined>;
+            name?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Helm options for the deployment, like the chart name, repo and values.
+         */
+        export interface HelmOpSpecTargetsHelm {
+            /**
+             * Atomic sets the --atomic flag when Helm is performing an upgrade
+             */
+            atomic?: pulumi.Input<boolean | undefined>;
+            /**
+             * Chart can refer to any go-getter URL or OCI registry based helm
+             * chart URL. The chart will be downloaded.
+             */
+            chart?: pulumi.Input<string | undefined>;
+            /**
+             * DisableDNS can be used to customize Helm's EnableDNS option, which Fleet sets to `true` by default.
+             */
+            disableDNS?: pulumi.Input<boolean | undefined>;
+            /**
+             * DisableDependencyUpdate allows skipping chart dependencies update
+             */
+            disableDependencyUpdate?: pulumi.Input<boolean | undefined>;
+            /**
+             * DisablePreProcess disables template processing in values
+             */
+            disablePreProcess?: pulumi.Input<boolean | undefined>;
+            /**
+             * Force allows to override immutable resources. This could be dangerous.
+             */
+            force?: pulumi.Input<boolean | undefined>;
+            /**
+             * MaxHistory limits the maximum number of revisions saved per release by Helm.
+             */
+            maxHistory?: pulumi.Input<number | undefined>;
+            /**
+             * ReleaseName sets a custom release name to deploy the chart as. If
+             * not specified a release name will be generated by combining the
+             * invoking GitRepo.name + GitRepo.path.
+             */
+            releaseName?: pulumi.Input<string | undefined>;
+            /**
+             * Repo is the name of the HTTPS helm repo to download the chart from.
+             */
+            repo?: pulumi.Input<string | undefined>;
+            /**
+             * SkipSchemaValidation allows skipping schema validation against the chart values
+             */
+            skipSchemaValidation?: pulumi.Input<boolean | undefined>;
+            /**
+             * TakeOwnership makes helm skip the check for its own annotations
+             */
+            takeOwnership?: pulumi.Input<boolean | undefined>;
+            /**
+             * Template Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings. Unlike .values, content of each key will be templated
+             * first, before serializing to yaml. This allows to template complex values,
+             * like ranges and maps.
+             * templateValues keys have precedence over values keys in case of conflict.
+             */
+            templateValues?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * TimeoutSeconds is the time to wait for Helm operations.
+             */
+            timeoutSeconds?: pulumi.Input<number | undefined>;
+            /**
+             * Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings.
+             */
+            values?: pulumi.Input<{[key: string]: any} | undefined>;
+            /**
+             * ValuesFiles is a list of files to load values from.
+             */
+            valuesFiles?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * ValuesFrom loads the values from configmaps and secrets.
+             */
+            valuesFrom?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsHelmValuesFrom>[] | undefined>;
+            /**
+             * Version of the chart to download
+             */
+            version?: pulumi.Input<string | undefined>;
+            /**
+             * WaitForJobs if set and timeoutSeconds provided, will wait until all
+             * Jobs have been completed before marking the GitRepo as ready. It
+             * will wait for as long as timeoutSeconds
+             */
+            waitForJobs?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * Helm options for the deployment, like the chart name, repo and values.
+         */
+        export interface HelmOpSpecTargetsHelmPatch {
+            /**
+             * Atomic sets the --atomic flag when Helm is performing an upgrade
+             */
+            atomic?: pulumi.Input<boolean | undefined>;
+            /**
+             * Chart can refer to any go-getter URL or OCI registry based helm
+             * chart URL. The chart will be downloaded.
+             */
+            chart?: pulumi.Input<string | undefined>;
+            /**
+             * DisableDNS can be used to customize Helm's EnableDNS option, which Fleet sets to `true` by default.
+             */
+            disableDNS?: pulumi.Input<boolean | undefined>;
+            /**
+             * DisableDependencyUpdate allows skipping chart dependencies update
+             */
+            disableDependencyUpdate?: pulumi.Input<boolean | undefined>;
+            /**
+             * DisablePreProcess disables template processing in values
+             */
+            disablePreProcess?: pulumi.Input<boolean | undefined>;
+            /**
+             * Force allows to override immutable resources. This could be dangerous.
+             */
+            force?: pulumi.Input<boolean | undefined>;
+            /**
+             * MaxHistory limits the maximum number of revisions saved per release by Helm.
+             */
+            maxHistory?: pulumi.Input<number | undefined>;
+            /**
+             * ReleaseName sets a custom release name to deploy the chart as. If
+             * not specified a release name will be generated by combining the
+             * invoking GitRepo.name + GitRepo.path.
+             */
+            releaseName?: pulumi.Input<string | undefined>;
+            /**
+             * Repo is the name of the HTTPS helm repo to download the chart from.
+             */
+            repo?: pulumi.Input<string | undefined>;
+            /**
+             * SkipSchemaValidation allows skipping schema validation against the chart values
+             */
+            skipSchemaValidation?: pulumi.Input<boolean | undefined>;
+            /**
+             * TakeOwnership makes helm skip the check for its own annotations
+             */
+            takeOwnership?: pulumi.Input<boolean | undefined>;
+            /**
+             * Template Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings. Unlike .values, content of each key will be templated
+             * first, before serializing to yaml. This allows to template complex values,
+             * like ranges and maps.
+             * templateValues keys have precedence over values keys in case of conflict.
+             */
+            templateValues?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * TimeoutSeconds is the time to wait for Helm operations.
+             */
+            timeoutSeconds?: pulumi.Input<number | undefined>;
+            /**
+             * Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings.
+             */
+            values?: pulumi.Input<{[key: string]: any} | undefined>;
+            /**
+             * ValuesFiles is a list of files to load values from.
+             */
+            valuesFiles?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * ValuesFrom loads the values from configmaps and secrets.
+             */
+            valuesFrom?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsHelmValuesFromPatch>[] | undefined>;
+            /**
+             * Version of the chart to download
+             */
+            version?: pulumi.Input<string | undefined>;
+            /**
+             * WaitForJobs if set and timeoutSeconds provided, will wait until all
+             * Jobs have been completed before marking the GitRepo as ready. It
+             * will wait for as long as timeoutSeconds
+             */
+            waitForJobs?: pulumi.Input<boolean | undefined>;
+        }
+
+        /**
+         * Define helm values that can come from configmap, secret or external. Credit: https://github.com/fluxcd/helm-operator/blob/0cfea875b5d44bea995abe7324819432070dfbdc/pkg/apis/helm.fluxcd.io/v1/types_helmrelease.go#L439
+         */
+        export interface HelmOpSpecTargetsHelmValuesFrom {
+            configMapKeyRef?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsHelmValuesFromConfigMapKeyRef | undefined>;
+            secretKeyRef?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsHelmValuesFromSecretKeyRef | undefined>;
+        }
+
+        /**
+         * The reference to a config map with release values.
+         */
+        export interface HelmOpSpecTargetsHelmValuesFromConfigMapKeyRef {
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The reference to a config map with release values.
+         */
+        export interface HelmOpSpecTargetsHelmValuesFromConfigMapKeyRefPatch {
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Define helm values that can come from configmap, secret or external. Credit: https://github.com/fluxcd/helm-operator/blob/0cfea875b5d44bea995abe7324819432070dfbdc/pkg/apis/helm.fluxcd.io/v1/types_helmrelease.go#L439
+         */
+        export interface HelmOpSpecTargetsHelmValuesFromPatch {
+            configMapKeyRef?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsHelmValuesFromConfigMapKeyRefPatch | undefined>;
+            secretKeyRef?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsHelmValuesFromSecretKeyRefPatch | undefined>;
+        }
+
+        /**
+         * The reference to a secret with release values.
+         */
+        export interface HelmOpSpecTargetsHelmValuesFromSecretKeyRef {
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * The reference to a secret with release values.
+         */
+        export interface HelmOpSpecTargetsHelmValuesFromSecretKeyRefPatch {
+            key?: pulumi.Input<string | undefined>;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * IgnoreOptions can be used to ignore fields when monitoring the bundle.
+         */
+        export interface HelmOpSpecTargetsIgnore {
+            /**
+             * Conditions is a list of conditions to be ignored when monitoring the Bundle.
+             */
+            conditions?: pulumi.Input<pulumi.Input<{[key: string]: pulumi.Input<string>}>[] | undefined>;
+        }
+
+        /**
+         * IgnoreOptions can be used to ignore fields when monitoring the bundle.
+         */
+        export interface HelmOpSpecTargetsIgnorePatch {
+            /**
+             * Conditions is a list of conditions to be ignored when monitoring the Bundle.
+             */
+            conditions?: pulumi.Input<pulumi.Input<{[key: string]: pulumi.Input<string>}>[] | undefined>;
+        }
+
+        /**
+         * Kustomize options for the deployment, like the dir containing the
+         * kustomization.yaml file.
+         */
+        export interface HelmOpSpecTargetsKustomize {
+            /**
+             * Dir points to a custom folder for kustomize resources. This folder must contain
+             * a kustomization.yaml file.
+             */
+            dir?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Kustomize options for the deployment, like the dir containing the
+         * kustomization.yaml file.
+         */
+        export interface HelmOpSpecTargetsKustomizePatch {
+            /**
+             * Dir points to a custom folder for kustomize resources. This folder must contain
+             * a kustomization.yaml file.
+             */
+            dir?: pulumi.Input<string | undefined>;
+        }
+
+        export interface HelmOpSpecTargetsOverwrites {
+            kind?: pulumi.Input<string | undefined>;
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        export interface HelmOpSpecTargetsOverwritesPatch {
+            kind?: pulumi.Input<string | undefined>;
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * BundleTarget declares clusters to deploy to. Fleet will merge the
+         * BundleDeploymentOptions from customizations into this struct.
+         */
+        export interface HelmOpSpecTargetsPatch {
+            allowedTargetNamespaceSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsAllowedTargetNamespaceSelectorPatch | undefined>;
+            /**
+             * ClusterGroup to match a specific cluster group by name.
+             */
+            clusterGroup?: pulumi.Input<string | undefined>;
+            clusterGroupSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsClusterGroupSelectorPatch | undefined>;
+            /**
+             * ClusterName to match a specific cluster by name that will be
+             * selected
+             */
+            clusterName?: pulumi.Input<string | undefined>;
+            clusterSelector?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsClusterSelectorPatch | undefined>;
+            correctDrift?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsCorrectDriftPatch | undefined>;
+            /**
+             * CreateNamespace controls whether Fleet creates the target namespace on
+             * downstream clusters during Helm installs. When nil, the default behavior
+             * is to create the namespace (backward-compatible). Set to false by the
+             * controller when Policy requires a ServiceAccount and does not explicitly
+             * allow namespace creation. This does not affect namespaceLabels/
+             * namespaceAnnotations patching, which is always attempted (when set) as
+             * the deployment's ServiceAccount and gated by downstream RBAC.
+             */
+            createNamespace?: pulumi.Input<boolean | undefined>;
+            /**
+             * DefaultNamespace is the namespace to use for resources that do not
+             * specify a namespace. This field is not used to enforce or lock down
+             * the deployment to a specific namespace.
+             */
+            defaultNamespace?: pulumi.Input<string | undefined>;
+            /**
+             * DeleteCRDResources deletes CRDs. Warning! this will also delete all your Custom Resources.
+             */
+            deleteCRDResources?: pulumi.Input<boolean | undefined>;
+            /**
+             * DeleteNamespace can be used to delete the deployed namespace when removing the bundle
+             */
+            deleteNamespace?: pulumi.Input<boolean | undefined>;
+            diff?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsDiffPatch | undefined>;
+            /**
+             * DoNotDeploy if set to true, will not deploy to this target.
+             */
+            doNotDeploy?: pulumi.Input<boolean | undefined>;
+            /**
+             * DownstreamResources points to resources to be copied into downstream clusters, from the bundle's
+             * namespace.
+             */
+            downstreamResources?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsDownstreamResourcesPatch>[] | undefined>;
+            /**
+             * ForceSyncGeneration is used to force a redeployment
+             */
+            forceSyncGeneration?: pulumi.Input<number | undefined>;
+            helm?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsHelmPatch | undefined>;
+            ignore?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsIgnorePatch | undefined>;
+            /**
+             * KeepResources can be used to keep the deployed resources when removing the bundle
+             */
+            keepResources?: pulumi.Input<boolean | undefined>;
+            kustomize?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsKustomizePatch | undefined>;
+            /**
+             * Name of target. This value is largely for display and logging. If
+             * not specified a default name of the format "target000" will be used
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * TargetNamespace if present will assign all resource to this
+             * namespace and if any cluster scoped resource exists the deployment
+             * will fail.
+             */
+            namespace?: pulumi.Input<string | undefined>;
+            /**
+             * NamespaceAnnotations are annotations that will be appended to the namespace created by Fleet.
+             */
+            namespaceAnnotations?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * NamespaceLabels are labels that will be appended to the namespace created by Fleet.
+             */
+            namespaceLabels?: pulumi.Input<{[key: string]: pulumi.Input<string>} | undefined>;
+            /**
+             * Overwrites indicates which resources, if any, come from this bundle and overwrite another existing bundle.
+             * This flag is set internally by Fleet, and should not be altered by users.
+             */
+            overwrites?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsOverwritesPatch>[] | undefined>;
+            /**
+             * ServiceAccount which will be used to perform this deployment.
+             */
+            serviceAccount?: pulumi.Input<string | undefined>;
+            yaml?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpSpecTargetsYamlPatch | undefined>;
+        }
+
+        /**
+         * YAML options, if using raw YAML these are names that map to
+         * overlays/{name} files that will be used to replace or patch a resource.
+         */
+        export interface HelmOpSpecTargetsYaml {
+            /**
+             * Overlays is a list of names that maps to folders in "overlays/".
+             * If you wish to customize the file ./subdir/resource.yaml then a file
+             * ./overlays/myoverlay/subdir/resource.yaml will replace the base
+             * file.
+             * A file named ./overlays/myoverlay/subdir/resource_patch.yaml will patch the base file.
+             */
+            overlays?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * YAML options, if using raw YAML these are names that map to
+         * overlays/{name} files that will be used to replace or patch a resource.
+         */
+        export interface HelmOpSpecTargetsYamlPatch {
+            /**
+             * Overlays is a list of names that maps to folders in "overlays/".
+             * If you wish to customize the file ./subdir/resource.yaml then a file
+             * ./overlays/myoverlay/subdir/resource.yaml will replace the base
+             * file.
+             * A file named ./overlays/myoverlay/subdir/resource_patch.yaml will patch the base file.
+             */
+            overlays?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * YAML options, if using raw YAML these are names that map to
+         * overlays/{name} files that will be used to replace or patch a resource.
+         */
+        export interface HelmOpSpecYaml {
+            /**
+             * Overlays is a list of names that maps to folders in "overlays/".
+             * If you wish to customize the file ./subdir/resource.yaml then a file
+             * ./overlays/myoverlay/subdir/resource.yaml will replace the base
+             * file.
+             * A file named ./overlays/myoverlay/subdir/resource_patch.yaml will patch the base file.
+             */
+            overlays?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * YAML options, if using raw YAML these are names that map to
+         * overlays/{name} files that will be used to replace or patch a resource.
+         */
+        export interface HelmOpSpecYamlPatch {
+            /**
+             * Overlays is a list of names that maps to folders in "overlays/".
+             * If you wish to customize the file ./subdir/resource.yaml then a file
+             * ./overlays/myoverlay/subdir/resource.yaml will replace the base
+             * file.
+             * A file named ./overlays/myoverlay/subdir/resource_patch.yaml will patch the base file.
+             */
+            overlays?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        export interface HelmOpStatus {
+            /**
+             * Conditions is a list of Wrangler conditions that describe the state
+             * of the resource.
+             */
+            conditions?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpStatusConditions>[] | undefined>;
+            /**
+             * DesiredReadyClusters	is the number of clusters that should be ready for bundles of this resource.
+             */
+            desiredReadyClusters?: pulumi.Input<number | undefined>;
+            display?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpStatusDisplay | undefined>;
+            /**
+             * LastPollingTime is the last time the polling check was triggered
+             */
+            lastPollingTriggered?: pulumi.Input<string | undefined>;
+            /**
+             * PerClusterResourceCounts contains the number of resources in each state over all bundles, per cluster.
+             */
+            perClusterResourceCounts?: pulumi.Input<{[key: string]: pulumi.Input<{[key: string]: pulumi.Input<string>}>} | undefined>;
+            /**
+             * ReadyClusters is the lowest number of clusters that are ready over
+             * all the bundles of this resource.
+             */
+            readyClusters?: pulumi.Input<number | undefined>;
+            resourceCounts?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpStatusResourceCounts | undefined>;
+            /**
+             * Resources contains metadata about the resources of each bundle.
+             */
+            resources?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpStatusResources>[] | undefined>;
+            summary?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpStatusSummary | undefined>;
+            /**
+             * Version installed for the helm chart.
+             * When using * or empty version in the spec we get the latest version from
+             * the helm repository when possible
+             */
+            version?: pulumi.Input<string | undefined>;
+        }
+
+        export interface HelmOpStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime?: pulumi.Input<string | undefined>;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime?: pulumi.Input<string | undefined>;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message?: pulumi.Input<string | undefined>;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason?: pulumi.Input<string | undefined>;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status?: pulumi.Input<string | undefined>;
+            /**
+             * Type of cluster condition.
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * Display contains a human readable summary of the status.
+         */
+        export interface HelmOpStatusDisplay {
+            /**
+             * Error is true if a message is present.
+             */
+            error?: pulumi.Input<boolean | undefined>;
+            /**
+             * Message contains the relevant message from the deployment conditions.
+             */
+            message?: pulumi.Input<string | undefined>;
+            /**
+             * ReadyBundleDeployments is a string in the form "%d/%d", that describes the
+             * number of ready bundledeployments over the total number of bundledeployments.
+             */
+            readyBundleDeployments?: pulumi.Input<string | undefined>;
+            /**
+             * State is the state of the resource, e.g. "GitUpdating" or the maximal
+             * BundleState according to StateRank.
+             */
+            state?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * ResourceCounts contains the number of resources in each state over all bundles.
+         */
+        export interface HelmOpStatusResourceCounts {
+            /**
+             * DesiredReady is the number of resources that should be ready.
+             */
+            desiredReady?: pulumi.Input<number | undefined>;
+            /**
+             * Missing is the number of missing resources.
+             */
+            missing?: pulumi.Input<number | undefined>;
+            /**
+             * Modified is the number of resources that have been modified.
+             */
+            modified?: pulumi.Input<number | undefined>;
+            /**
+             * NotReady is the number of not ready resources. Resources are not
+             * ready if they do not match any other state.
+             */
+            notReady?: pulumi.Input<number | undefined>;
+            /**
+             * Orphaned is the number of orphaned resources.
+             */
+            orphaned?: pulumi.Input<number | undefined>;
+            /**
+             * Ready is the number of ready resources.
+             */
+            ready?: pulumi.Input<number | undefined>;
+            /**
+             * Unknown is the number of resources in an unknown state.
+             */
+            unknown?: pulumi.Input<number | undefined>;
+            /**
+             * WaitApplied is the number of resources that are waiting to be applied.
+             */
+            waitApplied?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * Resource contains metadata about the resources of a bundle.
+         */
+        export interface HelmOpStatusResources {
+            /**
+             * APIVersion is the API version of the resource.
+             */
+            apiVersion?: pulumi.Input<string | undefined>;
+            /**
+             * Error is true if any Error in the PerClusterState is true.
+             */
+            error?: pulumi.Input<boolean | undefined>;
+            /**
+             * ID is the name of the resource, e.g. "namespace1/my-config" or "backingimagemanagers.storage.io".
+             */
+            id?: pulumi.Input<string | undefined>;
+            /**
+             * IncompleteState is true if a bundle summary has 10 or more non-ready
+             * resources or a non-ready resource has more 10 or more non-ready or
+             * modified states.
+             */
+            incompleteState?: pulumi.Input<boolean | undefined>;
+            /**
+             * Kind is the k8s kind of the resource.
+             */
+            kind?: pulumi.Input<string | undefined>;
+            /**
+             * Message is the first message from the PerClusterStates.
+             */
+            message?: pulumi.Input<string | undefined>;
+            /**
+             * Name of the resource.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * Namespace of the resource.
+             */
+            namespace?: pulumi.Input<string | undefined>;
+            perClusterState?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpStatusResourcesPerClusterState | undefined>;
+            /**
+             * State is the state of the resource, e.g. "Unknown", "WaitApplied", "ErrApplied" or "Ready".
+             */
+            state?: pulumi.Input<string | undefined>;
+            /**
+             * Transitioning is true if any Transitioning in the PerClusterState is true.
+             */
+            transitioning?: pulumi.Input<boolean | undefined>;
+            /**
+             * Type is the type of the resource, e.g. "apiextensions.k8s.io.customresourcedefinition" or "configmap".
+             */
+            type?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * PerClusterState contains lists of cluster IDs for every State for this resource
+         */
+        export interface HelmOpStatusResourcesPerClusterState {
+            /**
+             * Missing is a list of cluster IDs for which this a resource is in Missing state
+             */
+            missing?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Modified is a list of cluster IDs for which this a resource is in Modified state
+             */
+            modified?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * NotReady is a list of cluster IDs for which this a resource is in NotReady state
+             */
+            notReady?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Orphaned is a list of cluster IDs for which this a resource is in Orphaned state
+             */
+            orphaned?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Pending is a list of cluster IDs for which this a resource is in Pending state
+             */
+            pending?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Ready is a list of cluster IDs for which this a resource is in Ready state
+             */
+            ready?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Unknown is a list of cluster IDs for which this a resource is in Unknown state
+             */
+            unknown?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * WaitApplied is a list of cluster IDs for which this a resource is in WaitApplied state
+             */
+            waitApplied?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+        }
+
+        /**
+         * Summary contains the number of bundle deployments in each state and a list of non-ready resources.
+         */
+        export interface HelmOpStatusSummary {
+            /**
+             * DesiredReady is the number of bundle deployments that should be
+             * ready.
+             */
+            desiredReady?: pulumi.Input<number | undefined>;
+            /**
+             * ErrApplied is the number of bundle deployments that have been synced
+             * from the Fleet controller and the downstream cluster, but with some
+             * errors when deploying the bundle.
+             */
+            errApplied?: pulumi.Input<number | undefined>;
+            /**
+             * Modified is the number of bundle deployments that have been deployed
+             * and for which all resources are ready, but where some changes from the
+             * Git repository have not yet been synced.
+             */
+            modified?: pulumi.Input<number | undefined>;
+            /**
+             * NonReadyClusters is a list of states, which is filled for a bundle
+             * that is not ready.
+             */
+            nonReadyResources?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpStatusSummaryNonReadyResources>[] | undefined>;
+            /**
+             * NotReady is the number of bundle deployments that have been deployed
+             * where some resources are not ready.
+             */
+            notReady?: pulumi.Input<number | undefined>;
+            /**
+             * OutOfSync is the number of bundle deployments that have been synced
+             * from Fleet controller, but not yet by the downstream agent.
+             */
+            outOfSync?: pulumi.Input<number | undefined>;
+            /**
+             * Pending is the number of bundle deployments that are being processed
+             * by Fleet controller.
+             */
+            pending?: pulumi.Input<number | undefined>;
+            /**
+             * Ready is the number of bundle deployments that have been deployed
+             * where all resources are ready.
+             */
+            ready?: pulumi.Input<number | undefined>;
+            /**
+             * WaitApplied is the number of bundle deployments that have been
+             * synced from Fleet controller and downstream cluster, but are waiting
+             * to be deployed.
+             */
+            waitApplied?: pulumi.Input<number | undefined>;
+            /**
+             * WaitingForDependency is the number of bundle deployments which are
+             * not deployed because at least one of the bundles they depend on has
+             * not reached an accepted state.
+             */
+            waitingForDependency?: pulumi.Input<number | undefined>;
+        }
+
+        /**
+         * NonReadyResource contains information about a bundle that is not ready for a
+         * given state like "ErrApplied". It contains a list of non-ready or modified
+         * resources and their states.
+         */
+        export interface HelmOpStatusSummaryNonReadyResources {
+            /**
+             * State is the state of the resource, like e.g. "NotReady" or "ErrApplied".
+             */
+            bundleState?: pulumi.Input<string | undefined>;
+            /**
+             * Message contains information why the bundle is not ready.
+             */
+            message?: pulumi.Input<string | undefined>;
+            /**
+             * ModifiedStatus lists the state for each modified resource.
+             */
+            modifiedStatus?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpStatusSummaryNonReadyResourcesModifiedStatus>[] | undefined>;
+            /**
+             * Name is the name of the resource.
+             */
+            name?: pulumi.Input<string | undefined>;
+            /**
+             * NonReadyStatus lists the state for each non-ready resource.
+             */
+            nonReadyStatus?: pulumi.Input<pulumi.Input<inputs.fleet.v1alpha1.HelmOpStatusSummaryNonReadyResourcesNonReadyStatus>[] | undefined>;
+        }
+
+        /**
+         * ModifiedStatus is used to report the status of a resource that is modified.
+         * It indicates if the modification was a create, a delete or a patch.
+         */
+        export interface HelmOpStatusSummaryNonReadyResourcesModifiedStatus {
+            apiVersion?: pulumi.Input<string | undefined>;
+            delete?: pulumi.Input<boolean | undefined>;
+            /**
+             * Exist is true if the resource exists but is not owned by us. This can happen if a resource was adopted by another bundle whereas the first bundle still exists and due to that reports that it does not own it.
+             */
+            exist?: pulumi.Input<boolean | undefined>;
+            kind?: pulumi.Input<string | undefined>;
+            missing?: pulumi.Input<boolean | undefined>;
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+            patch?: pulumi.Input<string | undefined>;
+        }
+
+        /**
+         * NonReadyStatus is used to report the status of a resource that is not ready. It includes a summary.
+         */
+        export interface HelmOpStatusSummaryNonReadyResourcesNonReadyStatus {
+            apiVersion?: pulumi.Input<string | undefined>;
+            kind?: pulumi.Input<string | undefined>;
+            name?: pulumi.Input<string | undefined>;
+            namespace?: pulumi.Input<string | undefined>;
+            summary?: pulumi.Input<inputs.fleet.v1alpha1.HelmOpStatusSummaryNonReadyResourcesNonReadyStatusSummary | undefined>;
+            /**
+             * UID is a type that holds unique ID values, including UUIDs.  Because we
+             * don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+             * intent and helps make sure that UIDs and names do not get conflated.
+             */
+            uid?: pulumi.Input<string | undefined>;
+        }
+
+        export interface HelmOpStatusSummaryNonReadyResourcesNonReadyStatusSummary {
+            error?: pulumi.Input<boolean | undefined>;
+            message?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            state?: pulumi.Input<string | undefined>;
+            transitioning?: pulumi.Input<boolean | undefined>;
+        }
+
     }
 }
 

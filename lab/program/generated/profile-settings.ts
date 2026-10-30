@@ -82,10 +82,12 @@ export type RancherSettings = {
     settings?: Record<string, string>;
     /** Feature flags by name, merged over the default; false turns one off */
     features: Record<string, boolean>;
-    /** GitRepos from the catalog; their secrets come from the lab's inputs */
+    /** GitRepos and HelmOps from the catalog; their secrets come from the lab's inputs */
     fleet?: {
         /** GitRepos by catalog name; default the repos with default: true */
         repos?: string[];
+        /** HelmOps by catalog name; default the HelmOps with default: true */
+        helmOps?: string[];
     };
 };
 

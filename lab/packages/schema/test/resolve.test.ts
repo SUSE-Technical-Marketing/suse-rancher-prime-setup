@@ -990,6 +990,55 @@ hosts:
     });
 });
 
+describe("fleet HelmOps", () => {
+    const rancher = (fleet: string, catalog = "") => `${BASE}
+hosts:
+  vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ${RANCHER_STACK.replace("rancher: {", `rancher: { fleet: ${fleet}, `)} } }
+${catalog}`;
+    const ops = (result: LoadResult) => result.lab!.fleet.vm.helmOps;
+
+    it("creates the default ones: suse-observability, pulled by Fleet's agents from its repo", () => {
+        const result = load(rancher("{}"));
+        expect(errors(result)).toEqual([]);
+        expect(ops(result)).toEqual([expect.objectContaining({
+            name: "suse-observability", namespace: "fleet-default",
+            repo: "https://charts.rancher.com/server-charts/prime/suse-observability", chart: "suse-observability", version: "2.12.0",
+            defaultNamespace: "suse-observability", selector: { matchLabels: { "needs-observability": "true" } },
+            labels: { provides: "suse-observability" },
+        })]);
+        expect(ops(result)[0].values).toHaveProperty("global.suseObservability.sizing.profile", "trial");
+        expect(ops(result)[0].valuesFrom).toEqual([{ secretKeyRef: { name: "fleet-secrets", namespace: "kube-system", key: "suse-observability-values.yaml" } }]);
+    });
+
+    it("creates only the listed ones, and lets a lab add its own", () => {
+        expect(ops(load(rancher("{ helmOps: [] }")))).toEqual([]);
+        const result = load(rancher("{ helmOps: [mine] }", `catalog:
+  fleet:
+    helmOps:
+      mine: { repo: oci://registry.example.com/charts, chart: thing, target: all-downstream-clusters }
+`));
+        expect(errors(result)).toEqual([]);
+        expect(ops(result).map(o => `${o.name} ${o.repo} ${o.chart} → ${o.target}`)).toEqual(["mine oci://registry.example.com/charts thing → all-downstream-clusters"]);
+    });
+
+    it("checks names, charts and targets", () => {
+        expect(errors(load(rancher("{ helmOps: [nope] }")))).toEqual([
+            'hosts.vm.profiles.rancher.fleet.helmOps[0]: unknown Fleet HelmOp "nope"; known: suse-observability',
+        ]);
+        expect(errors(load(rancher("{ helmOps: [a, b, c] }", `catalog:
+  fleet:
+    helmOps:
+      a: { repo: https://example.com/charts }
+      b: { repo: https://example.com/charts, chart: x, target: nope }
+      c: { repo: https://example.com/charts, chart: x, target: all-downstream-clusters, selector: { matchLabels: { a: b } } }
+`)))).toEqual([
+            "catalog.fleet.helmOps.a: needs a repo and a chart",
+            'catalog.fleet.helmOps.b.target: no ClusterGroup "nope" in catalog.fleet.groups',
+            "catalog.fleet.helmOps.c: has both a target and a selector; give one",
+        ]);
+    });
+});
+
 describe("secrets and configmaps", () => {
     const lab = (host: string, tail = "") => `${BASE}
 hosts:

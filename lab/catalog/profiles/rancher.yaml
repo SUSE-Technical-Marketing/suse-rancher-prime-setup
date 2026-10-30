@@ -63,10 +63,14 @@ spec:
           # Harvester's bare-metal container workloads, shown in Virtualization Management.
           harvester-baremetal-container-workload: true
       fleet:
-        description: GitRepos from the catalog; their secrets come from the lab's inputs
+        description: GitRepos and HelmOps from the catalog; their secrets come from the lab's inputs
         type: object
         properties:
           repos:
             type: array
             items: { $ref: dnsLabel }
             description: "GitRepos by catalog name; default the repos with default: true"
+          helmOps:
+            type: array
+            items: { $ref: dnsLabel }
+            description: "HelmOps by catalog name; default the HelmOps with default: true"

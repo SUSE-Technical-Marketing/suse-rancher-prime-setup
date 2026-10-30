@@ -37,8 +37,9 @@ spec:
 `;
 
 describe("ai-factory", () => {
+    let registered: Awaited<ReturnType<typeof runProgram>> = [];
     it("installs the operator on Rancher's cluster with the registry logins", async () => {
-        const registered = await runProgram(LAB, {
+        registered = await runProgram(LAB, {
             secrets: {
                 "ssh-key": "k", hv: { username: "u", password: "p" }, admin: "a", cloudflare: { token: "c" },
                 appco: { username: "ac-user", password: "ac-token" }, scc: { username: "scc-user", password: "scc-pass" }, nvidia: "ngc-key",
@@ -59,4 +60,17 @@ describe("ai-factory", () => {
         // The lab's own values go in too.
         expect(values.appCatalog).toEqual({ useStaticCatalog: false });
     }, 30000);
+
+    it("creates Fleet's suse-observability HelmOp next to the GitRepos", async () => {
+        const op = registered.find(r => r.type === "kubernetes:fleet.cattle.io/v1alpha1:HelmOp");
+        expect(op, registered.filter(r => r.type.includes("fleet")).map(r => `${r.type} ${r.name}`).join(", ")).toBeDefined();
+        expect(op!.inputs).toMatchObject({
+            metadata: { name: "suse-observability", namespace: "fleet-default" },
+            spec: {
+                helm: { repo: "https://charts.rancher.com/server-charts/prime/suse-observability", chart: "suse-observability", version: "2.12.0" },
+                defaultNamespace: "suse-observability",
+                targets: [{ clusterSelector: { matchLabels: { "needs-observability": "true" } } }],
+            },
+        });
+    });
 });

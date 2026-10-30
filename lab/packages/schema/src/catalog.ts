@@ -1,7 +1,7 @@
 import { Diagnostics } from "./diagnostics";
 import { docAt } from "./documents";
 import { OsLayerEntry, ResolvedOs, resolveOsProfiles } from "./os";
-import { ClusterSelector, FleetRepoInput } from "./fleet";
+import { ClusterSelector, FleetHelmOpInput, FleetRepoInput } from "./fleet";
 import { ConfigMapInput, SecretInput } from "./objects";
 import { ProfileDefinition, ProfileInput, ProfileRegistry } from "./profiles";
 import { checkSettingSchema, SettingSchema, settingZod } from "./settings-schema";
@@ -121,6 +121,7 @@ export interface CatalogLayer {
 export interface FleetLayer {
     groups: Record<string, Sourced<ClusterSelector>>;
     repos: Record<string, Sourced<FleetRepoInput>>;
+    helmOps: Record<string, Sourced<FleetHelmOpInput>>;
 }
 
 /** A value and the layer that set it, for `lab catalog` and error messages. */
@@ -170,7 +171,7 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
     const kinds: Record<string, "HelmChart" | "Manifest" | "KubernetesDistribution"> = {};
     const descriptions: Record<string, string> = {};
     const osSource: Record<string, string> = {};
-    const fleet: FleetLayer = { groups: {}, repos: {} };
+    const fleet: FleetLayer = { groups: {}, repos: {}, helmOps: {} };
     const secrets: Record<string, Sourced<SecretInput>> = {};
     const configmaps: Record<string, Sourced<ConfigMapInput>> = {};
     const plugins: Required<PluginsInput> = { repo: {}, versions: {}, defaults: {}, repositories: {} };
@@ -207,6 +208,9 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
         }
         for (const [name, entry] of Object.entries(layer.fleet.repos)) {
             fleet.repos[name] = { value: { ...fleet.repos[name]?.value, ...entry.value }, source: entry.source };
+        }
+        for (const [name, entry] of Object.entries(layer.fleet.helmOps)) {
+            fleet.helmOps[name] = { value: { ...fleet.helmOps[name]?.value, ...entry.value }, source: entry.source };
         }
         for (const [key, value] of Object.entries(layer.components)) {
             const kind = layer.componentKinds?.[key];

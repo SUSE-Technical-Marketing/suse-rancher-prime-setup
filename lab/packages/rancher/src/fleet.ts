@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { fleet } from "@lab/crds";
+import { fleet, types } from "@lab/crds";
 import { KubeWait, onCluster, withCluster } from "@lab/kubernetes";
 import type { ResolvedFleet } from "@lab/schema";
 import { RancherAccess } from "./server";
@@ -15,7 +15,7 @@ export interface FleetArgs {
 }
 
 /**
- * Fleet configuration from the catalog: ClusterGroups and GitRepos. What to create is all decided
+ * Fleet configuration from the catalog: ClusterGroups, GitRepos and HelmOps. What to create is all decided
  * by the resolver; the secrets the repos need are created as catalog objects on the Rancher cluster.
  */
 export class Fleet extends pulumi.ComponentResource {
@@ -50,6 +50,37 @@ export class Fleet extends pulumi.ComponentResource {
                     targets: repo.target ? [{ clusterGroup: repo.target }] : [],
                 },
             }, { ...o, dependsOn: [crds, ...groups, ...(args.after ?? [])], ignoreChanges: ["spec.pollingInterval"] });
+        }
+
+        // HelmOps: Fleet's agents pull the chart from its repo, so it never goes into the Bundle (etcd's limit).
+        if (args.fleet.helmOps.length > 0) {
+            const helmOpCrd = new KubeWait(`${name}/crds-helmops`, {
+                kubeconfig: rancher.cluster.kubeconfig,
+                path: "/apis/apiextensions.k8s.io/v1/customresourcedefinitions/helmops.fleet.cattle.io",
+                condition: "Established",
+                timeoutSeconds: args.timeoutSeconds,
+            }, withCluster(rancher.cluster, this, { dependsOn: rancher.ready }));
+            for (const op of args.fleet.helmOps) {
+                new fleet.v1alpha1.HelmOp(`${name}/helmop/${op.name}`, {
+                    metadata: { name: op.name, namespace: op.namespace },
+                    spec: {
+                        helm: {
+                            repo: op.repo,
+                            chart: op.chart,
+                            version: op.version,
+                            releaseName: op.releaseName,
+                            values: op.values,
+                            valuesFrom: op.valuesFrom as types.input.fleet.v1alpha1.HelmOpSpecHelmValuesFrom[] | undefined,
+                        },
+                        defaultNamespace: op.defaultNamespace,
+                        labels: op.labels,
+                        helmSecretName: op.helmSecret,
+                        diff: op.diff as types.input.fleet.v1alpha1.HelmOpSpecDiff | undefined,
+                        correctDrift: { enabled: false },
+                        targets: op.target ? [{ clusterGroup: op.target }] : op.selector ? [{ clusterSelector: op.selector }] : [],
+                    },
+                }, { ...o, dependsOn: [helmOpCrd, ...groups, ...(args.after ?? [])] });
+            }
         }
         this.registerOutputs({});
     }

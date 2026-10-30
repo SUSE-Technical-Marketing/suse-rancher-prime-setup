@@ -10678,6 +10678,3183 @@ export namespace fleet {
             waitingForDependency: number;
         }
 
+        /**
+         * HelmOp describes a helm chart information.
+         * The resource contains the necessary information to deploy the chart to target clusters.
+         */
+        export interface HelmOp {
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "fleet.cattle.io/v1alpha1";
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "HelmOp";
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            spec: outputs.fleet.v1alpha1.HelmOpSpec;
+            status: outputs.fleet.v1alpha1.HelmOpStatus;
+        }
+
+        export interface HelmOpSpec {
+            allowedTargetNamespaceSelector: outputs.fleet.v1alpha1.HelmOpSpecAllowedTargetNamespaceSelector;
+            /**
+             * ContentsID stores the contents id when deploying contents using an OCI registry.
+             */
+            contentsId: string;
+            correctDrift: outputs.fleet.v1alpha1.HelmOpSpecCorrectDrift;
+            /**
+             * CreateNamespace controls whether Fleet creates the target namespace on
+             * downstream clusters during Helm installs. When nil, the default behavior
+             * is to create the namespace (backward-compatible). Set to false by the
+             * controller when Policy requires a ServiceAccount and does not explicitly
+             * allow namespace creation. This does not affect namespaceLabels/
+             * namespaceAnnotations patching, which is always attempted (when set) as
+             * the deployment's ServiceAccount and gated by downstream RBAC.
+             */
+            createNamespace: boolean;
+            /**
+             * DefaultNamespace is the namespace to use for resources that do not
+             * specify a namespace. This field is not used to enforce or lock down
+             * the deployment to a specific namespace.
+             */
+            defaultNamespace: string;
+            /**
+             * DeleteCRDResources deletes CRDs. Warning! this will also delete all your Custom Resources.
+             */
+            deleteCRDResources: boolean;
+            /**
+             * DeleteNamespace can be used to delete the deployed namespace when removing the bundle
+             */
+            deleteNamespace: boolean;
+            /**
+             * DependsOn refers to the bundles which must be ready before this bundle can be deployed.
+             */
+            dependsOn: outputs.fleet.v1alpha1.HelmOpSpecDependsOn[];
+            diff: outputs.fleet.v1alpha1.HelmOpSpecDiff;
+            /**
+             * DownstreamResources points to resources to be copied into downstream clusters, from the bundle's
+             * namespace.
+             */
+            downstreamResources: outputs.fleet.v1alpha1.HelmOpSpecDownstreamResources[];
+            /**
+             * ForceSyncGeneration is used to force a redeployment
+             */
+            forceSyncGeneration: number;
+            helm: outputs.fleet.v1alpha1.HelmOpSpecHelm;
+            helmOpOptions: outputs.fleet.v1alpha1.HelmOpSpecHelmOpOptions;
+            /**
+             * HelmSecretName contains the auth secret with the credentials to access
+             * a private Helm repository.
+             */
+            helmSecretName: string;
+            ignore: outputs.fleet.v1alpha1.HelmOpSpecIgnore;
+            /**
+             * InsecureSkipTLSverify will use insecure HTTPS to clone the helm app resource.
+             */
+            insecureSkipTLSVerify: boolean;
+            /**
+             * KeepResources can be used to keep the deployed resources when removing the bundle
+             */
+            keepResources: boolean;
+            kustomize: outputs.fleet.v1alpha1.HelmOpSpecKustomize;
+            /**
+             * Labels are copied to the bundle and can be used in a
+             * dependsOn.selector.
+             */
+            labels: {[key: string]: string};
+            /**
+             * TargetNamespace if present will assign all resource to this
+             * namespace and if any cluster scoped resource exists the deployment
+             * will fail.
+             */
+            namespace: string;
+            /**
+             * NamespaceAnnotations are annotations that will be appended to the namespace created by Fleet.
+             */
+            namespaceAnnotations: {[key: string]: string};
+            /**
+             * NamespaceLabels are labels that will be appended to the namespace created by Fleet.
+             */
+            namespaceLabels: {[key: string]: string};
+            /**
+             * Overwrites indicates which resources, if any, come from this bundle and overwrite another existing bundle.
+             * This flag is set internally by Fleet, and should not be altered by users.
+             */
+            overwrites: outputs.fleet.v1alpha1.HelmOpSpecOverwrites[];
+            /**
+             * Paused if set to true, will stop any BundleDeployments from being updated. It will be marked as out of sync.
+             */
+            paused: boolean;
+            /**
+             * PollingInterval is how often to check the Helm repository for new updates.
+             */
+            pollingInterval: string;
+            /**
+             * Resources contains the resources that were read from the bundle's
+             * path. This includes the content of downloaded helm charts.
+             */
+            resources: outputs.fleet.v1alpha1.HelmOpSpecResources[];
+            rolloutStrategy: outputs.fleet.v1alpha1.HelmOpSpecRolloutStrategy;
+            /**
+             * ServiceAccount which will be used to perform this deployment.
+             */
+            serviceAccount: string;
+            /**
+             * TargetCustomizationMode controls how targetCustomizations from fleet.yaml
+             * are evaluated. "FirstMatch" (default) stops at the first matching entry.
+             * "AllMatches" applies all matching entries in order, merging them.
+             */
+            targetCustomizationMode: string;
+            /**
+             * TargetRestrictions is an allow list, which controls if a bundledeployment is created for a target.
+             */
+            targetRestrictions: outputs.fleet.v1alpha1.HelmOpSpecTargetRestrictions[];
+            /**
+             * Targets refer to the clusters which will be deployed to.
+             * Targets are evaluated in order and the first one to match is used.
+             */
+            targets: outputs.fleet.v1alpha1.HelmOpSpecTargets[];
+            /**
+             * ValuesHash is the hash of the values used to render the Helm chart.
+             * It changes when any values from fleet.yaml, values from ValuesFiles or values from target
+             * customization changes.
+             */
+            valuesHash: string;
+            yaml: outputs.fleet.v1alpha1.HelmOpSpecYaml;
+        }
+
+        /**
+         * AllowedTargetNamespaceSelector restricts deployments to namespaces matching this selector.
+         * Propagated from GitRepoRestriction and validated by the agent on the downstream cluster.
+         */
+        export interface HelmOpSpecAllowedTargetNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecAllowedTargetNamespaceSelectorMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecAllowedTargetNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecAllowedTargetNamespaceSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * AllowedTargetNamespaceSelector restricts deployments to namespaces matching this selector.
+         * Propagated from GitRepoRestriction and validated by the agent on the downstream cluster.
+         */
+        export interface HelmOpSpecAllowedTargetNamespaceSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecAllowedTargetNamespaceSelectorMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * CorrectDrift specifies how drift correction should work.
+         */
+        export interface HelmOpSpecCorrectDrift {
+            /**
+             * Enabled correct drift if true.
+             */
+            enabled: boolean;
+            /**
+             * Force helm rollback with --force option will be used if true. This will try to recreate all resources in the release.
+             */
+            force: boolean;
+            /**
+             * KeepFailHistory keeps track of failed rollbacks in the helm history.
+             */
+            keepFailHistory: boolean;
+        }
+
+        /**
+         * CorrectDrift specifies how drift correction should work.
+         */
+        export interface HelmOpSpecCorrectDriftPatch {
+            /**
+             * Enabled correct drift if true.
+             */
+            enabled: boolean;
+            /**
+             * Force helm rollback with --force option will be used if true. This will try to recreate all resources in the release.
+             */
+            force: boolean;
+            /**
+             * KeepFailHistory keeps track of failed rollbacks in the helm history.
+             */
+            keepFailHistory: boolean;
+        }
+
+        export interface HelmOpSpecDependsOn {
+            /**
+             * AcceptedStates is a list of BundleDeployment state that are considered acceptable for this dependency.
+             * If the dependency is in one of these states, it will not block the deployment of the dependent bundle.
+             * Valid Values should match the StateRank keys, except for WaitingForDependency, which is rejected:
+             * it would unblock this bundle exactly when its dependency became blocked on a dependency of its own.
+             * If not specified, default to ["Ready"]: only fully ready dependencies are accepted
+             * Example: ["Ready", "Modified"] will accept dependencies that are either ready or have drifted from their desired state.
+             */
+            acceptedStates: string[];
+            /**
+             * Name of the bundle.
+             */
+            name: string;
+            selector: outputs.fleet.v1alpha1.HelmOpSpecDependsOnSelector;
+        }
+
+        export interface HelmOpSpecDependsOnPatch {
+            /**
+             * AcceptedStates is a list of BundleDeployment state that are considered acceptable for this dependency.
+             * If the dependency is in one of these states, it will not block the deployment of the dependent bundle.
+             * Valid Values should match the StateRank keys, except for WaitingForDependency, which is rejected:
+             * it would unblock this bundle exactly when its dependency became blocked on a dependency of its own.
+             * If not specified, default to ["Ready"]: only fully ready dependencies are accepted
+             * Example: ["Ready", "Modified"] will accept dependencies that are either ready or have drifted from their desired state.
+             */
+            acceptedStates: string[];
+            /**
+             * Name of the bundle.
+             */
+            name: string;
+            selector: outputs.fleet.v1alpha1.HelmOpSpecDependsOnSelectorPatch;
+        }
+
+        /**
+         * Selector matching bundle's labels.
+         */
+        export interface HelmOpSpecDependsOnSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecDependsOnSelectorMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecDependsOnSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecDependsOnSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * Selector matching bundle's labels.
+         */
+        export interface HelmOpSpecDependsOnSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecDependsOnSelectorMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * Diff can be used to ignore the modified state of objects which are amended at runtime.
+         */
+        export interface HelmOpSpecDiff {
+            /**
+             * ComparePatches match a resource and remove fields, or the resource itself from the check for modifications.
+             */
+            comparePatches: outputs.fleet.v1alpha1.HelmOpSpecDiffComparePatches[];
+        }
+
+        /**
+         * ComparePatch matches a resource and removes fields from the check for modifications.
+         */
+        export interface HelmOpSpecDiffComparePatches {
+            /**
+             * APIVersion is the apiVersion of the resource to match.
+             */
+            apiVersion: string;
+            /**
+             * JSONPointers ignore diffs at a certain JSON path.
+             */
+            jsonPointers: string[];
+            /**
+             * Kind is the kind of the resource to match.
+             */
+            kind: string;
+            /**
+             * Name is the name of the resource to match.
+             */
+            name: string;
+            /**
+             * Namespace is the namespace of the resource to match.
+             */
+            namespace: string;
+            /**
+             * Operations remove a JSON path from the resource.
+             */
+            operations: outputs.fleet.v1alpha1.HelmOpSpecDiffComparePatchesOperations[];
+        }
+
+        /**
+         * Operation of a ComparePatch, usually:
+         * * "remove" to remove a specific path in a resource
+         * * "ignore" to remove the entire resource from checks for modifications.
+         */
+        export interface HelmOpSpecDiffComparePatchesOperations {
+            /**
+             * Op is usually "remove" or "ignore"
+             */
+            op: string;
+            /**
+             * Path is the JSON path to remove. Not needed if Op is "ignore".
+             */
+            path: string;
+            /**
+             * Value is usually empty.
+             */
+            value: string;
+        }
+
+        /**
+         * Operation of a ComparePatch, usually:
+         * * "remove" to remove a specific path in a resource
+         * * "ignore" to remove the entire resource from checks for modifications.
+         */
+        export interface HelmOpSpecDiffComparePatchesOperationsPatch {
+            /**
+             * Op is usually "remove" or "ignore"
+             */
+            op: string;
+            /**
+             * Path is the JSON path to remove. Not needed if Op is "ignore".
+             */
+            path: string;
+            /**
+             * Value is usually empty.
+             */
+            value: string;
+        }
+
+        /**
+         * ComparePatch matches a resource and removes fields from the check for modifications.
+         */
+        export interface HelmOpSpecDiffComparePatchesPatch {
+            /**
+             * APIVersion is the apiVersion of the resource to match.
+             */
+            apiVersion: string;
+            /**
+             * JSONPointers ignore diffs at a certain JSON path.
+             */
+            jsonPointers: string[];
+            /**
+             * Kind is the kind of the resource to match.
+             */
+            kind: string;
+            /**
+             * Name is the name of the resource to match.
+             */
+            name: string;
+            /**
+             * Namespace is the namespace of the resource to match.
+             */
+            namespace: string;
+            /**
+             * Operations remove a JSON path from the resource.
+             */
+            operations: outputs.fleet.v1alpha1.HelmOpSpecDiffComparePatchesOperationsPatch[];
+        }
+
+        /**
+         * Diff can be used to ignore the modified state of objects which are amended at runtime.
+         */
+        export interface HelmOpSpecDiffPatch {
+            /**
+             * ComparePatches match a resource and remove fields, or the resource itself from the check for modifications.
+             */
+            comparePatches: outputs.fleet.v1alpha1.HelmOpSpecDiffComparePatchesPatch[];
+        }
+
+        /**
+         * DownstreamResource contains identifiers for a resource to be copied from the parent bundle's namespace to each
+         * downstream cluster.
+         */
+        export interface HelmOpSpecDownstreamResources {
+            kind: string;
+            name: string;
+        }
+
+        /**
+         * DownstreamResource contains identifiers for a resource to be copied from the parent bundle's namespace to each
+         * downstream cluster.
+         */
+        export interface HelmOpSpecDownstreamResourcesPatch {
+            kind: string;
+            name: string;
+        }
+
+        /**
+         * Helm options for the deployment, like the chart name, repo and values.
+         */
+        export interface HelmOpSpecHelm {
+            /**
+             * Atomic sets the --atomic flag when Helm is performing an upgrade
+             */
+            atomic: boolean;
+            /**
+             * Chart can refer to any go-getter URL or OCI registry based helm
+             * chart URL. The chart will be downloaded.
+             */
+            chart: string;
+            /**
+             * DisableDNS can be used to customize Helm's EnableDNS option, which Fleet sets to `true` by default.
+             */
+            disableDNS: boolean;
+            /**
+             * DisableDependencyUpdate allows skipping chart dependencies update
+             */
+            disableDependencyUpdate: boolean;
+            /**
+             * DisablePreProcess disables template processing in values
+             */
+            disablePreProcess: boolean;
+            /**
+             * Force allows to override immutable resources. This could be dangerous.
+             */
+            force: boolean;
+            /**
+             * MaxHistory limits the maximum number of revisions saved per release by Helm.
+             */
+            maxHistory: number;
+            /**
+             * ReleaseName sets a custom release name to deploy the chart as. If
+             * not specified a release name will be generated by combining the
+             * invoking GitRepo.name + GitRepo.path.
+             */
+            releaseName: string;
+            /**
+             * Repo is the name of the HTTPS helm repo to download the chart from.
+             */
+            repo: string;
+            /**
+             * SkipSchemaValidation allows skipping schema validation against the chart values
+             */
+            skipSchemaValidation: boolean;
+            /**
+             * TakeOwnership makes helm skip the check for its own annotations
+             */
+            takeOwnership: boolean;
+            /**
+             * Template Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings. Unlike .values, content of each key will be templated
+             * first, before serializing to yaml. This allows to template complex values,
+             * like ranges and maps.
+             * templateValues keys have precedence over values keys in case of conflict.
+             */
+            templateValues: {[key: string]: string};
+            /**
+             * TimeoutSeconds is the time to wait for Helm operations.
+             */
+            timeoutSeconds: number;
+            /**
+             * Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings.
+             */
+            values: {[key: string]: any};
+            /**
+             * ValuesFiles is a list of files to load values from.
+             */
+            valuesFiles: string[];
+            /**
+             * ValuesFrom loads the values from configmaps and secrets.
+             */
+            valuesFrom: outputs.fleet.v1alpha1.HelmOpSpecHelmValuesFrom[];
+            /**
+             * Version of the chart to download
+             */
+            version: string;
+            /**
+             * WaitForJobs if set and timeoutSeconds provided, will wait until all
+             * Jobs have been completed before marking the GitRepo as ready. It
+             * will wait for as long as timeoutSeconds
+             */
+            waitForJobs: boolean;
+        }
+
+        /**
+         * HelmOpOptions stores the options relative to HelmOp resources
+         * Non-nil HelmOpOptions indicate that the source of resources is a Helm chart,
+         * not a git repository.
+         */
+        export interface HelmOpSpecHelmOpOptions {
+            /**
+             * CABundle is a PEM encoded CA bundle used to validate TLS connections to
+             * the Helm registry. It is resolved by the controller (which has access to
+             * Rancher's cattle-system CA secrets, if any) and stored here so the agent can use
+             * it without requiring access to those secrets.
+             */
+            helmOpCABundle: string;
+            /**
+             * InsecureSkipTLSverify will use insecure HTTPS to clone the helm app resource.
+             */
+            helmOpInsecureSkipTLSVerify: boolean;
+            /**
+             * SecretName stores the secret name for storing credentials when accessing
+             * a remote helm repository defined in a HelmOp resource
+             */
+            helmOpSecretName: string;
+        }
+
+        /**
+         * HelmOpOptions stores the options relative to HelmOp resources
+         * Non-nil HelmOpOptions indicate that the source of resources is a Helm chart,
+         * not a git repository.
+         */
+        export interface HelmOpSpecHelmOpOptionsPatch {
+            /**
+             * CABundle is a PEM encoded CA bundle used to validate TLS connections to
+             * the Helm registry. It is resolved by the controller (which has access to
+             * Rancher's cattle-system CA secrets, if any) and stored here so the agent can use
+             * it without requiring access to those secrets.
+             */
+            helmOpCABundle: string;
+            /**
+             * InsecureSkipTLSverify will use insecure HTTPS to clone the helm app resource.
+             */
+            helmOpInsecureSkipTLSVerify: boolean;
+            /**
+             * SecretName stores the secret name for storing credentials when accessing
+             * a remote helm repository defined in a HelmOp resource
+             */
+            helmOpSecretName: string;
+        }
+
+        /**
+         * Helm options for the deployment, like the chart name, repo and values.
+         */
+        export interface HelmOpSpecHelmPatch {
+            /**
+             * Atomic sets the --atomic flag when Helm is performing an upgrade
+             */
+            atomic: boolean;
+            /**
+             * Chart can refer to any go-getter URL or OCI registry based helm
+             * chart URL. The chart will be downloaded.
+             */
+            chart: string;
+            /**
+             * DisableDNS can be used to customize Helm's EnableDNS option, which Fleet sets to `true` by default.
+             */
+            disableDNS: boolean;
+            /**
+             * DisableDependencyUpdate allows skipping chart dependencies update
+             */
+            disableDependencyUpdate: boolean;
+            /**
+             * DisablePreProcess disables template processing in values
+             */
+            disablePreProcess: boolean;
+            /**
+             * Force allows to override immutable resources. This could be dangerous.
+             */
+            force: boolean;
+            /**
+             * MaxHistory limits the maximum number of revisions saved per release by Helm.
+             */
+            maxHistory: number;
+            /**
+             * ReleaseName sets a custom release name to deploy the chart as. If
+             * not specified a release name will be generated by combining the
+             * invoking GitRepo.name + GitRepo.path.
+             */
+            releaseName: string;
+            /**
+             * Repo is the name of the HTTPS helm repo to download the chart from.
+             */
+            repo: string;
+            /**
+             * SkipSchemaValidation allows skipping schema validation against the chart values
+             */
+            skipSchemaValidation: boolean;
+            /**
+             * TakeOwnership makes helm skip the check for its own annotations
+             */
+            takeOwnership: boolean;
+            /**
+             * Template Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings. Unlike .values, content of each key will be templated
+             * first, before serializing to yaml. This allows to template complex values,
+             * like ranges and maps.
+             * templateValues keys have precedence over values keys in case of conflict.
+             */
+            templateValues: {[key: string]: string};
+            /**
+             * TimeoutSeconds is the time to wait for Helm operations.
+             */
+            timeoutSeconds: number;
+            /**
+             * Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings.
+             */
+            values: {[key: string]: any};
+            /**
+             * ValuesFiles is a list of files to load values from.
+             */
+            valuesFiles: string[];
+            /**
+             * ValuesFrom loads the values from configmaps and secrets.
+             */
+            valuesFrom: outputs.fleet.v1alpha1.HelmOpSpecHelmValuesFromPatch[];
+            /**
+             * Version of the chart to download
+             */
+            version: string;
+            /**
+             * WaitForJobs if set and timeoutSeconds provided, will wait until all
+             * Jobs have been completed before marking the GitRepo as ready. It
+             * will wait for as long as timeoutSeconds
+             */
+            waitForJobs: boolean;
+        }
+
+        /**
+         * Define helm values that can come from configmap, secret or external. Credit: https://github.com/fluxcd/helm-operator/blob/0cfea875b5d44bea995abe7324819432070dfbdc/pkg/apis/helm.fluxcd.io/v1/types_helmrelease.go#L439
+         */
+        export interface HelmOpSpecHelmValuesFrom {
+            configMapKeyRef: outputs.fleet.v1alpha1.HelmOpSpecHelmValuesFromConfigMapKeyRef;
+            secretKeyRef: outputs.fleet.v1alpha1.HelmOpSpecHelmValuesFromSecretKeyRef;
+        }
+
+        /**
+         * The reference to a config map with release values.
+         */
+        export interface HelmOpSpecHelmValuesFromConfigMapKeyRef {
+            key: string;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name: string;
+            namespace: string;
+        }
+
+        /**
+         * The reference to a config map with release values.
+         */
+        export interface HelmOpSpecHelmValuesFromConfigMapKeyRefPatch {
+            key: string;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name: string;
+            namespace: string;
+        }
+
+        /**
+         * Define helm values that can come from configmap, secret or external. Credit: https://github.com/fluxcd/helm-operator/blob/0cfea875b5d44bea995abe7324819432070dfbdc/pkg/apis/helm.fluxcd.io/v1/types_helmrelease.go#L439
+         */
+        export interface HelmOpSpecHelmValuesFromPatch {
+            configMapKeyRef: outputs.fleet.v1alpha1.HelmOpSpecHelmValuesFromConfigMapKeyRefPatch;
+            secretKeyRef: outputs.fleet.v1alpha1.HelmOpSpecHelmValuesFromSecretKeyRefPatch;
+        }
+
+        /**
+         * The reference to a secret with release values.
+         */
+        export interface HelmOpSpecHelmValuesFromSecretKeyRef {
+            key: string;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name: string;
+            namespace: string;
+        }
+
+        /**
+         * The reference to a secret with release values.
+         */
+        export interface HelmOpSpecHelmValuesFromSecretKeyRefPatch {
+            key: string;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name: string;
+            namespace: string;
+        }
+
+        /**
+         * IgnoreOptions can be used to ignore fields when monitoring the bundle.
+         */
+        export interface HelmOpSpecIgnore {
+            /**
+             * Conditions is a list of conditions to be ignored when monitoring the Bundle.
+             */
+            conditions: {[key: string]: string}[];
+        }
+
+        /**
+         * IgnoreOptions can be used to ignore fields when monitoring the bundle.
+         */
+        export interface HelmOpSpecIgnorePatch {
+            /**
+             * Conditions is a list of conditions to be ignored when monitoring the Bundle.
+             */
+            conditions: {[key: string]: string}[];
+        }
+
+        /**
+         * Kustomize options for the deployment, like the dir containing the
+         * kustomization.yaml file.
+         */
+        export interface HelmOpSpecKustomize {
+            /**
+             * Dir points to a custom folder for kustomize resources. This folder must contain
+             * a kustomization.yaml file.
+             */
+            dir: string;
+        }
+
+        /**
+         * Kustomize options for the deployment, like the dir containing the
+         * kustomization.yaml file.
+         */
+        export interface HelmOpSpecKustomizePatch {
+            /**
+             * Dir points to a custom folder for kustomize resources. This folder must contain
+             * a kustomization.yaml file.
+             */
+            dir: string;
+        }
+
+        export interface HelmOpSpecOverwrites {
+            kind: string;
+            name: string;
+            namespace: string;
+        }
+
+        export interface HelmOpSpecOverwritesPatch {
+            kind: string;
+            name: string;
+            namespace: string;
+        }
+
+        export interface HelmOpSpecPatch {
+            allowedTargetNamespaceSelector: outputs.fleet.v1alpha1.HelmOpSpecAllowedTargetNamespaceSelectorPatch;
+            /**
+             * ContentsID stores the contents id when deploying contents using an OCI registry.
+             */
+            contentsId: string;
+            correctDrift: outputs.fleet.v1alpha1.HelmOpSpecCorrectDriftPatch;
+            /**
+             * CreateNamespace controls whether Fleet creates the target namespace on
+             * downstream clusters during Helm installs. When nil, the default behavior
+             * is to create the namespace (backward-compatible). Set to false by the
+             * controller when Policy requires a ServiceAccount and does not explicitly
+             * allow namespace creation. This does not affect namespaceLabels/
+             * namespaceAnnotations patching, which is always attempted (when set) as
+             * the deployment's ServiceAccount and gated by downstream RBAC.
+             */
+            createNamespace: boolean;
+            /**
+             * DefaultNamespace is the namespace to use for resources that do not
+             * specify a namespace. This field is not used to enforce or lock down
+             * the deployment to a specific namespace.
+             */
+            defaultNamespace: string;
+            /**
+             * DeleteCRDResources deletes CRDs. Warning! this will also delete all your Custom Resources.
+             */
+            deleteCRDResources: boolean;
+            /**
+             * DeleteNamespace can be used to delete the deployed namespace when removing the bundle
+             */
+            deleteNamespace: boolean;
+            /**
+             * DependsOn refers to the bundles which must be ready before this bundle can be deployed.
+             */
+            dependsOn: outputs.fleet.v1alpha1.HelmOpSpecDependsOnPatch[];
+            diff: outputs.fleet.v1alpha1.HelmOpSpecDiffPatch;
+            /**
+             * DownstreamResources points to resources to be copied into downstream clusters, from the bundle's
+             * namespace.
+             */
+            downstreamResources: outputs.fleet.v1alpha1.HelmOpSpecDownstreamResourcesPatch[];
+            /**
+             * ForceSyncGeneration is used to force a redeployment
+             */
+            forceSyncGeneration: number;
+            helm: outputs.fleet.v1alpha1.HelmOpSpecHelmPatch;
+            helmOpOptions: outputs.fleet.v1alpha1.HelmOpSpecHelmOpOptionsPatch;
+            /**
+             * HelmSecretName contains the auth secret with the credentials to access
+             * a private Helm repository.
+             */
+            helmSecretName: string;
+            ignore: outputs.fleet.v1alpha1.HelmOpSpecIgnorePatch;
+            /**
+             * InsecureSkipTLSverify will use insecure HTTPS to clone the helm app resource.
+             */
+            insecureSkipTLSVerify: boolean;
+            /**
+             * KeepResources can be used to keep the deployed resources when removing the bundle
+             */
+            keepResources: boolean;
+            kustomize: outputs.fleet.v1alpha1.HelmOpSpecKustomizePatch;
+            /**
+             * Labels are copied to the bundle and can be used in a
+             * dependsOn.selector.
+             */
+            labels: {[key: string]: string};
+            /**
+             * TargetNamespace if present will assign all resource to this
+             * namespace and if any cluster scoped resource exists the deployment
+             * will fail.
+             */
+            namespace: string;
+            /**
+             * NamespaceAnnotations are annotations that will be appended to the namespace created by Fleet.
+             */
+            namespaceAnnotations: {[key: string]: string};
+            /**
+             * NamespaceLabels are labels that will be appended to the namespace created by Fleet.
+             */
+            namespaceLabels: {[key: string]: string};
+            /**
+             * Overwrites indicates which resources, if any, come from this bundle and overwrite another existing bundle.
+             * This flag is set internally by Fleet, and should not be altered by users.
+             */
+            overwrites: outputs.fleet.v1alpha1.HelmOpSpecOverwritesPatch[];
+            /**
+             * Paused if set to true, will stop any BundleDeployments from being updated. It will be marked as out of sync.
+             */
+            paused: boolean;
+            /**
+             * PollingInterval is how often to check the Helm repository for new updates.
+             */
+            pollingInterval: string;
+            /**
+             * Resources contains the resources that were read from the bundle's
+             * path. This includes the content of downloaded helm charts.
+             */
+            resources: outputs.fleet.v1alpha1.HelmOpSpecResourcesPatch[];
+            rolloutStrategy: outputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPatch;
+            /**
+             * ServiceAccount which will be used to perform this deployment.
+             */
+            serviceAccount: string;
+            /**
+             * TargetCustomizationMode controls how targetCustomizations from fleet.yaml
+             * are evaluated. "FirstMatch" (default) stops at the first matching entry.
+             * "AllMatches" applies all matching entries in order, merging them.
+             */
+            targetCustomizationMode: string;
+            /**
+             * TargetRestrictions is an allow list, which controls if a bundledeployment is created for a target.
+             */
+            targetRestrictions: outputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsPatch[];
+            /**
+             * Targets refer to the clusters which will be deployed to.
+             * Targets are evaluated in order and the first one to match is used.
+             */
+            targets: outputs.fleet.v1alpha1.HelmOpSpecTargetsPatch[];
+            /**
+             * ValuesHash is the hash of the values used to render the Helm chart.
+             * It changes when any values from fleet.yaml, values from ValuesFiles or values from target
+             * customization changes.
+             */
+            valuesHash: string;
+            yaml: outputs.fleet.v1alpha1.HelmOpSpecYamlPatch;
+        }
+
+        /**
+         * BundleResource represents the content of a single resource from the bundle, like a YAML manifest.
+         */
+        export interface HelmOpSpecResources {
+            /**
+             * The content of the resource, can be compressed.
+             */
+            content: string;
+            /**
+             * Encoding is either empty or "base64+gz".
+             */
+            encoding: string;
+            /**
+             * Name of the resource, can include the bundle's internal path.
+             */
+            name: string;
+        }
+
+        /**
+         * BundleResource represents the content of a single resource from the bundle, like a YAML manifest.
+         */
+        export interface HelmOpSpecResourcesPatch {
+            /**
+             * The content of the resource, can be compressed.
+             */
+            content: string;
+            /**
+             * Encoding is either empty or "base64+gz".
+             */
+            encoding: string;
+            /**
+             * Name of the resource, can include the bundle's internal path.
+             */
+            name: string;
+        }
+
+        /**
+         * RolloutStrategy controls the rollout of bundles, by defining
+         * partitions, canaries and percentages for cluster availability.
+         */
+        export interface HelmOpSpecRolloutStrategy {
+            /**
+             * A number or percentage of how to automatically partition clusters if no
+             * specific partitioning strategy is configured.
+             * default: 25%
+             */
+            autoPartitionSize: number | string;
+            /**
+             * AutoPartitionThreshold is the minimum number of clusters that need to be
+             * present before auto-partitioning is enabled. If the number of target
+             * clusters is less than this value, all clusters will be placed in a single
+             * partition.
+             * default: 200
+             */
+            autoPartitionThreshold: number;
+            /**
+             * MaxNew is the maximum number of new BundleDeployments that can be created
+             * in a single reconciliation. This limits the rate at which new deployments
+             * are staged when a bundle is first applied to many clusters.
+             * default: 50
+             */
+            maxNew: number;
+            /**
+             * A number or percentage of clusters that can be unavailable during an update
+             * of a bundle. This follows the same basic approach as a deployment rollout
+             * strategy. Once the number of clusters meets unavailable state update will be
+             * paused. Default value is 100% which doesn't take effect on update.
+             * default: 100%
+             */
+            maxUnavailable: number | string;
+            /**
+             * A number or percentage of cluster partitions that can be unavailable during
+             * an update of a bundle.
+             * default: 0
+             */
+            maxUnavailablePartitions: number | string;
+            /**
+             * A list of definitions of partitions.  If any target clusters do not match
+             * the configuration they are added to partitions at the end following the
+             * autoPartitionSize.
+             */
+            partitions: outputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitions[];
+        }
+
+        /**
+         * Partition defines a separate rollout strategy for a set of clusters.
+         */
+        export interface HelmOpSpecRolloutStrategyPartitions {
+            /**
+             * A cluster group name to include in this partition
+             */
+            clusterGroup: string;
+            clusterGroupSelector: outputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterGroupSelector;
+            /**
+             * ClusterName is the name of a cluster to include in this partition
+             */
+            clusterName: string;
+            clusterSelector: outputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterSelector;
+            /**
+             * A number or percentage of clusters that can be unavailable in this
+             * partition before this partition is treated as done.
+             * default: 10%
+             */
+            maxUnavailable: number | string;
+            /**
+             * A user-friendly name given to the partition used for Display (optional).
+             */
+            name: string;
+        }
+
+        /**
+         * Selector matching cluster group labels to include in this partition
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterGroupSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterGroupSelectorMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterGroupSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterGroupSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * Selector matching cluster group labels to include in this partition
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterGroupSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterGroupSelectorMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * Selector matching cluster labels to include in this partition
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterSelectorMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * Selector matching cluster labels to include in this partition
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsClusterSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterSelectorMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * Partition defines a separate rollout strategy for a set of clusters.
+         */
+        export interface HelmOpSpecRolloutStrategyPartitionsPatch {
+            /**
+             * A cluster group name to include in this partition
+             */
+            clusterGroup: string;
+            clusterGroupSelector: outputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterGroupSelectorPatch;
+            /**
+             * ClusterName is the name of a cluster to include in this partition
+             */
+            clusterName: string;
+            clusterSelector: outputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsClusterSelectorPatch;
+            /**
+             * A number or percentage of clusters that can be unavailable in this
+             * partition before this partition is treated as done.
+             * default: 10%
+             */
+            maxUnavailable: number | string;
+            /**
+             * A user-friendly name given to the partition used for Display (optional).
+             */
+            name: string;
+        }
+
+        /**
+         * RolloutStrategy controls the rollout of bundles, by defining
+         * partitions, canaries and percentages for cluster availability.
+         */
+        export interface HelmOpSpecRolloutStrategyPatch {
+            /**
+             * A number or percentage of how to automatically partition clusters if no
+             * specific partitioning strategy is configured.
+             * default: 25%
+             */
+            autoPartitionSize: number | string;
+            /**
+             * AutoPartitionThreshold is the minimum number of clusters that need to be
+             * present before auto-partitioning is enabled. If the number of target
+             * clusters is less than this value, all clusters will be placed in a single
+             * partition.
+             * default: 200
+             */
+            autoPartitionThreshold: number;
+            /**
+             * MaxNew is the maximum number of new BundleDeployments that can be created
+             * in a single reconciliation. This limits the rate at which new deployments
+             * are staged when a bundle is first applied to many clusters.
+             * default: 50
+             */
+            maxNew: number;
+            /**
+             * A number or percentage of clusters that can be unavailable during an update
+             * of a bundle. This follows the same basic approach as a deployment rollout
+             * strategy. Once the number of clusters meets unavailable state update will be
+             * paused. Default value is 100% which doesn't take effect on update.
+             * default: 100%
+             */
+            maxUnavailable: number | string;
+            /**
+             * A number or percentage of cluster partitions that can be unavailable during
+             * an update of a bundle.
+             * default: 0
+             */
+            maxUnavailablePartitions: number | string;
+            /**
+             * A list of definitions of partitions.  If any target clusters do not match
+             * the configuration they are added to partitions at the end following the
+             * autoPartitionSize.
+             */
+            partitions: outputs.fleet.v1alpha1.HelmOpSpecRolloutStrategyPartitionsPatch[];
+        }
+
+        /**
+         * BundleTargetRestriction is used internally by Fleet and should not be modified.
+         * It acts as an allow list, restricting BundleDeployment creation to only those clusters
+         * that are explicitly listed in the GitRepo targets.
+         */
+        export interface HelmOpSpecTargetRestrictions {
+            clusterGroup: string;
+            clusterGroupSelector: outputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterGroupSelector;
+            clusterName: string;
+            clusterSelector: outputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterSelector;
+            name: string;
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterGroupSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterGroupSelectorMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterGroupSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterGroupSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterGroupSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterGroupSelectorMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterSelectorMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector is a label query over a set of resources. The result of matchLabels and
+         * matchExpressions are ANDed. An empty label selector matches all objects. A null
+         * label selector matches no objects.
+         */
+        export interface HelmOpSpecTargetRestrictionsClusterSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterSelectorMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * BundleTargetRestriction is used internally by Fleet and should not be modified.
+         * It acts as an allow list, restricting BundleDeployment creation to only those clusters
+         * that are explicitly listed in the GitRepo targets.
+         */
+        export interface HelmOpSpecTargetRestrictionsPatch {
+            clusterGroup: string;
+            clusterGroupSelector: outputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterGroupSelectorPatch;
+            clusterName: string;
+            clusterSelector: outputs.fleet.v1alpha1.HelmOpSpecTargetRestrictionsClusterSelectorPatch;
+            name: string;
+        }
+
+        /**
+         * BundleTarget declares clusters to deploy to. Fleet will merge the
+         * BundleDeploymentOptions from customizations into this struct.
+         */
+        export interface HelmOpSpecTargets {
+            allowedTargetNamespaceSelector: outputs.fleet.v1alpha1.HelmOpSpecTargetsAllowedTargetNamespaceSelector;
+            /**
+             * ClusterGroup to match a specific cluster group by name.
+             */
+            clusterGroup: string;
+            clusterGroupSelector: outputs.fleet.v1alpha1.HelmOpSpecTargetsClusterGroupSelector;
+            /**
+             * ClusterName to match a specific cluster by name that will be
+             * selected
+             */
+            clusterName: string;
+            clusterSelector: outputs.fleet.v1alpha1.HelmOpSpecTargetsClusterSelector;
+            correctDrift: outputs.fleet.v1alpha1.HelmOpSpecTargetsCorrectDrift;
+            /**
+             * CreateNamespace controls whether Fleet creates the target namespace on
+             * downstream clusters during Helm installs. When nil, the default behavior
+             * is to create the namespace (backward-compatible). Set to false by the
+             * controller when Policy requires a ServiceAccount and does not explicitly
+             * allow namespace creation. This does not affect namespaceLabels/
+             * namespaceAnnotations patching, which is always attempted (when set) as
+             * the deployment's ServiceAccount and gated by downstream RBAC.
+             */
+            createNamespace: boolean;
+            /**
+             * DefaultNamespace is the namespace to use for resources that do not
+             * specify a namespace. This field is not used to enforce or lock down
+             * the deployment to a specific namespace.
+             */
+            defaultNamespace: string;
+            /**
+             * DeleteCRDResources deletes CRDs. Warning! this will also delete all your Custom Resources.
+             */
+            deleteCRDResources: boolean;
+            /**
+             * DeleteNamespace can be used to delete the deployed namespace when removing the bundle
+             */
+            deleteNamespace: boolean;
+            diff: outputs.fleet.v1alpha1.HelmOpSpecTargetsDiff;
+            /**
+             * DoNotDeploy if set to true, will not deploy to this target.
+             */
+            doNotDeploy: boolean;
+            /**
+             * DownstreamResources points to resources to be copied into downstream clusters, from the bundle's
+             * namespace.
+             */
+            downstreamResources: outputs.fleet.v1alpha1.HelmOpSpecTargetsDownstreamResources[];
+            /**
+             * ForceSyncGeneration is used to force a redeployment
+             */
+            forceSyncGeneration: number;
+            helm: outputs.fleet.v1alpha1.HelmOpSpecTargetsHelm;
+            ignore: outputs.fleet.v1alpha1.HelmOpSpecTargetsIgnore;
+            /**
+             * KeepResources can be used to keep the deployed resources when removing the bundle
+             */
+            keepResources: boolean;
+            kustomize: outputs.fleet.v1alpha1.HelmOpSpecTargetsKustomize;
+            /**
+             * Name of target. This value is largely for display and logging. If
+             * not specified a default name of the format "target000" will be used
+             */
+            name: string;
+            /**
+             * TargetNamespace if present will assign all resource to this
+             * namespace and if any cluster scoped resource exists the deployment
+             * will fail.
+             */
+            namespace: string;
+            /**
+             * NamespaceAnnotations are annotations that will be appended to the namespace created by Fleet.
+             */
+            namespaceAnnotations: {[key: string]: string};
+            /**
+             * NamespaceLabels are labels that will be appended to the namespace created by Fleet.
+             */
+            namespaceLabels: {[key: string]: string};
+            /**
+             * Overwrites indicates which resources, if any, come from this bundle and overwrite another existing bundle.
+             * This flag is set internally by Fleet, and should not be altered by users.
+             */
+            overwrites: outputs.fleet.v1alpha1.HelmOpSpecTargetsOverwrites[];
+            /**
+             * ServiceAccount which will be used to perform this deployment.
+             */
+            serviceAccount: string;
+            yaml: outputs.fleet.v1alpha1.HelmOpSpecTargetsYaml;
+        }
+
+        /**
+         * AllowedTargetNamespaceSelector restricts deployments to namespaces matching this selector.
+         * Propagated from GitRepoRestriction and validated by the agent on the downstream cluster.
+         */
+        export interface HelmOpSpecTargetsAllowedTargetNamespaceSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecTargetsAllowedTargetNamespaceSelectorMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetsAllowedTargetNamespaceSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetsAllowedTargetNamespaceSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * AllowedTargetNamespaceSelector restricts deployments to namespaces matching this selector.
+         * Propagated from GitRepoRestriction and validated by the agent on the downstream cluster.
+         */
+        export interface HelmOpSpecTargetsAllowedTargetNamespaceSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecTargetsAllowedTargetNamespaceSelectorMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * ClusterGroupSelector is a selector to match cluster groups.
+         */
+        export interface HelmOpSpecTargetsClusterGroupSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecTargetsClusterGroupSelectorMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetsClusterGroupSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetsClusterGroupSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * ClusterGroupSelector is a selector to match cluster groups.
+         */
+        export interface HelmOpSpecTargetsClusterGroupSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecTargetsClusterGroupSelectorMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * ClusterSelector is a selector to match clusters. The structure is
+         * the standard metav1.LabelSelector format. If clusterGroupSelector or
+         * clusterGroup is specified, clusterSelector will be used only to
+         * further refine the selection after clusterGroupSelector and
+         * clusterGroup is evaluated.
+         */
+        export interface HelmOpSpecTargetsClusterSelector {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecTargetsClusterSelectorMatchExpressions[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetsClusterSelectorMatchExpressions {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * A label selector requirement is a selector that contains values, a key, and an operator that
+         * relates the key and values.
+         */
+        export interface HelmOpSpecTargetsClusterSelectorMatchExpressionsPatch {
+            /**
+             * key is the label key that the selector applies to.
+             */
+            key: string;
+            /**
+             * operator represents a key's relationship to a set of values.
+             * Valid operators are In, NotIn, Exists and DoesNotExist.
+             */
+            operator: string;
+            /**
+             * values is an array of string values. If the operator is In or NotIn,
+             * the values array must be non-empty. If the operator is Exists or DoesNotExist,
+             * the values array must be empty. This array is replaced during a strategic
+             * merge patch.
+             */
+            values: string[];
+        }
+
+        /**
+         * ClusterSelector is a selector to match clusters. The structure is
+         * the standard metav1.LabelSelector format. If clusterGroupSelector or
+         * clusterGroup is specified, clusterSelector will be used only to
+         * further refine the selection after clusterGroupSelector and
+         * clusterGroup is evaluated.
+         */
+        export interface HelmOpSpecTargetsClusterSelectorPatch {
+            /**
+             * matchExpressions is a list of label selector requirements. The requirements are ANDed.
+             */
+            matchExpressions: outputs.fleet.v1alpha1.HelmOpSpecTargetsClusterSelectorMatchExpressionsPatch[];
+            /**
+             * matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+             * map is equivalent to an element of matchExpressions, whose key field is "key", the
+             * operator is "In", and the values array contains only "value". The requirements are ANDed.
+             */
+            matchLabels: {[key: string]: string};
+        }
+
+        /**
+         * CorrectDrift specifies how drift correction should work.
+         */
+        export interface HelmOpSpecTargetsCorrectDrift {
+            /**
+             * Enabled correct drift if true.
+             */
+            enabled: boolean;
+            /**
+             * Force helm rollback with --force option will be used if true. This will try to recreate all resources in the release.
+             */
+            force: boolean;
+            /**
+             * KeepFailHistory keeps track of failed rollbacks in the helm history.
+             */
+            keepFailHistory: boolean;
+        }
+
+        /**
+         * CorrectDrift specifies how drift correction should work.
+         */
+        export interface HelmOpSpecTargetsCorrectDriftPatch {
+            /**
+             * Enabled correct drift if true.
+             */
+            enabled: boolean;
+            /**
+             * Force helm rollback with --force option will be used if true. This will try to recreate all resources in the release.
+             */
+            force: boolean;
+            /**
+             * KeepFailHistory keeps track of failed rollbacks in the helm history.
+             */
+            keepFailHistory: boolean;
+        }
+
+        /**
+         * Diff can be used to ignore the modified state of objects which are amended at runtime.
+         */
+        export interface HelmOpSpecTargetsDiff {
+            /**
+             * ComparePatches match a resource and remove fields, or the resource itself from the check for modifications.
+             */
+            comparePatches: outputs.fleet.v1alpha1.HelmOpSpecTargetsDiffComparePatches[];
+        }
+
+        /**
+         * ComparePatch matches a resource and removes fields from the check for modifications.
+         */
+        export interface HelmOpSpecTargetsDiffComparePatches {
+            /**
+             * APIVersion is the apiVersion of the resource to match.
+             */
+            apiVersion: string;
+            /**
+             * JSONPointers ignore diffs at a certain JSON path.
+             */
+            jsonPointers: string[];
+            /**
+             * Kind is the kind of the resource to match.
+             */
+            kind: string;
+            /**
+             * Name is the name of the resource to match.
+             */
+            name: string;
+            /**
+             * Namespace is the namespace of the resource to match.
+             */
+            namespace: string;
+            /**
+             * Operations remove a JSON path from the resource.
+             */
+            operations: outputs.fleet.v1alpha1.HelmOpSpecTargetsDiffComparePatchesOperations[];
+        }
+
+        /**
+         * Operation of a ComparePatch, usually:
+         * * "remove" to remove a specific path in a resource
+         * * "ignore" to remove the entire resource from checks for modifications.
+         */
+        export interface HelmOpSpecTargetsDiffComparePatchesOperations {
+            /**
+             * Op is usually "remove" or "ignore"
+             */
+            op: string;
+            /**
+             * Path is the JSON path to remove. Not needed if Op is "ignore".
+             */
+            path: string;
+            /**
+             * Value is usually empty.
+             */
+            value: string;
+        }
+
+        /**
+         * Operation of a ComparePatch, usually:
+         * * "remove" to remove a specific path in a resource
+         * * "ignore" to remove the entire resource from checks for modifications.
+         */
+        export interface HelmOpSpecTargetsDiffComparePatchesOperationsPatch {
+            /**
+             * Op is usually "remove" or "ignore"
+             */
+            op: string;
+            /**
+             * Path is the JSON path to remove. Not needed if Op is "ignore".
+             */
+            path: string;
+            /**
+             * Value is usually empty.
+             */
+            value: string;
+        }
+
+        /**
+         * ComparePatch matches a resource and removes fields from the check for modifications.
+         */
+        export interface HelmOpSpecTargetsDiffComparePatchesPatch {
+            /**
+             * APIVersion is the apiVersion of the resource to match.
+             */
+            apiVersion: string;
+            /**
+             * JSONPointers ignore diffs at a certain JSON path.
+             */
+            jsonPointers: string[];
+            /**
+             * Kind is the kind of the resource to match.
+             */
+            kind: string;
+            /**
+             * Name is the name of the resource to match.
+             */
+            name: string;
+            /**
+             * Namespace is the namespace of the resource to match.
+             */
+            namespace: string;
+            /**
+             * Operations remove a JSON path from the resource.
+             */
+            operations: outputs.fleet.v1alpha1.HelmOpSpecTargetsDiffComparePatchesOperationsPatch[];
+        }
+
+        /**
+         * Diff can be used to ignore the modified state of objects which are amended at runtime.
+         */
+        export interface HelmOpSpecTargetsDiffPatch {
+            /**
+             * ComparePatches match a resource and remove fields, or the resource itself from the check for modifications.
+             */
+            comparePatches: outputs.fleet.v1alpha1.HelmOpSpecTargetsDiffComparePatchesPatch[];
+        }
+
+        /**
+         * DownstreamResource contains identifiers for a resource to be copied from the parent bundle's namespace to each
+         * downstream cluster.
+         */
+        export interface HelmOpSpecTargetsDownstreamResources {
+            kind: string;
+            name: string;
+        }
+
+        /**
+         * DownstreamResource contains identifiers for a resource to be copied from the parent bundle's namespace to each
+         * downstream cluster.
+         */
+        export interface HelmOpSpecTargetsDownstreamResourcesPatch {
+            kind: string;
+            name: string;
+        }
+
+        /**
+         * Helm options for the deployment, like the chart name, repo and values.
+         */
+        export interface HelmOpSpecTargetsHelm {
+            /**
+             * Atomic sets the --atomic flag when Helm is performing an upgrade
+             */
+            atomic: boolean;
+            /**
+             * Chart can refer to any go-getter URL or OCI registry based helm
+             * chart URL. The chart will be downloaded.
+             */
+            chart: string;
+            /**
+             * DisableDNS can be used to customize Helm's EnableDNS option, which Fleet sets to `true` by default.
+             */
+            disableDNS: boolean;
+            /**
+             * DisableDependencyUpdate allows skipping chart dependencies update
+             */
+            disableDependencyUpdate: boolean;
+            /**
+             * DisablePreProcess disables template processing in values
+             */
+            disablePreProcess: boolean;
+            /**
+             * Force allows to override immutable resources. This could be dangerous.
+             */
+            force: boolean;
+            /**
+             * MaxHistory limits the maximum number of revisions saved per release by Helm.
+             */
+            maxHistory: number;
+            /**
+             * ReleaseName sets a custom release name to deploy the chart as. If
+             * not specified a release name will be generated by combining the
+             * invoking GitRepo.name + GitRepo.path.
+             */
+            releaseName: string;
+            /**
+             * Repo is the name of the HTTPS helm repo to download the chart from.
+             */
+            repo: string;
+            /**
+             * SkipSchemaValidation allows skipping schema validation against the chart values
+             */
+            skipSchemaValidation: boolean;
+            /**
+             * TakeOwnership makes helm skip the check for its own annotations
+             */
+            takeOwnership: boolean;
+            /**
+             * Template Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings. Unlike .values, content of each key will be templated
+             * first, before serializing to yaml. This allows to template complex values,
+             * like ranges and maps.
+             * templateValues keys have precedence over values keys in case of conflict.
+             */
+            templateValues: {[key: string]: string};
+            /**
+             * TimeoutSeconds is the time to wait for Helm operations.
+             */
+            timeoutSeconds: number;
+            /**
+             * Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings.
+             */
+            values: {[key: string]: any};
+            /**
+             * ValuesFiles is a list of files to load values from.
+             */
+            valuesFiles: string[];
+            /**
+             * ValuesFrom loads the values from configmaps and secrets.
+             */
+            valuesFrom: outputs.fleet.v1alpha1.HelmOpSpecTargetsHelmValuesFrom[];
+            /**
+             * Version of the chart to download
+             */
+            version: string;
+            /**
+             * WaitForJobs if set and timeoutSeconds provided, will wait until all
+             * Jobs have been completed before marking the GitRepo as ready. It
+             * will wait for as long as timeoutSeconds
+             */
+            waitForJobs: boolean;
+        }
+
+        /**
+         * Helm options for the deployment, like the chart name, repo and values.
+         */
+        export interface HelmOpSpecTargetsHelmPatch {
+            /**
+             * Atomic sets the --atomic flag when Helm is performing an upgrade
+             */
+            atomic: boolean;
+            /**
+             * Chart can refer to any go-getter URL or OCI registry based helm
+             * chart URL. The chart will be downloaded.
+             */
+            chart: string;
+            /**
+             * DisableDNS can be used to customize Helm's EnableDNS option, which Fleet sets to `true` by default.
+             */
+            disableDNS: boolean;
+            /**
+             * DisableDependencyUpdate allows skipping chart dependencies update
+             */
+            disableDependencyUpdate: boolean;
+            /**
+             * DisablePreProcess disables template processing in values
+             */
+            disablePreProcess: boolean;
+            /**
+             * Force allows to override immutable resources. This could be dangerous.
+             */
+            force: boolean;
+            /**
+             * MaxHistory limits the maximum number of revisions saved per release by Helm.
+             */
+            maxHistory: number;
+            /**
+             * ReleaseName sets a custom release name to deploy the chart as. If
+             * not specified a release name will be generated by combining the
+             * invoking GitRepo.name + GitRepo.path.
+             */
+            releaseName: string;
+            /**
+             * Repo is the name of the HTTPS helm repo to download the chart from.
+             */
+            repo: string;
+            /**
+             * SkipSchemaValidation allows skipping schema validation against the chart values
+             */
+            skipSchemaValidation: boolean;
+            /**
+             * TakeOwnership makes helm skip the check for its own annotations
+             */
+            takeOwnership: boolean;
+            /**
+             * Template Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings. Unlike .values, content of each key will be templated
+             * first, before serializing to yaml. This allows to template complex values,
+             * like ranges and maps.
+             * templateValues keys have precedence over values keys in case of conflict.
+             */
+            templateValues: {[key: string]: string};
+            /**
+             * TimeoutSeconds is the time to wait for Helm operations.
+             */
+            timeoutSeconds: number;
+            /**
+             * Values passed to Helm. It is possible to specify the keys and values
+             * as go template strings.
+             */
+            values: {[key: string]: any};
+            /**
+             * ValuesFiles is a list of files to load values from.
+             */
+            valuesFiles: string[];
+            /**
+             * ValuesFrom loads the values from configmaps and secrets.
+             */
+            valuesFrom: outputs.fleet.v1alpha1.HelmOpSpecTargetsHelmValuesFromPatch[];
+            /**
+             * Version of the chart to download
+             */
+            version: string;
+            /**
+             * WaitForJobs if set and timeoutSeconds provided, will wait until all
+             * Jobs have been completed before marking the GitRepo as ready. It
+             * will wait for as long as timeoutSeconds
+             */
+            waitForJobs: boolean;
+        }
+
+        /**
+         * Define helm values that can come from configmap, secret or external. Credit: https://github.com/fluxcd/helm-operator/blob/0cfea875b5d44bea995abe7324819432070dfbdc/pkg/apis/helm.fluxcd.io/v1/types_helmrelease.go#L439
+         */
+        export interface HelmOpSpecTargetsHelmValuesFrom {
+            configMapKeyRef: outputs.fleet.v1alpha1.HelmOpSpecTargetsHelmValuesFromConfigMapKeyRef;
+            secretKeyRef: outputs.fleet.v1alpha1.HelmOpSpecTargetsHelmValuesFromSecretKeyRef;
+        }
+
+        /**
+         * The reference to a config map with release values.
+         */
+        export interface HelmOpSpecTargetsHelmValuesFromConfigMapKeyRef {
+            key: string;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name: string;
+            namespace: string;
+        }
+
+        /**
+         * The reference to a config map with release values.
+         */
+        export interface HelmOpSpecTargetsHelmValuesFromConfigMapKeyRefPatch {
+            key: string;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name: string;
+            namespace: string;
+        }
+
+        /**
+         * Define helm values that can come from configmap, secret or external. Credit: https://github.com/fluxcd/helm-operator/blob/0cfea875b5d44bea995abe7324819432070dfbdc/pkg/apis/helm.fluxcd.io/v1/types_helmrelease.go#L439
+         */
+        export interface HelmOpSpecTargetsHelmValuesFromPatch {
+            configMapKeyRef: outputs.fleet.v1alpha1.HelmOpSpecTargetsHelmValuesFromConfigMapKeyRefPatch;
+            secretKeyRef: outputs.fleet.v1alpha1.HelmOpSpecTargetsHelmValuesFromSecretKeyRefPatch;
+        }
+
+        /**
+         * The reference to a secret with release values.
+         */
+        export interface HelmOpSpecTargetsHelmValuesFromSecretKeyRef {
+            key: string;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name: string;
+            namespace: string;
+        }
+
+        /**
+         * The reference to a secret with release values.
+         */
+        export interface HelmOpSpecTargetsHelmValuesFromSecretKeyRefPatch {
+            key: string;
+            /**
+             * Name of a resource in the same namespace as the referent.
+             */
+            name: string;
+            namespace: string;
+        }
+
+        /**
+         * IgnoreOptions can be used to ignore fields when monitoring the bundle.
+         */
+        export interface HelmOpSpecTargetsIgnore {
+            /**
+             * Conditions is a list of conditions to be ignored when monitoring the Bundle.
+             */
+            conditions: {[key: string]: string}[];
+        }
+
+        /**
+         * IgnoreOptions can be used to ignore fields when monitoring the bundle.
+         */
+        export interface HelmOpSpecTargetsIgnorePatch {
+            /**
+             * Conditions is a list of conditions to be ignored when monitoring the Bundle.
+             */
+            conditions: {[key: string]: string}[];
+        }
+
+        /**
+         * Kustomize options for the deployment, like the dir containing the
+         * kustomization.yaml file.
+         */
+        export interface HelmOpSpecTargetsKustomize {
+            /**
+             * Dir points to a custom folder for kustomize resources. This folder must contain
+             * a kustomization.yaml file.
+             */
+            dir: string;
+        }
+
+        /**
+         * Kustomize options for the deployment, like the dir containing the
+         * kustomization.yaml file.
+         */
+        export interface HelmOpSpecTargetsKustomizePatch {
+            /**
+             * Dir points to a custom folder for kustomize resources. This folder must contain
+             * a kustomization.yaml file.
+             */
+            dir: string;
+        }
+
+        export interface HelmOpSpecTargetsOverwrites {
+            kind: string;
+            name: string;
+            namespace: string;
+        }
+
+        export interface HelmOpSpecTargetsOverwritesPatch {
+            kind: string;
+            name: string;
+            namespace: string;
+        }
+
+        /**
+         * BundleTarget declares clusters to deploy to. Fleet will merge the
+         * BundleDeploymentOptions from customizations into this struct.
+         */
+        export interface HelmOpSpecTargetsPatch {
+            allowedTargetNamespaceSelector: outputs.fleet.v1alpha1.HelmOpSpecTargetsAllowedTargetNamespaceSelectorPatch;
+            /**
+             * ClusterGroup to match a specific cluster group by name.
+             */
+            clusterGroup: string;
+            clusterGroupSelector: outputs.fleet.v1alpha1.HelmOpSpecTargetsClusterGroupSelectorPatch;
+            /**
+             * ClusterName to match a specific cluster by name that will be
+             * selected
+             */
+            clusterName: string;
+            clusterSelector: outputs.fleet.v1alpha1.HelmOpSpecTargetsClusterSelectorPatch;
+            correctDrift: outputs.fleet.v1alpha1.HelmOpSpecTargetsCorrectDriftPatch;
+            /**
+             * CreateNamespace controls whether Fleet creates the target namespace on
+             * downstream clusters during Helm installs. When nil, the default behavior
+             * is to create the namespace (backward-compatible). Set to false by the
+             * controller when Policy requires a ServiceAccount and does not explicitly
+             * allow namespace creation. This does not affect namespaceLabels/
+             * namespaceAnnotations patching, which is always attempted (when set) as
+             * the deployment's ServiceAccount and gated by downstream RBAC.
+             */
+            createNamespace: boolean;
+            /**
+             * DefaultNamespace is the namespace to use for resources that do not
+             * specify a namespace. This field is not used to enforce or lock down
+             * the deployment to a specific namespace.
+             */
+            defaultNamespace: string;
+            /**
+             * DeleteCRDResources deletes CRDs. Warning! this will also delete all your Custom Resources.
+             */
+            deleteCRDResources: boolean;
+            /**
+             * DeleteNamespace can be used to delete the deployed namespace when removing the bundle
+             */
+            deleteNamespace: boolean;
+            diff: outputs.fleet.v1alpha1.HelmOpSpecTargetsDiffPatch;
+            /**
+             * DoNotDeploy if set to true, will not deploy to this target.
+             */
+            doNotDeploy: boolean;
+            /**
+             * DownstreamResources points to resources to be copied into downstream clusters, from the bundle's
+             * namespace.
+             */
+            downstreamResources: outputs.fleet.v1alpha1.HelmOpSpecTargetsDownstreamResourcesPatch[];
+            /**
+             * ForceSyncGeneration is used to force a redeployment
+             */
+            forceSyncGeneration: number;
+            helm: outputs.fleet.v1alpha1.HelmOpSpecTargetsHelmPatch;
+            ignore: outputs.fleet.v1alpha1.HelmOpSpecTargetsIgnorePatch;
+            /**
+             * KeepResources can be used to keep the deployed resources when removing the bundle
+             */
+            keepResources: boolean;
+            kustomize: outputs.fleet.v1alpha1.HelmOpSpecTargetsKustomizePatch;
+            /**
+             * Name of target. This value is largely for display and logging. If
+             * not specified a default name of the format "target000" will be used
+             */
+            name: string;
+            /**
+             * TargetNamespace if present will assign all resource to this
+             * namespace and if any cluster scoped resource exists the deployment
+             * will fail.
+             */
+            namespace: string;
+            /**
+             * NamespaceAnnotations are annotations that will be appended to the namespace created by Fleet.
+             */
+            namespaceAnnotations: {[key: string]: string};
+            /**
+             * NamespaceLabels are labels that will be appended to the namespace created by Fleet.
+             */
+            namespaceLabels: {[key: string]: string};
+            /**
+             * Overwrites indicates which resources, if any, come from this bundle and overwrite another existing bundle.
+             * This flag is set internally by Fleet, and should not be altered by users.
+             */
+            overwrites: outputs.fleet.v1alpha1.HelmOpSpecTargetsOverwritesPatch[];
+            /**
+             * ServiceAccount which will be used to perform this deployment.
+             */
+            serviceAccount: string;
+            yaml: outputs.fleet.v1alpha1.HelmOpSpecTargetsYamlPatch;
+        }
+
+        /**
+         * YAML options, if using raw YAML these are names that map to
+         * overlays/{name} files that will be used to replace or patch a resource.
+         */
+        export interface HelmOpSpecTargetsYaml {
+            /**
+             * Overlays is a list of names that maps to folders in "overlays/".
+             * If you wish to customize the file ./subdir/resource.yaml then a file
+             * ./overlays/myoverlay/subdir/resource.yaml will replace the base
+             * file.
+             * A file named ./overlays/myoverlay/subdir/resource_patch.yaml will patch the base file.
+             */
+            overlays: string[];
+        }
+
+        /**
+         * YAML options, if using raw YAML these are names that map to
+         * overlays/{name} files that will be used to replace or patch a resource.
+         */
+        export interface HelmOpSpecTargetsYamlPatch {
+            /**
+             * Overlays is a list of names that maps to folders in "overlays/".
+             * If you wish to customize the file ./subdir/resource.yaml then a file
+             * ./overlays/myoverlay/subdir/resource.yaml will replace the base
+             * file.
+             * A file named ./overlays/myoverlay/subdir/resource_patch.yaml will patch the base file.
+             */
+            overlays: string[];
+        }
+
+        /**
+         * YAML options, if using raw YAML these are names that map to
+         * overlays/{name} files that will be used to replace or patch a resource.
+         */
+        export interface HelmOpSpecYaml {
+            /**
+             * Overlays is a list of names that maps to folders in "overlays/".
+             * If you wish to customize the file ./subdir/resource.yaml then a file
+             * ./overlays/myoverlay/subdir/resource.yaml will replace the base
+             * file.
+             * A file named ./overlays/myoverlay/subdir/resource_patch.yaml will patch the base file.
+             */
+            overlays: string[];
+        }
+
+        /**
+         * YAML options, if using raw YAML these are names that map to
+         * overlays/{name} files that will be used to replace or patch a resource.
+         */
+        export interface HelmOpSpecYamlPatch {
+            /**
+             * Overlays is a list of names that maps to folders in "overlays/".
+             * If you wish to customize the file ./subdir/resource.yaml then a file
+             * ./overlays/myoverlay/subdir/resource.yaml will replace the base
+             * file.
+             * A file named ./overlays/myoverlay/subdir/resource_patch.yaml will patch the base file.
+             */
+            overlays: string[];
+        }
+
+        export interface HelmOpStatus {
+            /**
+             * Conditions is a list of Wrangler conditions that describe the state
+             * of the resource.
+             */
+            conditions: outputs.fleet.v1alpha1.HelmOpStatusConditions[];
+            /**
+             * DesiredReadyClusters	is the number of clusters that should be ready for bundles of this resource.
+             */
+            desiredReadyClusters: number;
+            display: outputs.fleet.v1alpha1.HelmOpStatusDisplay;
+            /**
+             * LastPollingTime is the last time the polling check was triggered
+             */
+            lastPollingTriggered: string;
+            /**
+             * PerClusterResourceCounts contains the number of resources in each state over all bundles, per cluster.
+             */
+            perClusterResourceCounts: {[key: string]: {[key: string]: string}};
+            /**
+             * ReadyClusters is the lowest number of clusters that are ready over
+             * all the bundles of this resource.
+             */
+            readyClusters: number;
+            resourceCounts: outputs.fleet.v1alpha1.HelmOpStatusResourceCounts;
+            /**
+             * Resources contains metadata about the resources of each bundle.
+             */
+            resources: outputs.fleet.v1alpha1.HelmOpStatusResources[];
+            summary: outputs.fleet.v1alpha1.HelmOpStatusSummary;
+            /**
+             * Version installed for the helm chart.
+             * When using * or empty version in the spec we get the latest version from
+             * the helm repository when possible
+             */
+            version: string;
+        }
+
+        export interface HelmOpStatusConditions {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of cluster condition.
+             */
+            type: string;
+        }
+
+        export interface HelmOpStatusConditionsPatch {
+            /**
+             * Last time the condition transitioned from one status to another.
+             */
+            lastTransitionTime: string;
+            /**
+             * The last time this condition was updated.
+             */
+            lastUpdateTime: string;
+            /**
+             * Human-readable message indicating details about last transition
+             */
+            message: string;
+            /**
+             * The reason for the condition's last transition.
+             */
+            reason: string;
+            /**
+             * Status of the condition, one of True, False, Unknown.
+             */
+            status: string;
+            /**
+             * Type of cluster condition.
+             */
+            type: string;
+        }
+
+        /**
+         * Display contains a human readable summary of the status.
+         */
+        export interface HelmOpStatusDisplay {
+            /**
+             * Error is true if a message is present.
+             */
+            error: boolean;
+            /**
+             * Message contains the relevant message from the deployment conditions.
+             */
+            message: string;
+            /**
+             * ReadyBundleDeployments is a string in the form "%d/%d", that describes the
+             * number of ready bundledeployments over the total number of bundledeployments.
+             */
+            readyBundleDeployments: string;
+            /**
+             * State is the state of the resource, e.g. "GitUpdating" or the maximal
+             * BundleState according to StateRank.
+             */
+            state: string;
+        }
+
+        /**
+         * Display contains a human readable summary of the status.
+         */
+        export interface HelmOpStatusDisplayPatch {
+            /**
+             * Error is true if a message is present.
+             */
+            error: boolean;
+            /**
+             * Message contains the relevant message from the deployment conditions.
+             */
+            message: string;
+            /**
+             * ReadyBundleDeployments is a string in the form "%d/%d", that describes the
+             * number of ready bundledeployments over the total number of bundledeployments.
+             */
+            readyBundleDeployments: string;
+            /**
+             * State is the state of the resource, e.g. "GitUpdating" or the maximal
+             * BundleState according to StateRank.
+             */
+            state: string;
+        }
+
+        export interface HelmOpStatusPatch {
+            /**
+             * Conditions is a list of Wrangler conditions that describe the state
+             * of the resource.
+             */
+            conditions: outputs.fleet.v1alpha1.HelmOpStatusConditionsPatch[];
+            /**
+             * DesiredReadyClusters	is the number of clusters that should be ready for bundles of this resource.
+             */
+            desiredReadyClusters: number;
+            display: outputs.fleet.v1alpha1.HelmOpStatusDisplayPatch;
+            /**
+             * LastPollingTime is the last time the polling check was triggered
+             */
+            lastPollingTriggered: string;
+            /**
+             * PerClusterResourceCounts contains the number of resources in each state over all bundles, per cluster.
+             */
+            perClusterResourceCounts: {[key: string]: {[key: string]: string}};
+            /**
+             * ReadyClusters is the lowest number of clusters that are ready over
+             * all the bundles of this resource.
+             */
+            readyClusters: number;
+            resourceCounts: outputs.fleet.v1alpha1.HelmOpStatusResourceCountsPatch;
+            /**
+             * Resources contains metadata about the resources of each bundle.
+             */
+            resources: outputs.fleet.v1alpha1.HelmOpStatusResourcesPatch[];
+            summary: outputs.fleet.v1alpha1.HelmOpStatusSummaryPatch;
+            /**
+             * Version installed for the helm chart.
+             * When using * or empty version in the spec we get the latest version from
+             * the helm repository when possible
+             */
+            version: string;
+        }
+
+        /**
+         * ResourceCounts contains the number of resources in each state over all bundles.
+         */
+        export interface HelmOpStatusResourceCounts {
+            /**
+             * DesiredReady is the number of resources that should be ready.
+             */
+            desiredReady: number;
+            /**
+             * Missing is the number of missing resources.
+             */
+            missing: number;
+            /**
+             * Modified is the number of resources that have been modified.
+             */
+            modified: number;
+            /**
+             * NotReady is the number of not ready resources. Resources are not
+             * ready if they do not match any other state.
+             */
+            notReady: number;
+            /**
+             * Orphaned is the number of orphaned resources.
+             */
+            orphaned: number;
+            /**
+             * Ready is the number of ready resources.
+             */
+            ready: number;
+            /**
+             * Unknown is the number of resources in an unknown state.
+             */
+            unknown: number;
+            /**
+             * WaitApplied is the number of resources that are waiting to be applied.
+             */
+            waitApplied: number;
+        }
+
+        /**
+         * ResourceCounts contains the number of resources in each state over all bundles.
+         */
+        export interface HelmOpStatusResourceCountsPatch {
+            /**
+             * DesiredReady is the number of resources that should be ready.
+             */
+            desiredReady: number;
+            /**
+             * Missing is the number of missing resources.
+             */
+            missing: number;
+            /**
+             * Modified is the number of resources that have been modified.
+             */
+            modified: number;
+            /**
+             * NotReady is the number of not ready resources. Resources are not
+             * ready if they do not match any other state.
+             */
+            notReady: number;
+            /**
+             * Orphaned is the number of orphaned resources.
+             */
+            orphaned: number;
+            /**
+             * Ready is the number of ready resources.
+             */
+            ready: number;
+            /**
+             * Unknown is the number of resources in an unknown state.
+             */
+            unknown: number;
+            /**
+             * WaitApplied is the number of resources that are waiting to be applied.
+             */
+            waitApplied: number;
+        }
+
+        /**
+         * Resource contains metadata about the resources of a bundle.
+         */
+        export interface HelmOpStatusResources {
+            /**
+             * APIVersion is the API version of the resource.
+             */
+            apiVersion: string;
+            /**
+             * Error is true if any Error in the PerClusterState is true.
+             */
+            error: boolean;
+            /**
+             * ID is the name of the resource, e.g. "namespace1/my-config" or "backingimagemanagers.storage.io".
+             */
+            id: string;
+            /**
+             * IncompleteState is true if a bundle summary has 10 or more non-ready
+             * resources or a non-ready resource has more 10 or more non-ready or
+             * modified states.
+             */
+            incompleteState: boolean;
+            /**
+             * Kind is the k8s kind of the resource.
+             */
+            kind: string;
+            /**
+             * Message is the first message from the PerClusterStates.
+             */
+            message: string;
+            /**
+             * Name of the resource.
+             */
+            name: string;
+            /**
+             * Namespace of the resource.
+             */
+            namespace: string;
+            perClusterState: outputs.fleet.v1alpha1.HelmOpStatusResourcesPerClusterState;
+            /**
+             * State is the state of the resource, e.g. "Unknown", "WaitApplied", "ErrApplied" or "Ready".
+             */
+            state: string;
+            /**
+             * Transitioning is true if any Transitioning in the PerClusterState is true.
+             */
+            transitioning: boolean;
+            /**
+             * Type is the type of the resource, e.g. "apiextensions.k8s.io.customresourcedefinition" or "configmap".
+             */
+            type: string;
+        }
+
+        /**
+         * Resource contains metadata about the resources of a bundle.
+         */
+        export interface HelmOpStatusResourcesPatch {
+            /**
+             * APIVersion is the API version of the resource.
+             */
+            apiVersion: string;
+            /**
+             * Error is true if any Error in the PerClusterState is true.
+             */
+            error: boolean;
+            /**
+             * ID is the name of the resource, e.g. "namespace1/my-config" or "backingimagemanagers.storage.io".
+             */
+            id: string;
+            /**
+             * IncompleteState is true if a bundle summary has 10 or more non-ready
+             * resources or a non-ready resource has more 10 or more non-ready or
+             * modified states.
+             */
+            incompleteState: boolean;
+            /**
+             * Kind is the k8s kind of the resource.
+             */
+            kind: string;
+            /**
+             * Message is the first message from the PerClusterStates.
+             */
+            message: string;
+            /**
+             * Name of the resource.
+             */
+            name: string;
+            /**
+             * Namespace of the resource.
+             */
+            namespace: string;
+            perClusterState: outputs.fleet.v1alpha1.HelmOpStatusResourcesPerClusterStatePatch;
+            /**
+             * State is the state of the resource, e.g. "Unknown", "WaitApplied", "ErrApplied" or "Ready".
+             */
+            state: string;
+            /**
+             * Transitioning is true if any Transitioning in the PerClusterState is true.
+             */
+            transitioning: boolean;
+            /**
+             * Type is the type of the resource, e.g. "apiextensions.k8s.io.customresourcedefinition" or "configmap".
+             */
+            type: string;
+        }
+
+        /**
+         * PerClusterState contains lists of cluster IDs for every State for this resource
+         */
+        export interface HelmOpStatusResourcesPerClusterState {
+            /**
+             * Missing is a list of cluster IDs for which this a resource is in Missing state
+             */
+            missing: string[];
+            /**
+             * Modified is a list of cluster IDs for which this a resource is in Modified state
+             */
+            modified: string[];
+            /**
+             * NotReady is a list of cluster IDs for which this a resource is in NotReady state
+             */
+            notReady: string[];
+            /**
+             * Orphaned is a list of cluster IDs for which this a resource is in Orphaned state
+             */
+            orphaned: string[];
+            /**
+             * Pending is a list of cluster IDs for which this a resource is in Pending state
+             */
+            pending: string[];
+            /**
+             * Ready is a list of cluster IDs for which this a resource is in Ready state
+             */
+            ready: string[];
+            /**
+             * Unknown is a list of cluster IDs for which this a resource is in Unknown state
+             */
+            unknown: string[];
+            /**
+             * WaitApplied is a list of cluster IDs for which this a resource is in WaitApplied state
+             */
+            waitApplied: string[];
+        }
+
+        /**
+         * PerClusterState contains lists of cluster IDs for every State for this resource
+         */
+        export interface HelmOpStatusResourcesPerClusterStatePatch {
+            /**
+             * Missing is a list of cluster IDs for which this a resource is in Missing state
+             */
+            missing: string[];
+            /**
+             * Modified is a list of cluster IDs for which this a resource is in Modified state
+             */
+            modified: string[];
+            /**
+             * NotReady is a list of cluster IDs for which this a resource is in NotReady state
+             */
+            notReady: string[];
+            /**
+             * Orphaned is a list of cluster IDs for which this a resource is in Orphaned state
+             */
+            orphaned: string[];
+            /**
+             * Pending is a list of cluster IDs for which this a resource is in Pending state
+             */
+            pending: string[];
+            /**
+             * Ready is a list of cluster IDs for which this a resource is in Ready state
+             */
+            ready: string[];
+            /**
+             * Unknown is a list of cluster IDs for which this a resource is in Unknown state
+             */
+            unknown: string[];
+            /**
+             * WaitApplied is a list of cluster IDs for which this a resource is in WaitApplied state
+             */
+            waitApplied: string[];
+        }
+
+        /**
+         * Summary contains the number of bundle deployments in each state and a list of non-ready resources.
+         */
+        export interface HelmOpStatusSummary {
+            /**
+             * DesiredReady is the number of bundle deployments that should be
+             * ready.
+             */
+            desiredReady: number;
+            /**
+             * ErrApplied is the number of bundle deployments that have been synced
+             * from the Fleet controller and the downstream cluster, but with some
+             * errors when deploying the bundle.
+             */
+            errApplied: number;
+            /**
+             * Modified is the number of bundle deployments that have been deployed
+             * and for which all resources are ready, but where some changes from the
+             * Git repository have not yet been synced.
+             */
+            modified: number;
+            /**
+             * NonReadyClusters is a list of states, which is filled for a bundle
+             * that is not ready.
+             */
+            nonReadyResources: outputs.fleet.v1alpha1.HelmOpStatusSummaryNonReadyResources[];
+            /**
+             * NotReady is the number of bundle deployments that have been deployed
+             * where some resources are not ready.
+             */
+            notReady: number;
+            /**
+             * OutOfSync is the number of bundle deployments that have been synced
+             * from Fleet controller, but not yet by the downstream agent.
+             */
+            outOfSync: number;
+            /**
+             * Pending is the number of bundle deployments that are being processed
+             * by Fleet controller.
+             */
+            pending: number;
+            /**
+             * Ready is the number of bundle deployments that have been deployed
+             * where all resources are ready.
+             */
+            ready: number;
+            /**
+             * WaitApplied is the number of bundle deployments that have been
+             * synced from Fleet controller and downstream cluster, but are waiting
+             * to be deployed.
+             */
+            waitApplied: number;
+            /**
+             * WaitingForDependency is the number of bundle deployments which are
+             * not deployed because at least one of the bundles they depend on has
+             * not reached an accepted state.
+             */
+            waitingForDependency: number;
+        }
+
+        /**
+         * NonReadyResource contains information about a bundle that is not ready for a
+         * given state like "ErrApplied". It contains a list of non-ready or modified
+         * resources and their states.
+         */
+        export interface HelmOpStatusSummaryNonReadyResources {
+            /**
+             * State is the state of the resource, like e.g. "NotReady" or "ErrApplied".
+             */
+            bundleState: string;
+            /**
+             * Message contains information why the bundle is not ready.
+             */
+            message: string;
+            /**
+             * ModifiedStatus lists the state for each modified resource.
+             */
+            modifiedStatus: outputs.fleet.v1alpha1.HelmOpStatusSummaryNonReadyResourcesModifiedStatus[];
+            /**
+             * Name is the name of the resource.
+             */
+            name: string;
+            /**
+             * NonReadyStatus lists the state for each non-ready resource.
+             */
+            nonReadyStatus: outputs.fleet.v1alpha1.HelmOpStatusSummaryNonReadyResourcesNonReadyStatus[];
+        }
+
+        /**
+         * ModifiedStatus is used to report the status of a resource that is modified.
+         * It indicates if the modification was a create, a delete or a patch.
+         */
+        export interface HelmOpStatusSummaryNonReadyResourcesModifiedStatus {
+            apiVersion: string;
+            delete: boolean;
+            /**
+             * Exist is true if the resource exists but is not owned by us. This can happen if a resource was adopted by another bundle whereas the first bundle still exists and due to that reports that it does not own it.
+             */
+            exist: boolean;
+            kind: string;
+            missing: boolean;
+            name: string;
+            namespace: string;
+            patch: string;
+        }
+
+        /**
+         * ModifiedStatus is used to report the status of a resource that is modified.
+         * It indicates if the modification was a create, a delete or a patch.
+         */
+        export interface HelmOpStatusSummaryNonReadyResourcesModifiedStatusPatch {
+            apiVersion: string;
+            delete: boolean;
+            /**
+             * Exist is true if the resource exists but is not owned by us. This can happen if a resource was adopted by another bundle whereas the first bundle still exists and due to that reports that it does not own it.
+             */
+            exist: boolean;
+            kind: string;
+            missing: boolean;
+            name: string;
+            namespace: string;
+            patch: string;
+        }
+
+        /**
+         * NonReadyStatus is used to report the status of a resource that is not ready. It includes a summary.
+         */
+        export interface HelmOpStatusSummaryNonReadyResourcesNonReadyStatus {
+            apiVersion: string;
+            kind: string;
+            name: string;
+            namespace: string;
+            summary: outputs.fleet.v1alpha1.HelmOpStatusSummaryNonReadyResourcesNonReadyStatusSummary;
+            /**
+             * UID is a type that holds unique ID values, including UUIDs.  Because we
+             * don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+             * intent and helps make sure that UIDs and names do not get conflated.
+             */
+            uid: string;
+        }
+
+        /**
+         * NonReadyStatus is used to report the status of a resource that is not ready. It includes a summary.
+         */
+        export interface HelmOpStatusSummaryNonReadyResourcesNonReadyStatusPatch {
+            apiVersion: string;
+            kind: string;
+            name: string;
+            namespace: string;
+            summary: outputs.fleet.v1alpha1.HelmOpStatusSummaryNonReadyResourcesNonReadyStatusSummaryPatch;
+            /**
+             * UID is a type that holds unique ID values, including UUIDs.  Because we
+             * don't ONLY use UUIDs, this is an alias to string.  Being a type captures
+             * intent and helps make sure that UIDs and names do not get conflated.
+             */
+            uid: string;
+        }
+
+        export interface HelmOpStatusSummaryNonReadyResourcesNonReadyStatusSummary {
+            error: boolean;
+            message: string[];
+            state: string;
+            transitioning: boolean;
+        }
+
+        export interface HelmOpStatusSummaryNonReadyResourcesNonReadyStatusSummaryPatch {
+            error: boolean;
+            message: string[];
+            state: string;
+            transitioning: boolean;
+        }
+
+        /**
+         * NonReadyResource contains information about a bundle that is not ready for a
+         * given state like "ErrApplied". It contains a list of non-ready or modified
+         * resources and their states.
+         */
+        export interface HelmOpStatusSummaryNonReadyResourcesPatch {
+            /**
+             * State is the state of the resource, like e.g. "NotReady" or "ErrApplied".
+             */
+            bundleState: string;
+            /**
+             * Message contains information why the bundle is not ready.
+             */
+            message: string;
+            /**
+             * ModifiedStatus lists the state for each modified resource.
+             */
+            modifiedStatus: outputs.fleet.v1alpha1.HelmOpStatusSummaryNonReadyResourcesModifiedStatusPatch[];
+            /**
+             * Name is the name of the resource.
+             */
+            name: string;
+            /**
+             * NonReadyStatus lists the state for each non-ready resource.
+             */
+            nonReadyStatus: outputs.fleet.v1alpha1.HelmOpStatusSummaryNonReadyResourcesNonReadyStatusPatch[];
+        }
+
+        /**
+         * Summary contains the number of bundle deployments in each state and a list of non-ready resources.
+         */
+        export interface HelmOpStatusSummaryPatch {
+            /**
+             * DesiredReady is the number of bundle deployments that should be
+             * ready.
+             */
+            desiredReady: number;
+            /**
+             * ErrApplied is the number of bundle deployments that have been synced
+             * from the Fleet controller and the downstream cluster, but with some
+             * errors when deploying the bundle.
+             */
+            errApplied: number;
+            /**
+             * Modified is the number of bundle deployments that have been deployed
+             * and for which all resources are ready, but where some changes from the
+             * Git repository have not yet been synced.
+             */
+            modified: number;
+            /**
+             * NonReadyClusters is a list of states, which is filled for a bundle
+             * that is not ready.
+             */
+            nonReadyResources: outputs.fleet.v1alpha1.HelmOpStatusSummaryNonReadyResourcesPatch[];
+            /**
+             * NotReady is the number of bundle deployments that have been deployed
+             * where some resources are not ready.
+             */
+            notReady: number;
+            /**
+             * OutOfSync is the number of bundle deployments that have been synced
+             * from Fleet controller, but not yet by the downstream agent.
+             */
+            outOfSync: number;
+            /**
+             * Pending is the number of bundle deployments that are being processed
+             * by Fleet controller.
+             */
+            pending: number;
+            /**
+             * Ready is the number of bundle deployments that have been deployed
+             * where all resources are ready.
+             */
+            ready: number;
+            /**
+             * WaitApplied is the number of bundle deployments that have been
+             * synced from Fleet controller and downstream cluster, but are waiting
+             * to be deployed.
+             */
+            waitApplied: number;
+            /**
+             * WaitingForDependency is the number of bundle deployments which are
+             * not deployed because at least one of the bundles they depend on has
+             * not reached an accepted state.
+             */
+            waitingForDependency: number;
+        }
+
     }
 }
 
