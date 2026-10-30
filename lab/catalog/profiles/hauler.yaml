@@ -1,0 +1,16 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: hauler
+  description: Hauler registry for air-gapped installs; on Kubernetes if the host has it, else as a systemd service
+spec:
+  icon: truck                # in the lab UI (lucide.dev/icons)
+  provides: [ registry ]
+  settings:
+    type: object
+    properties:
+      manifests:
+        type: array
+        items: { type: string }
+        default: []
+      port: { type: integer, minimum: 1, maximum: 65535 }

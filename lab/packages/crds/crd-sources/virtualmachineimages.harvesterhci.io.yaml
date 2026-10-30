@@ -1,0 +1,181 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: virtualmachineimages.harvesterhci.io
+spec:
+  group: harvesterhci.io
+  names:
+    plural: virtualmachineimages
+    singular: virtualmachineimage
+    shortNames:
+      - vmimage
+      - vmimages
+    kind: VirtualMachineImage
+    listKind: VirtualMachineImageList
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            apiVersion:
+              description: |-
+                APIVersion defines the versioned schema of this representation of an object.
+                Servers should convert recognized schemas to the latest internal value, and
+                may reject unrecognized values.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+              type: string
+            kind:
+              description: |-
+                Kind is a string value representing the REST resource this object represents.
+                Servers may infer this from the endpoint the client submits requests to.
+                Cannot be updated.
+                In CamelCase.
+                More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              required:
+                - displayName
+                - sourceType
+              properties:
+                backend:
+                  type: string
+                  default: backingimage
+                  enum:
+                    - backingimage
+                    - cdi
+                checksum:
+                  type: string
+                description:
+                  type: string
+                displayName:
+                  type: string
+                pvcName:
+                  type: string
+                pvcNamespace:
+                  type: string
+                retry:
+                  type: integer
+                  default: 3
+                  maximum: 10
+                  minimum: 0
+                securityParameters:
+                  type: object
+                  required:
+                    - cryptoOperation
+                    - sourceImageName
+                    - sourceImageNamespace
+                  properties:
+                    cryptoOperation:
+                      type: string
+                      enum:
+                        - encrypt
+                        - decrypt
+                    sourceImageName:
+                      type: string
+                    sourceImageNamespace:
+                      type: string
+                sourceType:
+                  type: string
+                  enum:
+                    - download
+                    - upload
+                    - export-from-volume
+                    - restore
+                    - clone
+                storageClassParameters:
+                  type: object
+                  additionalProperties:
+                    type: string
+                targetStorageClassName:
+                  description: The VM Image will store the data volume in the target storage class.
+                  type: string
+                url:
+                  type: string
+            status:
+              type: object
+              properties:
+                appliedUrl:
+                  type: string
+                backupTarget:
+                  description: BackupTarget is where VM Backup stores
+                  type: object
+                  properties:
+                    bucketName:
+                      type: string
+                    bucketRegion:
+                      type: string
+                    endpoint:
+                      type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - status
+                      - type
+                    properties:
+                      lastTransitionTime:
+                        description: Last time the condition transitioned from one status to another.
+                        type: string
+                      lastUpdateTime:
+                        description: The last time this condition was updated.
+                        type: string
+                      message:
+                        description: Human-readable message indicating details about last transition
+                        type: string
+                      reason:
+                        description: The reason for the condition's last transition.
+                        type: string
+                      status:
+                        description: Status of the condition, one of True, False, Unknown.
+                        type: string
+                      type:
+                        description: Type of the condition.
+                        type: string
+                failed:
+                  type: integer
+                  default: 0
+                  minimum: 0
+                lastFailedTime:
+                  type: string
+                progress:
+                  type: integer
+                size:
+                  type: integer
+                  format: int64
+                storageClassName:
+                  type: string
+                targetStorageClassName:
+                  description: The VM Image will store the data volume in the target storage class.
+                  type: string
+                virtualSize:
+                  type: integer
+                  format: int64
+      subresources: {}
+      additionalPrinterColumns:
+        - name: BACKEND
+          type: string
+          jsonPath: .spec.backend
+        - name: DISPLAY-NAME
+          type: string
+          jsonPath: .spec.displayName
+        - name: SIZE
+          type: integer
+          jsonPath: .status.size
+        - name: VIRTUALSIZE
+          type: integer
+          jsonPath: .status.virtualSize
+        - name: AGE
+          type: date
+          jsonPath: .metadata.creationTimestamp
+  conversion:
+    strategy: None

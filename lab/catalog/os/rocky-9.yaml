@@ -1,0 +1,17 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: OperatingSystem
+metadata:
+  name: rocky-9
+  description: Rocky Linux 9
+spec:
+  family: rhel
+  image:
+    url: https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2
+  defaultUser: rocky
+  # On AWS: the Rocky Enterprise Software Foundation's images.
+  ami: { owner: "792107900819", name: "Rocky-9-EC2-Base-9.*x86_64", user: rocky }
+  cloudInit:
+    package_update: true
+    packages: [ curl, git, bash-completion, vim-enhanced, wget, tree, qemu-guest-agent ]
+    runcmd:
+      - systemctl enable --now qemu-guest-agent

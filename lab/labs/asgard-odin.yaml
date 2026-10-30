@@ -1,0 +1,91 @@
+# Rancher on odin (RKE2, Harvester load balancers, RKE2's own Traefik), provisioning the k3s cluster
+# athena on asgard (ServiceLB, Traefik from Fleet's apps/base instead of k3s's own).
+# Harvester url and credentials come from the personal config (harvesters.asgard).
+apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata:
+  name: asgard-odin
+spec:
+  domain: lab.geeko.me
+
+  tls:
+    # Staging while iterating: Let's Encrypt allows 5 certificates per week for the same names.
+    acme: letsencrypt-staging
+    email: jeroen@vanerp.info
+    cloudflare: "{{ secrets['cloudflare-token'] }}"
+
+  ssh:
+    user: jeroen
+    publicKey: { file: ~/.ssh/id_ed25519.pub }
+    privateKey: "{{ secrets['ssh-key'] }}"
+  # Inputs for the catalog's secrets (Fleet's Helm logins and values files).
+  inputs:
+    appco: "{{ secrets.appco }}"
+    scc: "{{ secrets.scc }}"
+    suse-observability-license: "{{ secrets['suse-observability-license'] }}"
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Harvester
+metadata:
+  name: asgard
+spec:
+  dns:
+    backend: routeros
+    host: 10.29.20.1
+    credentials: "{{ secrets.routeros }}"
+  networks:
+    default: vlan20
+    vlans:
+      - id: 20
+        dhcp: { cidr: 10.29.20.0/24, gateway: 10.29.20.1, range: [ 10.29.20.100, 10.29.20.150 ] }
+        loadBalancer: { range: [ 10.29.20.200, 10.29.20.220 ] } # Harvester LB pool for odin's load balancers
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: odin
+spec:
+  harvester: asgard
+  os: leap-16-k8s
+  cpu: 4
+  memory: 8Gi
+  disk: 40Gi
+  # No traefik profile: RKE2's own Traefik is the ingress. harvester-cloud-provider gives
+  # LoadBalancer services an address from the Harvester's pool, instead of ServiceLB.
+  profiles:
+    rke2: {}
+    harvester-cloud-provider: {}
+    cert-manager: {}
+    sprouter: {}
+    outrider: {}
+    rancher:
+      adminPassword: "{{ secrets['rancher-admin'] }}"
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: DownstreamCluster
+metadata:
+  name: athena
+spec:
+  type: harvester
+  rancher: odin
+  harvester: asgard
+  distro: k3s
+  # needs-traefik: Fleet's apps/base/traefik installs Traefik, so k3s's own is turned off.
+  # ServiceLB stays on. SUSE Observability's volumes use longhorn-single: needs-longhorn installs
+  # Longhorn (apps/platform), needs-storage the storage class (apps/base).
+  labels:
+    needs-observability: "true"
+    needs-traefik: "true"
+    needs-storage: "true"
+  annotations:
+    hosted-domain: lab.geeko.me
+  machineGlobalConfig:
+    disable: [ traefik ]
+  pools:
+    - name: all
+      quantity: 1
+      roles: [ etcd, controlplane, worker ]
+      cpu: 12
+      memory: 40Gi
+      disk: 500Gi
+      os: leap-16-k8s

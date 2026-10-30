@@ -1,0 +1,58 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Defaults
+metadata:
+  name: default
+  description: What the engine uses where a lab doesn't say; a Defaults document in the personal config or a lab file overrides single fields
+spec:
+  # The lab's login on its VMs (and on Machines that don't name a user); a lab's ssh.user overrides it.
+  ssh:
+    user: lab
+
+  # The size of a Harvester VM or downstream pool machine that doesn't give one.
+  vm:
+    cpu: 4
+    memory: 8Gi
+    disk: 40Gi
+
+  harvester:
+    # Harvester's own management network; a Harvester document's clusterNetwork overrides it.
+    clusterNetwork: mgmt
+    # The lab's Longhorn storage class on each Harvester (and its images' parameters).
+    storageClass:
+      name: longhorn-single
+      replicas: 1
+      parameters:
+        staleReplicaTimeout: "30"
+        migratable: "true"
+
+  aws:
+    # An AwsSite's VPC (a public subnet per zone is cut from it) and zones, by letter.
+    vpcCidr: 10.100.0.0/16
+    zones: [ a, b ]
+    # An EC2 pool's machines; their root volume is vm.disk.
+    instanceType: t3.large
+    # An EKS cluster's Kubernetes minor, when it gives none.
+    eksVersion: "1.34"
+
+  # How long the engine waits for each step before failing it.
+  timeouts:
+    harvesterAddon: 15m       # a Harvester add-on (DHCP, DNS controller) deployed
+    image: 60m                # an OS image downloaded onto a Harvester
+    vmStart: 30m              # a VM running
+    vmAddress: 10m            # a VM reporting its IP address (guest agent)
+    cloudInit: 30m            # cloud-init finished on a VM
+    loadBalancerCleanup: 5m   # a lab's load balancers gone from a Harvester on destroy
+    kubernetesApi: 10m        # a host's API server answering after k3s / RKE2 is installed
+    resourceReady: 15m        # what a profile waits for on its cluster (CRDs, an IngressClass, a webhook)
+    certificate: 15m          # the wildcard certificate issued (ACME DNS-01)
+    rancherReady: 20m         # Rancher's local cluster Ready, and its admin password set
+    uiPlugin: 10m             # a UI plugin installed
+    harvesterImport: 20m      # each step of importing a Harvester into Rancher (until it's Ready), or removing it
+    clusterRegistration: 5m   # Rancher's registration command for a custom cluster
+    downstreamReady: 60m      # a downstream cluster Ready
+    downstreamDelete: 30m     # a downstream cluster removed
+    helmJobWatch: 60m         # how long a new k3s / RKE2 server deletes helm-controller install Jobs stuck suspended
+
+  # Images the engine runs itself. kubectl (with curl): a k3k cluster's import job on its parent.
+  images:
+    kubectl: rancher/shell:v0.8.3

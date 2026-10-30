@@ -1,0 +1,10 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: cert-manager
+  description: cert-manager
+spec:
+  repo: https://charts.jetstack.io
+  chart: cert-manager
+  version: v1.20.2
+  namespace: cert-manager

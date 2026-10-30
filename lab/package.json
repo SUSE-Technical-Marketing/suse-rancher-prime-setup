@@ -1,0 +1,15 @@
+{
+    "name": "lab",
+    "private": true,
+    "description": "Config-driven lab environments on SUSE Virtualization (see DESIGN.md)",
+    "scripts": {
+        "test": "pnpm -r test",
+        "typecheck": "pnpm -r typecheck"
+    },
+    "devDependencies": {
+        "@types/node": "^26.6.5",
+        "tsx": "^4.23.15",
+        "typescript": "~5.9.3",
+        "vitest": "^5.0.5"
+    }
+}

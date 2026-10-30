@@ -1,0 +1,10 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: rancher
+  description: Rancher Manager (Prime)
+spec:
+  repo: https://charts.rancher.com/server-charts/prime
+  chart: rancher
+  version: v2.15.2
+  namespace: cattle-system

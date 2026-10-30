@@ -1,0 +1,11 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: harvester-vm-dhcp-controller
+  description: DHCP for VM networks, as a Harvester add-on; follows the Harvester it runs on
+spec:
+  repo: https://charts.harvesterhci.io
+  chart: harvester-vm-dhcp-controller
+  # Harvester minor -> version; an unknown (newer) Harvester gets the newest one listed.
+  version: { "1.8": 1.8.2, "1.9": 1.9.0 }
+  namespace: harvester-system

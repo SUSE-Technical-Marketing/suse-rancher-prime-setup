@@ -1,0 +1,20 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: outrider
+  description: "Outrider: propagates annotated secrets to downstream clusters"
+spec:
+  icon: send                # in the lab UI (lucide.dev/icons)
+  charts:
+    - chart: outrider
+      namespace: outrider
+      values:
+        defaultTargetNamespace: default
+        logLevel: info
+  requires: [ kubernetes ]
+  provides: [ downstream-secrets ]
+  settings:
+    type: object
+    properties:
+      version: { type: string }
+      values: { $ref: chartValues }

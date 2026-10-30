@@ -1,0 +1,10 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: k3k
+  description: k3k operator, installed once on every downstream cluster a k3k cluster runs in
+spec:
+  repo: https://rancher.github.io/k3k
+  chart: k3k
+  version: 1.2.0
+  namespace: k3k-system

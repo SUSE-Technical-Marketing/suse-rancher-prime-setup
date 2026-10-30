@@ -1,0 +1,19 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: sprouter
+  description: "Sprouter: copies labelled secrets (the wildcard certificate) into every namespace"
+spec:
+  icon: sprout                # in the lab UI (lucide.dev/icons)
+  charts:
+    - chart: sprouter
+      namespace: sprouter
+      values:
+        excludedNamespaces: [ kube-system, kube-public, cattle-local-user-passwords ]
+  requires: [ kubernetes ]
+  provides: [ secret-propagation ]
+  settings:
+    type: object
+    properties:
+      version: { type: string }
+      values: { $ref: chartValues }

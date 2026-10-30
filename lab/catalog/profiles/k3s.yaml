@@ -1,0 +1,19 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: k3s
+  description: Single-node k3s cluster on the host
+spec:
+  icon: feather                # in the lab UI (lucide.dev/icons)
+  distribution: k3s
+  provides: [ kubernetes ]
+  conflicts: [ kubernetes ]
+  # k3s's own ServiceLB and Traefik, unless another profile on the host provides them (metallb,
+  # traefik): its KubernetesDistribution's `withCapability` then turns them off.
+  fallback: [ load-balancer, ingress ]
+  outputs:
+    ingress: { ingressClassName: traefik }
+  settings:
+    type: object
+    properties:
+      version: { type: string, description: k3s version; default from this file }

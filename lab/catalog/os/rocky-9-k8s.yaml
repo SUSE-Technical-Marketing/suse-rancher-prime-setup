@@ -1,0 +1,16 @@
+# For k3s / RKE2 nodes: what Longhorn needs on every node. iSCSI for its volumes, NFS for RWX
+# volumes, cryptsetup for encrypted ones.
+apiVersion: lab.geeko.me/v1alpha1
+kind: OperatingSystem
+metadata:
+  name: rocky-9-k8s
+  description: Rocky Linux 9, for k3s / RKE2 nodes
+spec:
+  extends: rocky-9
+  cloudInit:
+    packages: [ container-selinux, iscsi-initiator-utils, nfs-utils, cryptsetup ]
+    runcmd:
+      - systemctl enable --now iscsid
+      # No firewalld on Kubernetes nodes, as the k3s and RKE2 docs advise: it conflicts with their
+      # CNIs, and would block the API and ingress. Lab VMs sit on lab VLANs.
+      - systemctl disable --now firewalld 2>/dev/null || true

@@ -1,0 +1,9 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: sprouter
+  description: "Sprouter: copies labelled secrets into every namespace"
+spec:
+  chart: oci://ghcr.io/hierynomus/sprouter/charts/sprouter
+  version: 0.11.1
+  namespace: sprouter

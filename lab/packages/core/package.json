@@ -1,0 +1,14 @@
+{
+    "name": "@lab/core",
+    "version": "0.1.0",
+    "private": true,
+    "main": "src/index.ts",
+    "types": "src/index.ts",
+    "scripts": {
+        "typecheck": "tsc -p .",
+        "test": "vitest run --passWithNoTests"
+    },
+    "dependencies": {
+        "undici": "^8.12.3"
+    }
+}

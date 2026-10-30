@@ -1,0 +1,26 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: cert-manager
+  description: cert-manager with Let's Encrypt issuers (Cloudflare DNS-01) and a wildcard certificate for the host
+spec:
+  icon: lock-keyhole                # in the lab UI (lucide.dev/icons)
+  charts:
+    - chart: cert-manager
+      namespace: cert-manager
+      values:
+        # Lab names usually resolve internally too; check DNS-01 challenge records publicly.
+        dns01RecursiveNameserversOnly: true
+        dns01RecursiveNameservers: "8.8.8.8:53,1.1.1.1:53"
+      lockedValues:
+        crds: { enabled: true }
+  requires: [ kubernetes ]
+  provides: [ tls ]
+  outputs:
+    # The host's wildcard certificate, labelled for Sprouter so it lands in every namespace.
+    tls: { secretName: wildcard-cert }
+  settings:
+    type: object
+    properties:
+      version: { type: string }
+      values: { $ref: chartValues }

@@ -1,0 +1,21 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: OperatingSystem
+metadata:
+  name: sles-16
+  description: SUSE Linux Enterprise Server 16.0
+spec:
+  family: suse
+  image: { url: null }
+  # On AWS: SUSE's bring-your-own-subscription images, registered with the regcode below.
+  ami: { owner: "013907871322", name: "suse-sles-16-0-byos-v*-x86_64", user: ec2-user }
+  cloudInit:
+    # Register first: bootcmd runs before cloud-init installs packages, which an unregistered
+    # system can't. cloud-init-per once: on the first boot only.
+    bootcmd:
+      - cloud-init-per once register suseconnect --regcode '{{ secrets["scc-regcode-sles"] }}'
+    package_update: true
+    packages: [ curl, git-core, bash-completion, vim, wget, qemu-guest-agent, firewalld ]
+    runcmd:
+      - systemctl enable --now qemu-guest-agent
+      # Running from the first boot, not only after a reboot.
+      - systemctl enable --now firewalld

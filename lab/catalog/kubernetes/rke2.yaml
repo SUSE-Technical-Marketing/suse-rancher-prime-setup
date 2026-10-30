@@ -1,0 +1,36 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: KubernetesDistribution
+metadata:
+  name: rke2
+  description: Single-node RKE2 cluster on the host
+spec:
+  # Same Kubernetes as k3s; check https://update.rke2.io/v1-release/channels when bumping.
+  version: v1.36.4+rke2r1
+  # Run as root by cloud-init. The tarball install doesn't depend on an RPM repository for the
+  # host's distribution.
+  install: curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION={{ version }} INSTALL_RKE2_METHOD=tar sh - && systemctl enable --now rke2-server.service
+  # The engine writes `config` here before installing, with the host's FQDN as a tls-san.
+  configFile: /etc/rancher/rke2/config.yaml
+  # Without other profiles, ServiceLB gives LoadBalancer services the node's address, as on k3s, and
+  # its own Traefik is the ingress (the rke2 profile's fallbacks). ingress-nginx is never used.
+  config:
+    disable: [ rke2-ingress-nginx ]
+    enable-servicelb: true
+  # Merged into `config` (lists are joined) when another profile on the host provides the capability.
+  withCapability:
+    # The traefik profile. RKE2's Traefik comes with the Gateway API CRDs, in a chart of its own,
+    # which the traefik profile installs itself.
+    ingress:
+      disable: [ rke2-traefik, rke2-traefik-crd ]
+    load-balancer:                    # metallb, harvester-cloud-provider
+      enable-servicelb: false
+    cloud-provider:                   # harvester-cloud-provider
+      cloud-provider-name: external
+      disable-cloud-controller: true
+  kubeconfig: /etc/rancher/rke2/rke2.yaml
+  kubectl: /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml
+  dataDir: /var/lib/rancher/rke2
+  # Run on a custom cluster's existing machines when the lab goes; missing ones are skipped.
+  uninstall: [ /usr/local/bin/rke2-uninstall.sh, /opt/rke2/bin/rke2-uninstall.sh, /usr/bin/rke2-uninstall.sh ]
+  # Downstream clusters' default CNI.
+  cni: calico

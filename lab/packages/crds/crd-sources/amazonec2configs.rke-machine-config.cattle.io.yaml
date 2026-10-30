@@ -1,0 +1,214 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: amazonec2configs.rke-machine-config.cattle.io
+spec:
+  conversion:
+    strategy: None
+  group: rke-machine-config.cattle.io
+  names:
+    kind: Amazonec2Config
+    listKind: Amazonec2ConfigList
+    plural: amazonec2configs
+    singular: amazonec2config
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          description: Amazonec2Config represents the desired configuration of each machine provisioned within a machine pool associated with a provisioning.cattle.io cluster.
+          properties:
+            accessKey:
+              default: ""
+              description: AWS Access Key
+              nullable: true
+              type: string
+            ami:
+              default: ""
+              description: AWS machine image
+              nullable: true
+              type: string
+            blockDurationMinutes:
+              default: "0"
+              description: AWS spot instance duration in minutes (60, 120, 180, 240, 300, or 360)
+              nullable: true
+              type: string
+            deviceName:
+              default: ""
+              description: AWS root device name
+              nullable: true
+              type: string
+            enablePrimaryIpv6:
+              default: false
+              description: Indicates whether the first IPv6 address assigned to the instance should be marked as the primary IPv6 address. Enable this option if the instance requires a stable, non-changing IPv6 address. This option does not affect whether IPv6 addresses are assigned to the instance.
+              type: boolean
+            encryptEbsVolume:
+              default: false
+              description: Encrypt the EBS volume using the AWS Managed CMK
+              type: boolean
+            endpoint:
+              default: ""
+              description: Optional endpoint URL (hostname only or fully qualified URI)
+              nullable: true
+              type: string
+            httpEndpoint:
+              default: ""
+              description: Enables or disables the HTTP metadata endpoint on your instances
+              nullable: true
+              type: string
+            httpProtocolIpv6:
+              default: disabled
+              description: "Enables or disables the IPv6 endpoint for the instance metadata service. Options: enabled, disabled (default)."
+              nullable: true
+              type: string
+            httpTokens:
+              default: ""
+              description: The state of token usage for your instance metadata requests.
+              nullable: true
+              type: string
+            iamInstanceProfile:
+              default: ""
+              description: AWS IAM Instance Profile
+              nullable: true
+              type: string
+            insecureTransport:
+              default: false
+              description: Disable SSL when sending requests
+              type: boolean
+            instanceType:
+              default: t2.micro
+              description: AWS instance type
+              nullable: true
+              type: string
+            ipv6AddressCount:
+              default: "0"
+              description: "The number of IPv6 addresses to assign to the network interface (default: 0). Must be greater than zero when amazonec2-ipv6-address-only is true."
+              nullable: true
+              type: string
+            ipv6AddressOnly:
+              default: false
+              description: Indicates whether the instance has only IPv6 address. Useful when the VPC or subnet is configured as IPv6-only. When set to true, the instance will have IPv6 as its sole address. When set to true, amazonec2-ipv6-address-count must be greater than zero.
+              type: boolean
+            keypairName:
+              default: ""
+              description: AWS keypair to use; requires --amazonec2-ssh-keypath
+              nullable: true
+              type: string
+            kmsKey:
+              default: ""
+              description: Custom KMS key using the AWS Managed CMK
+              nullable: true
+              type: string
+            monitoring:
+              default: false
+              description: Set this flag to enable CloudWatch monitoring
+              type: boolean
+            openPort:
+              description: Make the specified port number accessible from the Internet
+              items:
+                nullable: true
+                type: string
+              nullable: true
+              type: array
+            privateAddressOnly:
+              default: false
+              description: Only use a private IP address
+              type: boolean
+            region:
+              default: us-east-1
+              description: AWS region
+              nullable: true
+              type: string
+            requestSpotInstance:
+              default: false
+              description: Set this flag to request spot instance
+              type: boolean
+            retries:
+              default: "5"
+              description: Set retry count for recoverable failures (use -1 to disable)
+              nullable: true
+              type: string
+            rootSize:
+              default: "16"
+              description: AWS root disk size (in GB)
+              nullable: true
+              type: string
+            secretKey:
+              default: ""
+              description: AWS Secret Key
+              nullable: true
+              type: string
+            securityGroup:
+              default:
+                - rancher-nodes
+              description: AWS VPC security group
+              items:
+                nullable: true
+                type: string
+              nullable: true
+              type: array
+            securityGroupReadonly:
+              default: false
+              description: Skip adding default rules to security groups
+              type: boolean
+            sessionToken:
+              default: ""
+              description: AWS Session Token
+              nullable: true
+              type: string
+            spotPrice:
+              default: "0.50"
+              description: AWS spot instance bid price (in dollar)
+              nullable: true
+              type: string
+            sshKeyContents:
+              default: ""
+              description: File contents for sshKeyContents
+              nullable: true
+              type: string
+            sshUser:
+              default: ubuntu
+              description: Set the name of the ssh user
+              nullable: true
+              type: string
+            subnetId:
+              default: ""
+              description: AWS VPC subnet id
+              nullable: true
+              type: string
+            tags:
+              default: ""
+              description: AWS Tags (e.g. key1,value1,key2,value2)
+              nullable: true
+              type: string
+            useEbsOptimizedInstance:
+              default: false
+              description: Create an EBS optimized instance
+              type: boolean
+            usePrivateAddress:
+              default: false
+              description: Force the usage of private IP address
+              type: boolean
+            userdata:
+              default: ""
+              description: File contents for userdata
+              nullable: true
+              type: string
+            volumeType:
+              default: gp2
+              description: Amazon EBS volume type
+              nullable: true
+              type: string
+            vpcId:
+              default: ""
+              description: AWS VPC id
+              nullable: true
+              type: string
+            zone:
+              default: a
+              description: AWS zone for instance (i.e. a,b,c,d,e)
+              nullable: true
+              type: string
+          type: object
+      served: true
+      storage: true

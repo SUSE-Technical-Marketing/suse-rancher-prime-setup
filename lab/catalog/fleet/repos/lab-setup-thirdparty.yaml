@@ -1,0 +1,10 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetRepo
+metadata:
+  name: lab-setup-thirdparty
+  description: apps/thirdparty of this repository
+spec:
+  default: true
+  url: https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git
+  branch: main
+  paths: [ /apps/thirdparty ]

@@ -1,0 +1,10 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: metallb
+  description: "MetalLB: LoadBalancer services on networks without a cloud provider"
+spec:
+  repo: https://metallb.github.io/metallb
+  chart: metallb
+  version: 0.16.1
+  namespace: metallb-system

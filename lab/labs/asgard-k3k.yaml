@@ -1,0 +1,112 @@
+# k3k test lab: Rancher on odin; apps, an RKE2 cluster on asgard; and two k3k virtual clusters in
+# apps, imported into Rancher. The engine installs the k3k operator on apps once, for both.
+# Harvester url and credentials come from the personal config (harvesters.asgard).
+apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata:
+  name: asgard-k3k
+spec:
+  domain: lab.geeko.me
+
+  tls:
+    # Production: Rancher is also published through a Cloudflare Tunnel, and agents behind it only
+    # accept a publicly trusted certificate (agent-tls-mode system-store). 5 certificates a week per name set.
+    acme: letsencrypt
+    email: jeroen@vanerp.info
+    cloudflare: "{{ secrets['cloudflare-token'] }}"
+
+  ssh:
+    user: jeroen
+    publicKey: { file: ~/.ssh/id_ed25519.pub }
+    privateKey: "{{ secrets['ssh-key'] }}"
+  # Inputs for the catalog's secrets (Fleet's Helm logins and values files).
+  inputs:
+    appco: "{{ secrets.appco }}"
+    scc: "{{ secrets.scc }}"
+    suse-observability-license: "{{ secrets['suse-observability-license'] }}"
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Harvester
+metadata:
+  name: asgard
+spec:
+  dns:
+    backend: routeros
+    host: 10.29.20.1
+    credentials: "{{ secrets.routeros }}"
+  networks:
+    default: vlan20
+    vlans:
+      - id: 20
+        dhcp: { cidr: 10.29.20.0/24, gateway: 10.29.20.1, range: [ 10.29.20.100, 10.29.20.150 ] }
+        loadBalancer: { range: [ 10.29.20.200, 10.29.20.220 ] } # Harvester LB pool for odin's load balancers
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: odin
+spec:
+  harvester: asgard
+  os: leap-16-k8s
+  cpu: 4
+  memory: 8Gi
+  disk: 40Gi
+  # No traefik profile: RKE2's own Traefik is the ingress. harvester-cloud-provider gives
+  # LoadBalancer services an address from the Harvester's pool, instead of ServiceLB.
+  profiles:
+    rke2: {}
+    harvester-cloud-provider: {}
+    cert-manager: {}
+    sprouter: {}
+    outrider: {}
+    rancher:
+      adminPassword: "{{ secrets['rancher-admin'] }}"
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: DownstreamCluster
+metadata:
+  name: apps
+spec:
+  type: harvester
+  rancher: odin
+  harvester: asgard
+  distro: rke2
+  # The Harvester CSI driver gives it a default StorageClass, for the k3k clusters' etcd.
+  pools:
+    - name: all
+      quantity: 1
+      roles: [ etcd, controlplane, worker ]
+      cpu: 8
+      memory: 16Gi
+      disk: 80Gi
+      os: leap-16-k8s
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: DownstreamCluster
+metadata:
+  name: team-a
+spec:
+  type: k3k
+  rancher: odin
+  parent: apps
+  # Its workloads run as pods of apps; etcd on a PVC of apps' default StorageClass.
+  mode: shared
+  labels:
+    team: a
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: DownstreamCluster
+metadata:
+  name: team-b
+spec:
+  type: k3k
+  rancher: odin
+  parent: apps
+  # Its own nodes, as pods of apps.
+  mode: virtual
+  servers: 1
+  agents: 1
+  persistence:
+    type: ephemeral
+  labels:
+    team: b

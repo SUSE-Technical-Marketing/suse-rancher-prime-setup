@@ -1,0 +1,140 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ippools.loadbalancer.harvesterhci.io
+spec:
+  group: loadbalancer.harvesterhci.io
+  names:
+    plural: ippools
+    singular: ippool
+    shortNames:
+      - pool
+      - pools
+    kind: IPPool
+    listKind: IPPoolList
+  scope: Cluster
+  versions:
+    - name: v1beta1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            apiVersion:
+              description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources"
+              type: string
+            kind:
+              description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              required:
+                - ranges
+              properties:
+                description:
+                  type: string
+                ranges:
+                  type: array
+                  items:
+                    description: Range refers to github.com/containernetworking/plugins/plugins/ipam/host-local/backend/allocator.Range
+                    type: object
+                    required:
+                      - subnet
+                    properties:
+                      gateway:
+                        type: string
+                      rangeEnd:
+                        type: string
+                      rangeStart:
+                        type: string
+                      subnet:
+                        type: string
+                selector:
+                  type: object
+                  properties:
+                    network:
+                      type: string
+                    priority:
+                      type: integer
+                      format: int32
+                    scope:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          guestCluster:
+                            type: string
+                          namespace:
+                            type: string
+                          project:
+                            type: string
+            status:
+              type: object
+              required:
+                - available
+                - lastAllocated
+                - total
+              properties:
+                allocated:
+                  type: object
+                  additionalProperties:
+                    type: string
+                allocatedHistory:
+                  type: object
+                  additionalProperties:
+                    type: string
+                available:
+                  type: integer
+                  format: int64
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - status
+                      - type
+                    properties:
+                      lastTransitionTime:
+                        description: Last time the condition transitioned from one status to another.
+                        type: string
+                      lastUpdateTime:
+                        description: The last time this condition was updated.
+                        type: string
+                      message:
+                        description: Human-readable message indicating details about last transition
+                        type: string
+                      reason:
+                        description: The reason for the condition's last transition.
+                        type: string
+                      status:
+                        description: Status of the condition, one of True, False, Unknown.
+                        type: string
+                      type:
+                        description: Type of the condition.
+                        type: string
+                lastAllocated:
+                  type: string
+                total:
+                  type: integer
+                  format: int64
+      subresources: {}
+      additionalPrinterColumns:
+        - name: DESCRIPTION
+          type: string
+          jsonPath: .spec.description
+        - name: RANGES
+          type: string
+          jsonPath: .spec.ranges
+        - name: Priority
+          type: string
+          jsonPath: .spec.selector.priority
+        - name: AGE
+          type: date
+          jsonPath: .metadata.creationTimestamp
+  conversion:
+    strategy: None
