@@ -308,9 +308,124 @@ ${extra}`;
         const result = load(lab("  a: { type: k3k, rancher: r1, parent: nope }\n  b: { type: k3k, rancher: r1, parent: apps }\n  c: { type: k3k, rancher: r1, parent: b }\n  d: { type: k3k, rancher: r1, parent: other }\n"));
         expect(errors(result)).toEqual([
             'downstream.a.parent: unknown downstream cluster "nope"; known: apps, b, c, d, other',
-            'downstream.c.parent: "b" is a k3k cluster itself; a k3k cluster runs in a harvester or custom cluster',
+            'downstream.c.parent: "b" is a k3k cluster itself; a k3k cluster runs in a harvester, ec2, eks or custom cluster',
             'downstream.d.parent: "other" is managed by the Rancher on r2, this cluster by the one on r1; they must be the same',
         ]);
+    });
+});
+
+describe("AWS sites and ec2 clusters", () => {
+    // No profile makes a Rancher public yet; a stub one in a copy of the catalog stands in for it.
+    let catalogDir: string;
+    beforeAll(() => {
+        catalogDir = path.join(tmp, "catalog-public");
+        fs.cpSync(path.resolve(__dirname, "..", "..", "..", "catalog"), catalogDir, { recursive: true });
+        fs.writeFileSync(path.join(catalogDir, "profiles", "public-ingress.yaml"), "apiVersion: lab.geeko.me/v1alpha1\nkind: Profile\nmetadata: { name: public-ingress, description: test stub }\nspec: { requires: [ kubernetes ] }\n");
+    });
+    const POOL = "{ name: all, quantity: 1, roles: [etcd, controlplane, worker], os: ubuntu-24.04-k8s }";
+    const lab = (site: string, cluster: string, publicRancher = true) => `${BASE}awsSites:
+  eu: ${site}
+hosts:
+  vm: { on: hv-north, os: leap-16-k8s, profiles: { ${RANCHER_STACK}${publicRancher ? ", public-ingress: {}" : ""} } }
+downstream:
+  cloud: ${cluster}
+`;
+    const loadPublic = (yaml: string, personal = personalConfig) => {
+        const file = path.join(tmp, `lab-${Math.random().toString(36).slice(2)}.yaml`);
+        fs.writeFileSync(file, labDocument(yaml));
+        return loadLab({ labFile: file, personalConfig: personal, catalogDir });
+    };
+
+    it("cuts a subnet per zone from the VPC and fills in the pools", () => {
+        const result = loadPublic(lab(
+            "{ region: eu-west-1, credentials: \"{{ secrets.aws }}\", zones: [a, c], ttl: 8h }",
+            `{ type: ec2, rancher: vm, site: eu, pools: [ ${POOL}, { name: workers, quantity: 2, roles: [worker], os: rocky-9-k8s, instanceType: m6i.xlarge, disk: 100Gi, zone: c } ] }`,
+        ));
+        expect(errors(result)).toEqual([]);
+        expect(result.lab!.awsSites).toEqual([{
+            name: "eu", region: "eu-west-1", credentials: "{{ secrets.aws }}", vpcCidr: "10.100.0.0/16", ttl: 8 * 3600,
+            zones: [{ letter: "a", az: "eu-west-1a", cidr: "10.100.0.0/20" }, { letter: "c", az: "eu-west-1c", cidr: "10.100.16.0/20" }],
+        }]);
+        const cloud = result.lab!.downstream.find(d => d.name === "cloud")!;
+        expect(cloud).toMatchObject({ type: "ec2", site: "eu", distro: "rke2" });
+        expect(cloud.type === "ec2" && cloud.pools).toEqual([
+            { name: "all", quantity: 1, roles: ["etcd", "controlplane", "worker"], os: "ubuntu-24.04-k8s", instanceType: "t3.large", disk: "40Gi", zone: "a" },
+            { name: "workers", quantity: 2, roles: ["worker"], os: "rocky-9-k8s", instanceType: "m6i.xlarge", disk: "100Gi", zone: "c" },
+        ]);
+        expect(result.lab!.secrets).toMatchObject({ aws: { fields: ["accessKey", "secretKey"] } });
+        expect(result.lab!.os["rocky-9-k8s"].ami).toMatchObject({ owner: "792107900819", user: "rocky" });
+    });
+
+    it("takes the region and keys from the personal config", () => {
+        const personal = writePersonal(path.join(tmp, "personal-aws.yaml"), `${PERSONAL_YAML}awsSites:\n  eu: { region: eu-central-1, credentials: { accessKey: AKIA, secretKey: "{{ secrets['aws-secret'] }}" } }\n`);
+        const result = loadPublic(lab("{}", `{ type: ec2, rancher: vm, site: eu, pools: [ ${POOL} ] }`), personal);
+        expect(errors(result)).toEqual([]);
+        expect(result.lab!.awsSites[0]).toMatchObject({ region: "eu-central-1", zones: [{ az: "eu-central-1a" }, { az: "eu-central-1b" }] });
+        expect(result.lab!.secrets).toMatchObject({ "aws-secret": "string" });
+    });
+
+    it("needs a public Rancher, a known site, a zone of the site, an OS with an AMI and every role", () => {
+        expect(errors(loadPublic(lab("{ region: eu-west-1, credentials: \"{{ secrets.aws }}\" }", `{ type: ec2, rancher: vm, site: eu, pools: [ ${POOL} ] }`, false)))).toEqual([
+            "downstream.cloud.rancher: EC2 machines reach Rancher over the internet, and the Rancher on vm isn't public: its host needs public-ingress",
+        ]);
+        expect(errors(loadPublic(lab(
+            "{ region: eu-west-1, credentials: \"{{ secrets.aws }}\" }",
+            "{ type: ec2, rancher: vm, site: eu, pools: [ { name: a, quantity: 1, roles: [etcd, controlplane], os: leap-16-k8s, zone: c } ] }",
+        )))).toEqual([
+            "downstream.cloud.pools[0].os: OS profile leap-16-k8s has no AMI (ami: owner and name) to boot EC2 machines from",
+            "downstream.cloud.pools[0].zone: the site eu has no subnet in zone c; its zones: a, b",
+            "downstream.cloud: no node has the worker role; a cluster needs at least one of each",
+        ]);
+        expect(errors(loadPublic(lab("{ region: eu-west-1, credentials: \"{{ secrets.aws }}\" }", `{ type: ec2, rancher: vm, site: us, pools: [ ${POOL} ] }`)))).toEqual([
+            'downstream.cloud.site: unknown AwsSite "us"; known: eu',
+        ]);
+    });
+
+    it("checks the site's VPC, zones and keys", () => {
+        expect(errors(loadPublic(lab("{ vpc: { cidr: 10.100.0.0/25 }, zones: [a, a] }", `{ type: ec2, rancher: vm, site: eu, pools: [ ${POOL} ] }`)))).toEqual([
+            "awsSites.eu.region: missing; set it here or in the personal config under awsSites.eu.region",
+            "awsSites.eu.credentials: missing; set it here or in the personal config under awsSites.eu.credentials",
+            "awsSites.eu.vpc.cidr: must be a /16 to /24: each zone gets a sixteenth of it",
+            "awsSites.eu.zones[1]: zone a is listed twice",
+        ]);
+        expect(errors(loadPublic(lab("{ region: eu-west-1, credentials: AKIA, vpc: { cidr: 10.100.3.0/16 } }", `{ type: ec2, rancher: vm, site: eu, pools: [ ${POOL} ] }`)))).toEqual([
+            'awsSites.eu.credentials: AWS credentials are one secret ("{{ secrets.name }}") or { accessKey, secretKey }',
+            "awsSites.eu.vpc.cidr: 10.100.3.0/16 isn't the start of its range; use 10.100.0.0/16",
+        ]);
+    });
+
+    it("fills in an EKS cluster's version and node groups from the defaults and the site", () => {
+        const result = loadPublic(lab(
+            "{ region: eu-west-1, credentials: \"{{ secrets.aws }}\", zones: [a, b, c] }",
+            "{ type: eks, rancher: vm, site: eu, labels: { where: aws }, nodeGroups: [ { name: general, quantity: 2 }, { name: big, quantity: 1, max: 3, instanceType: m7g.xlarge, disk: 80Gi, zones: [c] } ] }",
+        ));
+        expect(errors(result)).toEqual([]);
+        const cloud = result.lab!.downstream.find(d => d.name === "cloud")!;
+        expect(cloud).toMatchObject({ type: "eks", site: "eu", version: "1.34", labels: { where: "aws" } });
+        expect(cloud.type === "eks" && cloud.nodeGroups).toEqual([
+            { name: "general", quantity: 2, min: 2, max: 2, instanceType: "t3.large", disk: "40Gi", zones: ["a", "b", "c"] },
+            { name: "big", quantity: 1, min: 1, max: 3, instanceType: "m7g.xlarge", disk: "80Gi", zones: ["c"] },
+        ]);
+    });
+
+    it("needs a public Rancher, two zones, zones of the site and sizes in range for EKS", () => {
+        expect(errors(loadPublic(lab("{ region: eu-west-1, credentials: \"{{ secrets.aws }}\" }", "{ type: eks, rancher: vm, site: eu, nodeGroups: [ { name: g, quantity: 1 } ] }", false)))).toEqual([
+            "downstream.cloud.rancher: An EKS cluster's agent reaches Rancher over the internet, and the Rancher on vm isn't public: its host needs public-ingress",
+        ]);
+        expect(errors(loadPublic(lab(
+            "{ region: eu-west-1, credentials: \"{{ secrets.aws }}\", zones: [a] }",
+            "{ type: eks, rancher: vm, site: eu, version: \"1.33\", nodeGroups: [ { name: g, quantity: 5, max: 3, zones: [b] }, { name: g, quantity: 1 } ] }",
+        )))).toEqual([
+            "downstream.cloud.site: EKS needs subnets in two zones at least, and the site eu has 1",
+            "downstream.cloud.nodeGroups[0].quantity: 5 isn't between min 5 and max 3",
+            "downstream.cloud.nodeGroups[0].zones: the site eu has no subnet in zone b; its zones: a",
+            'downstream.cloud.nodeGroups[1].name: node group "g" is defined twice',
+        ]);
+    });
+
+    it("reports a site's fields at its document", () => {
+        const result = loadPublic(lab("{ region: eu-west-1 }", `{ type: ec2, rancher: vm, site: eu, pools: [ ${POOL} ] }`));
+        expect(result.diagnostics.errors.map(d => d.path)).toEqual(["AwsSite/eu.spec.credentials"]);
     });
 });
 
@@ -371,7 +486,7 @@ hosts:
         const result = load(`${BASE}\ncatalog:\n  os:\n    mine: { extends: leap-16, cloudInit: { runcmd: [\"echo {{ secrets.tok }} {{ lab.domain }}\", \"echo {{ secrets.tok.user }}\", \"echo {{ nope }}\"] } }\nhosts:\n  vm: { on: hv-north, os: mine, cpu: 2, memory: 4Gi, disk: 20Gi }\n`);
         // After leap-16's own runcmd.
         expect(errors(result).filter(e => e.startsWith("cloudInit"))).toEqual([
-            "cloudInit.runcmd[3]: secrets.tok.user: a secret is a value, or credentials with a username and password",
+            "cloudInit.runcmd[3]: secret \"tok\" is used both as string and as a map with user",
             "cloudInit.runcmd[4]: template: attempted to output null or undefined value",
         ]);
         const ok = load(`${BASE}\ncatalog:\n  os:\n    mine: { extends: leap-16, cloudInit: { runcmd: [\"echo {{ secrets['reg-code'] }} {{ secrets.scc.password }}\"] } }\nhosts:\n  vm: { on: hv-north, os: mine, cpu: 2, memory: 4Gi, disk: 20Gi }\n`);
@@ -942,13 +1057,20 @@ describe("secret templates", () => {
     });
 
     it("rejects a secret used in two shapes, an unknown field, and credentials that aren't one secret", () => {
-        const result = load(`${BASE.replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: \"admin:{{ secrets.hv }}\" }")}hosts:\n  vm: { on: hv-north, os: leap-16-k8s, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.cf.password }}\", values: { x: \"{{ secrets['ssh-key'].token }}\" } } } }\n`);
+        const result = load(`${BASE.replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: \"admin:{{ secrets.hv }}\" }")}hosts:\n  vm: { on: hv-north, os: leap-16-k8s, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.cf.password }}\", values: { x: \"{{ secrets['ssh-key'].token }}\", y: \"{{ secrets.ra['a b'] }}\" } } } }\n`);
         expect(errors(result)).toEqual([
             "harvesters.hv-north.credentials: credentials are one secret ({{ secrets.name }}) or { username, password }",
-            "hosts.vm.profiles.rancher.values.x: secrets.ssh-key.token: a secret is a value, or credentials with a username and password",
+            "hosts.vm.profiles.rancher.values.y: secrets.ra: \"a b\" can't be a field of a secret",
             // Reported where it's used the second time.
             "tls.cloudflare: secret \"cf\" is used both as credentials and as string",
+            "ssh.privateKey: secret \"ssh-key\" is used both as a map with token and as string",
         ]);
+    });
+
+    it("collects the fields of map secrets across their uses", () => {
+        const result = load(`${BASE}hosts:\n  vm: { on: hv-north, os: leap-16-k8s, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.ra }}\", values: { a: \"{{ secrets.aws.accessKey }}\", b: \"{{ secrets.aws.secretKey | trim }}\", c: \"{{ secrets.reg.username }}\" } } } }\n`);
+        expect(errors(result)).toEqual([]);
+        expect(result.lab!.secrets).toMatchObject({ aws: { fields: ["accessKey", "secretKey"] }, reg: "credentials" });
     });
 
     it("warns about plain values in secret fields, and errors on credentials written as one plain string", () => {

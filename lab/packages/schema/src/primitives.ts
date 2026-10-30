@@ -14,6 +14,12 @@ export const osName = z.string().regex(/^[a-z0-9]([-a-z0-9.]{0,61}[a-z0-9])?$/, 
 export const dnsName = z.string().regex(DNS_NAME, "must be a lowercase DNS name");
 export const quantity = z.string().regex(QUANTITY, "must be a size like 8Gi, 512Mi or 1Ti");
 export const ipv4 = z.string().regex(IPV4, "must be an IPv4 address");
+export const cidr = z.string().regex(CIDR, "must be a CIDR like 10.29.100.0/24");
+/** An availability zone by its letter: `a` is `eu-west-1a` in eu-west-1. */
+export const awsZone = z.string().regex(/^[a-z]$/, "must be a zone letter like a or b");
+/** An AWS region like eu-west-1. */
+export const awsRegion = z.string().regex(/^[a-z]{2}(-[a-z]+)+-\d$/, "must be an AWS region like eu-west-1");
+
 /** A duration like `90s`, `15m` or `2h`. */
 export const duration = z.string().regex(/^[1-9][0-9]*(s|m|h)$/, "must be a duration like 90s, 15m or 2h");
 
@@ -47,6 +53,14 @@ export const Credentials = z.union([
     z.strictObject({ username: z.string().min(1), password: secretOrString }),
 ]);
 export type Credentials = z.infer<typeof Credentials>;
+
+/** AWS access keys: one secret holding `accessKey` and `secretKey` ("{{ secrets.aws }}"), or the fields themselves. */
+export const AwsCredentials = z.union([
+    secretOrString,
+    z.strictObject({ accessKey: secretOrString, secretKey: secretOrString }),
+]);
+export type AwsCredentials = z.infer<typeof AwsCredentials>;
+export const AWS_CREDENTIAL_FIELDS = ["accessKey", "secretKey"] as const;
 
 export const ImageSource = z.union([
     z.strictObject({ url: z.url() }),

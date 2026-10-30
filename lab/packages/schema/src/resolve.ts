@@ -5,7 +5,7 @@ import { FleetSettings, ResolvedFleet, resolveFleet } from "./fleet";
 import { createObjects, ObjectTarget, Placement, placementOf, ResolvedObject } from "./objects";
 import { docAt } from "./documents";
 import { isTemplate, renderTemplates, TemplateContext } from "./templates";
-import { checkSecretTemplate, type SecretShape, usesSecrets } from "./secrets";
+import { checkSecretTemplate, describeShape, mapShape, mergeShapes, type SecretShape, usesSecrets } from "./secrets";
 import { ResolvedOs } from "./os";
 
 /** cloud-config keys an existing machine (no user data) gets, over SSH instead (packages are always refreshed first). */
@@ -13,7 +13,7 @@ export const MACHINE_CLOUD_INIT_KEYS = ["packages", "runcmd", "package_update"];
 import { Profiles } from "./profiles";
 import { activeRequirements, blocksCustomClusterNode, checkHostProfiles, describeCapability, hostCapabilities, profileBuildOrder } from "./profiles/rules";
 import {
-    Credentials, DownstreamInput, HarvesterInput, ImageSource, LabFile, NODE_ROLES,
+    AWS_CREDENTIAL_FIELDS, AwsCredentials, Credentials, DownstreamInput, durationSeconds, HarvesterInput, ImageSource, LabFile, NODE_ROLES,
     PersonalConfig, VersionValue,
 } from "./schema";
 
@@ -44,6 +44,17 @@ export interface ResolvedHarvester {
     defaultNetwork: string;
     /** One image per OS used by hosts or downstream pools on this Harvester. */
     images: { os: string; source: ResolvedImageSource }[];
+}
+
+export interface ResolvedAwsSite {
+    name: string;
+    region: string;
+    credentials: AwsCredentials;
+    vpcCidr: string;
+    /** A public subnet in each, in order: the first is where pools without a `zone` go. */
+    zones: { letter: string; /** `eu-west-1a` */ az: string; cidr: string }[];
+    /** Seconds the lab is meant to live (tagged, not enforced). */
+    ttl?: number;
 }
 
 /** One entry of a profile's `charts` on a host, its templates rendered. */
@@ -116,10 +127,18 @@ export interface ResolvedSshHost extends ResolvedHostBase {
 export type ResolvedHost = ResolvedHarvesterHost | ResolvedSshHost;
 
 type HarvesterDownstreamInput = Extract<DownstreamInput, { type: "harvester" }>;
-/** A downstream cluster; a Harvester one's pools with their machine size filled in. */
+type Ec2DownstreamInput = Extract<DownstreamInput, { type: "ec2" }>;
+/** An EC2 pool with its defaults filled in. */
+export type ResolvedEc2Pool = Ec2DownstreamInput["pools"][number] & { instanceType: string; disk: string; zone: string };
+type EksDownstreamInput = Extract<DownstreamInput, { type: "eks" }>;
+/** An EKS node group with its defaults filled in. */
+export type ResolvedEksNodeGroup = EksDownstreamInput["nodeGroups"][number] & { min: number; max: number; instanceType: string; disk: string; zones: string[] };
+/** A downstream cluster; a Harvester or EC2 one's pools with their machine size filled in, an EKS one's version and node groups. */
 export type ResolvedDownstream = { name: string } & (
-    | Exclude<DownstreamInput, { type: "harvester" }>
+    | Exclude<DownstreamInput, { type: "harvester" | "ec2" | "eks" }>
+    | (Omit<EksDownstreamInput, "nodeGroups" | "version"> & { version: string; nodeGroups: ResolvedEksNodeGroup[] })
     | (Omit<HarvesterDownstreamInput, "pools"> & { pools: (HarvesterDownstreamInput["pools"][number] & { cpu: number; memory: string; disk: string })[] })
+    | (Omit<Ec2DownstreamInput, "pools"> & { pools: ResolvedEc2Pool[] })
 );
 
 export interface ResolvedLab {
@@ -136,6 +155,7 @@ export interface ResolvedLab {
     /** The UI plugin repository and default plugin set, from the catalog. */
     plugins: ResolvedPlugins;
     harvesters: ResolvedHarvester[];
+    awsSites: ResolvedAwsSite[];
     hosts: ResolvedHost[];
     downstream: ResolvedDownstream[];
     /** Only the OS profiles the lab actually uses. */
@@ -186,10 +206,12 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
 
     const needSecret = (name: string, shape: SecretShape, source: string, at: string) => {
         const existing = secrets[name];
-        if (existing && existing !== shape) {
-            diags.error(source, at, `secret "${name}" is used both as ${existing} and as ${shape}`);
+        const merged = existing ? mergeShapes(existing, shape) : shape;
+        if (!merged) {
+            diags.error(source, at, `secret "${name}" is used both as ${describeShape(existing!)} and as ${describeShape(shape)}`);
+            return;
         }
-        secrets[name] = shape;
+        secrets[name] = merged;
     };
 
     /** A template that may use secrets: report what's wrong with it, register the secrets it uses. */
@@ -217,6 +239,16 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         }
         if (isTemplate(creds.username)) useTemplate(creds.username, "string", source, `${at}.username`);
         useSecretOrString(creds.password, source, `${at}.password`);
+    };
+
+    /** AWS keys: one secret holding `accessKey` and `secretKey`, or the two fields. */
+    const useAwsCredentials = (creds: AwsCredentials, source: string, at: string) => {
+        if (typeof creds === "string") {
+            if (isTemplate(creds)) useTemplate(creds, mapShape(AWS_CREDENTIAL_FIELDS), source, at);
+            else diags.error(source, at, `AWS credentials are one secret ("{{ secrets.name }}") or { ${AWS_CREDENTIAL_FIELDS.join(", ")} }`);
+            return;
+        }
+        for (const f of AWS_CREDENTIAL_FIELDS) useSecretOrString(creds[f], source, `${at}.${f}`);
     };
 
     /** Register the secrets in free-form values (chart values): every string that uses `secrets`. */
@@ -340,6 +372,40 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             networks,
             defaultNetwork,
             images: [],
+        });
+    }
+
+    // --- AWS sites ---------------------------------------------------------------------------
+    const awsSites = new Map<string, ResolvedAwsSite>();
+    const awsDefaults = catalog.defaults.value.aws;
+    for (const [name, s] of Object.entries(lab.awsSites)) {
+        const at = `awsSites.${name}`;
+        const mine = personal.awsSites[name] ?? {};
+        const region = s.region ?? mine.region;
+        const credentials = s.credentials ?? mine.credentials;
+        if (!region) diags.error(L, `${at}.region`, `missing; set it here or in the personal config under awsSites.${name}.region`);
+        if (!credentials) diags.error(L, `${at}.credentials`, `missing; set it here or in the personal config under awsSites.${name}.credentials`);
+        else useAwsCredentials(credentials, s.credentials ? L : P, s.credentials ? `${at}.credentials` : `awsSites.${name}.credentials`);
+
+        const vpcCidr = s.vpc?.cidr ?? awsDefaults.vpcCidr;
+        const letters = s.zones ?? awsDefaults.zones;
+        const prefix = Number(vpcCidr.split("/")[1]);
+        // A subnet per zone, a sixteenth of the VPC each; AWS takes VPCs from /16 to /28, subnets down to /28.
+        if (prefix < 16 || prefix > 24) diags.error(L, `${at}.vpc.cidr`, `must be a /16 to /24: each zone gets a sixteenth of it`);
+        if (nthAddress(vpcCidr, 0) !== vpcCidr.split("/")[0]) diags.error(L, `${at}.vpc.cidr`, `${vpcCidr} isn't the start of its range; use ${nthAddress(vpcCidr, 0)}/${prefix}`);
+        const seen = new Set<string>();
+        letters.forEach((l, i) => {
+            if (seen.has(l)) diags.error(L, `${at}.zones[${i}]`, `zone ${l} is listed twice`);
+            seen.add(l);
+        });
+        const subnetSize = 2 ** (32 - prefix - 4);
+        awsSites.set(name, {
+            name,
+            region: region ?? "",
+            credentials: credentials ?? "",
+            vpcCidr,
+            zones: letters.map((letter, i) => ({ letter, az: `${region ?? ""}${letter}`, cidr: `${nthAddress(vpcCidr, i * subnetSize)}/${prefix + 4}` })),
+            ...(s.ttl ? { ttl: durationSeconds(s.ttl) } : {}),
         });
     }
 
@@ -526,15 +592,45 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
     for (const [name, d] of Object.entries(lab.downstream)) {
         const at = `downstream.${name}`;
         const rancher = hosts.get(d.rancher);
+        const rancherCaps = rancher ? hostCapabilities(registry, rancher.profiles) : undefined;
         if (!rancher) diags.error(L, `${at}.rancher`, `unknown host "${d.rancher}"`);
-        else if (!hostCapabilities(registry, rancher.profiles).has("rancher")) diags.error(L, `${at}.rancher`, `host "${d.rancher}" doesn't run rancher`);
+        else if (!rancherCaps!.has("rancher")) diags.error(L, `${at}.rancher`, `host "${d.rancher}" doesn't run rancher`);
+        // Machines on AWS register with Rancher over the internet.
+        else if ((d.type === "ec2" || d.type === "eks") && !rancherCaps!.has("public-ingress")) {
+            const what = d.type === "ec2" ? "EC2 machines reach" : "An EKS cluster's agent reaches";
+            diags.error(L, `${at}.rancher`, `${what} Rancher over the internet, and the Rancher on ${d.rancher} isn't public: its host needs ${describe("public-ingress")}`);
+        }
 
         if (d.type === "k3k") {
             const parent = lab.downstream[d.parent];
             if (!parent) diags.error(L, `${at}.parent`, `unknown downstream cluster "${d.parent}"; known: ${Object.keys(lab.downstream).filter(n => n !== name).sort().join(", ") || "none"}`);
-            else if (parent.type === "k3k") diags.error(L, `${at}.parent`, `"${d.parent}" is a k3k cluster itself; a k3k cluster runs in a harvester or custom cluster`);
+            else if (parent.type === "k3k") diags.error(L, `${at}.parent`, `"${d.parent}" is a k3k cluster itself; a k3k cluster runs in a harvester, ec2, eks or custom cluster`);
             else if (parent.rancher !== d.rancher) diags.error(L, `${at}.parent`, `"${d.parent}" is managed by the Rancher on ${parent.rancher}, this cluster by the one on ${d.rancher}; they must be the same`);
             downstream.push({ ...d, name, namespace: d.namespace ?? `k3k-${name}` });
+            continue;
+        }
+
+        if (d.type === "eks") {
+            const site = awsSites.get(d.site);
+            if (!site) diags.error(L, `${at}.site`, `unknown AwsSite "${d.site}"; known: ${[...awsSites.keys()].sort().join(", ") || "none (add an AwsSite document)"}`);
+            else if (site.zones.length < 2) diags.error(L, `${at}.site`, `EKS needs subnets in two zones at least, and the site ${site.name} has ${site.zones.length}`);
+            const groupNames = new Set<string>();
+            const nodeGroups = d.nodeGroups.map((g, i) => {
+                const groupAt = `${at}.nodeGroups[${i}]`;
+                if (groupNames.has(g.name)) diags.error(L, `${groupAt}.name`, `node group "${g.name}" is defined twice`);
+                groupNames.add(g.name);
+                const min = g.min ?? g.quantity;
+                const max = g.max ?? Math.max(g.quantity, min);
+                if (min > g.quantity || g.quantity > max) diags.error(L, `${groupAt}.quantity`, `${g.quantity} isn't between min ${min} and max ${max}`);
+                const zones = g.zones ?? site?.zones.map(z => z.letter) ?? [];
+                for (const zone of zones) {
+                    if (site && !site.zones.some(z => z.letter === zone)) {
+                        diags.error(L, `${groupAt}.zones`, `the site ${site.name} has no subnet in zone ${zone}; its zones: ${site.zones.map(z => z.letter).join(", ")}`);
+                    }
+                }
+                return { ...g, min, max, instanceType: g.instanceType ?? awsDefaults.instanceType, disk: g.disk ?? vmDefaults.disk, zones };
+            });
+            downstream.push({ ...d, name, version: d.version ?? awsDefaults.eksVersion, nodeGroups });
             continue;
         }
 
@@ -558,6 +654,24 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 if (!harvester) return sized;
                 needImage(harvester.name, pool.os);
                 return { ...sized, network: checkNetwork(harvester, pool.network, `${at}.pools[${i}].network`) };
+            });
+            downstream.push({ ...d, name, pools });
+        } else if (d.type === "ec2") {
+            const site = awsSites.get(d.site);
+            if (!site) diags.error(L, `${at}.site`, `unknown AwsSite "${d.site}"; known: ${[...awsSites.keys()].sort().join(", ") || "none (add an AwsSite document)"}`);
+            const poolNames = new Set<string>();
+            const pools = d.pools.map((pool, i) => {
+                const poolAt = `${at}.pools[${i}]`;
+                if (poolNames.has(pool.name)) diags.error(L, `${poolAt}.name`, `pool "${pool.name}" is defined twice`);
+                poolNames.add(pool.name);
+                pool.roles.forEach(r => allRoles.add(r));
+                const os = useOs(pool.os, `${poolAt}.os`);
+                if (os && !os.ami) diags.error(L, `${poolAt}.os`, `OS profile ${pool.os} has no AMI (ami: owner and name) to boot EC2 machines from`);
+                const zone = pool.zone ?? site?.zones[0]?.letter ?? "a";
+                if (site && !site.zones.some(z => z.letter === zone)) {
+                    diags.error(L, `${poolAt}.zone`, `the site ${site.name} has no subnet in zone ${zone}; its zones: ${site.zones.map(z => z.letter).join(", ")}`);
+                }
+                return { ...pool, instanceType: pool.instanceType ?? awsDefaults.instanceType, disk: pool.disk ?? vmDefaults.disk, zone };
             });
             downstream.push({ ...d, name, pools });
         } else {
@@ -680,6 +794,11 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         diags.error(L, "ssh", "required when the lab has hosts (user, publicKey, privateKey)");
     }
 
+    const usedSites = new Set(downstream.flatMap(d => d.type === "ec2" || d.type === "eks" ? [d.site] : []));
+    for (const name of awsSites.keys()) {
+        if (!usedSites.has(name)) diags.warning(L, `awsSites.${name}`, "no downstream cluster uses it; the lab still creates its VPC there");
+    }
+
     const usedHarvesters = new Set([
         ...[...hosts.values()].flatMap(h => h.kind === "harvester" ? [h.harvester] : []),
         ...downstream.flatMap(d => d.type === "harvester" ? [d.harvester] : []),
@@ -709,6 +828,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             }])),
             plugins: catalog.plugins.value,
             harvesters: [...harvesters.values()],
+            awsSites: [...awsSites.values()],
             hosts: [...hosts.values()],
             downstream,
             os: usedOs,

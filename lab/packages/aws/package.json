@@ -1,0 +1,16 @@
+{
+    "name": "@lab/aws",
+    "version": "0.1.0",
+    "private": true,
+    "main": "src/index.ts",
+    "types": "src/index.ts",
+    "scripts": {
+        "typecheck": "tsc -p .",
+        "test": "vitest run --passWithNoTests"
+    },
+    "dependencies": {
+        "@lab/schema": "workspace:*",
+        "@pulumi/aws": "^7.52.0",
+        "@pulumi/pulumi": "^3.271.0"
+    }
+}

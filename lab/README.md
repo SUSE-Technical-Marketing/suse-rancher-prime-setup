@@ -34,8 +34,8 @@ Lab files, the personal config and the catalog are Kubernetes-style documents: `
 lab.geeko.me/v1alpha1`, a `kind`, `metadata` (`name`, `description`) and a `spec`. A file can hold
 several, separated by `---`.
 
-A lab file starts with its `Lab` document (lab-wide settings); the lab's Harvesters, hosts and
-downstream clusters are documents of their own, in the same file or in files it includes:
+A lab file starts with its `Lab` document (lab-wide settings); the lab's Harvesters, AWS sites,
+hosts and downstream clusters are documents of their own, in the same file or in files it includes:
 
 ```yaml
 apiVersion: lab.geeko.me/v1alpha1
@@ -62,6 +62,18 @@ spec: { address: nuc-01.lab.geeko.me, user: root, os: sles-16 }
 kind: DownstreamCluster                    # a cluster Rancher creates
 metadata: { name: apps }
 spec: { type: harvester, rancher: rancher, harvester: asgard, pools: [ ... ] }
+---
+kind: AwsSite                              # an AWS account and region; the lab gets its own VPC there
+metadata: { name: aws-eu }
+spec: { region: eu-west-1, credentials: "{{ secrets.aws }}", ttl: 8h }
+---
+kind: DownstreamCluster                    # machines Rancher creates on EC2 (its Rancher must be public)
+metadata: { name: cloud }
+spec: { type: ec2, rancher: rancher, site: aws-eu, pools: [ { name: all, quantity: 1, roles: [ etcd, controlplane, worker ], os: ubuntu-24.04-k8s } ] }
+---
+kind: DownstreamCluster                    # an EKS cluster Rancher creates and manages (its Rancher must be public)
+metadata: { name: eks }
+spec: { type: eks, rancher: rancher, site: aws-eu, nodeGroups: [ { name: general, quantity: 2 } ] }
 ---
 kind: DownstreamCluster                    # a k3k virtual cluster inside apps, imported into Rancher
 metadata: { name: team-blue }
@@ -92,19 +104,23 @@ spec:
     cloudflare-token: env:CF_API_TOKEN
     ssh-key:          file:~/.ssh/id_ed25519
     rancher-admin:    "cmd:pass show lab/rancher-admin"
+    aws:              { accessKey: AKIA..., secretKey: "cmd:pass show lab/aws" }
   harvesters:
     hv-north: { url: https://hv-north.lab.geeko.me, credentials: "{{ secrets['hv-north'] }}" }
+  awsSites:
+    aws-eu: { region: eu-west-1, credentials: "{{ secrets.aws }}" }
   images:
     sles-16: { file: ~/images/SLES-16.0-Minimal-VM.x86_64-Cloud.qcow2 }
 ```
 
 Secret values may be literal, `env:VAR`, `file:path` or `cmd:<command>`. Any secret can also be set
 as an environment variable `LAB_SECRET_<NAME>` (for example `LAB_SECRET_HV_NORTH`, as JSON
-`{"username":"...","password":"..."}` for credentials).
+`{"username":"...","password":"..."}` for a map, like credentials).
 
 Lab files only name secrets, as Jinja2 templates: `"{{ secrets.appco }}"`, with brackets for a name
-with a dash (`"{{ secrets['ssh-key'] }}"`), a credentials field by name (`"{{ secrets.scc.password }}"`),
-or with text around it (`"Bearer {{ secrets.token }}"`). Quote them: YAML reads a bare `{` as a map.
+with a dash (`"{{ secrets['ssh-key'] }}"`), a field of a map secret by name (`"{{ secrets.scc.password }}"`,
+`"{{ secrets.aws.accessKey }}"`), or with text around it (`"Bearer {{ secrets.token }}"`). Quote
+them: YAML reads a bare `{` as a map.
 
 ## Catalog: the defaults
 
@@ -264,6 +280,10 @@ can't update or destroy your labs.
 `up` claims every Harvester the lab uses by writing a `lab-owner` ConfigMap on it, and refuses to
 touch a Harvester claimed by another lab or person. `destroy` releases the claim.
 `release` (with `--force` for someone else's claim) clears a stale one.
+
+AWS sites aren't claimed: each lab gets its own VPC, and everything it makes there is tagged with
+the lab, the site and who ran `up` (`lab.geeko.me/*`). `destroy --check` finds leftovers by those
+tags.
 
 ## Development
 

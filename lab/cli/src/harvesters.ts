@@ -7,6 +7,7 @@ import {
     Owner, release,
 } from "@lab/core";
 import { ResolvedHarvester, ResolvedLab } from "@lab/schema";
+import { AwsKeys, credentialsFile } from "./aws";
 import { log } from "./log";
 import { credentialsFrom, ResolvedSecret } from "./secrets";
 
@@ -61,9 +62,11 @@ export async function closeSessions(sessions: HarvesterSession[]): Promise<void>
  * - a kubeconfig with one context per Harvester (named after it), so Pulumi's Kubernetes
  *   providers pick their context by name and no credentials end up in state;
  * - empty Docker and Helm registry configs, so public OCI charts don't trip over a credential
- *   helper configured in the user's own ~/.docker/config.json.
+ *   helper configured in the user's own ~/.docker/config.json;
+ * - AWS shared credentials with a profile per AWS site, for the same reason as the kubeconfig, and
+ *   an empty AWS config, so the user's own ~/.aws/config (a default region, SSO) doesn't mix in.
  */
-export function writeRunFiles(labName: string, sessions: HarvesterSession[]): { env: Record<string, string>; cleanup(): void } {
+export function writeRunFiles(labName: string, sessions: HarvesterSession[], aws: AwsKeys[] = []): { env: Record<string, string>; cleanup(): void } {
     // A fixed path per lab: the Kubernetes provider records the KUBECONFIG *path* in state (never
     // its contents), and a later `destroy` must find a file there. Only exists during a run.
     const dir = path.join(process.env.XDG_DATA_HOME ?? path.join(os.homedir(), ".local", "share"), "lab", "run", labName);
@@ -83,8 +86,13 @@ export function writeRunFiles(labName: string, sessions: HarvesterSession[]): { 
     };
     // JSON is valid YAML, and the KubeValue provider can read it without a YAML parser.
     fs.writeFileSync(file, JSON.stringify(kubeconfig), { mode: 0o600 });
+    fs.writeFileSync(path.join(dir, "aws-credentials"), credentialsFile(aws), { mode: 0o600 });
+    fs.writeFileSync(path.join(dir, "aws-config"), "", { mode: 0o600 });
     return {
-        env: { KUBECONFIG: file, DOCKER_CONFIG: dir, HELM_REGISTRY_CONFIG: path.join(dir, "registry.json") },
+        env: {
+            KUBECONFIG: file, DOCKER_CONFIG: dir, HELM_REGISTRY_CONFIG: path.join(dir, "registry.json"),
+            AWS_SHARED_CREDENTIALS_FILE: path.join(dir, "aws-credentials"), AWS_CONFIG_FILE: path.join(dir, "aws-config"),
+        },
         cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
     };
 }

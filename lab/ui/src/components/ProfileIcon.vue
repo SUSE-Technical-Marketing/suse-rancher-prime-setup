@@ -1,27 +1,11 @@
 <script lang="ts">
-import { type Component, markRaw, shallowRef } from "vue";
-
-// Lucide icons, each its own chunk, loaded the first time a profile shows it.
-const modules = import.meta.glob<{ default: Component }>("../../node_modules/lucide-vue-next/dist/esm/icons/*.js");
-const loaded = new Map<string, ReturnType<typeof shallowRef<Component | undefined>>>();
-
-function iconRef(name: string) {
-    let r = loaded.get(name);
-    if (r) return r;
-    r = shallowRef<Component>();
-    loaded.set(name, r);
-    const load = modules[`../../node_modules/lucide-vue-next/dist/esm/icons/${name}.js`] ?? modules["../../node_modules/lucide-vue-next/dist/esm/icons/puzzle.js"];
-    const target = r;
-    load?.().then(m => (target.value = markRaw(m.default)));
-    return r;
-}
-
 /** Distinct hues that read on light and dark panels; a profile's is its place in the catalog. */
 export const PROFILE_COLORS = ["#1f8a5b", "#2f6fdb", "#c2410c", "#8a5cd6", "#0e8a9a", "#b45309", "#c0367a", "#4d7c0f", "#475569", "#0369a1", "#9f1239", "#7c3aed"];
 </script>
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { iconRef } from "../icons";
 import { catalog } from "../store";
 
 // A profile's icon in its color: a round token. `size` is its diameter in pixels.

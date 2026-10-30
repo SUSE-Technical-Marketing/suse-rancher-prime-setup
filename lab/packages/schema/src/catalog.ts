@@ -59,6 +59,7 @@ export interface DefaultsInput {
         clusterNetwork?: string;
         storageClass?: { name?: string; replicas?: number; parameters?: Record<string, string> };
     };
+    aws?: { vpcCidr?: string; zones?: string[]; instanceType?: string; eksVersion?: string };
     /** Durations like `15m`. */
     timeouts?: Partial<Record<TimeoutName, string>>;
     images?: { kubectl?: string };
@@ -73,6 +74,8 @@ export interface ResolvedDefaults {
         clusterNetwork: string;
         storageClass: { name: string; replicas: number; parameters: Record<string, string> };
     };
+    /** An AwsSite's VPC and zones, and an EC2 pool's instance type, when they don't give one. */
+    aws: { vpcCidr: string; zones: string[]; instanceType: string; eksVersion: string };
     timeouts: Timeouts;
     /** Images the engine runs itself: `kubectl` (and curl) for jobs on a cluster, like a k3k cluster's import. */
     images: { kubectl: string };
@@ -372,6 +375,7 @@ function resolveDefaults(d: DefaultsInput, source: string, diags: Diagnostics): 
     if (!sc.name) missing("harvester.storageClass.name");
     if (sc.replicas === undefined) missing("harvester.storageClass.replicas");
     if (!d.images?.kubectl) missing("images.kubectl");
+    for (const f of ["vpcCidr", "zones", "instanceType", "eksVersion"] as const) if (d.aws?.[f] === undefined) missing(`aws.${f}`);
     const timeouts = {} as Timeouts;
     for (const t of TIMEOUTS) {
         const value = d.timeouts?.[t];
@@ -386,6 +390,7 @@ function resolveDefaults(d: DefaultsInput, source: string, diags: Diagnostics): 
                 clusterNetwork: d.harvester?.clusterNetwork ?? "",
                 storageClass: { name: sc.name ?? "", replicas: sc.replicas ?? 1, parameters: sc.parameters ?? {} },
             },
+            aws: { vpcCidr: d.aws?.vpcCidr ?? "", zones: d.aws?.zones ?? [], instanceType: d.aws?.instanceType ?? "", eksVersion: d.aws?.eksVersion ?? "" },
             timeouts,
             images: { kubectl: d.images?.kubectl ?? "" },
         },

@@ -1,18 +1,21 @@
+import * as aws from "@pulumi/aws";
 import * as command from "@pulumi/command";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
+import { AwsNetwork, awsProfile, labTags, Pinned } from "@lab/aws";
 import { HarvesterBase, HarvesterCloudConfig, HarvesterVm } from "@lab/harvester";
 import { asRoot, ClusterObjects, helmApp, helmJobWatch, HostAccess, runExisting, sshConnection, waitForCloudInit } from "@lab/kubernetes";
-import { CustomCluster, HarvesterCluster, HarvesterCredential, HarvesterImport, K3kCluster, RancherAccess } from "@lab/rancher";
+import { Amazonec2Credential, CustomCluster, Ec2Cluster, EksCluster, HarvesterCluster, HarvesterCredential, HarvesterImport, K3kCluster, RancherAccess } from "@lab/rancher";
 import { machineSetup, renderCloudConfig } from "@lab/os";
-import { cloudInitVars, usesSecrets, type CloudInitVars, type ResolvedLab, type ResolvedOs } from "@lab/schema";
+import { AWS_CREDENTIAL_FIELDS, cloudInitVars, usesSecrets, type CloudInitVars, type ResolvedLab, type ResolvedOs } from "@lab/schema";
 import { buildHostProfiles, profileCloudInit, profileUninstall } from "./profiles";
-import { credentials, objectValue, secrets, secretString } from "./secrets";
+import { credentials, objectValue, secretMap, secrets, secretString } from "./secrets";
 import { chart, chartInNamespace, distribution, harvesterChart, version } from "./catalog";
 
 // The CLI writes the resolved lab, the secret values and the Harvester versions into stack config
 // before every run; this program never reads the lab file itself. Harvester access comes from the
-// per-run KUBECONFIG (one context per Harvester), so no Harvester credentials are stored in state.
+// per-run KUBECONFIG (one context per Harvester), and AWS access from the per-run shared
+// credentials file (a profile per site), so neither's credentials are stored in state.
 const config = new pulumi.Config("lab");
 const lab = config.requireObject<ResolvedLab>("resolved");
 const harvesterVersions = config.getObject<Record<string, string | undefined>>("harvesterVersions") ?? {};
@@ -39,6 +42,31 @@ for (const h of lab.harvesters) {
         },
         timeouts: lab.timeouts,
     }, { provider: providers[h.name] });
+}
+
+// --- AWS sites: a VPC per lab -------------------------------------------------------------------------
+const awsProviders: Record<string, aws.Provider> = {};
+const networks: Record<string, AwsNetwork> = {};
+const siteTags: Record<string, Record<string, string>> = {};
+for (const s of lab.awsSites) {
+    siteTags[s.name] = labTags({ lab: lab.name, site: s, owner: config.get("owner") ?? "unknown", createdAt: config.get("createdAt") });
+    awsProviders[s.name] = new aws.Provider(s.name, { region: s.region as aws.Region, profile: awsProfile(s.name), defaultTags: { tags: siteTags[s.name] } });
+    networks[s.name] = new AwsNetwork(`aws/${s.name}`, { lab: lab.name, site: s }, { provider: awsProviders[s.name] });
+}
+
+/** An OS's AMI in a site's region: the newest matching one when first looked up, kept after that. */
+const amis: Record<string, pulumi.Output<string>> = {};
+function amiOf(site: string, osName: string): pulumi.Output<string> {
+    const key = `${site}/${osName}`;
+    if (amis[key]) return amis[key];
+    const ami = lab.os[osName].ami!;
+    const region = lab.awsSites.find(s => s.name === site)!.region;
+    const found = aws.ec2.getAmiOutput({
+        owners: [ami.owner],
+        mostRecent: true,
+        filters: [{ name: "name", values: [ami.name] }, { name: "architecture", values: ["x86_64"] }, { name: "state", values: ["available"] }],
+    }, { provider: awsProviders[site] });
+    return amis[key] = new Pinned(`aws/${site}/ami/${osName}`, { key: JSON.stringify({ region, ...ami }), value: found.id }).value;
 }
 
 // --- Hosts and their profiles --------------------------------------------------------------------
@@ -150,9 +178,41 @@ function harvesterCredential(rancherHost: string, harvester: string): HarvesterC
     }, { dependsOn: [imported] });
 }
 
+// Rancher's credential for an AWS site: its keys, for the node driver (and EKS).
+const awsCredentialsFor: Record<string, Amazonec2Credential> = {};
+function awsCredential(rancherHost: string, site: string): Amazonec2Credential {
+    const key = `${rancherHost}/${site}`;
+    if (awsCredentialsFor[key]) return awsCredentialsFor[key];
+    const rancher = rancherAccess[rancherHost];
+    const s = lab.awsSites.find(x => x.name === site)!;
+    const keys = secretMap(s.credentials, AWS_CREDENTIAL_FIELDS);
+    return awsCredentialsFor[key] = new Amazonec2Credential(`${rancherHost}/aws-credential/${site}`, {
+        url: rancher.url,
+        insecure: rancher.insecure,
+        username: rancher.username,
+        password: rancher.password,
+        name: site,
+        accessKey: keys.accessKey,
+        secretKey: keys.secretKey,
+        region: s.region,
+    }, { dependsOn: rancher.ready });
+}
+
+/** A node's user data on a machine Rancher creates: its OS profile's, the lab's login, and with a server the helm Job watch. */
+function poolUserData(osName: string, distro: "rke2" | "k3s", roles: string[]): pulumi.Output<string> {
+    const os = lab.os[osName];
+    return pulumi.secret(osVars().apply(vars => renderCloudConfig({
+        os,
+        user: { name: lab.ssh!.user, publicKey: lab.ssh!.publicKey },
+        defaultUser: true,
+        vars,
+        runcmd: roles.some(r => r !== "worker") ? [helmJobWatch(distribution(distro, lab), lab.timeouts.helmJobWatch)] : [],
+    })));
+}
+
 const downstreamNames: string[] = [];
-/** The harvester and custom clusters, by name: k3k clusters run in them. */
-const builtClusters: Record<string, CustomCluster | HarvesterCluster> = {};
+/** The harvester, ec2, eks and custom clusters, by name: k3k clusters run in them. */
+const builtClusters: Record<string, CustomCluster | HarvesterCluster | Ec2Cluster | EksCluster> = {};
 for (const d of lab.downstream) {
     if (d.type === "k3k") continue;
     if (d.type === "custom") {
@@ -184,6 +244,68 @@ for (const d of lab.downstream) {
         builtClusters[d.name] = cluster;
         continue;
     }
+    if (d.type === "eks") {
+        const site = lab.awsSites.find(s => s.name === d.site)!;
+        const network = networks[d.site];
+        const credential = awsCredential(d.rancher, d.site);
+        const cluster = new EksCluster(`downstream/${d.name}`, {
+            rancher: rancherAccess[d.rancher],
+            region: site.region,
+            kubernetesVersion: d.version,
+            labels: d.labels,
+            annotations: d.annotations,
+            cloudCredential: credential.secretName,
+            subnetIds: site.zones.map(z => network.subnets[z.letter].id),
+            tags: siteTags[d.site],
+            publicAccessSources: d.publicAccessSources,
+            logging: d.logging,
+            nodeGroups: d.nodeGroups.map(g => ({ ...g, subnetIds: g.zones.map(z => network.subnets[z].id) })),
+            timeouts: lab.timeouts,
+            // The cluster goes before its network does.
+            after: [credential, network, ...network.ready],
+        });
+        placeObjects(d.name, cluster);
+        downstreamNames.push(d.name);
+        builtClusters[d.name] = cluster;
+        continue;
+    }
+    if (d.type === "ec2") {
+        const site = lab.awsSites.find(s => s.name === d.site)!;
+        const network = networks[d.site];
+        const credential = awsCredential(d.rancher, d.site);
+        const cluster = new Ec2Cluster(`downstream/${d.name}`, {
+            rancher: rancherAccess[d.rancher],
+            distribution: distribution(d.distro, lab),
+            kubernetesVersion: d.version ?? version(d.distro, lab),
+            labels: d.labels,
+            annotations: d.annotations,
+            cloudCredential: credential.secretName,
+            cni: d.cni,
+            machineGlobalConfig: d.machineGlobalConfig,
+            chartValues: d.chartValues,
+            timeouts: lab.timeouts,
+            region: site.region,
+            vpcId: network.vpc.id,
+            securityGroup: network.securityGroup.name,
+            tags: siteTags[d.site],
+            pools: d.pools.map(pool => {
+                const os = lab.os[pool.os];
+                return {
+                    ...pool,
+                    ami: amiOf(d.site, pool.os),
+                    sshUser: os.ami!.user ?? os.defaultUser ?? "ec2-user",
+                    subnetId: network.subnets[pool.zone].id,
+                    userData: poolUserData(pool.os, d.distro, pool.roles),
+                };
+            }),
+            // The machines go before their network does.
+            after: [credential, network, ...network.ready],
+        });
+        placeObjects(d.name, cluster);
+        downstreamNames.push(d.name);
+        builtClusters[d.name] = cluster;
+        continue;
+    }
     const base = bases[d.harvester];
     const credential = harvesterCredential(d.rancher, d.harvester);
     const cloudProviderConfig = d.distro === "rke2" ? new HarvesterCloudConfig(`downstream/${d.name}/cloud-provider-config`, {
@@ -206,21 +328,12 @@ for (const d of lab.downstream) {
         machineGlobalConfig: d.machineGlobalConfig,
         chartValues: d.chartValues,
         timeouts: lab.timeouts,
-        pools: d.pools.map(pool => {
-            const os = lab.os[pool.os];
-            return {
-                ...pool,
-                image: base.images[os.image].id,
-                network: base.networks[pool.network!],
-                userData: pulumi.secret(osVars().apply(vars => renderCloudConfig({
-                    os,
-                    user: { name: lab.ssh!.user, publicKey: lab.ssh!.publicKey },
-                    defaultUser: true,
-                    vars,
-                    runcmd: pool.roles.some(r => r !== "worker") ? [helmJobWatch(distribution(d.distro, lab), lab.timeouts.helmJobWatch)] : [],
-                }))),
-            };
-        }),
+        pools: d.pools.map(pool => ({
+            ...pool,
+            image: base.images[lab.os[pool.os].image].id,
+            network: base.networks[pool.network!],
+            userData: poolUserData(pool.os, d.distro, pool.roles),
+        })),
         after: [credential, base.namespace, ...base.ready],
     });
     placeObjects(d.name, cluster);
@@ -269,6 +382,7 @@ function placeObjects(name: string, cluster: { provider: k8s.Provider; cluster: 
 
 export const name = lab.name;
 export const harvesters = lab.harvesters.map(h => h.name);
+export const awsSites = lab.awsSites.length > 0 ? Object.fromEntries(lab.awsSites.map(s => [s.name, { region: s.region, vpc: networks[s.name].vpc.id }])) : undefined;
 export const hosts = hostOutputs;
 export const rancher = rancherUrls;
 export const downstream = downstreamNames;

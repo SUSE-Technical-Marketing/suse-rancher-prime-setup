@@ -9,3 +9,4 @@ allowBuilds:
   # Their install scripts only pre-download provider plugins; Pulumi fetches those itself.
   "@pulumi/command": false
   "@pulumi/kubernetes": false
+  "@pulumi/aws": false

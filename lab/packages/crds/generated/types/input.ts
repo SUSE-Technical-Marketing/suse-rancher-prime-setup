@@ -44973,6 +44973,180 @@ export namespace provisioning {
 export namespace rke_machine_config {
     export namespace v1 {
         /**
+         * Amazonec2Config represents the desired configuration of each machine provisioned within a machine pool associated with a provisioning.cattle.io cluster.
+         */
+        export interface Amazonec2Config {
+            /**
+             * AWS Access Key
+             */
+            accessKey?: pulumi.Input<string | undefined>;
+            /**
+             * AWS machine image
+             */
+            ami?: pulumi.Input<string | undefined>;
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion?: pulumi.Input<"rke-machine-config.cattle.io/v1" | undefined>;
+            /**
+             * AWS spot instance duration in minutes (60, 120, 180, 240, 300, or 360)
+             */
+            blockDurationMinutes?: pulumi.Input<string | undefined>;
+            /**
+             * AWS root device name
+             */
+            deviceName?: pulumi.Input<string | undefined>;
+            /**
+             * Indicates whether the first IPv6 address assigned to the instance should be marked as the primary IPv6 address. Enable this option if the instance requires a stable, non-changing IPv6 address. This option does not affect whether IPv6 addresses are assigned to the instance.
+             */
+            enablePrimaryIpv6?: pulumi.Input<boolean | undefined>;
+            /**
+             * Encrypt the EBS volume using the AWS Managed CMK
+             */
+            encryptEbsVolume?: pulumi.Input<boolean | undefined>;
+            /**
+             * Optional endpoint URL (hostname only or fully qualified URI)
+             */
+            endpoint?: pulumi.Input<string | undefined>;
+            /**
+             * Enables or disables the HTTP metadata endpoint on your instances
+             */
+            httpEndpoint?: pulumi.Input<string | undefined>;
+            /**
+             * Enables or disables the IPv6 endpoint for the instance metadata service. Options: enabled, disabled (default).
+             */
+            httpProtocolIpv6?: pulumi.Input<string | undefined>;
+            /**
+             * The state of token usage for your instance metadata requests.
+             */
+            httpTokens?: pulumi.Input<string | undefined>;
+            /**
+             * AWS IAM Instance Profile
+             */
+            iamInstanceProfile?: pulumi.Input<string | undefined>;
+            /**
+             * Disable SSL when sending requests
+             */
+            insecureTransport?: pulumi.Input<boolean | undefined>;
+            /**
+             * AWS instance type
+             */
+            instanceType?: pulumi.Input<string | undefined>;
+            /**
+             * The number of IPv6 addresses to assign to the network interface (default: 0). Must be greater than zero when amazonec2-ipv6-address-only is true.
+             */
+            ipv6AddressCount?: pulumi.Input<string | undefined>;
+            /**
+             * Indicates whether the instance has only IPv6 address. Useful when the VPC or subnet is configured as IPv6-only. When set to true, the instance will have IPv6 as its sole address. When set to true, amazonec2-ipv6-address-count must be greater than zero.
+             */
+            ipv6AddressOnly?: pulumi.Input<boolean | undefined>;
+            /**
+             * AWS keypair to use; requires --amazonec2-ssh-keypath
+             */
+            keypairName?: pulumi.Input<string | undefined>;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind?: pulumi.Input<"Amazonec2Config" | undefined>;
+            /**
+             * Custom KMS key using the AWS Managed CMK
+             */
+            kmsKey?: pulumi.Input<string | undefined>;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata?: pulumi.Input<inputs.meta.v1.ObjectMeta | undefined>;
+            /**
+             * Set this flag to enable CloudWatch monitoring
+             */
+            monitoring?: pulumi.Input<boolean | undefined>;
+            /**
+             * Make the specified port number accessible from the Internet
+             */
+            openPort?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Only use a private IP address
+             */
+            privateAddressOnly?: pulumi.Input<boolean | undefined>;
+            /**
+             * AWS region
+             */
+            region?: pulumi.Input<string | undefined>;
+            /**
+             * Set this flag to request spot instance
+             */
+            requestSpotInstance?: pulumi.Input<boolean | undefined>;
+            /**
+             * Set retry count for recoverable failures (use -1 to disable)
+             */
+            retries?: pulumi.Input<string | undefined>;
+            /**
+             * AWS root disk size (in GB)
+             */
+            rootSize?: pulumi.Input<string | undefined>;
+            /**
+             * AWS Secret Key
+             */
+            secretKey?: pulumi.Input<string | undefined>;
+            /**
+             * AWS VPC security group
+             */
+            securityGroup?: pulumi.Input<pulumi.Input<string>[] | undefined>;
+            /**
+             * Skip adding default rules to security groups
+             */
+            securityGroupReadonly?: pulumi.Input<boolean | undefined>;
+            /**
+             * AWS Session Token
+             */
+            sessionToken?: pulumi.Input<string | undefined>;
+            /**
+             * AWS spot instance bid price (in dollar)
+             */
+            spotPrice?: pulumi.Input<string | undefined>;
+            /**
+             * File contents for sshKeyContents
+             */
+            sshKeyContents?: pulumi.Input<string | undefined>;
+            /**
+             * Set the name of the ssh user
+             */
+            sshUser?: pulumi.Input<string | undefined>;
+            /**
+             * AWS VPC subnet id
+             */
+            subnetId?: pulumi.Input<string | undefined>;
+            /**
+             * AWS Tags (e.g. key1,value1,key2,value2)
+             */
+            tags?: pulumi.Input<string | undefined>;
+            /**
+             * Create an EBS optimized instance
+             */
+            useEbsOptimizedInstance?: pulumi.Input<boolean | undefined>;
+            /**
+             * Force the usage of private IP address
+             */
+            usePrivateAddress?: pulumi.Input<boolean | undefined>;
+            /**
+             * File contents for userdata
+             */
+            userdata?: pulumi.Input<string | undefined>;
+            /**
+             * Amazon EBS volume type
+             */
+            volumeType?: pulumi.Input<string | undefined>;
+            /**
+             * AWS VPC id
+             */
+            vpcId?: pulumi.Input<string | undefined>;
+            /**
+             * AWS zone for instance (i.e. a,b,c,d,e)
+             */
+            zone?: pulumi.Input<string | undefined>;
+        }
+
+        /**
          * HarvesterConfig represents the desired configuration of each machine provisioned within a machine pool associated with a provisioning.cattle.io cluster.
          */
         export interface HarvesterConfig {

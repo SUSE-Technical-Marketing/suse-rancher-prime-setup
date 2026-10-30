@@ -60,16 +60,23 @@ export async function selectStack(labName: string, settings: WorkspaceSettings, 
     return LocalWorkspace.selectStack({ stackName: labName, workDir: PROGRAM_DIR }, { envVars: envVars(settings, extra) });
 }
 
-/** Hand the resolved lab, the secret values and facts about the Harvesters to the program. */
+/**
+ * Hand the resolved lab, the secret values and facts about the Harvesters to the program, and who
+ * runs it. `createdAt` is set on the first run and kept: AWS resources' expiry tags count from it.
+ */
 export async function writeStackConfig(
     stack: Stack,
     lab: ResolvedLab,
     secrets: Record<string, ResolvedSecret>,
     harvesterVersions: Record<string, string | undefined>,
+    owner: string,
 ): Promise<void> {
+    const createdAt = await stack.getConfig("lab:createdAt").then(c => c.value, () => new Date().toISOString());
     await stack.setAllConfig({
         "lab:resolved": { value: JSON.stringify(lab) },
         "lab:secrets": { value: JSON.stringify(secrets), secret: true },
         "lab:harvesterVersions": { value: JSON.stringify(harvesterVersions) },
+        "lab:owner": { value: owner },
+        "lab:createdAt": { value: createdAt },
     });
 }

@@ -2,8 +2,9 @@ import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 import { defaultPersonalConfigPath, formatDiagnostic, loadCatalog, loadLab, PersonalConfig, ResolvedLab } from "@lab/schema";
+import { awsKeys, findAwsLeftovers } from "./aws";
 import {
-    checkOwnership, claimHarvesters, closeSessions, HarvesterSession, openSessions, releaseHarvesters, writeRunFiles,
+    checkOwnership, claimHarvesters, closeSessions, currentUser, HarvesterSession, openSessions, releaseHarvesters, writeRunFiles,
 } from "./harvesters";
 import { findLeftovers } from "./leftovers";
 import { log } from "./log";
@@ -85,17 +86,17 @@ async function confirmByName(name: string, action: string): Promise<boolean> {
 }
 
 /**
- * Log in to every Harvester of the lab, write this run's kubeconfig, and clean both up afterwards,
- * whatever happens. `env` is what Pulumi needs to reach the Harvesters.
+ * Log in to every Harvester of the lab, write this run's kubeconfig and AWS credentials, and clean
+ * them up afterwards, whatever happens. `env` is what Pulumi needs to reach the Harvesters and AWS.
  */
 async function withHarvesters(
     lab: ResolvedLab,
     secrets: Record<string, ResolvedSecret>,
     fn: (sessions: HarvesterSession[], env: Record<string, string>) => Promise<void>,
 ): Promise<void> {
-    if (lab.harvesters.length === 0) return fn([], {});
+    if (lab.harvesters.length === 0 && lab.awsSites.length === 0) return fn([], {});
     const sessions = await openSessions(lab, secrets);
-    const run = writeRunFiles(lab.name, sessions);
+    const run = writeRunFiles(lab.name, sessions, awsKeys(lab, secrets));
     try {
         await fn(sessions, run.env);
     } finally {
@@ -178,7 +179,7 @@ async function main(argv: string[]): Promise<void> {
                     await checkOwnership(ctx.lab, sessions);
                 }
                 const stack = await createOrSelectStack(ctx.lab, settings, env);
-                await writeStackConfig(stack, ctx.lab, values, versionsOf(sessions));
+                await writeStackConfig(stack, ctx.lab, values, versionsOf(sessions), currentUser());
 
                 if (command === "preview" || !opts.yes) {
                     log.step(`Preview of lab ${ctx.lab.name}`);
@@ -206,18 +207,22 @@ async function main(argv: string[]): Promise<void> {
             const settings = workspaceSettings();
             await withHarvesters(ctx.lab, values, async (sessions, env) => {
                 if (opts.check) {
-                    const { found, terminating } = await findLeftovers(ctx.lab, sessions);
+                    const onHarvesters = await findLeftovers(ctx.lab, sessions);
+                    const onAws = await findAwsLeftovers(ctx.lab, awsKeys(ctx.lab, values));
+                    const found = [...onHarvesters.found, ...onAws.found];
+                    const terminating = [...onHarvesters.terminating, ...onAws.terminating];
                     for (const l of found) console.log(l);
                     for (const l of terminating) console.log(`${l}  (still shutting down)`);
+                    const where = [...sessions.map(s => s.harvester.name), ...ctx.lab.awsSites.map(s => `${s.name} (AWS ${s.region})`)];
                     if (found.length > 0) process.exitCode = 1;
-                    else log.ok(`Nothing of lab ${ctx.lab.name} is left on ${sessions.map(s => s.harvester.name).join(", ") || "any Harvester"}${terminating.length > 0 ? " (some objects are still shutting down)" : ""}.`);
+                    else log.ok(`Nothing of lab ${ctx.lab.name} is left on ${where.join(", ") || "any Harvester"}${terminating.length > 0 ? " (some objects are still shutting down)" : ""}.`);
                     return;
                 }
                 const stack = await selectStack(ctx.lab.name, settings, env);
                 if (!stack) {
                     log.info(`Lab ${ctx.lab.name} doesn't exist (never created, or already destroyed).`);
                 } else {
-                    if (!opts.yes && !(await confirmByName(ctx.lab.name, `This removes everything lab ${ctx.lab.name} created, on: ${ctx.lab.harvesters.map(h => h.name).join(", ") || "no Harvesters"}.`))) {
+                    if (!opts.yes && !(await confirmByName(ctx.lab.name, `This removes everything lab ${ctx.lab.name} created, on: ${[...ctx.lab.harvesters.map(h => h.name), ...ctx.lab.awsSites.map(s => `${s.name} (AWS ${s.region})`)].join(", ") || "no Harvesters"}.`))) {
                         log.info("Cancelled.");
                         return;
                     }

@@ -13,6 +13,8 @@ export interface ResolvedOs {
      */
     image: string;
     defaultUser?: string;
+    /** Its image on AWS: the newest AMI of `owner` matching `name`; `user` is its login. */
+    ami?: { owner: string; name: string; user?: string };
     cloudInit: Record<string, unknown>;
 }
 
@@ -117,6 +119,7 @@ export function resolveOsProfiles(layers: Record<string, OsLayerEntry>[], diags:
             imageUrl: profile.image?.url ?? null,
             image: profile.imageOf,
             defaultUser: profile.defaultUser,
+            ...(profile.ami ? { ami: profile.ami } : {}),
             cloudInit,
         };
     }

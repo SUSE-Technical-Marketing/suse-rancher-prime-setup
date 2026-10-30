@@ -7,6 +7,9 @@
         "test": "vitest run"
     },
     "dependencies": {
+        "@aws-sdk/client-cloudformation": "^3.1158.0",
+        "@aws-sdk/client-ec2": "^3.1158.0",
+        "@aws-sdk/client-eks": "^3.1158.0",
         "@lab/core": "workspace:*",
         "@lab/schema": "workspace:*",
         "@pulumi/pulumi": "^3.271.0",

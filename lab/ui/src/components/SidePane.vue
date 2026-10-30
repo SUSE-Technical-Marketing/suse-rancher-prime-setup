@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
-import { check, docOf, drawer, parseError, selected, setText, text } from "../store";
+import { computed, ref, watch } from "vue";
+import { catalog, check, docOf, drawer, parseError, selected, setText, text } from "../store";
 
 // The lab as YAML (editable: applied when it parses), `lab plan`, and the problems.
 const tab = ref<"yaml" | "plan" | "problems">("yaml");
@@ -14,6 +14,10 @@ function typed() {
   clearTimeout(timer);
   timer = setTimeout(() => { setText(draft.value); editing = false; }, 500);
 }
+const personalProblems = computed(() => catalog.value?.personal.problems ?? []);
+/** The lab's own problems: the personal config's are listed on their own, above them. */
+const diagnostics = computed(() => (check.value?.diagnostics ?? []).filter(d => !personalProblems.value.length || d.source !== catalog.value?.personal.source));
+const count = computed(() => diagnostics.value.length + personalProblems.value.length);
 function open(path: string) {
   const { index } = docOf(path);
   if (index < 0) return;
@@ -29,7 +33,7 @@ function open(path: string) {
       <button role="tab" :aria-selected="tab === 'plan'" @click="tab = 'plan'">Plan</button>
       <button role="tab" :aria-selected="tab === 'problems'" @click="tab = 'problems'">
         Problems
-        <span v-if="check?.diagnostics.length" class="badge" :class="check.ok ? 'warn' : 'bad'">{{ check.diagnostics.length }}</span>
+        <span v-if="count" class="badge" :class="check?.ok && !personalProblems.length ? 'warn' : 'bad'">{{ count }}</span>
       </button>
     </div>
     <div v-if="tab === 'yaml'" class="pane">
@@ -41,10 +45,16 @@ function open(path: string) {
       <p v-else class="muted">The plan appears once the lab has no errors.</p>
     </div>
     <div v-else class="pane">
+      <div v-if="personalProblems.length" class="personal">
+        <p class="warn-text">Your personal config doesn't load ({{ catalog?.personal.source }}): the composer uses the built-in catalog without it, and no secrets, Harvesters or AWS sites from it.</p>
+        <ul class="problems">
+          <li v-for="(p, i) in personalProblems" :key="i" class="error"><span>{{ p }}</span></li>
+        </ul>
+      </div>
       <p v-if="check?.missingSecrets.length" class="warn-text">Not in your personal config yet: {{ check.missingSecrets.join(", ") }}.</p>
-      <p v-if="check && check.diagnostics.length === 0" class="muted">No problems.</p>
+      <p v-if="check && count === 0" class="muted">No problems.</p>
       <ul class="problems">
-        <li v-for="(d, i) in check?.diagnostics ?? []" :key="i" :class="d.level">
+        <li v-for="(d, i) in diagnostics" :key="i" :class="d.level">
           <button type="button" class="link" @click="open(d.path)">{{ d.path || d.source }}</button>
           <span>{{ d.message }}</span>
         </li>

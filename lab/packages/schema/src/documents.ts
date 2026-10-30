@@ -4,9 +4,9 @@ import { AcmeServerInput, CatalogLayer, DefaultsInput } from "./catalog";
 import { Diagnostics } from "./diagnostics";
 import { ClusterSelector, FleetRepoInput } from "./fleet";
 import { ConfigMapInput, SecretInput } from "./objects";
-import { dnsLabel, duration, osName, quantity, TIMEOUTS } from "./primitives";
+import { awsZone, cidr, dnsLabel, duration, osName, quantity, TIMEOUTS } from "./primitives";
 import { ProfileInput } from "./profiles";
-import { DownstreamInput, HarvesterInput, HarvesterVMSpec, MachineSpec, OsProfileInput, VersionValue } from "./schema";
+import { AwsSiteInput, DownstreamInput, HarvesterInput, HarvesterVMSpec, MachineSpec, OsProfileInput, VersionValue } from "./schema";
 
 // Catalog, lab and personal config files are Kubernetes-style documents (DESIGN.md §17):
 // `apiVersion`, `kind`, `metadata`, `spec`. A file can hold several, separated by `---`.
@@ -96,6 +96,12 @@ export const CATALOG_KINDS = {
                     parameters: z.record(z.string(), z.string()).optional(),
                 }).optional(),
             }).optional(),
+            aws: z.strictObject({
+                vpcCidr: cidr.optional(),
+                zones: z.array(awsZone).min(1).optional(),
+                instanceType: z.string().min(1).optional(),
+                eksVersion: z.string().regex(/^1\.\d+$/).optional(),
+            }).optional(),
             timeouts: z.strictObject(Object.fromEntries(TIMEOUTS.map(t => [t, duration.optional()]))).optional(),
             images: z.strictObject({ kubectl: z.string().min(1).optional() }).optional(),
         }),
@@ -123,11 +129,12 @@ export const CATALOG_KINDS = {
 export type CatalogKind = keyof typeof CATALOG_KINDS;
 
 /**
- * What a lab consists of (§17): its Harvesters, the hosts on them or elsewhere, and the clusters
- * Rancher creates. Only in a lab file and the files it includes.
+ * What a lab consists of (§17): its Harvesters and AWS sites, the hosts on them or elsewhere, and
+ * the clusters Rancher creates. Only in a lab file and the files it includes.
  */
 export const LAB_KINDS = {
     Harvester: { name: dnsLabel, spec: HarvesterInput },
+    AwsSite: { name: dnsLabel, spec: AwsSiteInput },
     HarvesterVM: { name: dnsLabel, spec: HarvesterVMSpec },
     Machine: { name: dnsLabel, spec: MachineSpec },
     DownstreamCluster: { name: dnsLabel, spec: DownstreamInput },

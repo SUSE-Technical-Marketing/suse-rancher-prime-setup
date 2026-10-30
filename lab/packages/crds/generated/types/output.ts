@@ -49655,6 +49655,180 @@ export namespace provisioning {
 export namespace rke_machine_config {
     export namespace v1 {
         /**
+         * Amazonec2Config represents the desired configuration of each machine provisioned within a machine pool associated with a provisioning.cattle.io cluster.
+         */
+        export interface Amazonec2Config {
+            /**
+             * AWS Access Key
+             */
+            accessKey: string;
+            /**
+             * AWS machine image
+             */
+            ami: string;
+            /**
+             * APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+             */
+            apiVersion: "rke-machine-config.cattle.io/v1";
+            /**
+             * AWS spot instance duration in minutes (60, 120, 180, 240, 300, or 360)
+             */
+            blockDurationMinutes: string;
+            /**
+             * AWS root device name
+             */
+            deviceName: string;
+            /**
+             * Indicates whether the first IPv6 address assigned to the instance should be marked as the primary IPv6 address. Enable this option if the instance requires a stable, non-changing IPv6 address. This option does not affect whether IPv6 addresses are assigned to the instance.
+             */
+            enablePrimaryIpv6: boolean;
+            /**
+             * Encrypt the EBS volume using the AWS Managed CMK
+             */
+            encryptEbsVolume: boolean;
+            /**
+             * Optional endpoint URL (hostname only or fully qualified URI)
+             */
+            endpoint: string;
+            /**
+             * Enables or disables the HTTP metadata endpoint on your instances
+             */
+            httpEndpoint: string;
+            /**
+             * Enables or disables the IPv6 endpoint for the instance metadata service. Options: enabled, disabled (default).
+             */
+            httpProtocolIpv6: string;
+            /**
+             * The state of token usage for your instance metadata requests.
+             */
+            httpTokens: string;
+            /**
+             * AWS IAM Instance Profile
+             */
+            iamInstanceProfile: string;
+            /**
+             * Disable SSL when sending requests
+             */
+            insecureTransport: boolean;
+            /**
+             * AWS instance type
+             */
+            instanceType: string;
+            /**
+             * The number of IPv6 addresses to assign to the network interface (default: 0). Must be greater than zero when amazonec2-ipv6-address-only is true.
+             */
+            ipv6AddressCount: string;
+            /**
+             * Indicates whether the instance has only IPv6 address. Useful when the VPC or subnet is configured as IPv6-only. When set to true, the instance will have IPv6 as its sole address. When set to true, amazonec2-ipv6-address-count must be greater than zero.
+             */
+            ipv6AddressOnly: boolean;
+            /**
+             * AWS keypair to use; requires --amazonec2-ssh-keypath
+             */
+            keypairName: string;
+            /**
+             * Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+             */
+            kind: "Amazonec2Config";
+            /**
+             * Custom KMS key using the AWS Managed CMK
+             */
+            kmsKey: string;
+            /**
+             * Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+             */
+            metadata: outputs.meta.v1.ObjectMeta;
+            /**
+             * Set this flag to enable CloudWatch monitoring
+             */
+            monitoring: boolean;
+            /**
+             * Make the specified port number accessible from the Internet
+             */
+            openPort: string[];
+            /**
+             * Only use a private IP address
+             */
+            privateAddressOnly: boolean;
+            /**
+             * AWS region
+             */
+            region: string;
+            /**
+             * Set this flag to request spot instance
+             */
+            requestSpotInstance: boolean;
+            /**
+             * Set retry count for recoverable failures (use -1 to disable)
+             */
+            retries: string;
+            /**
+             * AWS root disk size (in GB)
+             */
+            rootSize: string;
+            /**
+             * AWS Secret Key
+             */
+            secretKey: string;
+            /**
+             * AWS VPC security group
+             */
+            securityGroup: string[];
+            /**
+             * Skip adding default rules to security groups
+             */
+            securityGroupReadonly: boolean;
+            /**
+             * AWS Session Token
+             */
+            sessionToken: string;
+            /**
+             * AWS spot instance bid price (in dollar)
+             */
+            spotPrice: string;
+            /**
+             * File contents for sshKeyContents
+             */
+            sshKeyContents: string;
+            /**
+             * Set the name of the ssh user
+             */
+            sshUser: string;
+            /**
+             * AWS VPC subnet id
+             */
+            subnetId: string;
+            /**
+             * AWS Tags (e.g. key1,value1,key2,value2)
+             */
+            tags: string;
+            /**
+             * Create an EBS optimized instance
+             */
+            useEbsOptimizedInstance: boolean;
+            /**
+             * Force the usage of private IP address
+             */
+            usePrivateAddress: boolean;
+            /**
+             * File contents for userdata
+             */
+            userdata: string;
+            /**
+             * Amazon EBS volume type
+             */
+            volumeType: string;
+            /**
+             * AWS VPC id
+             */
+            vpcId: string;
+            /**
+             * AWS zone for instance (i.e. a,b,c,d,e)
+             */
+            zone: string;
+        }
+
+        /**
          * HarvesterConfig represents the desired configuration of each machine provisioned within a machine pool associated with a provisioning.cattle.io cluster.
          */
         export interface HarvesterConfig {

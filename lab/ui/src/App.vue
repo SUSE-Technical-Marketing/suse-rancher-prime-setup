@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { api } from "./api";
+import AwsSiteEditor from "./components/AwsSiteEditor.vue";
 import DownstreamEditor from "./components/DownstreamEditor.vue";
 import GenericEditor from "./components/GenericEditor.vue";
 import HarvesterEditor from "./components/HarvesterEditor.vue";
@@ -25,6 +26,7 @@ const editor = computed(() => {
   switch (current.value?.kind) {
     case "Lab": return LabEditor;
     case "Harvester": return HarvesterEditor;
+    case "AwsSite": return AwsSiteEditor;
     case "HarvesterVM":
     case "Machine": return HostEditor;
     case "DownstreamCluster": return DownstreamEditor;

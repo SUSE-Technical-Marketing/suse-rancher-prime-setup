@@ -9,8 +9,9 @@ spec:
   domain: lab.geeko.me
 
   tls:
-    # Staging while iterating: Let's Encrypt allows 5 certificates per week for the same names.
-    acme: letsencrypt-staging
+    # Production: Rancher is also published through a Cloudflare Tunnel, and agents behind it only
+    # accept a publicly trusted certificate (agent-tls-mode system-store). 5 certificates a week per name set.
+    acme: letsencrypt
     email: jeroen@vanerp.info
     cloudflare: "{{ secrets['cloudflare-token'] }}"
 

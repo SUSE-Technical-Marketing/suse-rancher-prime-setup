@@ -20,6 +20,28 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
         line(`    images: ${h.images.map(i => `${i.os} (${i.source.kind === "url" ? "download" : `upload ${i.source.path}`})`).join(", ") || "none"}`);
     }
 
+    if (lab.awsSites.length > 0) {
+        line();
+        line("AWS sites");
+        const hours = (s: number) => (s % 3600 === 0 ? `${s / 3600}h` : `${Math.round(s / 60)}m`);
+        for (const s of lab.awsSites) {
+            line(`  ${s.name}  ${s.region}, VPC ${s.vpcCidr}${s.ttl ? `, meant to live ${hours(s.ttl)} (tagged, not enforced)` : ""}`);
+            line(`    subnets: ${s.zones.map(z => `${z.az} ${z.cidr}`).join(", ")}`);
+            const machines = new Map<string, number>();
+            const add = (type: string, n: number) => machines.set(type, (machines.get(type) ?? 0) + n);
+            let eks = 0;
+            for (const d of lab.downstream) {
+                if (d.type === "ec2" && d.site === s.name) for (const p of d.pools) add(p.instanceType, p.quantity);
+                if (d.type === "eks" && d.site === s.name) {
+                    eks++;
+                    for (const g of d.nodeGroups) add(g.instanceType, g.quantity);
+                }
+            }
+            if (machines.size > 0) line(`    EC2 machines (billed while the lab runs): ${[...machines].map(([type, n]) => `${n} × ${type}`).join(", ")}`);
+            if (eks > 0) line(`    EKS control planes (billed per hour): ${eks}`);
+        }
+    }
+
     line();
     line("Hosts");
     if (lab.hosts.length === 0) line("  none");
@@ -43,6 +65,17 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
                 line(`  ${d.name}  ${d.distro} on ${d.harvester}, managed by Rancher on ${d.rancher}${meta}`);
                 for (const p of d.pools) {
                     line(`    pool ${p.name}: ${p.quantity} × ${p.cpu} CPU / ${p.memory} / ${p.disk}, ${p.os}, network ${p.network} [${p.roles.join(", ")}]`);
+                }
+            } else if (d.type === "ec2") {
+                line(`  ${d.name}  ${d.distro} on EC2 (${d.site}), managed by Rancher on ${d.rancher}${meta}`);
+                for (const p of d.pools) {
+                    line(`    pool ${p.name}: ${p.quantity} × ${p.instanceType} / ${p.disk}, ${p.os}, zone ${p.zone} [${p.roles.join(", ")}]`);
+                }
+            } else if (d.type === "eks") {
+                line(`  ${d.name}  EKS ${d.version} (${d.site}), created and managed by Rancher on ${d.rancher}${meta}`);
+                for (const g of d.nodeGroups) {
+                    const size = g.min === g.max ? `${g.quantity}` : `${g.quantity} (${g.min}–${g.max})`;
+                    line(`    node group ${g.name}: ${size} × ${g.instanceType} / ${g.disk}, zones ${g.zones.join(", ")}`);
                 }
             } else if (d.type === "k3k") {
                 const persistence = d.persistence?.type === "ephemeral" ? "ephemeral" : `etcd on a ${d.persistence?.size ?? "default-size"} PVC (${d.persistence?.storageClass ?? "default StorageClass"})`;
@@ -82,7 +115,8 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
         line();
         line("Secrets");
         for (const [name, shape] of secrets) {
-            line(`  ${missingSecrets.has(name) ? "MISSING" : "ok     "}  ${name}${shape === "credentials" ? " (username + password)" : ""}`);
+            const fields = shape === "credentials" ? " (username + password)" : typeof shape === "object" ? ` (${shape.fields.join(" + ")})` : "";
+            line(`  ${missingSecrets.has(name) ? "MISSING" : "ok     "}  ${name}${fields}`);
         }
     }
     return out.join("\n");

@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { credentialsOf, isTemplate, objectTemplateContext, renderSecretTemplate, renderTemplate, usesSecrets, type Credentials, type ObjectValue } from "@lab/schema";
+import { credentialsOf, isTemplate, mapOf, objectTemplateContext, renderSecretTemplate, renderTemplate, usesSecrets, type Credentials, type ObjectValue } from "@lab/schema";
 
 // The CLI hands the resolved secret values over as one secret stack config object; secret fields
 // are templates over them ("{{ secrets['ssh-key'] }}"), rendered here.
@@ -16,6 +16,12 @@ export function secretString(v: string): pulumi.Output<string> {
 export function credentials(c: Credentials): { username: pulumi.Output<string>; password: pulumi.Output<string> } {
     const value = secrets().apply(s => credentialsOf(c, t => renderSecretTemplate(t, s)));
     return { username: pulumi.unsecret(value.apply(v => v.username)), password: value.apply(v => v.password) };
+}
+
+/** A map value (one secret holding the fields, or the fields), each field a secret output. */
+export function secretMap<F extends string>(value: string | Record<F, string>, fields: readonly F[]): Record<F, pulumi.Output<string>> {
+    const map = secrets().apply(s => mapOf(value, fields, t => renderSecretTemplate(t, s)));
+    return Object.fromEntries(fields.map(f => [f, pulumi.secret(map.apply(m => m[f] as string))])) as Record<F, pulumi.Output<string>>;
 }
 
 /**

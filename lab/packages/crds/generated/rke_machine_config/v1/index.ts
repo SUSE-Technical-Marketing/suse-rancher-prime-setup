@@ -5,6 +5,21 @@ import * as pulumi from "@pulumi/pulumi";
 import * as utilities from "../../utilities";
 
 // Export members:
+export { Amazonec2ConfigArgs } from "./amazonec2Config";
+export type Amazonec2Config = import("./amazonec2Config").Amazonec2Config;
+export const Amazonec2Config: typeof import("./amazonec2Config").Amazonec2Config = null as any;
+utilities.lazyLoad(exports, ["Amazonec2Config"], () => require("./amazonec2Config"));
+
+export { Amazonec2ConfigListArgs } from "./amazonec2ConfigList";
+export type Amazonec2ConfigList = import("./amazonec2ConfigList").Amazonec2ConfigList;
+export const Amazonec2ConfigList: typeof import("./amazonec2ConfigList").Amazonec2ConfigList = null as any;
+utilities.lazyLoad(exports, ["Amazonec2ConfigList"], () => require("./amazonec2ConfigList"));
+
+export { Amazonec2ConfigPatchArgs } from "./amazonec2ConfigPatch";
+export type Amazonec2ConfigPatch = import("./amazonec2ConfigPatch").Amazonec2ConfigPatch;
+export const Amazonec2ConfigPatch: typeof import("./amazonec2ConfigPatch").Amazonec2ConfigPatch = null as any;
+utilities.lazyLoad(exports, ["Amazonec2ConfigPatch"], () => require("./amazonec2ConfigPatch"));
+
 export { HarvesterConfigArgs } from "./harvesterConfig";
 export type HarvesterConfig = import("./harvesterConfig").HarvesterConfig;
 export const HarvesterConfig: typeof import("./harvesterConfig").HarvesterConfig = null as any;
@@ -25,6 +40,12 @@ const _module = {
     version: utilities.getVersion(),
     construct: (name: string, type: string, urn: string): pulumi.Resource => {
         switch (type) {
+            case "kubernetes:rke-machine-config.cattle.io/v1:Amazonec2Config":
+                return new Amazonec2Config(name, <any>undefined, { urn })
+            case "kubernetes:rke-machine-config.cattle.io/v1:Amazonec2ConfigList":
+                return new Amazonec2ConfigList(name, <any>undefined, { urn })
+            case "kubernetes:rke-machine-config.cattle.io/v1:Amazonec2ConfigPatch":
+                return new Amazonec2ConfigPatch(name, <any>undefined, { urn })
             case "kubernetes:rke-machine-config.cattle.io/v1:HarvesterConfig":
                 return new HarvesterConfig(name, <any>undefined, { urn })
             case "kubernetes:rke-machine-config.cattle.io/v1:HarvesterConfigList":

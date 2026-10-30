@@ -1,13 +1,5 @@
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
-import * as pulumi from "@pulumi/pulumi";
 import { describe, expect, it } from "vitest";
-import { loadLab } from "@lab/schema";
-import { register } from "tsx/cjs/api";
-
-// The generated CRD classes load their modules with require(), as under Pulumi's own TypeScript runner.
-register();
+import { runProgram } from "./run-program";
 
 // The whole program under Pulumi's mocks, for a lab with two k3k clusters in one parent and one
 // in another: what it registers, without any cluster.
@@ -57,58 +49,9 @@ metadata: { name: team-c }
 spec: { type: k3k, rancher: rancher, parent: edge, namespace: tenants }
 `;
 
-const KUBECONFIG_YAML = `apiVersion: v1
-clusters:
-- cluster: { certificate-authority-data: Q0E=, server: "https://127.0.0.1:6443" }
-  name: default
-contexts:
-- context: { cluster: default, user: default }
-  name: default
-current-context: default
-kind: Config
-users:
-- name: default
-  user: { client-certificate-data: Q0VSVA==, client-key-data: S0VZ }
-`;
-
-interface Registered { type: string; name: string; inputs: any }
-
-async function runProgram(): Promise<Registered[]> {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lab-k3k-"));
-    fs.writeFileSync(path.join(dir, "lab.yaml"), LAB);
-    fs.writeFileSync(path.join(dir, "config.yaml"), "apiVersion: lab.geeko.me/v1alpha1\nkind: PersonalConfig\nmetadata: { name: test }\nspec: {}\n");
-    const { lab, diagnostics } = loadLab({ labFile: path.join(dir, "lab.yaml"), personalConfig: path.join(dir, "config.yaml") });
-    expect(diagnostics.errors).toEqual([]);
-
-    const registered: Registered[] = [];
-    pulumi.runtime.setMocks({
-        newResource(args) {
-            registered.push({ type: args.type, name: args.name, inputs: args.inputs });
-            const state: Record<string, unknown> = { ...args.inputs };
-            // What later steps read from outputs: kubeconfigs (a host's over SSH, a downstream cluster's from Rancher).
-            if (args.name.endsWith("/kubeconfig") && args.type.startsWith("command:")) state.stdout = KUBECONFIG_YAML;
-            if (args.name.endsWith("/kubeconfig") && args.type.startsWith("pulumi-nodejs:dynamic")) {
-                state.kubeconfig = JSON.stringify({ clusters: [{ cluster: { server: `https://rancher.example.com/k8s/clusters/c-m-${args.name.split("/")[1]}` } }] });
-            }
-            if (args.type.startsWith("pulumi-nodejs:dynamic")) Object.assign(state, { ipAddress: "10.0.20.100", value: "10.0.20.100", clusterId: "c-m-x", nodeCommand: "true", manifestUrl: "https://rancher.example.com/v3/import/x.yaml", secretName: "cattle-global-data:cc-x", token: "t" });
-            return { id: `${args.name}-id`, state };
-        },
-        call: args => args.inputs,
-    }, "lab", "test", false);
-    pulumi.runtime.setAllConfig({
-        "lab:resolved": JSON.stringify(lab),
-        "lab:secrets": JSON.stringify({ "ssh-key": "k", hv: { username: "u", password: "p" }, admin: "a", cf: "c" }),
-    }, ["lab:secrets"]);
-
-    await import("../index");
-    // Registrations finish as their inputs resolve.
-    await new Promise(r => setTimeout(r, 1500));
-    return registered;
-}
-
 describe("k3k clusters", () => {
     it("installs the operator once per parent, and imports each k3k cluster into Rancher", async () => {
-        const registered = await runProgram();
+        const registered = await runProgram(LAB, { secrets: { "ssh-key": "k", hv: { username: "u", password: "p" }, admin: "a", cf: "c" } });
         const named = (type: string) => registered.filter(r => r.type === type).map(r => r.name).sort();
 
         // One operator per parent: apps has two k3k clusters, edge one.

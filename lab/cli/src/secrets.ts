@@ -2,9 +2,10 @@ import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { credentialsOf, Credentials, renderSecretTemplate, SecretShape, SecretValue } from "@lab/schema";
+import { credentialsOf, Credentials, renderSecretTemplate, SecretShape, shapeFields, SecretValue } from "@lab/schema";
 
-export type ResolvedSecret = string | { username: string; password: string };
+/** A string, or a map of strings (credentials, AWS keys). */
+export type ResolvedSecret = string | Record<string, string>;
 
 export interface SecretResolution {
     values: Record<string, ResolvedSecret>;
@@ -49,16 +50,42 @@ function resolveLeaf(value: string, ctx: { env: NodeJS.ProcessEnv; configDir: st
     return value;
 }
 
+/** What a value is, for messages: never the value itself. */
+const kindOf = (v: unknown) => (v === null ? "null" : Array.isArray(v) ? "a list" : typeof v === "object" ? "a map" : `a ${typeof v}`);
+
+/**
+ * A personal-config secret's value as the lab uses it, its leaves resolved: only the fields the lab
+ * uses, so a field it doesn't (a `cmd:` it needn't run, a nested map) is left alone.
+ */
+function fromConfig(name: string, configured: unknown, shape: SecretShape, ctx: { env: NodeJS.ProcessEnv; configDir: string }): unknown {
+    if (shape === "string") {
+        if (typeof configured !== "string") throw new Error(`secret "${name}" must be a string, and it's ${kindOf(configured)}`);
+        return resolveLeaf(configured, ctx);
+    }
+    if (typeof configured !== "object" || configured === null || Array.isArray(configured)) return configured;
+    // The other fields stay unresolved: checkShape names them in a message, then drops them.
+    const map = { ...(configured as Record<string, unknown>) };
+    for (const f of shapeFields(shape).filter(f => f in map)) {
+        if (typeof map[f] !== "string") throw new Error(`secret "${name}": field ${f} must be a string, and it's ${kindOf(map[f])}`);
+        map[f] = resolveLeaf(map[f] as string, ctx);
+    }
+    return map;
+}
+
 function checkShape(name: string, value: unknown, shape: SecretShape): ResolvedSecret {
     if (shape === "string") {
         if (typeof value !== "string" || value === "") throw new Error(`secret "${name}" must be a non-empty string`);
         return value;
     }
-    const v = value as { username?: unknown; password?: unknown };
-    if (typeof v !== "object" || v === null || typeof v.username !== "string" || typeof v.password !== "string") {
-        throw new Error(`secret "${name}" must have a username and a password`);
+    const fields = shapeFields(shape);
+    const v = value as Record<string, unknown>;
+    if (typeof v !== "object" || v === null || fields.some(f => typeof v[f] !== "string")) {
+        throw new Error(shape === "credentials"
+            ? `secret "${name}" must have a username and a password`
+            : `secret "${name}" must be a map with ${fields.join(", ")}${typeof v === "object" && v !== null ? ` (it has ${Object.keys(v).sort().join(", ") || "no fields"})` : ""}`);
     }
-    return { username: v.username, password: v.password };
+    // Only the fields the lab uses travel on to the program.
+    return Object.fromEntries(fields.map(f => [f, v[f] as string]));
 }
 
 export function resolveSecrets(
@@ -76,13 +103,10 @@ export function resolveSecrets(
             let raw: unknown;
             const fromEnv = env[envName];
             if (fromEnv !== undefined) {
-                // Credentials in an environment variable are JSON: {"username":"...","password":"..."}.
-                raw = shape === "credentials" ? JSON.parse(fromEnv) : fromEnv;
+                // A map in an environment variable is JSON: {"username":"...","password":"..."}.
+                raw = shape === "string" ? fromEnv : JSON.parse(fromEnv);
             } else if (name in personal) {
-                const configured = personal[name];
-                raw = typeof configured === "string"
-                    ? resolveLeaf(configured, { env, configDir: opts.configDir })
-                    : Object.fromEntries(Object.entries(configured).map(([k, v]) => [k, resolveLeaf(v, { env, configDir: opts.configDir })]));
+                raw = fromConfig(name, personal[name], shape, { env, configDir: opts.configDir });
             } else {
                 problems.push(`secret "${name}" is not set: add it under secrets: in the personal config, or set ${envName}`);
                 continue;

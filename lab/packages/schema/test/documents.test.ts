@@ -54,9 +54,18 @@ spec: {}
         expect(errors(result)).toEqual([
             "document 2.apiVersion: must be lab.geeko.me/v1alpha1",
             'document 2.extra: unknown field "extra"; a document has apiVersion, kind, metadata and spec',
-            'document 3.kind: unknown kind "Deployment"; one of HelmChart, Manifest, KubernetesDistribution, AcmeServer, Defaults, Profile, SecretTemplate, ConfigMapTemplate, FleetRepo, ClusterGroup, UiPluginRepository, UiPlugin, OperatingSystem, Harvester, HarvesterVM, Machine, DownstreamCluster',
+            'document 3.kind: unknown kind "Deployment"; one of HelmChart, Manifest, KubernetesDistribution, AcmeServer, Defaults, Profile, SecretTemplate, ConfigMapTemplate, FleetRepo, ClusterGroup, UiPluginRepository, UiPlugin, OperatingSystem, Harvester, AwsSite, HarvesterVM, Machine, DownstreamCluster',
             "document 4.kind: Lab can only be the first document of its own file",
         ]);
+    });
+
+    it("takes secrets of any shape in the personal config, and can leave a broken one out", () => {
+        const PERSONAL = "apiVersion: lab.geeko.me/v1alpha1\nkind: PersonalConfig\nmetadata: { name: me }\nspec:\n";
+        const nested = write("personal-nested.yaml", `${PERSONAL}  secrets:\n    cloudflare: { token: t, tunnel: { account: a, id: 1 } }\n    list: [a, b]\n`);
+        expect(errors(loadCatalog({ personalConfig: nested }))).toEqual([]);
+        const broken = write("personal-broken.yaml", `${PERSONAL}  harvesters: { hv: { url: 42 } }\n`);
+        expect(loadCatalog({ personalConfig: broken }).catalog).toBeUndefined();
+        expect(loadCatalog({ personalConfig: broken, withoutPersonal: true }).catalog).toBeDefined();
     });
 
     it("reads catalog documents from spec.include, files and directories", () => {

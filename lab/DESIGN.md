@@ -142,14 +142,18 @@ images: { ... }                # optional image sources per OS, §6
 
 **Secrets are templates.** Anywhere a secret is accepted, the value is a Jinja2 template over the
 personal config's `secrets` (§10): `"{{ secrets.appco }}"`, or with brackets for a name with a dash,
-`"{{ secrets['ssh-key'] }}"`. A secret holding a username and password is used whole where a field
-takes credentials (`credentials: "{{ secrets.harbor }}"`), or by field (`"{{ secrets.scc.password }}"`);
-text around it is fine (`"Bearer {{ secrets.token }}"`). The lab file only names secrets; values come
-from the user's environment (§10).
+`"{{ secrets['ssh-key'] }}"`. A secret can be a map: one holding a username and password is used
+whole where a field takes credentials (`credentials: "{{ secrets.harbor }}"`), or by field
+(`"{{ secrets.scc.password }}"`); AWS keys are a map with `accessKey` and `secretKey`
+(`credentials: "{{ secrets.aws }}"` on an AwsSite, or `"{{ secrets.aws.accessKey }}"`). Text around
+it is fine (`"Bearer {{ secrets.token }}"`). The lab file only names secrets; values come from the
+user's environment (§10).
 
 `validate` renders each template against placeholders: that checks it and finds which secrets it
-uses, and how, so `lab plan` can list them with their shape (a secret used whole is a string, one
-used by `.username` / `.password` is credentials; both at once is an error). The CLI resolves those
+uses, and how, so `lab plan` can list them with their shape (a secret used whole is a string; one
+used by field is a map with at least those fields, credentials when they're `username` and
+`password`; both at once is an error). The CLI checks a map secret has every field the lab uses,
+and only those fields travel on to the program. The CLI resolves those
 values, and the program renders the templates with them; whatever comes out stays a Pulumi
 secret. A plain value in a secret field works, with a warning in a lab file. Templates using
 `secrets` are allowed in secret fields, in profile settings (chart values), in catalog inputs and
@@ -301,7 +305,8 @@ fleet:
 
 ### 5.5 Downstream clusters (created by Rancher)
 
-Both types need a host with the `rancher` profile.
+Every type needs a host with the `rancher` profile. Rancher creates them all; the engine never
+imports a cluster it didn't make (k3k clusters are imported, but the engine makes those too).
 
 **On Harvester** — Rancher creates the VMs through its Harvester node driver:
 
@@ -331,6 +336,90 @@ downstream:
         disk: 100Gi
         os: sles-16-k8s
 ```
+
+**On EC2** — Rancher creates the machines through its Amazon EC2 node driver, in the lab's VPC on
+an AWS site (§5.6), with the site's keys as its cloud credential:
+
+```yaml
+downstream:
+  cloud:
+    type: ec2
+    rancher: rancher             # must be public: the machines register over the internet
+    site: aws-eu                 # an AwsSite of this lab
+    distro: rke2
+    pools:
+      - name: control
+        quantity: 1
+        roles: [etcd, controlplane]
+        instanceType: t3.large   # default: Defaults aws.instanceType
+        disk: 60Gi               # root volume (gp3); default: Defaults vm.disk
+        os: ubuntu-24.04-k8s     # an OS profile with an ami
+        zone: a                  # default: the site's first zone
+      - name: workers
+        quantity: 2
+        roles: [worker]
+        instanceType: m6i.xlarge
+        os: ubuntu-24.04-k8s
+        zone: b
+```
+
+The machines get the same user data as Harvester pools (the OS profile's cloud-config, the lab's
+login, the helm Job watch on servers); the node driver logs in as the AMI's user with a key pair it
+makes per machine. They run in the site's security group with public addresses, IMDSv2 only, and
+carry the lab's tags. An OS profile's AMI is looked up in the site's region on first use (the newest
+matching one) and kept: a new AMI release doesn't replace the pool's machines. No AWS cloud
+provider yet, so LoadBalancer Services get no load balancer.
+
+**On EKS** — Rancher creates and manages the EKS cluster itself (a hosted cluster), in the lab's
+VPC on an AWS site, with the same cloud credential:
+
+```yaml
+downstream:
+  eks:
+    type: eks
+    rancher: rancher             # must be public: the cluster agent registers over the internet
+    site: aws-eu                 # an AwsSite of this lab, with two zones at least
+    version: "1.34"              # an EKS minor; default: Defaults aws.eksVersion
+    publicAccessSources: [ 203.0.113.0/24 ]   # who may reach the EKS API directly; default anyone
+    logging: [ audit ]           # control plane logs to CloudWatch; default none
+    nodeGroups:
+      - name: general
+        quantity: 2              # nodes it starts with
+        max: 4                   # it scales between min and max; both default to quantity
+        instanceType: t3.large   # default: Defaults aws.instanceType; Graviton types get arm64
+        disk: 60Gi               # default: Defaults vm.disk
+        zones: [ a, b ]          # by letter; default all of the site's
+        labels: { tier: general }
+```
+
+The engine creates the cluster the way Rancher's UI does: a management cluster (`/v3/clusters`)
+with an `eksConfig`, which Rancher's eks-operator turns into the EKS cluster (public and private
+API endpoint, the EBS CSI add-on, the lab's tags) and managed node groups (the lab's tags on their
+instances and volumes) in the site's subnets. Rancher makes the IAM roles both need, as
+CloudFormation stacks named after the cluster (`<name>-eks-service-role`, `-node-instance-role`,
+`-ebs-csi-driver-role`), and a launch template `rancher-managed-lt-<name>`; it deletes all of them
+when the cluster goes. EKS makes the cluster's security group. The nodes run EKS's own image: no
+OS profile, no lab login, no SSH key. The engine waits until Rancher reports the cluster active
+(`timeouts.downstreamReady`), then talks to it through Rancher's proxy with a token from Rancher's
+`generateKubeconfig`. Node group sizes, the version and the tags change in place; the site, its
+subnets and the name make another cluster. EKS names clusters per account and region, so two labs
+sharing a site can't both have an EKS cluster with the same name: the eks-operator refuses the
+second.
+
+The account's keys need what Rancher's EKS docs list beyond EC2: EKS, CloudFormation, IAM roles
+and instance profiles (create, pass, delete), launch templates, and KMS only for secrets
+encryption (off).
+
+**Not tried against AWS yet.** The schema, the program and the UI are done and tested under
+mocks; the first real `up` waits for a public Rancher. To check then: that the management
+cluster's labels reach its Fleet cluster (`fleet.groups` selectors), how long the
+`generateKubeconfig` token lives (Rancher's `kubeconfig-default-token-ttl-minutes`), whether k3k
+needs a default StorageClass set on EKS (EKS marks none default), and the update path.
+
+**Reachability.** EC2 machines and EKS clusters reach Rancher over the internet, so `validate`
+rejects an `ec2` or `eks` cluster whose Rancher host doesn't provide `public-ingress`. No profile
+does yet: that's the Cloudflare tunnel operator's `public-ingress` profile, still to come. Until
+then they can be validated and previewed only with a stub profile (the tests do this).
 
 **Custom** — existing machines join a cluster Rancher defines:
 
@@ -376,6 +465,36 @@ the k3k Cluster and its namespace; when the parent goes too, what's on it goes w
 `labels` and `annotations` are set on the `provisioning.cattle.io` Cluster. Rancher copies them to
 the Fleet cluster, so `fleet.groups` selectors match the labels and a `fleet.yaml` reads both
 (`.ClusterLabels`, `.ClusterAnnotations`; the apps use `hosted-domain`).
+
+### 5.6 AWS sites
+
+An `AwsSite` is an AWS account and region Rancher creates machines in. The lab gets a VPC of its
+own there; nothing is claimed, so several labs (and people) can share an account.
+
+```yaml
+apiVersion: lab.geeko.me/v1alpha1
+kind: AwsSite
+metadata: { name: aws-eu }
+spec:
+  region: eu-west-1                         # or from the personal config (awsSites.aws-eu.region)
+  credentials: "{{ secrets.aws }}"          # a map secret with accessKey and secretKey, or { accessKey, secretKey }
+  vpc: { cidr: 10.100.0.0/16 }              # default: Defaults aws.vpcCidr
+  zones: [ a, b ]                           # default: Defaults aws.zones
+  ttl: 8h                                   # tagged as lab.geeko.me/expires; nothing enforces it
+```
+
+The engine creates the VPC, an internet gateway, a route table with the default route, a public
+subnet per zone (a sixteenth of the VPC each: `10.100.0.0/20` in `a`, `10.100.16.0/20` in `b`,
+tagged for Kubernetes load balancers) and the security group the machines run in, `<lab>-nodes`:
+everything between the lab's machines, SSH (Rancher's node driver sets machines up over SSH, from
+wherever Rancher runs), HTTP and HTTPS in; everything out. Pick `zones` for a region where the
+account lacks `a` or `b`.
+
+Everything is tagged `lab.geeko.me/lab`, `lab.geeko.me/site` and `lab.geeko.me/owner` (who ran
+`up`), and with a `ttl`, `lab.geeko.me/expires` (from when the lab was first created). Rancher's
+machines carry the same tags, through the node driver, and EKS clusters and their node groups
+through the eks-operator. A site no `ec2` or `eks` cluster uses is a warning: its VPC is still
+created.
 
 ---
 
@@ -660,6 +779,18 @@ program's main loop.
   No network-data is sent: cloud-init's fallback configures DHCP on the first NIC.
 - **Image uploads from local files** are not implemented yet (download URLs only).
 
+### 7.8 How the program reaches AWS
+
+- **No AWS keys in state either.** For every run the CLI writes a shared credentials file with a
+  profile per site (`lab-<site>`) and an empty AWS config, next to the run's kubeconfig, and points
+  `AWS_SHARED_CREDENTIALS_FILE` / `AWS_CONFIG_FILE` at them. Each site's AWS provider records only
+  its region and profile name, so `destroy` works with the keys of the day; the user's own
+  `~/.aws/config` (SSO, a default region) doesn't mix in.
+- **Rancher does hold the keys**: its Amazon EC2 cloud credential (EC2 machines and EKS clusters both use it) is the site's keys (the dynamic
+  resource creating it keeps them, encrypted, in state, as the Harvester credential does Rancher's
+  password). A key change updates the credential in place.
+- **Default tags** on each site's provider tag everything the engine creates there.
+
 ## 8. DNS and TLS
 
 - **DNS**: the harvester-dns-controller add-on (RouterOS backend) is installed as part of each
@@ -780,6 +911,8 @@ secrets:
   ssh-key:          file:~/.ssh/id_ed25519
 harvesters:
   hv-north: { url: https://hv-north.lab.geeko.me, credentials: "{{ secrets['hv-north'] }}" }
+awsSites:
+  aws-eu: { region: eu-west-1, credentials: "{{ secrets.aws }}" }   # secrets.aws: { accessKey, secretKey }
 images:
   sles-16: { file: ~/images/SLES-16.0-Minimal-VM.x86_64-Cloud.qcow2 }
 os: {}                    # personal OS profiles (§6)
@@ -787,9 +920,16 @@ os: {}                    # personal OS profiles (§6)
 
 **Secret values** come only from the user's environment:
 
-- `LAB_SECRET_<NAME>` environment variables (`LAB_SECRET_HV_NORTH`), or
+- `LAB_SECRET_<NAME>` environment variables (`LAB_SECRET_HV_NORTH`; a map secret as JSON), or
 - the `secrets:` section of the personal config, whose values may be literal, `env:VAR`,
   `file:path`, or `cmd:<command>` (for password managers).
+
+A secret the lab uses is a string, or a map whose fields the lab uses are strings. Anything else in
+`secrets:` (a nested map another tool reads, a list) is let through when the file loads, and only
+a lab that uses it gets an error naming the secret and what it holds, never its value. Only the
+used fields are resolved, so a `cmd:` in a field no lab uses never runs. A personal config that
+doesn't load at all doesn't stop the UI: it falls back to the built-in catalog alone and shows the
+config's problems.
 
 `cmd:` is only allowed in the personal config, never in a lab file, so a shared lab file cannot
 run commands on someone's machine. A lab file may contain literal credentials (for example a
@@ -829,7 +969,15 @@ removes a stale guard by hand.
 - SSH hosts are restored as far as possible (k3s/RKE2 uninstall scripts, MLM client removal).
   Packages installed on them are not removed.
 - A `lab destroy --check` command lists anything still left on each Harvester (VMs, volumes,
-  networks, images not present before), to catch leaks during development.
+  networks, images not present before), to catch leaks during development, and on each AWS site
+  (by the lab's tags: instances, volumes, the VPC and what's in it, network interfaces left in the
+  VPC, and key pairs named like the lab's machines; for EKS clusters, the EKS cluster, the
+CloudFormation stacks and the launch template Rancher names after it).
+- **AWS: machines before the network.** An `ec2` or `eks` cluster depends on its site's network,
+  so destroy deletes the cluster (Rancher terminates its machines, or deletes the EKS cluster, its
+  node groups and IAM stacks, waiting up to `timeouts.downstreamDelete`) before the security group,
+  subnets and VPC. Network interfaces that something else left in the VPC (a load balancer) would block
+  deleting it; with no AWS cloud provider yet, the engine's clusters make none.
 
 ---
 
@@ -1355,7 +1503,7 @@ document is.
 |---|---|---|
 | `KubernetesDistribution` | `version`; `install` (a template with `version`, run as root); `configFile` and `config` (written before installing, with the host's FQDN as a `tls-san`); `withCapability.<capability>` (merged into `config`, lists joined, when another profile on the host provides that capability: `ingress` turns the distribution's own Traefik off, `load-balancer` its ServiceLB, `cloud-provider` sets up an external cloud controller); `kubeconfig`, `kubectl`, `dataDir`; `uninstall` (scripts for custom-cluster machines); `cni` (downstream default). An override's `config` and `withCapability` merge key by key (lists replaced) | components (k3s, RKE2) |
 | `AcmeServer` | `url` (the ACME directory), `ca` (PEM roots, for a CA nothing trusts) | ACME servers (`tls.acme`) |
-| `Defaults` | one, named `default`: `ssh.user` (a lab's `ssh.user`, and a Machine's `user`, default to it), `vm` (`cpu`, `memory`, `disk` of a HarvesterVM or downstream pool that doesn't give them), `harvester.clusterNetwork`, `harvester.storageClass` (`name`, `replicas`, `parameters`), `timeouts.<step>` (durations like `15m`: `harvesterAddon`, `image`, `vmStart`, `vmAddress`, `cloudInit`, `loadBalancerCleanup`, `kubernetesApi`, `resourceReady`, `certificate`, `rancherReady`, `uiPlugin`, `harvesterImport`, `clusterRegistration`, `downstreamReady`, `downstreamDelete`, `helmJobWatch`), `images.kubectl` (an image with kubectl and curl for jobs the engine runs on a cluster: a k3k cluster's import). Later layers override single fields, so a personal config can make one wait longer | what the engine uses where a lab doesn't say (`catalog/defaults.yaml`) |
+| `Defaults` | one, named `default`: `ssh.user` (a lab's `ssh.user`, and a Machine's `user`, default to it), `vm` (`cpu`, `memory`, `disk` of a HarvesterVM or downstream pool that doesn't give them), `harvester.clusterNetwork`, `harvester.storageClass` (`name`, `replicas`, `parameters`), `timeouts.<step>` (durations like `15m`: `harvesterAddon`, `image`, `vmStart`, `vmAddress`, `cloudInit`, `loadBalancerCleanup`, `kubernetesApi`, `resourceReady`, `certificate`, `rancherReady`, `uiPlugin`, `harvesterImport`, `clusterRegistration`, `downstreamReady`, `downstreamDelete`, `helmJobWatch`), `aws` (`vpcCidr`, `zones` and `instanceType` of an AwsSite, EC2 pool or EKS node group that doesn't give them; `eksVersion` of an EKS cluster), `images.kubectl` (an image with kubectl and curl for jobs the engine runs on a cluster: a k3k cluster's import). Later layers override single fields, so a personal config can make one wait longer | what the engine uses where a lab doesn't say (`catalog/defaults.yaml`) |
 | `HelmChart` | `repo`, `chart`, `version`, `namespace` (default for host placements) | components |
 | `Manifest` | `url` (template), `version` | components |
 | `Profile` | `charts` / `distribution`, the rules of §7.6, `outputs`, `settings` (JSON Schema object) | profiles (§16.10) |
@@ -1366,8 +1514,9 @@ document is.
 | `UiPlugin` | `repository`, `version`, `default` | UI plugins |
 | `OperatingSystem` | as §6 (`metadata.description` is the display name) | OS profiles |
 | `Lab` | the lab-wide fields of §5 (`domain`, `tls`, `ssh`, `inputs`, `images`), plus `include: [...]` | — (first document of a lab file) |
-| `PersonalConfig` | secrets, harvesters, images, inputs, `include` | — (first document of the personal config) |
+| `PersonalConfig` | secrets, harvesters, awsSites, images, inputs, `include` | — (first document of the personal config) |
 | `Harvester` | as `harvesters.<name>` in §5.2 | the lab's Harvesters (lab file and its includes only) |
+| `AwsSite` | `region`, `credentials`, `vpc.cidr`, `zones`, `ttl` (§5.6) | the lab's AWS sites, each with a VPC of its own (lab file and its includes only) |
 | `HarvesterVM` | as a host in §5.3, with `harvester:` instead of `on:` | the lab's hosts |
 | `Machine` | as an `on: ssh` host in §5.3 (no `cpu`, `memory`, `disk`, `network`, `macAddress`) | the lab's hosts |
 | `DownstreamCluster` | as `downstream.<name>` in §5.5 | the lab's downstream clusters |

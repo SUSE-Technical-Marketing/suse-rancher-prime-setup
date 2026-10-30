@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { Inputs, Placement } from "./objects";
 import {
-    CIDR, Credentials, dnsLabel, dnsName, FileRef, ImageSource, ipv4, MAC, OS_FAMILIES, osName, quantity,
-    secretOrString,
+    AwsCredentials, awsRegion, awsZone, CIDR, cidr, Credentials, dnsLabel, dnsName, duration, FileRef, ImageSource, ipv4, MAC,
+    OS_FAMILIES, osName, quantity, secretOrString,
 } from "./primitives";
 
 export * from "./primitives";
@@ -18,6 +18,12 @@ export const OsProfileInput = z.strictObject({
     family: z.enum(OS_FAMILIES).optional(),
     image: z.strictObject({ url: z.url().nullable().optional() }).optional(),
     defaultUser: z.string().optional(),
+    /**
+     * Its image on AWS, for EC2 machines: the newest AMI of `owner` whose name matches `name` (a
+     * pattern with `*`), looked up in each site's region. `user` is the AMI's login (Rancher's
+     * node driver connects as it); default `defaultUser`.
+     */
+    ami: z.strictObject({ owner: z.string().min(1), name: z.string().min(1), user: z.string().min(1).optional() }).optional(),
     /**
      * The VM's cloud-config (packages, runcmd, bootcmd, write_files, ...). Strings may be Jinja2
      * templates with `secrets` (the personal config's, as everywhere: a registration code) and `lab`
@@ -83,6 +89,28 @@ export const PersonalHarvester = z.strictObject({
 });
 
 // ---------------------------------------------------------------------------------------------
+// AWS sites (§5.6): an account and region Rancher creates EC2 machines and EKS clusters in. The
+// engine makes the lab a VPC there of its own; several labs can share an account.
+
+export const AwsSiteInput = z.strictObject({
+    region: awsRegion.optional(),
+    credentials: AwsCredentials.optional(),
+    /** The lab's VPC; default the catalog's Defaults (`10.100.0.0/16`). A public subnet per zone is cut from it. */
+    vpc: z.strictObject({ cidr: cidr.optional() }).optional(),
+    /** Availability zones, by letter; default the catalog's Defaults (`a`, `b`). */
+    zones: z.array(awsZone).min(1).max(6).optional(),
+    /** How long the lab is meant to live: tagged on everything as `lab.geeko.me/expires`. Nothing deletes it by itself. */
+    ttl: duration.optional(),
+});
+export type AwsSiteInput = z.infer<typeof AwsSiteInput>;
+
+/** What the personal config may say about an AWS site: its region and keys. */
+export const PersonalAwsSite = z.strictObject({
+    region: awsRegion.optional(),
+    credentials: AwsCredentials.optional(),
+});
+
+// ---------------------------------------------------------------------------------------------
 // Hosts (§5.3). One shape for both kinds; the resolver checks which fields apply.
 
 /** A HelmChart from the catalog on a host: its name, optionally another namespace, and values. */
@@ -143,6 +171,35 @@ const HarvesterPool = z.strictObject({
     network: z.string().optional(),
 });
 
+const Ec2Pool = z.strictObject({
+    name: dnsLabel,
+    quantity: z.int().min(1),
+    roles,
+    /** Default: the catalog's Defaults (`aws.instanceType`). */
+    instanceType: z.string().min(1).optional(),
+    /** Root volume; default the catalog's Defaults (`vm.disk`). */
+    disk: quantity.optional(),
+    os: z.string().min(1),
+    /** Its availability zone, by letter; default the site's first. */
+    zone: awsZone.optional(),
+});
+
+const EksNodeGroup = z.strictObject({
+    name: dnsLabel,
+    /** Nodes it starts with; it scales between min and max (default both this). */
+    quantity: z.int().min(1),
+    min: z.int().min(0).optional(),
+    max: z.int().min(1).optional(),
+    /** Default: the catalog's Defaults (`aws.instanceType`). */
+    instanceType: z.string().min(1).optional(),
+    /** Each node's volume; default the catalog's Defaults (`vm.disk`). */
+    disk: quantity.optional(),
+    /** Its availability zones, by letter; default all of the site's. */
+    zones: z.array(awsZone).min(1).optional(),
+    /** Kubernetes labels on its nodes. */
+    labels: z.record(z.string(), z.string()).optional(),
+});
+
 /** Rancher cluster settings beyond the engine's (§16.5): passed through, merged over the engine's. */
 const ClusterPassthrough = {
     /** CNI; default calico for RKE2, flannel for k3s. */
@@ -167,6 +224,37 @@ export const DownstreamInput = z.discriminatedUnion("type", [
         annotations,
         ...ClusterPassthrough,
         pools: z.array(HarvesterPool).min(1),
+    }),
+    z.strictObject({
+        /** Machines Rancher creates on EC2 with its node driver, in the site's VPC (§5.5). */
+        type: z.literal("ec2"),
+        rancher: z.string(),
+        /** The AwsSite its machines go in. */
+        site: z.string(),
+        distro: z.enum(["rke2", "k3s"]).default("rke2"),
+        version: z.string().optional(),
+        labels,
+        annotations,
+        ...ClusterPassthrough,
+        pools: z.array(Ec2Pool).min(1),
+    }),
+    z.strictObject({
+        /** An EKS cluster Rancher creates and manages (hosted), in the site's VPC (§5.5). */
+        type: z.literal("eks"),
+        rancher: z.string(),
+        /** The AwsSite whose VPC it runs in; it needs two zones at least. */
+        site: z.string(),
+        /** EKS Kubernetes minor (1.34); default the catalog's Defaults (`aws.eksVersion`). */
+        version: z.string().regex(/^1\.\d+$/, "an EKS minor such as 1.34").optional(),
+        labels,
+        annotations,
+        /** Who may reach its API endpoint besides Rancher's proxy; default anyone. */
+        publicAccessSources: z.array(cidr).optional(),
+        /** Control plane logs sent to CloudWatch: api, audit, authenticator, controllerManager, scheduler. */
+        logging: z.array(z.enum(["api", "audit", "authenticator", "controllerManager", "scheduler"])).optional(),
+        secrets: z.array(Placement).optional(),
+        configmaps: z.array(Placement).optional(),
+        nodeGroups: z.array(EksNodeGroup).min(1),
     }),
     z.strictObject({
         type: z.literal("custom"),
@@ -242,6 +330,7 @@ export const LabFile = z.strictObject({
     /** Values for the inputs of catalog secrets and configmaps (§16.6). */
     inputs: Inputs.default({}),
     harvesters: z.record(dnsLabel, HarvesterInput).default({}),
+    awsSites: z.record(dnsLabel, AwsSiteInput).default({}),
     hosts: z.record(dnsLabel, HostInput).default({}),
     downstream: z.record(dnsLabel, DownstreamInput).default({}),
     images: z.record(osName, ImageSource).default({}),
@@ -252,16 +341,21 @@ export type LabFile = z.infer<typeof LabFile>;
  * A `Lab` document's spec: the lab-wide settings. Its Harvesters, hosts and downstream clusters are
  * documents of their own (`Harvester`, `HarvesterVM`, `Machine`, `DownstreamCluster`).
  */
-export const LabSpec = LabFile.omit({ lab: true, harvesters: true, hosts: true, downstream: true });
+export const LabSpec = LabFile.omit({ lab: true, harvesters: true, awsSites: true, hosts: true, downstream: true });
 export type LabSpec = z.infer<typeof LabSpec>;
 
-/** A secret's value in the personal config: a string, or a map of strings (e.g. credentials). */
-export const SecretValue = z.union([z.string(), z.record(z.string(), z.string())]);
+/**
+ * A secret's value in the personal config: a string, or a map of strings (e.g. credentials). Any
+ * other YAML is let through here, so a value for something else (a nested map another tool reads)
+ * doesn't break the file: a lab that uses it gets told its shape is wrong (cli/src/secrets.ts).
+ */
+export const SecretValue = z.unknown();
 export type SecretValue = z.infer<typeof SecretValue>;
 
 export const PersonalConfig = z.strictObject({
     secrets: z.record(z.string(), SecretValue).default({}),
     harvesters: z.record(z.string(), PersonalHarvester).default({}),
+    awsSites: z.record(z.string(), PersonalAwsSite).default({}),
     images: z.record(osName, ImageSource).default({}),
     /** Files or directories of more documents (catalog documents; for a lab, its Harvesters, hosts and clusters too). */
     include: Include,

@@ -40,6 +40,34 @@ describe("resolveSecrets", () => {
             'secret "unset": environment variable NOPE is not set',
         ]);
     });
+
+    it("checks a map secret's fields and passes on only the ones the lab uses", () => {
+        const { values, problems } = resolveSecrets(
+            { aws: { fields: ["accessKey", "secretKey"] }, half: { fields: ["accessKey", "secretKey"] }, json: { fields: ["token"] } },
+            { aws: { accessKey: "AK", secretKey: "env:SK", region: "eu-west-1" }, half: { accessKey: "AK" } },
+            { env: { SK: "from-env", LAB_SECRET_JSON: '{"token":"t","other":"o"}' }, configDir: dir },
+        );
+        expect(values).toEqual({ aws: { accessKey: "AK", secretKey: "from-env" }, json: { token: "t" } });
+        expect(problems).toEqual(['secret "half": secret "half" must be a map with accessKey, secretKey (it has accessKey)']);
+    });
+
+    it("leaves secrets and fields the lab doesn't use alone, whatever they hold", () => {
+        const { values, problems } = resolveSecrets(
+            { cf: { fields: ["token"] }, list: "string", deep: { fields: ["key"] } },
+            {
+                cf: { token: "t", tunnel: { account: "a", id: 1 }, never: "cmd:exit 9" },
+                list: ["a", "b"],
+                deep: { key: { nested: "x" } },
+                unused: { anything: [1, { goes: true }] },
+            },
+            { env: {}, configDir: dir },
+        );
+        expect(values).toEqual({ cf: { token: "t" } });
+        expect(problems).toEqual([
+            'secret "deep": secret "deep": field key must be a string, and it\'s a map',
+            'secret "list": secret "list" must be a string, and it\'s a list',
+        ]);
+    });
 });
 
 describe("credentialsFrom", () => {

@@ -7,12 +7,15 @@ import Field from "./Field.vue";
 // A secret: a template over the personal config's secrets (names offered; values never reach the
 // UI), a template with more in it ("Bearer {{ secrets.token }}"), or a value written in the lab file,
 // which `validate` warns about.
-const props = defineProps<{ modelValue?: unknown; label?: string; hint?: string; required?: boolean; shape?: "string" | "credentials"; allowPlain?: boolean }>();
+// `fields`: a map secret with at least these fields (AWS keys), instead of a `shape`.
+const props = defineProps<{ modelValue?: unknown; label?: string; hint?: string; required?: boolean; shape?: "string" | "credentials"; fields?: string[]; allowPlain?: boolean }>();
 const emit = defineEmits<{ "update:modelValue": [value: unknown] }>();
 
 const name = computed(() => wholeSecret(props.modelValue));
 const mode = computed(() => (props.modelValue === undefined ? "none" : name.value !== undefined ? "secret" : isTemplate(props.modelValue) ? "template" : "plain"));
-const names = computed(() => (catalog.value?.personal.secrets ?? []).filter(s => !props.shape || s.shape === props.shape).map(s => s.name));
+const names = computed(() => (catalog.value?.personal.secrets ?? [])
+  .filter(s => (props.fields ? props.fields.every(f => s.fields?.includes(f)) : !props.shape || s.shape === props.shape))
+  .map(s => s.name));
 const listId = `secrets-${Math.random().toString(36).slice(2)}`;
 const missing = computed(() => name.value !== undefined && !(catalog.value?.personal.secrets ?? []).some(s => s.name === name.value));
 const shownHint = computed(() => {

@@ -1,8 +1,8 @@
 // The lab UI's server: the catalog, lab files in ../labs, and checks with the lab engine itself
 // (the same resolver as `lab validate` and the same summary as `lab plan`).
 //
-// Secrets never leave this process: the UI gets the *names* of the personal config's secrets and
-// Harvesters, and which secrets a lab needs that aren't set. Values are never read for that:
+// Secrets never leave this process: the UI gets the *names* of the personal config's secrets,
+// Harvesters and AWS sites, and which secrets a lab needs that aren't set. Values are never read for that:
 // `cmd:` secrets would run a command on every check.
 
 import * as fs from "node:fs";
@@ -30,7 +30,7 @@ function catalogInfo(catalog: ResolvedCatalog) {
         for (const [name, shape] of Object.entries(o.value.inputs ?? {})) inputs[name] = shape;
     }
     return {
-        os: Object.values(catalog.os).map(({ value: o }) => ({ name: o.name, displayName: o.displayName, family: o.family, image: o.image })),
+        os: Object.values(catalog.os).map(({ value: o }) => ({ name: o.name, displayName: o.displayName, family: o.family, image: o.image, ami: !!o.ami })),
         profiles: Object.values(catalog.profiles).map(p => ({
             name: p.name,
             description: p.description,
@@ -52,14 +52,28 @@ function catalogInfo(catalog: ResolvedCatalog) {
     };
 }
 
+const isMap = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+/** A secret's shape as fields can use it; `other` for anything a lab can't (a list, a number). */
+function shapeOf(v: unknown): "string" | "credentials" | "map" | "other" {
+    if (typeof v === "string") return "string";
+    if (!isMap(v)) return "other";
+    return typeof v.username === "string" && typeof v.password === "string" ? "credentials" : "map";
+}
+
 function personalInfo() {
     const diags = new Diagnostics();
     const personal = loadPersonal(personalConfig, diags)?.value;
     return {
         source: personalConfig,
-        secrets: Object.entries(personal?.secrets ?? {}).map(([name, v]) => ({ name, shape: typeof v === "string" ? "string" : "credentials" })),
+        secrets: Object.entries(personal?.secrets ?? {}).map(([name, v]) => ({
+            name,
+            shape: shapeOf(v),
+            // A map's field names (never its values): `accessKey`, `secretKey`.
+            ...(isMap(v) ? { fields: Object.keys(v).sort() } : {}),
+        })),
         harvesters: Object.keys(personal?.harvesters ?? {}),
-        problems: diags.items.map(d => d.message),
+        awsSites: Object.entries(personal?.awsSites ?? {}).map(([name, s]) => ({ name, region: s.region })),
+        problems: diags.items.map(d => `${d.path ? `${d.path}: ` : ""}${d.message}`),
     };
 }
 
@@ -88,7 +102,13 @@ function check(text: string, name: string) {
 async function api(req: Request, url: URL): Promise<Response> {
     const route = url.pathname.replace(/^\/api/, "");
     if (route === "/catalog" && req.method === "GET") {
-        const { diagnostics, catalog } = loadCatalog({ personalConfig });
+        let { diagnostics, catalog } = loadCatalog({ personalConfig });
+        // A broken personal config (or a file it includes) doesn't stop the composer: the built-in
+        // catalog without it, and the personal config's problems shown.
+        if (!catalog) {
+            const without = loadCatalog({ personalConfig, withoutPersonal: true });
+            if (without.catalog) ({ diagnostics, catalog } = without);
+        }
         if (!catalog) return json({ error: diagnostics.items.map(d => `${d.source}: ${d.path}: ${d.message}`).join("\n") }, 500);
         return json({ ...catalogInfo(catalog), personal: personalInfo() });
     }

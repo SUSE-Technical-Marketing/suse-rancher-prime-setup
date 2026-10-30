@@ -9,12 +9,14 @@
     },
     "dependencies": {
         "@lab/apps": "workspace:*",
+        "@lab/aws": "workspace:*",
         "@lab/harvester": "workspace:*",
         "@lab/kube": "workspace:*",
         "@lab/kubernetes": "workspace:*",
         "@lab/os": "workspace:*",
         "@lab/rancher": "workspace:*",
         "@lab/schema": "workspace:*",
+        "@pulumi/aws": "^7.52.0",
         "@pulumi/command": "^1.2.1",
         "@pulumi/kubernetes": "^4.34.2",
         "@pulumi/pulumi": "^3.271.0"

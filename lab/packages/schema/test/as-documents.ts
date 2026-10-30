@@ -37,10 +37,11 @@ const render = (main: object, catalog?: Record<string, any>) =>
     [main, ...catalogDocuments(catalog)].map(d => stringify(d)).join("---\n");
 
 /** A lab's Harvesters, hosts and downstream clusters as their own documents. */
-function labDocuments(harvesters: Record<string, any> = {}, hosts: Record<string, any> = {}, downstream: Record<string, any> = {}): object[] {
+function labDocuments(harvesters: Record<string, any> = {}, hosts: Record<string, any> = {}, downstream: Record<string, any> = {}, awsSites: Record<string, any> = {}): object[] {
     const doc = (kind: string, name: string, spec: object) => ({ apiVersion: API_VERSION, kind, metadata: { name }, spec });
     return [
         ...Object.entries(harvesters).map(([name, spec]) => doc("Harvester", name, spec ?? {})),
+        ...Object.entries(awsSites).map(([name, spec]) => doc("AwsSite", name, spec ?? {})),
         ...Object.entries(hosts).map(([name, { on, ...spec }]) => (on === "ssh" ? doc("Machine", name, spec) : doc("HarvesterVM", name, { harvester: on, ...spec }))),
         ...Object.entries(downstream).map(([name, spec]) => doc("DownstreamCluster", name, spec)),
     ];
@@ -48,8 +49,8 @@ function labDocuments(harvesters: Record<string, any> = {}, hosts: Record<string
 
 /** A compact lab (`lab: name`, its fields, `catalog:` by section) as a lab file of documents. */
 export function labDocument(yaml: string): string {
-    const { lab, catalog, harvesters, hosts, downstream, ...spec } = parse(yaml) ?? {};
-    return [{ apiVersion: API_VERSION, kind: "Lab", metadata: { name: lab }, spec }, ...labDocuments(harvesters, hosts, downstream), ...catalogDocuments(catalog)]
+    const { lab, catalog, harvesters, awsSites, hosts, downstream, ...spec } = parse(yaml) ?? {};
+    return [{ apiVersion: API_VERSION, kind: "Lab", metadata: { name: lab }, spec }, ...labDocuments(harvesters, hosts, downstream, awsSites), ...catalogDocuments(catalog)]
         .map(d => stringify(d)).join("---\n");
 }
 
@@ -62,6 +63,7 @@ export function resolverPath(path: string): string {
         .replace(/^HarvesterVM\/([^.]+)\.spec\.harvester(?=$|[.[])/, "hosts.$1.on")
         .replace(/^(HarvesterVM|Machine)\/([^.]+)(\.spec)?/, "hosts.$2")
         .replace(/^Harvester\/([^.]+)(\.spec)?/, "harvesters.$1")
+        .replace(/^AwsSite\/([^.]+)(\.spec)?/, "awsSites.$1")
         .replace(/^DownstreamCluster\/([^.]+)(\.spec)?/, "downstream.$1")
         .replace(/^spec\./, "");
 }

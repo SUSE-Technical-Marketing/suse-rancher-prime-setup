@@ -25,6 +25,15 @@ spec:
         staleReplicaTimeout: "30"
         migratable: "true"
 
+  aws:
+    # An AwsSite's VPC (a public subnet per zone is cut from it) and zones, by letter.
+    vpcCidr: 10.100.0.0/16
+    zones: [ a, b ]
+    # An EC2 pool's machines; their root volume is vm.disk.
+    instanceType: t3.large
+    # An EKS cluster's Kubernetes minor, when it gives none.
+    eksVersion: "1.34"
+
   # How long the engine waits for each step before failing it.
   timeouts:
     harvesterAddon: 15m       # a Harvester add-on (DHCP, DNS controller) deployed

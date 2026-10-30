@@ -32,16 +32,32 @@ export interface CatalogProfile {
 
 export type SecretShape = "string" | "credentials";
 
+/** A personal-config secret: its shape, and a map's field names (never values). */
+export interface PersonalSecret {
+    name: string;
+    /** `other`: a value no field can use (a list, a number). */
+    shape: SecretShape | "map" | "other";
+    fields?: string[];
+}
+
 export interface Catalog {
-    os: { name: string; displayName: string; family: string; image: string }[];
+    /** `ami`: it can boot EC2 machines. */
+    os: { name: string; displayName: string; family: string; image: string; ami: boolean }[];
     profiles: CatalogProfile[];
     acme: string[];
     fleetRepos: { name: string; description?: string; default: boolean }[];
     /** Inputs of the catalog's secrets and configmaps, by name. */
     inputs: Record<string, SecretShape>;
-    defaults: { ssh: { user: string }; vm: { cpu: number; memory: string; disk: string }; [k: string]: unknown };
+    defaults: {
+        ssh: { user: string };
+        vm: { cpu: number; memory: string; disk: string };
+        aws: { vpcCidr: string; zones: string[]; instanceType: string; eksVersion: string };
+        [k: string]: unknown;
+    };
     /** Names only: values never leave the server. */
-    personal: { source: string; secrets: { name: string; shape: SecretShape }[]; harvesters: string[]; problems: string[] };
+    personal: { source: string; secrets: PersonalSecret[]; harvesters: string[]; awsSites: { name: string; region?: string }[];
+        /** What's wrong with the personal config; when it doesn't load, the catalog is the built-in one alone. */
+        problems: string[] };
 }
 
 export interface Diagnostic {

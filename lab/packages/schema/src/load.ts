@@ -120,10 +120,10 @@ function loadLabFile(source: string, text: string, diags: Diagnostics): (ConfigF
     });
     if (!file) return undefined;
     // The lab's own documents, by the section of the lab they fill. Hosts of both kinds share names.
-    const lab = { ...(file.value as LabSpec & { lab: string }), harvesters: {}, hosts: {}, downstream: {} } as LabFile;
+    const lab = { ...(file.value as LabSpec & { lab: string }), harvesters: {}, awsSites: {}, hosts: {}, downstream: {} } as LabFile;
     const index: LabIndex = new Map();
     for (const d of file.labDocuments) {
-        const section = d.kind === "Harvester" ? "harvesters" : d.kind === "DownstreamCluster" ? "downstream" : "hosts";
+        const section = d.kind === "Harvester" ? "harvesters" : d.kind === "AwsSite" ? "awsSites" : d.kind === "DownstreamCluster" ? "downstream" : "hosts";
         const key = `${section}.${d.name}`;
         const other = index.get(key);
         if (other) {
@@ -151,7 +151,7 @@ function loadLabFile(source: string, text: string, diags: Diagnostics): (ConfigF
 function mapLabPaths(diags: Diagnostics, labSource: string, index: LabIndex): void {
     for (const d of diags.items) {
         if (d.source !== labSource || !d.path) continue;
-        const m = /^(harvesters|hosts|downstream)\.([^.[]+)(.*)$/.exec(d.path);
+        const m = /^(harvesters|awsSites|hosts|downstream)\.([^.[]+)(.*)$/.exec(d.path);
         const doc = m && index.get(`${m[1]}.${m[2]}`);
         if (!doc) continue;
         let rest = m![3];
@@ -186,12 +186,15 @@ export interface CatalogResult {
     catalog?: ResolvedCatalog;
 }
 
-/** The effective catalog: built-in, the personal config's documents and, when given, a lab file's. */
-export function loadCatalog(opts: Omit<LoadOptions, "labFile"> & { labFile?: string }): CatalogResult {
+/**
+ * The effective catalog: built-in, the personal config's documents and, when given, a lab file's.
+ * `withoutPersonal` leaves the personal config out (the UI, when that file is broken).
+ */
+export function loadCatalog(opts: Omit<LoadOptions, "labFile"> & { labFile?: string; withoutPersonal?: boolean }): CatalogResult {
     const diags = new Diagnostics();
     const personalSource = opts.personalConfig ?? defaultPersonalConfigPath(opts.env);
     const layers = [loadBuiltinCatalog(opts.catalogDir ?? BUILTIN_CATALOG_DIR, diags)];
-    const personal = loadPersonal(personalSource, diags);
+    const personal = opts.withoutPersonal ? undefined : loadPersonal(personalSource, diags);
     if (personal) layers.push(...personal.layers);
     if (opts.labFile) {
         const lab = loadLabFile(opts.labFile, fs.readFileSync(opts.labFile, "utf8"), diags);

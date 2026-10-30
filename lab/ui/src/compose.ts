@@ -1,10 +1,13 @@
-// Building a lab from blocks: what a new Harvester, VM, Machine or cluster starts with, and what
+// Building a lab from blocks: what a new Harvester, AWS site, VM, Machine or cluster starts with, and what
 // dropping a profile or a host does. The palette's clicks and the board's drops both use these.
 
 import type { Block } from "./dnd";
+import { secretTemplate } from "./secrets";
 import { addDoc, append, catalog, freeName, set, views } from "./store";
 
 const k8sOs = () => catalog.value?.os.find(o => o.name.endsWith("-k8s"))?.name ?? "";
+/** A Kubernetes OS that boots on EC2 (has an AMI). */
+const ec2Os = () => catalog.value?.os.find(o => o.name.endsWith("-k8s") && o.ami)?.name ?? "";
 const plainOs = () => catalog.value?.os.find(o => !o.name.endsWith("-k8s"))?.name ?? "";
 const hasSecret = (name: string) => !!catalog.value?.personal.secrets.some(s => s.name === name);
 const firstOf = (kind: string) => views.value.find(v => v.kind === kind)?.metadata?.name ?? "";
@@ -24,7 +27,7 @@ export function defaultNetwork(harvester?: string): string {
 /** `network` for a host or pool on a Harvester: left out when it's the default. */
 const networkOn = (harvester: string, network?: string) => (network && network !== defaultNetwork(harvester) ? { network } : {});
 
-/** Add a block; `on` is the Harvester (and network lane) it was dropped on. */
+/** Add a block; `on` is the Harvester (and network lane) or AWS site it was dropped on. */
 export function addBlock(block: Block, on?: string, network?: string) {
     const harvester = on ?? firstOf("Harvester");
     const net = networkOn(harvester, network);
@@ -45,12 +48,28 @@ export function addBlock(block: Block, on?: string, network?: string) {
                 type: "harvester", rancher: rancherHost(), harvester, distro: "rke2",
                 pools: [{ name: "all", quantity: 1, roles: ["etcd", "controlplane", "worker"], os: k8sOs(), ...net }],
             });
+        case "AwsSite": {
+            const mine = catalog.value?.personal.awsSites.find(s => !views.value.some(v => v.kind === "AwsSite" && v.metadata?.name === s.name));
+            // Not in the personal config: the first secret there holding AWS keys, if any.
+            const keys = catalog.value?.personal.secrets.find(s => s.fields?.includes("accessKey") && s.fields.includes("secretKey"))?.name;
+            return addDoc("AwsSite", freeName("AwsSite", mine?.name ?? "aws"), mine || !keys ? {} : { credentials: secretTemplate(keys) });
+        }
+        case "Ec2Cluster":
+            return addDoc("DownstreamCluster", freeName("DownstreamCluster", "cloud"), {
+                type: "ec2", rancher: rancherHost(), site: on ?? firstOf("AwsSite"), distro: "rke2",
+                pools: [{ name: "all", quantity: 1, roles: ["etcd", "controlplane", "worker"], os: ec2Os() }],
+            });
+        case "EksCluster":
+            return addDoc("DownstreamCluster", freeName("DownstreamCluster", "eks"), {
+                type: "eks", rancher: rancherHost(), site: on ?? firstOf("AwsSite"),
+                nodeGroups: [{ name: "general", quantity: 2 }],
+            });
         case "K3kCluster":
             return addK3k(views.value.find(v => v.kind === "DownstreamCluster" && v.spec?.type !== "k3k")?.metadata?.name ?? "");
     }
 }
 
-/** A k3k cluster in a harvester or custom cluster, managed by the same Rancher. */
+/** A k3k cluster in a harvester, ec2, eks or custom cluster, managed by the same Rancher. */
 export function addK3k(parent: string) {
     const rancher = views.value.find(v => v.kind === "DownstreamCluster" && v.metadata?.name === parent)?.spec?.rancher ?? rancherHost();
     addDoc("DownstreamCluster", freeName("DownstreamCluster", "virtual"), { type: "k3k", rancher, parent });
@@ -70,22 +89,6 @@ export function addProfile(index: number, name: string) {
 
 export function removeProfile(index: number, name: string) {
     set(index, ["spec", "profiles", name], undefined);
-}
-
-/** A VM dropped on a network lane, of its Harvester or another one. */
-export function moveVm(index: number, harvester: string, network: string) {
-    const spec = views.value[index]?.spec ?? {};
-    if (spec.harvester !== harvester) set(index, ["spec", "harvester"], harvester);
-    const wanted = network === defaultNetwork(harvester) ? undefined : network;
-    if (spec.network !== wanted) set(index, ["spec", "network"], wanted);
-}
-
-/** Where a host or a provisioned cluster's first pool sits: its Harvester and network. */
-export function placeOf(index: number): { harvester?: string; network: string } {
-    const v = views.value[index];
-    const spec = v?.spec ?? {};
-    const network = v?.kind === "DownstreamCluster" ? spec.pools?.[0]?.network : spec.network;
-    return { harvester: spec.harvester, network: network ?? defaultNetwork(spec.harvester) };
 }
 
 /** A host dropped on a custom cluster: it joins as a node with every role. */

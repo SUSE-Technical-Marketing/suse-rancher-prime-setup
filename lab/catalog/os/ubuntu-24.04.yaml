@@ -8,6 +8,8 @@ spec:
   image:
     url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
   defaultUser: ubuntu
+  # On AWS: Canonical's own images.
+  ami: { owner: "099720109477", name: "ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*", user: ubuntu }
   cloudInit:
     package_update: true
     packages: [ curl, git, bash-completion, vim, wget, tree, qemu-guest-agent ]
