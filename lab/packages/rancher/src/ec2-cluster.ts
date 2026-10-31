@@ -35,6 +35,8 @@ export class Ec2Cluster extends pulumi.ComponentResource {
     readonly cluster: provisioning.v1.Cluster;
     readonly provider: k8s.Provider;
     readonly clusterId: pulumi.Output<string>;
+    /** Its kubeconfig through Rancher (secret), for checks the provider can't make (a webhook's admission). */
+    readonly kubeconfig: pulumi.Output<string>;
 
     constructor(name: string, args: Ec2ClusterArgs, opts?: pulumi.ComponentResourceOptions) {
         super("lab:rancher:Ec2Cluster", name, {}, opts);
@@ -64,6 +66,7 @@ export class Ec2Cluster extends pulumi.ComponentResource {
         this.cluster = built.cluster;
         this.provider = built.provider;
         this.clusterId = built.clusterId;
+        this.kubeconfig = built.kubeconfig;
         this.registerOutputs({});
     }
 }

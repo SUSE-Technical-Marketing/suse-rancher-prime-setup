@@ -1,0 +1,116 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: ChartProfile
+metadata:
+  name: hauler-chart
+  description: Hauler registry on Kubernetes (the official chart), its store synced from HaulManifests by a Job
+spec:
+  icon: truck                # in the lab UI (lucide.dev/icons)
+  charts:
+    # The chart's own loader takes manifests only from URLs or a node's disk: the store is synced
+    # by the Job below instead, from a ConfigMap.
+    - chart: hauler-helm
+      namespace: hauler
+      values:
+        hauler:
+          data: { pvc: { accessModes: ReadWriteOnce, storageRequest: "{{ settings.storage }}" } }
+      lockedValues:
+        haulerRegistry:
+          ingress:
+            enabled: true
+            ingressClassName: "{{ outputs.ingress.ingressClassName }}"
+            hostname: "registry.{{ target.fqdn }}"
+            tls: { enabled: true, source: secret, secretName: "{{ outputs.tls.secretName }}" }
+        haulerFileserver:
+          enabled: "{{ settings.fileserver }}"
+          ingress:
+            enabled: "{{ settings.fileserver }}"
+            ingressClassName: "{{ outputs.ingress.ingressClassName }}"
+            hostname: "files.{{ target.fqdn }}"
+            tls: { enabled: true, source: secret, secretName: "{{ outputs.tls.secretName }}" }
+  objects:
+    - name: manifests
+      object:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata: { name: hauler-manifests, namespace: hauler }
+        data: "{{ haulManifests(settings.manifests) }}"
+    # The sync Job restarts the chart's Deployments: Hauler serves what its store held when it started.
+    - name: sync-account
+      object:
+        apiVersion: v1
+        kind: ServiceAccount
+        metadata: { name: hauler-sync, namespace: hauler }
+    - name: sync-role
+      object:
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: Role
+        metadata: { name: hauler-sync, namespace: hauler }
+        rules:
+          - { apiGroups: [ apps ], resources: [ deployments ], verbs: [ get, list, patch, watch ] }
+          - { apiGroups: [ apps ], resources: [ replicasets ], verbs: [ get, list, watch ] }
+    - name: sync-binding
+      object:
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+        metadata: { name: hauler-sync, namespace: hauler }
+        roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: hauler-sync }
+        subjects: [ { kind: ServiceAccount, name: hauler-sync, namespace: hauler } ]
+    # Replaced when the manifests change (the annotation), so it syncs again. Synced content stays
+    # in the store when a manifest is dropped.
+    - name: sync
+      object:
+        apiVersion: batch/v1
+        kind: Job
+        metadata: { name: hauler-sync, namespace: hauler }
+        spec:
+          backoffLimit: 3
+          template:
+            metadata:
+              annotations: { lab.geeko.me/manifests: "{{ haulManifests(settings.manifests) | hash }}" }
+            spec:
+              serviceAccountName: hauler-sync
+              restartPolicy: OnFailure
+              initContainers:
+                # The chart's appVersion; the store is the chart's volume, owned by its user (1001).
+                - name: sync
+                  image: hauler/hauler-debug:2.1.2
+                  command: [ /bin/sh, -c ]
+                  args:
+                    - |
+                      set -e
+                      for f in /manifests/*.yaml; do
+                        if [ -e "$f" ]; then hauler store --store /store sync --filename "$f"; fi
+                      done
+                      chown -R 1001:1001 /store
+                      hauler store --store /store info
+                  securityContext: { runAsUser: 0 }
+                  volumeMounts:
+                    - { name: manifests, mountPath: /manifests }
+                    - { name: store, mountPath: /store }
+              containers:
+                - name: restart
+                  image: rancher/kubectl:v1.36.2
+                  args: [ --namespace, hauler, rollout, restart, deployment ]
+                  securityContext: { runAsUser: 1001, runAsNonRoot: true, allowPrivilegeEscalation: false }
+              volumes:
+                - { name: manifests, configMap: { name: hauler-manifests } }
+                - { name: store, persistentVolumeClaim: { claimName: hauler-data } }
+      wait: { condition: Complete, timeout: haulerSync }
+  # A certificate for its ingresses: the tls output's secret, copied to its namespace by Sprouter.
+  requires: [ kubernetes, ingress, tls, secret-propagation ]
+  provides: [ registry ]
+  conflicts: [ registry ]
+  settings:
+    type: object
+    properties:
+      version: { type: string }
+      # HaulManifests (catalog/hauler/, or a lab's own) the store syncs.
+      manifests:
+        type: array
+        items: { $ref: haulManifest }
+        default: []
+      # The store's volume: about three times what it holds.
+      storage: { $ref: quantity, default: 50Gi }
+      # Serve the store's files too, at files.<target>.
+      fileserver: { type: boolean, default: false }
+      values: { $ref: chartValues }

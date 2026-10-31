@@ -1,5 +1,5 @@
 apiVersion: lab.geeko.me/v1alpha1
-kind: Profile
+kind: ChartProfile
 metadata:
   name: ai-factory
   description: "SUSE AI Factory on Rancher: its operator and UI extension, logged in to the registries its blueprints install from"

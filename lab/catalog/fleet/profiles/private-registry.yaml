@@ -1,0 +1,11 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: private-registry
+  description: "SUSE Private Registry with a proxy cache for the Application Collection and common registries (apps/suse/private-registry)"
+spec:
+  icon: package
+  labels:
+    needs-private-registry: "true"
+  annotations:
+    hosted-domain: "{{ lab.domain }}"

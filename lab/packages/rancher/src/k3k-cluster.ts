@@ -54,6 +54,8 @@ export class K3kCluster extends pulumi.ComponentResource {
     /** A provider for the virtual cluster (through Rancher); resources on it are deleted with the cluster. */
     readonly provider: k8s.Provider;
     readonly clusterId: pulumi.Output<string>;
+    /** Its kubeconfig through Rancher (secret), for checks the provider can't make (a webhook's admission). */
+    readonly kubeconfig: pulumi.Output<string>;
 
     constructor(name: string, args: K3kClusterArgs, opts?: pulumi.ComponentResourceOptions) {
         super("lab:rancher:K3kCluster", name, {}, opts);
@@ -163,6 +165,7 @@ export class K3kCluster extends pulumi.ComponentResource {
         }, { parent: this, dependsOn: [ready], deletedWith: this.cluster });
         this.provider = new k8s.Provider(`${name}/provider`, { kubeconfig: kubeconfig.kubeconfig, suppressHelmHookWarnings: true }, { parent: this });
         this.clusterId = managementClusterId(kubeconfig.kubeconfig);
+        this.kubeconfig = kubeconfig.kubeconfig;
 
         this.registerOutputs({});
     }

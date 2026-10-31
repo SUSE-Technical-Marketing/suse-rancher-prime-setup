@@ -1,7 +1,9 @@
 import { Diagnostics } from "./diagnostics";
 import { docAt } from "./documents";
 import { OsLayerEntry, ResolvedOs, resolveOsProfiles } from "./os";
-import { ClusterSelector, FleetHelmOpInput, FleetRepoInput } from "./fleet";
+import { ClusterSelector, FleetHelmOpInput, FleetProfileInput, FleetRepoInput } from "./fleet";
+import { HaulManifestInput } from "./hauler";
+import { checkRecipes, HostRecipeInput } from "./recipes";
 import { ConfigMapInput, SecretInput } from "./objects";
 import { ProfileDefinition, ProfileInput, ProfileRegistry } from "./profiles";
 import { checkSettingSchema, SettingSchema, settingZod } from "./settings-schema";
@@ -22,16 +24,23 @@ export interface DistributionSpec {
     dataDir: string;
     uninstall: string[];
     cni: string;
+    /** Its own ingress controller's HelmChart, values set on it with a HelmChartConfig, and Manifests applied first. */
+    ingress?: { chart: string; values?: Record<string, unknown>; manifests?: string[] };
 }
 
-/** A component as the catalog layers carry it: the merged `spec` of a HelmChart, Manifest or KubernetesDistribution. */
+/** A component as the catalog layers carry it: the merged `spec` of a HelmChart, Manifest, Binary or KubernetesDistribution. */
 export interface ComponentInput extends Partial<DistributionSpec> {
     version?: VersionValue;
     repo?: string;
     chart?: string;
     manifest?: string;
+    /** A Binary's download URL. */
+    download?: string;
     namespace?: string;
 }
+
+/** The component kinds: one namespace, profiles and the engine refer to them by name. */
+export type ComponentKind = "HelmChart" | "Manifest" | "Binary" | "KubernetesDistribution";
 
 /** An ACME server certificates come from (an AcmeServer's `spec`). */
 export interface AcmeServerInput {
@@ -99,9 +108,10 @@ export interface CatalogLayer {
     components: Record<string, ComponentInput>;
     componentSources?: Record<string, string>;
     componentDescriptions?: Record<string, string>;
-    componentKinds?: Record<string, "HelmChart" | "Manifest" | "KubernetesDistribution">;
+    componentKinds?: Record<string, ComponentKind>;
     /** Host profiles, only in the built-in catalog: their rules are what the engine's builders expect. */
-    profiles?: Record<string, { profile: ProfileInput; description: string; source: string }>;
+    /** `custom`: a Profile, with a builder in the engine, for lab hosts; `chart`: a ChartProfile, only charts and objects, for hosts and downstream clusters. */
+    profiles?: Record<string, { profile: ProfileInput; description: string; source: string; kind: "custom" | "chart" }>;
     /** Secret and configmap templates built from inputs (§16.6), each with the file it came from. */
     secrets: Record<string, Sourced<SecretInput>>;
     configmaps: Record<string, Sourced<ConfigMapInput>>;
@@ -114,6 +124,10 @@ export interface CatalogLayer {
     os: Record<string, OsLayerEntry>;
     /** ACME servers, each with the file it came from. */
     acme: Record<string, Sourced<AcmeServerInput>>;
+    /** Hauler manifests, each with the file it came from; a later one replaces an earlier one whole. */
+    haulManifests: Record<string, Sourced<HaulManifestInput & { description?: string }>>;
+    /** Host recipes for the composer, each with the file it came from; a later one replaces an earlier one whole. */
+    recipes: Record<string, Sourced<HostRecipeInput & { description?: string }>>;
     /** The layer's Defaults document. */
     defaults?: Sourced<DefaultsInput>;
 }
@@ -122,6 +136,7 @@ export interface FleetLayer {
     groups: Record<string, Sourced<ClusterSelector>>;
     repos: Record<string, Sourced<FleetRepoInput>>;
     helmOps: Record<string, Sourced<FleetHelmOpInput>>;
+    profiles: Record<string, Sourced<FleetProfileInput & { description?: string }>>;
 }
 
 /** A value and the layer that set it, for `lab catalog` and error messages. */
@@ -132,11 +147,13 @@ export interface Sourced<T> {
 
 /**
  * Something the lab installs, at a version: a Helm chart (`repo` unless it's an `oci://` chart),
- * a manifest URL template, or a Kubernetes distribution the engine installs itself.
+ * a manifest URL template, a release tarball a host downloads (`{version}` and `{arch}` in its URL),
+ * or a Kubernetes distribution the engine installs itself.
  */
 export type ResolvedComponent =
     | { kind: "HelmChart"; chart: string; repo?: string; version: VersionValue; namespace?: string; description?: string }
     | { kind: "Manifest"; manifest: string; version: VersionValue; description?: string }
+    | { kind: "Binary"; download: string; version: VersionValue; description?: string }
     | ({ kind: "KubernetesDistribution"; version: VersionValue; description?: string } & DistributionSpec);
 
 export type ResolvedDistribution = Extract<ResolvedComponent, { kind: "KubernetesDistribution" }>;
@@ -157,6 +174,8 @@ export interface ResolvedCatalog {
     plugins: Sourced<ResolvedPlugins>;
     os: Record<string, Sourced<ResolvedOs>>;
     acme: Record<string, Sourced<ResolvedAcmeServer>>;
+    haulManifests: Record<string, Sourced<HaulManifestInput & { description?: string }>>;
+    recipes: Record<string, Sourced<HostRecipeInput & { description?: string }>>;
     defaults: Sourced<ResolvedDefaults>;
 }
 
@@ -168,15 +187,17 @@ export interface ResolvedCatalog {
  */
 export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): ResolvedCatalog {
     const inputs: Record<string, Sourced<ComponentInput>> = {};
-    const kinds: Record<string, "HelmChart" | "Manifest" | "KubernetesDistribution"> = {};
+    const kinds: Record<string, ComponentKind> = {};
     const descriptions: Record<string, string> = {};
     const osSource: Record<string, string> = {};
-    const fleet: FleetLayer = { groups: {}, repos: {}, helmOps: {} };
+    const fleet: FleetLayer = { groups: {}, repos: {}, helmOps: {}, profiles: {} };
     const secrets: Record<string, Sourced<SecretInput>> = {};
     const configmaps: Record<string, Sourced<ConfigMapInput>> = {};
     const plugins: Required<PluginsInput> = { repo: {}, versions: {}, defaults: {}, repositories: {} };
     const pluginSources: Record<string, string> = {};
     const acmeInputs: Record<string, Sourced<AcmeServerInput>> = {};
+    const haulManifests: ResolvedCatalog["haulManifests"] = {};
+    const recipes: ResolvedCatalog["recipes"] = {};
     // Defaults merge field by field, so a personal config can change a single timeout.
     let defaultsInput: DefaultsInput = {};
     let defaultsSource = layers[0]?.source ?? "catalog";
@@ -188,6 +209,9 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
         for (const [name, entry] of Object.entries(layer.acme)) {
             acmeInputs[name] = { value: { ...acmeInputs[name]?.value, ...entry.value }, source: entry.source };
         }
+        // A manifest is a list of content: an override replaces it whole.
+        Object.assign(haulManifests, layer.haulManifests ?? {});
+        Object.assign(recipes, layer.recipes ?? {});
         const p = layer.plugins;
         if (p.repo) {
             if (plugins.repo.name && p.repo.name && p.repo.name !== plugins.repo.name) {
@@ -209,6 +233,8 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
         for (const [name, entry] of Object.entries(layer.fleet.repos)) {
             fleet.repos[name] = { value: { ...fleet.repos[name]?.value, ...entry.value }, source: entry.source };
         }
+        // A Fleet profile of the same name replaces the earlier one whole.
+        for (const [name, entry] of Object.entries(layer.fleet.profiles)) fleet.profiles[name] = entry;
         for (const [name, entry] of Object.entries(layer.fleet.helmOps)) {
             fleet.helmOps[name] = { value: { ...fleet.helmOps[name]?.value, ...entry.value }, source: entry.source };
         }
@@ -235,13 +261,16 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
     for (const [key, { value, source }] of Object.entries(inputs)) {
         const kind = kinds[key] ?? "HelmChart";
         const at = (field?: string) => docAt(kind, key, field);
-        const { version, manifest, chart, repo, namespace } = value;
+        const { version, manifest, download, chart, repo, namespace } = value;
         const description = descriptions[key] ? { description: descriptions[key] } : {};
         if (version === undefined) {
             diags.error(source, at("spec.version"), "required");
         } else if (kind === "Manifest") {
             if (manifest === undefined) diags.error(source, at("spec.url"), "required");
             else components[key] = { value: { kind, manifest, version, ...description }, source };
+        } else if (kind === "Binary") {
+            if (download === undefined) diags.error(source, at("spec.url"), "required");
+            else components[key] = { value: { kind, download, version, ...description }, source };
         } else if (kind === "KubernetesDistribution") {
             const d = value;
             const missing = (["install", "configFile", "kubeconfig", "kubectl", "dataDir", "cni"] as const).filter(f => d[f] === undefined);
@@ -255,6 +284,7 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
                         config: d.config ?? {},
                         withCapability: d.withCapability ?? {},
                         uninstall: d.uninstall ?? [],
+                        ...(d.ingress ? { ingress: d.ingress } : {}),
                     },
                     source,
                 };
@@ -271,11 +301,25 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
         }
     }
 
+    // A distribution's own ingress: the Manifests it applies first must be in the catalog.
+    for (const [key, { value, source }] of Object.entries(components)) {
+        if (value.kind !== "KubernetesDistribution") continue;
+        (value.ingress?.manifests ?? []).forEach((m, i) => {
+            if (components[m]?.value.kind !== "Manifest") diags.error(source, docAt("KubernetesDistribution", key, `spec.ingress.manifests[${i}]`), `no Manifest "${m}"`);
+        });
+    }
+
     // Host profiles: the built-in Profile documents, with their settings compiled.
     const profiles: ProfileRegistry = {};
     for (const layer of layers) {
-        for (const [name, { profile, description, source }] of Object.entries(layer.profiles ?? {})) {
+        for (const [name, { profile, description, source, kind }] of Object.entries(layer.profiles ?? {})) {
             const { settings, distribution, ...rules } = profile;
+            const docKind = kind === "chart" ? "ChartProfile" : "Profile";
+            const before = profiles[name];
+            if (before && before.kind !== kind) {
+                diags.error(source, docAt(docKind, name), `is a ${before.kind === "chart" ? "ChartProfile" : "Profile"} already (${before.source}); a profile keeps its kind`);
+                continue;
+            }
             const schema: SettingSchema = settings ?? { type: "object", properties: {} };
             const problems: { at: string; message: string }[] = [];
             checkSettingSchema(schema, "spec.settings", problems);
@@ -293,16 +337,23 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
                 }
             });
             if (distribution !== undefined && components[distribution]?.value.kind !== "KubernetesDistribution") problems.push({ at: "spec.distribution", message: `no KubernetesDistribution "${distribution}"` });
-            for (const p of problems) diags.error(source, docAt("Profile", name, p.at), p.message);
+            if (kind === "chart") {
+                // Only charts and objects, installed the same way on a host or a downstream cluster.
+                for (const f of ["distribution", "fallback", "hostKinds", "osFamilies", "networkFeatures", "hostRefs"] as const) {
+                    if (profile[f] !== undefined) problems.push({ at: `spec.${f}`, message: "is for a Profile (lab hosts only); a ChartProfile has charts and objects only" });
+                }
+                if (!(rules.charts ?? []).some(e => e.chart !== undefined)) problems.push({ at: "spec.charts", message: "needs a chart of its own (its objects go with it)" });
+            }
+            for (const p of problems) diags.error(source, docAt(docKind, name, p.at), p.message);
             if (problems.length > 0) continue;
             const capabilities = [name, ...(rules.provides ?? []), ...(rules.fallback ?? [])];
             for (const cap of Object.keys(rules.outputs ?? {}).filter(c => !capabilities.includes(c))) {
-                diags.error(source, docAt("Profile", name, `spec.outputs.${cap}`), `isn't a capability of this profile; it provides ${capabilities.join(", ")}`);
+                diags.error(source, docAt(docKind, name, `spec.outputs.${cap}`), `isn't a capability of this profile; it provides ${capabilities.join(", ")}`);
             }
             // The first chart is the profile's own: the lab's `values` go to it.
             const main = (rules.charts ?? []).find(e => e.chart !== undefined);
             profiles[name] = {
-                ...rules, name, description, source,
+                ...rules, name, description, source, kind,
                 protectedValues: valuePaths(main?.lockedValues ?? {}),
                 settingsSchema: schema,
                 settings: settingZod(schema),
@@ -340,10 +391,13 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
     const defaults = resolveDefaults(defaultsInput, defaultsSource, diags);
 
     const os = resolveOsProfiles(layers.map(l => l.os), diags);
+    checkRecipes(recipes, profiles, os, diags);
     return {
         acme,
         defaults,
         components,
+        haulManifests,
+        recipes,
         profiles,
         plugins: {
             value: {

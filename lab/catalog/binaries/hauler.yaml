@@ -1,0 +1,9 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Binary
+metadata:
+  name: hauler
+  description: Hauler, for the hauler profile's registry on a host without Kubernetes
+spec:
+  # https://github.com/hauler-dev/hauler/releases; {arch} is amd64 or arm64.
+  url: https://github.com/hauler-dev/hauler/releases/download/v{version}/hauler_{version}_linux_{arch}.tar.gz
+  version: 2.1.2

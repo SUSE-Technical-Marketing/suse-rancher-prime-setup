@@ -24,3 +24,7 @@ run = "bun server/index.ts"
 description = "Typecheck the UI and its server"
 depends = ["install"]
 run = ["bunx vue-tsc --noEmit -p tsconfig.json", "bunx tsc --noEmit -p tsconfig.server.json"]
+
+[tasks.test]
+description = "Test the UI's logic (reference completion)"
+run = "bun test"

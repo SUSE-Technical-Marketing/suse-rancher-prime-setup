@@ -30,7 +30,7 @@ spec:
 ---
 kind: DownstreamCluster
 metadata: { name: apps }
-spec: { type: harvester, rancher: rancher, harvester: hv, pools: [ { name: all, quantity: 1, roles: [ etcd, controlplane, worker ], os: leap-16 } ] }
+spec: { type: harvester, rancher: rancher, harvester: hv, profiles: { sprouter: {} }, pools: [ { name: all, quantity: 1, roles: [ etcd, controlplane, worker ], os: leap-16 } ] }
 ---
 kind: DownstreamCluster
 metadata: { name: edge }
@@ -53,6 +53,9 @@ describe("k3k clusters", () => {
     it("installs the operator once per parent, and imports each k3k cluster into Rancher", async () => {
         const registered = await runProgram(LAB, { secrets: { "ssh-key": "k", hv: { username: "u", password: "p" }, admin: "a", cf: "c" } });
         const named = (type: string) => registered.filter(r => r.type === type).map(r => r.name).sort();
+
+        // A ChartProfile on apps, installed by the engine on the cluster through Rancher.
+        expect(registered.find(r => r.type === "kubernetes:helm.sh/v3:Release" && r.name === "downstream/apps/sprouter/chart")?.inputs).toMatchObject({ name: "sprouter", namespace: "sprouter" });
 
         // One operator per parent: apps has two k3k clusters, edge one.
         expect(registered.filter(r => r.name.endsWith("/k3k-operator")).map(r => r.name).sort()).toEqual(["downstream/apps/k3k-operator", "downstream/edge/k3k-operator"]);

@@ -7,8 +7,9 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { parseAllDocuments } from "yaml";
 import {
-    defaultPersonalConfigPath, Diagnostics, loadCatalog, loadLab, loadPersonal, type ResolvedCatalog,
+    defaultPersonalConfigPath, Diagnostics, loadCatalog, loadLab, loadPersonal, renderLabSpec, withPersonalVars, type ResolvedCatalog,
 } from "../../packages/schema/src/index.ts";
 import { renderPlan } from "../../cli/src/plan.ts";
 import { secretEnvName } from "../../cli/src/secrets.ts";
@@ -32,6 +33,7 @@ function catalogInfo(catalog: ResolvedCatalog) {
     return {
         os: Object.values(catalog.os).map(({ value: o }) => ({ name: o.name, displayName: o.displayName, family: o.family, image: o.image, ami: !!o.ami })),
         profiles: Object.values(catalog.profiles).map(p => ({
+            kind: p.kind,
             name: p.name,
             description: p.description,
             icon: p.icon,
@@ -46,7 +48,18 @@ function catalogInfo(catalog: ResolvedCatalog) {
             settings: p.settingsSchema,
         })),
         acme: Object.keys(catalog.acme).sort(),
+        // The palette's standard hosts, in name order.
+        recipes: Object.entries(catalog.recipes).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]) => ({
+            name, label: value.label ?? name, description: value.description ?? "", icon: value.icon, kind: value.kind, hostName: value.name ?? name, host: value.host,
+        })),
+        haulManifests: Object.entries(catalog.haulManifests).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]) => ({ name, description: value.description })),
         fleetRepos: Object.entries(catalog.fleet.repos).map(([name, { value }]) => ({ name, description: value.description, default: !!value.default })),
+        // Labels and annotations for downstream clusters; Fleet installs what they select.
+        fleetProfiles: Object.entries(catalog.fleet.profiles).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]) => ({
+            name, description: value.description ?? "", icon: value.icon,
+            labels: value.labels ?? {}, annotations: value.annotations ?? {},
+            requires: value.requires ?? [], provides: value.provides ?? [], conflicts: value.conflicts ?? [],
+        })),
         inputs,
         defaults: catalog.defaults.value,
     };
@@ -82,6 +95,22 @@ function personalInfo() {
 }
 
 /** Check a lab's text as `lab validate` and `lab plan` would, from a file next to the real labs (relative `file:` paths work). */
+/**
+ * The Lab document's values as templates see them (`lab`): rendered, references between them filled
+ * in, so the composer's completion shows what `{{ lab.vars.b }}` gives. Whatever else is wrong.
+ */
+function labValues(text: string): { name?: string; spec?: unknown } | undefined {
+    try {
+        const doc = parseAllDocuments(text).map(d => d.toJS()).find(d => d?.kind === "Lab");
+        if (!doc) return undefined;
+        // With the personal config's vars under the lab's, as the engine has them.
+        const vars = loadPersonal(personalConfig, new Diagnostics())?.value.vars;
+        return { name: doc.metadata?.name, spec: renderLabSpec(doc.metadata?.name, withPersonalVars(doc.spec, vars), "spec", () => {}) };
+    } catch {
+        return undefined;
+    }
+}
+
 function check(text: string, name: string) {
     const tmp = path.join(LABS_DIR, `.ui-check-${process.pid}-${Math.random().toString(36).slice(2)}.yaml`);
     fs.writeFileSync(tmp, text);
@@ -89,7 +118,8 @@ function check(text: string, name: string) {
         const result = loadLab({ labFile: tmp, personalConfig });
         const shown = name || "lab.yaml";
         const diagnostics = result.diagnostics.items.map(d => ({ ...d, source: d.source === tmp ? shown : d.source }));
-        if (!result.lab || !result.personal) return { ok: false, diagnostics, missingSecrets: [], plan: undefined };
+        const lab = labValues(text);
+        if (!result.lab || !result.personal) return { ok: false, diagnostics, missingSecrets: [], plan: undefined, lab };
         const set = new Set(Object.keys(result.personal.secrets));
         const missing = Object.keys(result.lab.secrets).filter(s => !set.has(s) && process.env[secretEnvName(s)] === undefined);
         return {
@@ -97,6 +127,7 @@ function check(text: string, name: string) {
             diagnostics,
             missingSecrets: missing,
             plan: renderPlan(result.lab, new Set(missing)).replaceAll(tmp, shown),
+            lab,
         };
     } finally {
         fs.rmSync(tmp, { force: true });

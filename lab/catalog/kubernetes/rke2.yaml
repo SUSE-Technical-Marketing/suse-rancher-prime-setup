@@ -32,5 +32,11 @@ spec:
   dataDir: /var/lib/rancher/rke2
   # Run on a metal cluster's existing machines when the lab goes; missing ones are skipped.
   uninstall: [ /usr/local/bin/rke2-uninstall.sh, /opt/rke2/bin/rke2-uninstall.sh, /usr/bin/rke2-uninstall.sh ]
+  # Its own Traefik, when no profile replaces it: with its Gateway provider (the distribution ships the
+  # Gateway API CRDs), so it has a "traefik" GatewayClass too; set with a HelmChartConfig.
+  ingress:
+    chart: rke2-traefik
+    values:
+      providers: { kubernetesGateway: { enabled: true } }
   # Downstream clusters' default CNI.
   cni: calico

@@ -98,7 +98,6 @@ lab/
     registry/               # Hauler (host and Kubernetes modes)
   catalog/                  # built-in defaults as data (§16): components/, plugins.yaml, secrets/, fleet/, os/ (§6)
   labs/                     # example lab files (the four reference labs, §13)
-  hauler/                   # Hauler manifests referenced by labs (e.g. rancher-2.15.yaml)
 ```
 
 Packages are consumed as TypeScript source: no `main: bin/...`, so there is no stale build output
@@ -157,13 +156,23 @@ HarvesterVM, Machine and DownstreamCluster documents (in the file or one it incl
 `"{{ lab.ssh.user }}"`. For values of your own, the Lab document has `vars`: any keys at any depth
 (`vars: { team: tmm, dns: { zone: geeko.me } }`, then `"{{ lab.vars.dns.zone }}"`), checked like the
 rest; profiles' chart values and OS profiles' cloud-init see `lab.vars` too, and a secret in it
-(`token: "{{ secrets.tok }}"`) is fetched like any other. The Lab document is rendered first (`email: "admin@{{ lab.domain }}"` works,
-a value that is a reference itself can't be referred to inside it); the other documents see it
-rendered, with its schema defaults (`lab.tls.acme`). They're rendered when the file loads, before
+(`token: "{{ secrets.tok }}"`) is fetched like any other. The personal config's `vars` are defaults
+for every lab's: merged under the Lab document's own key by key (maps merged, the lab's values
+winning), before it's rendered, so they can refer to `lab` and secrets too and a lab can override
+any of them; a problem in a var only the personal config has is reported there, naming the lab. The Lab document is rendered first, and its values can refer to each other at any depth, in any
+order (`a: x`, `b: "{{ lab.vars.a }}-y"`, `c: "{{ lab.vars.b }}-z"`): it's filled in round by round,
+each round the values whose references are done. A circle is an error at each value in it, naming
+its links (`lab.vars.a → lab.vars.b → lab.vars.a`), and a value waiting on one with a problem says
+so. The other documents see it rendered, with its schema defaults (`lab.tls.acme`). They're rendered when the file loads, before
 the documents are checked, so a rendered address is checked as an address. A reference to anything
 the Lab document doesn't have (`lab.spec.domain`, `lab.tls.mail`, a bare `domain`), even under a
 `default` filter, is an error at that field naming what it does have, never left in the lab as text. Values using secrets are rendered
-later, with the secrets (§10); catalog documents have templates of their own (§17). A `{{` that has
+later, with the secrets (§10): in one that uses both, the `{{ … }}` blocks with `secrets` stay as
+written and the rest is filled in (`"{{ secrets.k }}@{{ lab.domain }}"`); one with `{% … %}` tags
+can't be taken apart, so it uses secrets or the lab, not both. A Lab value holding a secret passes
+it on as its template (`{{ lab.vars.token }}` is `{{ secrets.tok }}`). Secrets only get their values
+in secret fields and chart values; a secret anywhere else (an annotation, an address), written there
+or arriving through a reference, is an error, since the lab would use the template as text; catalog documents have templates of their own (§17). A `{{` that has
 to stay one is written `{{ '{{' }}`.
 
 `validate` renders each template against placeholders: that checks it and finds which secrets it
@@ -272,13 +281,14 @@ profile. `lab profiles` prints the current list with all rules.
 | `k3s` | provides `kubernetes`; one `kubernetes` per host; fallback `load-balancer` and `ingress` (its own ServiceLB and Traefik) | `version` | `ClusterAccess`; its Traefik is the ingress unless the `traefik` profile is on the host |
 | `rke2` | provides `kubernetes`; one `kubernetes` per host; fallback `load-balancer` and `ingress` (its own ServiceLB and Traefik, which runs on the node's host ports) | `version` | `ClusterAccess`; as k3s |
 | `harvester-cloud-provider` | requires `kubernetes`; provides `load-balancer` and `cloud-provider`; Harvester VMs only; the host's network needs a `loadBalancer` pool | `version` | Harvester cloud provider (+ kube-vip) in the guest cluster; k3s/RKE2 then run without ServiceLB and with an external cloud provider |
-| `metallb` | requires `kubernetes`; provides `load-balancer` | `addresses` (required), `version`, `values` | MetalLB in L2 mode with one address pool; k3s/RKE2 then run without ServiceLB. For machines and VMs without a cloud provider |
+| `metallb` | a ChartProfile (hosts and clusters); requires `kubernetes`; provides `load-balancer` | `addresses` (required), `version`, `values` | MetalLB in L2 mode with one address pool; k3s/RKE2 then run without ServiceLB. For machines and VMs without a cloud provider |
 | `cert-manager` | requires `kubernetes`; provides `tls` | `version` | ClusterIssuers (Let's Encrypt prod + staging, Cloudflare DNS-01) and a wildcard certificate for `<host>.<domain>` + `*.<host>.<domain>`, labelled for Sprouter |
 | `sprouter` | requires `kubernetes`; provides `secret-propagation` | `version` | Copies labelled secrets (the wildcard certificate) into every namespace |
-| `traefik` | requires `kubernetes`; uses `load-balancer`; provides `ingress` (replacing the distribution's own Traefik) | `version`, `gatewayApi` | Gateway API CRDs + Traefik with its Gateway provider |
+| `traefik` | a ChartProfile (hosts and clusters); requires `kubernetes`; uses `load-balancer`; provides `ingress` and `gateway-api` (replacing the distribution's own Traefik) | `version`, `gatewayApi` | Gateway API CRDs + Traefik with its Gateway provider |
 | `outrider` | requires `kubernetes`; provides `downstream-secrets` | `version` | Propagates annotated secrets to downstream clusters |
-| `rancher` | requires `kubernetes`, `ingress`, `tls`, `secret-propagation`; uses `downstream-secrets` (a Fleet secret can need it, §16.3); secret `adminPassword` | `version`, `hostname`, `adminPassword`, `plugins`, `liz`, `fleet`, `values`, `settings` (Rancher settings by name; `server-url` is the engine's), `features` (feature flags, merged over the default `harvester-baremetal-container-workload: true`) | `RancherAccess` |
-| `hauler` | provides `registry` (uses Kubernetes if the host has it, otherwise systemd) | `manifests`, `port` | `RegistryAccess` |
+| `rancher` | requires `kubernetes`, `ingress`, `tls`, `secret-propagation`, and `gateway-api` when `exposure: gateway`; uses `downstream-secrets` (a Fleet secret can need it, §16.3) and `gateway-api`; secret `adminPassword` | `version`, `hostname`, `adminPassword`, `exposure` (`auto`, `gateway`, `ingress`; §9.1), `plugins`, `liz`, `fleet`, `values`, `settings` (Rancher settings by name; `server-url` is the engine's), `features` (feature flags, merged over the default `harvester-baremetal-container-workload: true`) | `RancherAccess` |
+| `hauler` | provides `registry`; one `registry` per host | `manifests` (HaulManifest names), `port` (5000), `fileserverPort`, `version` | Hauler as systemd services on the host, with a lego certificate (§9.4) |
+| `hauler-chart` | a ChartProfile (hosts and clusters); requires `kubernetes`, `ingress`, `tls`, `secret-propagation`; provides `registry`; one `registry` per host | `manifests`, `storage` (the store's volume, 50Gi), `fileserver`, `version`, `values` | The `hauler-helm` chart at `registry.<target>` (and `files.<target>`) with the wildcard certificate; its store synced by a Job (§9.4) |
 | `mlm-server` | OS family `suse`; conflicts with `kubernetes` and `mlm-client`; secret `adminPassword` | `version`, `adminPassword`, `products` | `MlmAccess` |
 | `mlm-client` | `server` must name a host running `mlm-server` | `server`, `activationKey` | — |
 | `ai-factory` | requires `rancher`; secrets `applicationCollection`, `suseRegistry`, `nvidia` (credentials) | `version`, `applicationCollection` (required), `suseRegistry` (required; SCC), `nvidia` (the NGC login: user `$oauthtoken`, the API key as password), `values` | SUSE AI Factory on Rancher's cluster: the `aif-operator` chart, which installs the `aif-ui` extension and gets the registry logins as values, so its Settings need no Test and Apply |
@@ -485,6 +495,11 @@ the k3k Cluster and its namespace; when the parent goes too, what's on it goes w
 the Fleet cluster, so `fleet.groups` selectors match the labels and a `fleet.yaml` reads both
 (`.ClusterLabels`, `.ClusterAnnotations`; the apps use `hosted-domain`, usually
 `hosted-domain: "{{ lab.domain }}"`, §5.1).
+
+`fleetProfiles` names the cluster's Fleet profiles (§16.3), the usual way to ask Fleet for an app:
+`fleetProfiles: { storage: {}, security: {} }` instead of the `needs-storage` and `needs-security`
+labels and the annotations their apps read. Their labels and annotations join the cluster's own.
+`profiles` installs ChartProfiles on it, with the engine's Helm through Rancher (§17).
 
 ### 5.6 AWS sites
 
@@ -767,6 +782,8 @@ Rules are expressed in **capabilities**. Every profile provides its own name, pl
 | `requiresWhen` | Like `requires`, but only when a settings field is set | resolver, build order |
 | `secretFields` | Settings fields holding secrets (dot paths), optionally with the shape `credentials` | resolver (shape, warnings) |
 | `charts` | What the profile installs, in order, each after the one before: entries with a `chart` (and `namespace`, `values`, `lockedValues`) or a `manifest` (and `vars` for its URL placeholders), each with an optional `when` and `version`. The first chart is the profile's own: the lab's `values` and the `version` setting go to it, and the leaves of its `lockedValues` are protected. Entries before it are installed before its builder runs, entries after it once the builder's work is ready | resolver (renders), program |
+| `objects` | Kubernetes objects it creates after its charts, in order, each after the one before: entries with a `name` (its name in the lab's state, under the profile; a template), the `object` (strings are templates, as chart values; secret templates filled in when the lab is built, kept secret), an optional `when`, `admitted: true` (wait until the API server admits it: a webhook), and `wait: { condition, timeout }` (a condition to wait for, up to one of the lab's timeouts). The profile's capabilities are ready once the last is: cert-manager's ACME issuer and wildcard certificate are such objects | resolver (renders), program |
+| `aliases` | Component types its resources were created under before (`lab:apps:CertManager`, from when the profile was code): a running lab keeps them rather than replacing them | program |
 | `outputs` | Data other profiles on the host can use in their templates, by capability this profile provides (`tls: { secretName: wildcard-cert }`); only from the profile actually providing it on the host | resolver |
 | `settings` | The settings under `profiles.<name>`: a JSON Schema object (subset; `required` inside it) | resolver |
 
@@ -840,9 +857,9 @@ program's main loop.
   because only the `_acme-challenge` TXT record is public.
   - Kubernetes hosts: cert-manager with a Cloudflare ClusterIssuer and a certificate for
     `<host>.<domain>`.
-  - Hosts without Kubernetes (MLM, Hauler on systemd): `lego` installed through cloud-init gets the
-    certificate for `<host>.<domain>`, with a systemd timer for renewal. MLM receives it during
-    `mgradm install`.
+  - Hosts without Kubernetes (MLM, Hauler on systemd): `lego` (a catalog `Binary`) gets the
+    certificate for `<host>.<domain>` with the lab's Cloudflare token, with a systemd timer for
+    renewal. MLM receives it during `mgradm install`.
 - `tls.acme` names an `AcmeServer` document (§17): `letsencrypt`, `letsencrypt-staging`, or one a
   team adds. An AcmeServer with a `ca` (staging) is a CA nothing trusts: Rancher serves those
   roots as its private CA, its agents verify against them strictly, and the engine's own clients
@@ -856,6 +873,17 @@ program's main loop.
 
 The `pulumi/` flow is ported as-is: Rancher Helm install, wait for the `local` Fleet cluster to be
 Ready, bootstrap the admin password, UI plugins, Fleet secrets/groups/repos, optional Liz.
+
+How Rancher is reached is the `rancher` profile's `exposure` setting: `gateway` (the chart's
+`networkExposure.type: gateway`: a Gateway on the host's GatewayClass, terminating TLS with the host's
+wildcard certificate, and HTTPRoutes, plus the HTTP to HTTPS redirect), `ingress` (an Ingress), or
+`auto` (the default: gateway when the host has the `gateway-api` capability). `gateway` requires it
+(`requiresWhen` with `equals`), so asking for it on a host without one is a validation error.
+`gateway-api` is a capability of its own, "a GatewayClass on this host", next to `ingress`: the
+`traefik` profile provides it, and k3s and RKE2 as a fallback, with their own Traefik. For the latter
+the engine turns on Traefik's Gateway provider with the distribution's HelmChartConfig
+(`rke2-traefik`, `traefik`), applying the Gateway API CRDs first where the distribution doesn't ship
+them (k3s; RKE2 does), and waits for the GatewayClass before Rancher.
 
 ### 9.2 Rancher-provisioned clusters on Harvester
 
@@ -904,10 +932,33 @@ already registered.
 
 ### 9.4 Hauler
 
-- `hauler store sync` from the manifests listed in the profile (files in `lab/hauler/`), then
-  `hauler store serve registry` (and `fileserver` if needed).
-- Systemd mode: binary, store on the VM disk, systemd unit, lego certificate.
-- Kubernetes mode: deployment and PVC, ingress at `<host>.<domain>` with the host's certificate.
+What a store holds is a `HaulManifest` document (§17), by name: `images` (`name`, `platform`),
+`charts` (`name`, `repoURL`, `version`, `addImages`, `addDependencies`) and `files` (`path`,
+`name`), rendered into Hauler's own content documents (`content.hauler.cattle.io/v1` Images,
+Charts, Files). The built-in ones are in `catalog/hauler/` (`rancher-2.15`, a starter set); a lab
+or the personal config can add its own. A profile's `manifests` setting is typed
+`$ref: haulManifest`, so the resolver checks each name, and the lab carries only the ones it uses.
+Hauler copies its store into what it serves when it starts, so each sync is followed by a restart.
+Content a dropped manifest brought stays in the store.
+
+- **`hauler`** (systemd, for a host without Kubernetes; a Profile with code). One uploaded script
+  (`HaulerRegistry`, `packages/kubernetes/src/hauler.ts`), run again in place when anything
+  changes: the `hauler` and `lego` Binaries for the host's architecture, the manifests in
+  `/var/lib/hauler/manifests`, `hauler store sync`, a certificate for `<host>.<domain>` from the
+  lab's ACME server (lego, DNS-01 with `tls.cloudflare`, the token in a root-only env file), the
+  `hauler-registry` service (`hauler store serve registry --port <port>` with that certificate),
+  `hauler-fileserver` when `fileserverPort` is set, a daily `hauler-cert.timer` that renews and
+  restarts them, and the ports as a firewalld service when firewalld runs. With `tls.acme: none`
+  it serves plain HTTP. Its delete removes all of it, the store too; a VM is just deleted. The
+  script holds the token: it's a secret, and removed from the host once it ran. It may take
+  `timeouts.haulerSync`.
+- **`hauler-chart`** (Kubernetes, a ChartProfile). The official `hauler-helm` chart, its registry's
+  ingress at `registry.<target fqdn>` (and the fileserver's at `files.<target fqdn>`) with the
+  wildcard certificate, its store a `ReadWriteOnce` volume. The chart's own loader only takes
+  manifests from URLs or a node's disk, so the profile's objects do it: a ConfigMap with the
+  manifests (`haulManifests(settings.manifests)` in a template), and a Job that syncs them into
+  the chart's volume and restarts its Deployments. The Job carries a hash of the manifests, so a
+  change replaces it; the profile is ready when it completes (`timeouts.haulerSync`).
 - Manifests are hand-written for now; generating them from a Rancher version can come later.
 - A `harbor` profile can come later as a separate profile; it is not in v1.
 - Syncing a full Rancher image set is large and slow; disk size is the user's responsibility.
@@ -1122,7 +1173,7 @@ downstream:
 | M2 🟡 | SSH access, `k3s`/`rke2`, cluster TLS (cert-manager + Let's Encrypt), `rancher` (plugins, Fleet, Liz) | See §14.1. Done on asgard with k3s and RKE2, including clean teardown; open: a run with `letsencrypt` (production) and with the Fleet secrets |
 | M3 | Harvester import per harvester, `downstream.type: harvester`, cloud-provider config, labels → Fleet groups, teardown ordering | Reference lab 2 builds and destroys cleanly |
 | M4 ✅ | SSH hosts, `downstream.type: metal` (was `custom`), node cleanup | Reference lab 4. Done on asgard: a metal cluster on a lab VM (`labs/asgard-m4.yaml`); profiles on `Machine`s (`labs/asgard-m4-machines.yaml` on the bare VMs of `labs/asgard-m4-vms.yaml`: k3s with ServiceLB, RKE2 with MetalLB); Rancher on a `Machine` with a metal RKE2 cluster on two more (`labs/asgard-m4-custom.yaml`, on the same VMs); each with clean teardown and uninstall |
-| M5 | `hauler` (systemd and Kubernetes modes), manifests | Registry part of reference lab 1 |
+| M5 | `hauler` (systemd) and `hauler-chart` (Kubernetes), HaulManifests, lego certificates | Registry part of reference lab 1. Built and tested under mocks; not yet run against a lab |
 | M6 | `sl-micro-6.1`, `ubuntu-24.04`, `rocky-9`; `mlm-server`, `mlm-client` | Reference labs 1 and 3 |
 | M7 | Docs for lab authors (`lab/README.md`), more examples, `AGENTS.md` | Someone new can write a lab without reading TypeScript |
 
@@ -1307,17 +1358,42 @@ catalog:
     rancher: { repo: https://releases.rancher.com/server-charts/latest, version: v2.14.3 }   # community Rancher
 ```
 
-### 16.3 Fleet: repos, HelmOps and groups
+### 16.3 Fleet: repos, HelmOps, groups and Fleet profiles
 
-Fleet is three catalog sections, one GitRepo or HelmOp per file, so each can be read, overridden and
-added on its own. The secrets its bundles need are ordinary catalog secrets (16.6).
+Fleet is four catalog sections, one GitRepo, HelmOp or Fleet profile per file, so each can be read,
+overridden and added on its own. The secrets its bundles need are ordinary catalog secrets (16.6).
 
 ```
 lab/catalog/fleet/
   groups.yaml                              # ClusterGroups by name
   repos/<name>.yaml                        # one GitRepo each
   helmops/<name>.yaml                      # one HelmOp each
+  profiles/<name>.yaml                     # one Fleet profile each
 ```
+
+**Fleet profiles** are what a downstream cluster asks Fleet for. A `FleetProfile` is only `labels`
+and `annotations` (templates over `lab` and `cluster`: `name`, `type`, `rancher`, the Rancher host's
+name), with `requires`, `provides` and `conflicts` among the Fleet profiles on one cluster; it installs
+nothing itself. The bundles and HelmOps whose targets select its labels install the app, reading its
+annotations. They're a kind of their own, apart from a host's `Profile` (whose charts and objects the
+engine installs), and the UI keeps them apart: a separate list, square tokens on cluster boxes.
+
+```yaml
+# profiles/security.yaml
+kind: FleetProfile
+metadata: { name: security, description: SUSE Security (NeuVector) }
+spec:
+  icon: shield-check
+  labels: { needs-security: "true" }        # apps/platform/suse-security selects on it
+  annotations:                               # and reads these
+    hosted-domain: "{{ lab.domain }}"
+    rancher-host: "{{ cluster.rancher }}"
+  requires: [ block-storage ]                # storage or longhorn provides it
+```
+
+A cluster's `fleetProfiles` must exist and satisfy each other's `requires` and `conflicts`. Their
+labels and annotations are merged into the cluster's own; a key set to two different values (two
+profiles, or a profile and the cluster) is an error, not a silent override.
 
 **HelmOps** are for charts too big for a GitRepo. Fleet puts a GitRepo's remote charts, every file of
 them, in the Bundle; etcd refuses one over ~1.5 MiB (`etcdserver: request is too large`), and the
@@ -1555,11 +1631,14 @@ document is.
 
 | Kind | `spec` | Catalog section it fills |
 |---|---|---|
-| `KubernetesDistribution` | `version`; `install` (a template with `version`, run as root); `configFile` and `config` (written before installing, with the host's FQDN as a `tls-san`); `withCapability.<capability>` (merged into `config`, lists joined, when another profile on the host provides that capability: `ingress` turns the distribution's own Traefik off, `load-balancer` its ServiceLB, `cloud-provider` sets up an external cloud controller); `kubeconfig`, `kubectl`, `dataDir`; `uninstall` (scripts for metal-cluster machines); `cni` (downstream default). An override's `config` and `withCapability` merge key by key (lists replaced) | components (k3s, RKE2) |
+| `KubernetesDistribution` | `version`; `install` (a template with `version`, run as root); `configFile` and `config` (written before installing, with the host's FQDN as a `tls-san`); `withCapability.<capability>` (merged into `config`, lists joined, when another profile on the host provides that capability: `ingress` turns the distribution's own Traefik off, `load-balancer` its ServiceLB, `cloud-provider` sets up an external cloud controller); `kubeconfig`, `kubectl`, `dataDir`; `uninstall` (scripts for metal-cluster machines); `cni` (downstream default); `ingress` (its own Traefik when no profile replaces it: the HelmChart it deploys, `values` set on it with a HelmChartConfig, the Gateway provider, and `manifests` applied first, the Gateway API CRDs where it doesn't ship them, k3s). An override's `config` and `withCapability` merge key by key (lists replaced) | components (k3s, RKE2) |
 | `AcmeServer` | `url` (the ACME directory), `ca` (PEM roots, for a CA nothing trusts) | ACME servers (`tls.acme`) |
-| `Defaults` | one, named `default`: `ssh.user` (a lab's `ssh.user`, and a Machine's `user`, default to it), `vm` (`cpu`, `memory`, `disk` of a HarvesterVM or downstream pool that doesn't give them), `harvester.clusterNetwork`, `harvester.storageClass` (`name`, `replicas`, `parameters`), `timeouts.<step>` (durations like `15m`: `harvesterAddon`, `image`, `vmStart`, `vmAddress`, `cloudInit`, `loadBalancerCleanup`, `kubernetesApi`, `resourceReady`, `certificate`, `rancherReady`, `uiPlugin`, `harvesterImport`, `clusterRegistration`, `downstreamReady`, `downstreamDelete`, `helmJobWatch`), `aws` (`vpcCidr`, `zones` and `instanceType` of an AwsSite, EC2 pool or EKS node group that doesn't give them; `eksVersion` of an EKS cluster), `images.kubectl` (an image with kubectl and curl for jobs the engine runs on a cluster: a k3k cluster's import). Later layers override single fields, so a personal config can make one wait longer | what the engine uses where a lab doesn't say (`catalog/defaults.yaml`) |
+| `Defaults` | one, named `default`: `ssh.user` (a lab's `ssh.user`, and a Machine's `user`, default to it), `vm` (`cpu`, `memory`, `disk` of a HarvesterVM or downstream pool that doesn't give them), `harvester.clusterNetwork`, `harvester.storageClass` (`name`, `replicas`, `parameters`), `timeouts.<step>` (durations like `15m`: `harvesterAddon`, `image`, `vmStart`, `vmAddress`, `cloudInit`, `loadBalancerCleanup`, `kubernetesApi`, `resourceReady`, `certificate`, `rancherReady`, `uiPlugin`, `harvesterImport`, `clusterRegistration`, `downstreamReady`, `downstreamDelete`, `helmJobWatch`, `haulerSync`), `aws` (`vpcCidr`, `zones` and `instanceType` of an AwsSite, EC2 pool or EKS node group that doesn't give them; `eksVersion` of an EKS cluster), `images.kubectl` (an image with kubectl and curl for jobs the engine runs on a cluster: a k3k cluster's import). Later layers override single fields, so a personal config can make one wait longer | what the engine uses where a lab doesn't say (`catalog/defaults.yaml`) |
 | `HelmChart` | `repo`, `chart`, `version`, `namespace` (default for host placements) | components |
 | `Manifest` | `url` (template), `version` | components |
+| `Binary` | `url` (a release tarball; `{version}` and `{arch}`, amd64 or arm64), `version` | components (`hauler`, `lego`: installed on hosts by the `hauler` profile) |
+| `HaulManifest` | `images`, `charts`, `files` (§9.4); a later one replaces an earlier one whole | Hauler manifests, for the hauler profiles' `manifests` |
+| `HostRecipe` | `label`, `icon`, `kind` (`HarvesterVM` or `Machine`), `name` (the new host's, made unique), `host` (`cpu`, `memory`, `disk`, `os`, `profiles` with settings). Checked against the profiles (known, allowed on that kind of host, settings valid; settings left out are fine, the composer fills in what the personal config has) and the OS profiles; a later one replaces an earlier one whole | the composer's standard hosts (`catalog/recipes/`: Rancher VM, Registry VM). Dropping one adds an ordinary HarvesterVM or Machine; the engine never reads them |
 | `Profile` | `charts` / `distribution`, the rules of §7.6, `outputs`, `settings` (JSON Schema object) | profiles (§16.10) |
 | `SecretTemplate`, `ConfigMapTemplate` | `inputs`, `requires`, `template: { metadata: { namespace, labels, annotations }, type, data }` | secrets, configmaps (§16.6) |
 | `FleetRepo` | as §16.3 | fleet repos |
@@ -1568,14 +1647,14 @@ document is.
 | `UiPlugin` | `repository`, `version`, `default` | UI plugins |
 | `OperatingSystem` | as §6 (`metadata.description` is the display name) | OS profiles |
 | `Lab` | the lab-wide fields of §5 (`domain`, `tls`, `ssh`, `inputs`, `images`), plus `include: [...]` | — (first document of a lab file) |
-| `PersonalConfig` | secrets, harvesters, awsSites, images, inputs, `include` | — (first document of the personal config) |
+| `PersonalConfig` | secrets, harvesters, awsSites, images, inputs, `vars` (defaults for every lab's `vars`, §5.1), `include` | — (first document of the personal config) |
 | `Harvester` | as `harvesters.<name>` in §5.2 | the lab's Harvesters (lab file and its includes only) |
 | `AwsSite` | `region`, `credentials`, `vpc.cidr`, `zones`, `ttl` (§5.6) | the lab's AWS sites, each with a VPC of its own (lab file and its includes only) |
 | `HarvesterVM` | as a host in §5.3, with `harvester:` instead of `on:` | the lab's hosts |
 | `Machine` | as an `on: ssh` host in §5.3 (no `cpu`, `memory`, `disk`, `network`, `macAddress`) | the lab's hosts |
 | `DownstreamCluster` | as `downstream.<name>` in §5.5 | the lab's downstream clusters |
 
-HelmChart, Manifest and KubernetesDistribution share one name space: profiles and the engine
+HelmChart, Manifest, Binary and KubernetesDistribution share one name space: profiles and the engine
 refer to them by name.
 
 **Lab documents.** `Harvester`, `HarvesterVM`, `Machine` and `DownstreamCluster` describe one lab:
@@ -1599,9 +1678,37 @@ file it's defined in, which may be an included one), `spec.tls.email` for the La
 `HelmChart/rancher.spec.version` for a catalog document, `document 3.kind` for one that couldn't
 be read as a document at all.
 
-**Charts on hosts.** `hosts.<name>.charts: [{ name, namespace?, values? }]` installs catalog
-HelmCharts on a host's cluster after all of its profiles and objects, in the chart's namespace
-unless the placement names another. They're outside the profile rules and build order: something
+**Three kinds of profile.** What goes on a host or a downstream cluster is one of:
+
+| Kind | Document | Where | Who installs it |
+|---|---|---|---|
+| Profile | `Profile`, with a builder in the engine (k3s, RKE2, Rancher, the Harvester cloud provider) | lab hosts only | the engine, with code |
+| ChartProfile | `ChartProfile`: `charts` and `objects`, templates, rules; no code (cert-manager, Traefik, MetalLB, Sprouter, Outrider, AI Factory) | lab hosts and downstream clusters | the engine: a Helm install, its manifests and objects, its waits |
+| Fleet profile | `FleetProfile`: labels and annotations (§16.3) | downstream clusters only | Fleet, from the repos and HelmOps that select them |
+
+A ChartProfile has a Profile's fields but the host-only ones (`distribution`, `fallback`,
+`hostKinds`, `osFamilies`, `networkFeatures`, `hostRefs`), and a chart of its own. Having no code,
+any catalog can define one (a lab's, the personal config's), unlike a Profile. Its templates use
+`target` (`kind`, `name`, `fqdn`) for where it's installed; a downstream cluster's `fqdn` is
+`<cluster>.<domain>`, as the Fleet apps name things there, so cert-manager's wildcard on a cluster
+covers `*.<cluster>.<domain>`. A cluster's `profiles` take ChartProfiles only, checked as on a host:
+the cluster provides `kubernetes`, its ChartProfiles the rest (Fleet profiles don't count: the engine
+can't tell when Fleet is done). The engine installs them through Rancher once the cluster is ready,
+after its catalog secrets and configmaps, each after the profiles on it that it waits for.
+
+On a host, a ChartProfile that replaces part of the distribution (Traefik its ingress, MetalLB its
+ServiceLB) turns that part off through the KubernetesDistribution's `withCapability`, since the
+engine writes the distribution's config. On a downstream cluster Rancher does, so turn it off in
+the cluster's `machineGlobalConfig` (`disable: [traefik]` on k3s, `[rke2-traefik]` on RKE2,
+`servicelb`); the engine can't know which add-ons Rancher left on.
+
+An object entry with `admitted: true` waits first, with a dry run, until the cluster's API server
+admits it: a chart's webhook (MetalLB's, for its address pool) can report Ready before the API
+server reaches it, and the create would fail.
+
+**Charts on hosts.** `charts: [{ name, namespace?, values? }]` on a host
+(`HarvesterVM`, `Machine`) installs catalog HelmCharts on its cluster after all of its profiles and
+objects, in the chart's namespace unless the placement names another. They're outside the profile rules and build order: something
 other profiles must be able to `require` is a Profile. A profile's own chart is installed by its
 builder, in the namespace its Profile document names; a HelmChart's `namespace` matters only to
 `charts:` (a lab can override a HelmChart, but not a Profile).
@@ -1617,7 +1724,7 @@ in strict mode (an undefined variable is an error at the value's path, naming th
 |---|---|
 | `settings` | the profile's settings on this host, defaults applied |
 | `host` | `name`, `fqdn` |
-| `lab` | `name`, `domain`, `vars` (the Lab document's own values, §5.1), `tls.acme`, `tls.privateCA` (the AcmeServer has a `ca`: Let's Encrypt staging), `tls.email` |
+| `lab` | `name`, `domain`, `vars` (the Lab document's own values, §5.1), `tls.acme`, `tls.url` (its ACME directory), `tls.privateCA` (the AcmeServer has a `ca`: Let's Encrypt staging), `tls.email`, `tls.cloudflare` (the DNS-01 token, a secret template) |
 | `outputs` | by capability: the `outputs` the profile on this host providing it declares; only for capabilities this profile `requires`, `uses` or `requiresWhen`, so it can't read a profile built after it |
 
 A secret setting reaches a chart through the `field` filter: `"{{ settings.applicationCollection |

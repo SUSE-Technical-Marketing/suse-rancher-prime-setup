@@ -1,0 +1,13 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: storage
+  description: "SUSE Storage (Longhorn, from the Application Collection) and the longhorn-single storage class (apps/appco/suse-storage, apps/base/storage-class)"
+spec:
+  icon: hard-drive
+  labels:
+    needs-storage: "true"
+  annotations:
+    hosted-domain: "{{ lab.domain }}"
+  provides: [ block-storage ]
+  conflicts: [ block-storage ]

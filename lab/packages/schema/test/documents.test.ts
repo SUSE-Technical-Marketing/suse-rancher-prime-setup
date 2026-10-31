@@ -54,7 +54,7 @@ spec: {}
         expect(errors(result)).toEqual([
             "document 2.apiVersion: must be lab.geeko.me/v1alpha1",
             'document 2.extra: unknown field "extra"; a document has apiVersion, kind, metadata and spec',
-            'document 3.kind: unknown kind "Deployment"; one of HelmChart, Manifest, KubernetesDistribution, AcmeServer, Defaults, Profile, SecretTemplate, ConfigMapTemplate, FleetRepo, FleetHelmOp, ClusterGroup, UiPluginRepository, UiPlugin, OperatingSystem, Harvester, AwsSite, HarvesterVM, Machine, DownstreamCluster',
+            'document 3.kind: unknown kind "Deployment"; one of HelmChart, Manifest, Binary, KubernetesDistribution, AcmeServer, Defaults, Profile, ChartProfile, SecretTemplate, ConfigMapTemplate, FleetRepo, FleetHelmOp, FleetProfile, HostRecipe, HaulManifest, ClusterGroup, UiPluginRepository, UiPlugin, OperatingSystem, Harvester, AwsSite, HarvesterVM, Machine, DownstreamCluster',
             "document 4.kind: Lab can only be the first document of its own file",
         ]);
     });
@@ -215,14 +215,174 @@ spec: { address: "{{ lab.tls.mail }}", os: leap-16 }
         ]);
     });
 
-    it("can't refer to a Lab value that is a reference itself, within the Lab document", () => {
-        const lab = write("self.yaml", `apiVersion: lab.geeko.me/v1alpha1
+    it("fills in Lab values that refer to each other, at any depth, in any order", () => {
+        const lab = write("chain.yaml", `apiVersion: lab.geeko.me/v1alpha1
 kind: Lab
-metadata: { name: self }
+metadata: { name: chain }
+spec:
+  domain: "{{ lab.vars.sub }}.example.com"
+  tls: { acme: none, email: "admin@{{ lab.domain }}" }
+  vars:
+    c: "{{ lab.vars.b }}-z"
+    b: "{{ lab.vars.a }}-y"
+    a: x
+    sub: "{{ lab.vars.c }}"
+    all: "{{ lab.vars.a }}/{{ lab.vars.b }}"
+`);
+        const { lab: resolved, diagnostics } = loadLab({ labFile: lab, personalConfig: noPersonal() });
+        expect(diagnostics.errors).toEqual([]);
+        expect(resolved!.vars).toEqual({ c: "x-y-z", b: "x-y", a: "x", sub: "x-y-z", all: "x/x-y" });
+        expect(resolved!.domain).toBe("x-y-z.example.com");
+        expect(resolved!.tls.email).toBe("admin@x-y-z.example.com");
+    });
+
+    it("takes the personal config's vars as defaults for the lab's, merged key by key, the lab's winning", () => {
+        const personal = write("vars-config.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: PersonalConfig
+metadata: { name: me }
+spec:
+  vars:
+    team: tmm
+    owner: "me@{{ lab.domain }}"
+    dns: { zone: geeko.me, ttl: 300 }
+    token: "{{ secrets.tok }}"
+`);
+        const lab = write("vars-lab.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: mine }
+spec:
+  domain: lab.example.com
+  tls: { acme: none }
+  vars:
+    team: edge
+    dns: { ttl: 60 }
+    label: "{{ lab.vars.team }}-{{ lab.vars.dns.zone }}"
+`);
+        const { lab: resolved, diagnostics } = loadLab({ labFile: lab, personalConfig: personal });
+        expect(diagnostics.errors).toEqual([]);
+        expect(resolved!.vars).toEqual({
+            team: "edge", owner: "me@lab.example.com", dns: { zone: "geeko.me", ttl: 60 },
+            token: "{{ secrets.tok }}", label: "edge-geeko.me",
+        });
+    });
+
+    it("reports a problem in a var only the personal config has against the personal config", () => {
+        const personal = write("bad-vars-config.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: PersonalConfig
+metadata: { name: me }
+spec:
+  vars: { owner: "{{ lab.vars.nope }}" }
+`);
+        const lab = write("bad-vars-lab.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: mine }
+spec: { domain: lab.example.com, tls: { acme: none } }
+`);
+        const { diagnostics } = loadLab({ labFile: lab, personalConfig: personal });
+        expect(diagnostics.errors.map(d => `${path.basename(d.source)}: ${d.path}: ${d.message}`)).toEqual([
+            'bad-vars-config.yaml: spec.vars.owner: unknown reference "lab.vars.nope"; lab.vars has lab.vars.owner (rendering lab mine)',
+        ]);
+    });
+
+    it("reports a circle of references by its links, and what waits on one", () => {
+        const lab = write("circle.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: circle }
 spec:
   domain: "{{ lab.domain }}"
+  tls: { acme: none }
+  vars:
+    a: "{{ lab.vars.b }}"
+    b: "{{ lab.vars.a }}"
+    c: "{{ lab.vars.nope }}"
+    d: "{{ lab.vars.c }}!"
 `);
-        expect(errors(loadLab({ labFile: lab, personalConfig: noPersonal() }))).toContain("spec.domain: lab.domain is a template itself; refer to what it's made of");
+        expect(errors(loadLab({ labFile: lab, personalConfig: noPersonal() }))).toEqual([
+            "spec.domain: refers to lab.domain, which can't be filled in: lab.domain → lab.domain go round in a circle",
+            "spec.vars.a: refers to lab.vars.b, which can't be filled in: lab.vars.b → lab.vars.a → lab.vars.b go round in a circle",
+            "spec.vars.b: refers to lab.vars.a, which can't be filled in: lab.vars.a → lab.vars.b → lab.vars.a go round in a circle",
+            'spec.vars.c: unknown reference "lab.vars.nope"; lab.vars has lab.vars.a, lab.vars.b, lab.vars.c, lab.vars.d',
+            "spec.vars.d: refers to lab.vars.c, which can't be filled in (see its own problem)",
+            "spec.domain: must be a lowercase DNS name",
+        ]);
+    });
+
+    it("fills in the lab in a value that uses secrets too, leaving the secrets for later", () => {
+        const lab = write("mixed.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: mixed }
+spec:
+  domain: lab.example.com
+  tls: { acme: none }
+  vars:
+    token: "{{ secrets.cf.token }}"
+    bearer: "Bearer {{ secrets.cf.token }} for {{ lab.domain }}"
+    again: "{{ lab.vars.token }}"
+`);
+        const { lab: resolved, diagnostics } = loadLab({ labFile: lab, personalConfig: noPersonal() });
+        expect(diagnostics.errors).toEqual([]);
+        expect(resolved!.vars).toEqual({
+            token: "{{ secrets.cf.token }}",
+            bearer: "Bearer {{ secrets.cf.token }} for lab.example.com",
+            again: "{{ secrets.cf.token }}",
+        });
+        const tags = write("tags.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: tags }
+spec:
+  domain: lab.example.com
+  tls: { acme: none }
+  vars: { tags: "{% if lab.domain %}{{ secrets.cf.token }}{% endif %}" }
+`);
+        expect(errors(loadLab({ labFile: tags, personalConfig: noPersonal() }))).toEqual([
+            "spec.vars.tags: a template with {% %} tags can use secrets or lab, not both; give the lab part a value of its own (a var)",
+        ]);
+    });
+
+    it("takes a lab's own ChartProfiles, but not its own Profiles, and checks what a ChartProfile may have", () => {
+        const lab = write("own-profiles.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: own }
+spec:
+  domain: lab.example.com
+  tls: { acme: none }
+  ssh: { user: lab, publicKey: "ssh-ed25519 AAAA", privateKey: "{{ secrets.k }}" }
+---
+kind: ChartProfile
+metadata: { name: mine, description: "Sprouter, again" }
+spec:
+  charts: [ { chart: sprouter, namespace: mine } ]
+  requires: [ kubernetes ]
+---
+kind: ChartProfile
+metadata: { name: hosty }
+spec:
+  charts: [ { chart: sprouter, namespace: hosty } ]
+  hostKinds: [ ssh ]
+---
+kind: ChartProfile
+metadata: { name: chartless }
+spec:
+  objects: [ { name: x, object: { apiVersion: v1, kind: ConfigMap, metadata: { name: x } } } ]
+---
+kind: Machine
+metadata: { name: box }
+spec: { address: box.example.com, os: leap-16, profiles: { k3s: {}, mine: {} } }
+`);
+        expect(errors(loadLab({ labFile: lab, personalConfig: noPersonal() }))).toEqual([
+            "ChartProfile/hosty.spec.hostKinds: is for a Profile (lab hosts only); a ChartProfile has charts and objects only",
+            "ChartProfile/chartless.spec.charts: needs a chart of its own (its objects go with it)",
+        ]);
+        // Without those two, the lab's own ChartProfile is used like a built-in one.
+        fs.writeFileSync(lab, fs.readFileSync(lab, "utf8").replace(/---\nkind: ChartProfile\nmetadata: \{ name: hosty \}[\s\S]*?(?=---\nkind: Machine)/, ""));
+        const ok = loadLab({ labFile: lab, personalConfig: noPersonal() });
+        expect(errors(ok)).toEqual([]);
+        expect(ok.lab!.hosts[0].profileOrder).toEqual(["k3s", "mine"]);
+        // A Profile, with a builder in the engine, only in the engine's own catalog.
+        fs.writeFileSync(lab, `${fs.readFileSync(lab, "utf8")}---\nkind: Profile\nmetadata: { name: coded }\nspec: {}\n`);
+        expect(errors(loadLab({ labFile: lab, personalConfig: noPersonal() }))).toEqual([
+            "Profile/coded: Profiles can only be defined in the engine's catalog (lab/catalog/): their builders are written against them",
+        ]);
     });
 
     it("assembles a lab from its Harvester, HarvesterVM, Machine and DownstreamCluster documents", () => {

@@ -5,18 +5,23 @@ import { catalog } from "../store";
 import ProfileIcon from "./ProfileIcon.vue";
 import SchemaField from "./SchemaField.vue";
 
-// A host's profiles: which ones, and each one's settings (a form from its JSON Schema).
-const props = defineProps<{ modelValue?: Record<string, Record<string, unknown>>; hostKind: "harvester" | "ssh" }>();
+// A host's or downstream cluster's profiles: which ones, and each one's settings (a form from its
+// JSON Schema). A cluster takes ChartProfiles only, and is itself `kubernetes`.
+const props = defineProps<{ modelValue?: Record<string, Record<string, unknown>>; target: "harvester" | "ssh" | "cluster" }>();
 const emit = defineEmits<{ set: [name: string, settings: Record<string, unknown> | undefined]; remove: [name: string] }>();
 
 const all = computed(() => catalog.value?.profiles ?? []);
 const byName = computed(() => Object.fromEntries(all.value.map(p => [p.name, p])));
 const enabled = computed(() => Object.keys(props.modelValue ?? {}));
-const available = computed(() => all.value.filter(p => !enabled.value.includes(p.name) && (!p.hostKinds || p.hostKinds.includes(props.hostKind))));
+const fits = (p: CatalogProfile) => (props.target === "cluster" ? p.kind === "chart" : !p.hostKinds || p.hostKinds.includes(props.target));
+const available = computed(() => all.value.filter(p => !enabled.value.includes(p.name) && fits(p)));
 const open = ref<Record<string, boolean>>({});
 
 /** Capabilities the host's profiles provide (their own fallbacks count). */
-const provided = computed(() => new Set(enabled.value.flatMap(n => [...(byName.value[n]?.provides ?? []), ...(byName.value[n]?.fallback ?? []), n])));
+const provided = computed(() => new Set([
+  ...enabled.value.flatMap(n => [...(byName.value[n]?.provides ?? []), ...(byName.value[n]?.fallback ?? []), n]),
+  ...(props.target === "cluster" ? ["kubernetes"] : []),
+]));
 const providers = (cap: string) => all.value.filter(p => p.provides.includes(cap) || p.fallback.includes(cap)).map(p => p.name);
 const missing = (p: CatalogProfile) => p.requires.filter(c => !provided.value.has(c));
 
@@ -33,8 +38,8 @@ const hasSettings = (p?: CatalogProfile) => !!p && Object.keys(p.settings.proper
 
 <template>
   <section class="profiles">
-    <h3>Profiles</h3>
-    <p v-if="enabled.length === 0" class="muted">No profiles: a bare VM or machine (a metal-cluster node, for example).</p>
+    <h3>{{ target === "cluster" ? "Chart profiles" : "Profiles" }}</h3>
+    <p v-if="enabled.length === 0" class="muted">{{ target === "cluster" ? "No ChartProfiles: the engine installs nothing on the cluster itself." : "No profiles: a bare VM or machine (a metal-cluster node, for example)." }}</p>
     <div v-for="name in enabled" :key="name" class="profile">
       <header>
         <button type="button" class="disclose" :aria-expanded="!!open[name]" @click="open[name] = !open[name]">

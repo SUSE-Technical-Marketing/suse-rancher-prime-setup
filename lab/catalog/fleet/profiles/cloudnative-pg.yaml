@@ -1,0 +1,9 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: cloudnative-pg
+  description: "CloudNativePG, the PostgreSQL operator, from the Application Collection (apps/appco/cloudnative-pg)"
+spec:
+  icon: database
+  labels:
+    needs-cnpg: "true"

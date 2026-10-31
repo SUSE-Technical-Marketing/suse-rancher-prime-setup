@@ -164,6 +164,8 @@ const roles = z.array(z.enum(NODE_ROLES)).min(1);
 const labels = z.record(z.string(), z.string()).default({});
 /** On the provisioning Cluster; Rancher copies them to the Fleet cluster (`.ClusterAnnotations` in fleet.yaml). */
 const annotations = z.record(z.string(), z.string()).default({});
+/** Fleet profiles (§16.3) by name: their labels and annotations go on the cluster, and Fleet installs what they select. */
+const fleetProfiles = z.record(z.string().min(1), z.strictObject({})).default({});
 
 const HarvesterPool = z.strictObject({
     name: dnsLabel,
@@ -228,6 +230,9 @@ export const DownstreamInput = z.discriminatedUnion("type", [
         version: z.string().optional(),
         labels,
         annotations,
+        fleetProfiles,
+        /** ChartProfiles by name, with their settings: installed by the engine once the cluster is ready (§17). */
+        profiles: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
         ...ClusterPassthrough,
         pools: z.array(HarvesterPool).min(1),
     }),
@@ -241,6 +246,9 @@ export const DownstreamInput = z.discriminatedUnion("type", [
         version: z.string().optional(),
         labels,
         annotations,
+        fleetProfiles,
+        /** ChartProfiles by name, with their settings: installed by the engine once the cluster is ready (§17). */
+        profiles: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
         ...ClusterPassthrough,
         pools: z.array(Ec2Pool).min(1),
     }),
@@ -254,6 +262,9 @@ export const DownstreamInput = z.discriminatedUnion("type", [
         version: z.string().regex(/^1\.\d+$/, "an EKS minor such as 1.34").optional(),
         labels,
         annotations,
+        fleetProfiles,
+        /** ChartProfiles by name, with their settings: installed by the engine once the cluster is ready (§17). */
+        profiles: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
         /** Who may reach its API endpoint besides Rancher's proxy; default anyone. */
         publicAccessSources: z.array(cidr).optional(),
         /** Control plane logs sent to CloudWatch: api, audit, authenticator, controllerManager, scheduler. */
@@ -270,6 +281,9 @@ export const DownstreamInput = z.discriminatedUnion("type", [
         version: z.string().optional(),
         labels,
         annotations,
+        fleetProfiles,
+        /** ChartProfiles by name, with their settings: installed by the engine once the cluster is ready (§17). */
+        profiles: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
         ...ClusterPassthrough,
         nodes: z.array(z.strictObject({ host: z.string(), roles })).min(1),
     }),
@@ -295,6 +309,9 @@ export const DownstreamInput = z.discriminatedUnion("type", [
         }).optional(),
         labels,
         annotations,
+        fleetProfiles,
+        /** ChartProfiles by name, with their settings: installed by the engine once the cluster is ready (§17). */
+        profiles: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
         secrets: z.array(Placement).optional(),
         configmaps: z.array(Placement).optional(),
     }),
@@ -373,5 +390,7 @@ export const PersonalConfig = z.strictObject({
     include: Include,
     /** Values for the inputs of catalog secrets and configmaps (§16.6). */
     inputs: Inputs.default({}),
+    /** Defaults for every lab's `vars` (`{{ lab.vars.team }}`): a lab's own win, key by key (§5.1). */
+    vars: z.record(z.string(), z.unknown()).default({}),
 });
 export type PersonalConfig = z.infer<typeof PersonalConfig>;

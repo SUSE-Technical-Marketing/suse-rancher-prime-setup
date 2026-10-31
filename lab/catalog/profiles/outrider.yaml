@@ -1,5 +1,5 @@
 apiVersion: lab.geeko.me/v1alpha1
-kind: Profile
+kind: ChartProfile
 metadata:
   name: outrider
   description: "Outrider: propagates annotated secrets to downstream clusters"

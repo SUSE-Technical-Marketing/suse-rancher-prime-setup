@@ -1,0 +1,11 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: ollama
+  description: "Ollama, from the Application Collection (apps/appco/ollama)"
+spec:
+  icon: bot
+  labels:
+    needs-ollama: "true"
+  annotations:
+    hosted-domain: "{{ lab.domain }}"

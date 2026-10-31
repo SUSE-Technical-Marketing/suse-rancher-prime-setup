@@ -35,6 +35,8 @@ export class HarvesterCluster extends pulumi.ComponentResource {
     readonly provider: k8s.Provider;
     /** Rancher's management cluster id (`c-m-...`). */
     readonly clusterId: pulumi.Output<string>;
+    /** Its kubeconfig through Rancher (secret), for checks the provider can't make (a webhook's admission). */
+    readonly kubeconfig: pulumi.Output<string>;
 
     constructor(name: string, args: HarvesterClusterArgs, opts?: pulumi.ComponentResourceOptions) {
         super("lab:rancher:HarvesterCluster", name, {}, opts);
@@ -79,6 +81,7 @@ export class HarvesterCluster extends pulumi.ComponentResource {
         this.cluster = built.cluster;
         this.provider = built.provider;
         this.clusterId = built.clusterId;
+        this.kubeconfig = built.kubeconfig;
         this.registerOutputs({});
     }
 }

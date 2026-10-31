@@ -27,6 +27,7 @@ function catalogDocuments(catalog: Record<string, any> = {}): object[] {
     for (const [name, selector] of Object.entries<any>(catalog.fleet?.groups ?? {})) docs.push(doc("ClusterGroup", name, { selector }));
     for (const [name, repo] of Object.entries<any>(catalog.fleet?.repos ?? {})) docs.push(doc("FleetRepo", name, repo));
     for (const [name, op] of Object.entries<any>(catalog.fleet?.helmOps ?? {})) docs.push(doc("FleetHelmOp", name, op));
+    for (const [name, p] of Object.entries<any>(catalog.fleet?.profiles ?? {})) docs.push(doc("FleetProfile", name, p));
     for (const [name, os] of Object.entries<any>(catalog.os ?? {})) {
         const { displayName, ...rest } = os;
         docs.push(doc("OperatingSystem", name, rest, displayName));

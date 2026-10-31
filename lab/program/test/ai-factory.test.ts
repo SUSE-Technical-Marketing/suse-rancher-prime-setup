@@ -61,6 +61,13 @@ describe("ai-factory", () => {
         expect(values.appCatalog).toEqual({ useStaticCatalog: false });
     }, 30000);
 
+    it("installs Traefik from its ChartProfile: the Gateway API CRDs, then its chart", async () => {
+        expect(registered.find(r => r.type === "kubernetes:yaml/v2:ConfigFile" && r.name === "rancher/traefik/gateway-api")?.inputs.file).toMatch(/standard-install\.yaml$/);
+        expect(registered.find(r => r.type === "kubernetes:helm.sh/v3:Release" && r.name === "rancher/traefik/chart")?.inputs).toMatchObject({
+            name: "traefik", namespace: "traefik",
+        });
+    });
+
     it("creates Fleet's suse-observability HelmOp next to the GitRepos", async () => {
         const op = registered.find(r => r.type === "kubernetes:fleet.cattle.io/v1alpha1:HelmOp");
         expect(op, registered.filter(r => r.type.includes("fleet")).map(r => `${r.type} ${r.name}`).join(", ")).toBeDefined();

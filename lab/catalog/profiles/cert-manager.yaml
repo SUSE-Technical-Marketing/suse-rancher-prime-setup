@@ -1,5 +1,5 @@
 apiVersion: lab.geeko.me/v1alpha1
-kind: Profile
+kind: ChartProfile
 metadata:
   name: cert-manager
   description: cert-manager with Let's Encrypt issuers (Cloudflare DNS-01) and a wildcard certificate for the host
@@ -14,6 +14,43 @@ spec:
         dns01RecursiveNameservers: "8.8.8.8:53,1.1.1.1:53"
       lockedValues:
         crds: { enabled: true }
+  # Built after the chart, each after the one before. Names (state) as when this profile was code:
+  # kept, so a running lab doesn't replace them.
+  objects:
+    # The DNS-01 token, from the lab's tls.cloudflare (a secret template, filled in when it's built).
+    - name: cloudflare-token
+      object:
+        apiVersion: v1
+        kind: Secret
+        metadata: { name: cloudflare-api-token, namespace: cert-manager }
+        stringData: { api-token: "{{ lab.tls.cloudflare }}" }
+    # An issuer for the lab's ACME server (tls.acme), named after it, solving DNS-01 with Cloudflare.
+    - name: "{{ lab.tls.acme }}"
+      object:
+        apiVersion: cert-manager.io/v1
+        kind: ClusterIssuer
+        metadata: { name: "{{ lab.tls.acme }}" }
+        spec:
+          acme:
+            server: "{{ lab.tls.url }}"
+            email: "{{ lab.tls.email }}"
+            privateKeySecretRef: { name: "{{ lab.tls.acme }}" }
+            solvers:
+              - dns01: { cloudflare: { apiTokenSecretRef: { name: cloudflare-api-token, key: api-token } } }
+    # The host's wildcard certificate (the tls output's secretName), labelled for Sprouter so it
+    # lands in every namespace. The profile is ready once it's issued.
+    - name: wildcard
+      object:
+        apiVersion: cert-manager.io/v1
+        kind: Certificate
+        metadata: { name: wildcard-cert, namespace: cert-manager }
+        spec:
+          secretName: wildcard-cert
+          secretTemplate: { labels: { sprouter.geeko.me/enabled: "true" } }
+          dnsNames: [ "*.{{ target.fqdn }}", "{{ target.fqdn }}" ]
+          issuerRef: { name: "{{ lab.tls.acme }}", kind: ClusterIssuer }
+      wait: { condition: Ready, timeout: certificate }
+  aliases: [ lab:apps:CertManager ]
   requires: [ kubernetes ]
   provides: [ tls ]
   outputs:

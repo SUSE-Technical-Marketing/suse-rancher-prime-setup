@@ -16,7 +16,21 @@ export interface SettingSchema {
     additionalProperties?: boolean | SettingSchema;
 }
 
+/** A Fleet profile: labels and annotations for a downstream cluster, which Fleet installs from. */
+export interface FleetProfileInfo {
+    name: string;
+    description: string;
+    icon?: string;
+    labels: Record<string, string>;
+    annotations: Record<string, string>;
+    requires: string[];
+    provides: string[];
+    conflicts: string[];
+}
+
 export interface CatalogProfile {
+    /** `custom`: a Profile, code in the engine, lab hosts only; `chart`: a ChartProfile, hosts and downstream clusters. */
+    kind: "custom" | "chart";
     name: string;
     description: string;
     /** A Lucide icon name. */
@@ -44,11 +58,27 @@ export interface PersonalSecret {
     fields?: string[];
 }
 
+export interface HostRecipe {
+    name: string;
+    label: string;
+    description: string;
+    icon?: string;
+    kind: "HarvesterVM" | "Machine";
+    /** The new host's name, before it's made unique. */
+    hostName: string;
+    host: { cpu?: number; memory?: string; disk?: string; os?: string; profiles: Record<string, Record<string, unknown>> };
+}
+
 export interface Catalog {
     /** `ami`: it can boot EC2 machines. */
     os: { name: string; displayName: string; family: string; image: string; ami: boolean }[];
     profiles: CatalogProfile[];
+    fleetProfiles: FleetProfileInfo[];
     acme: string[];
+    /** Standard hosts for the palette (HostRecipe documents): what dropping one adds. */
+    recipes: HostRecipe[];
+    /** HaulManifests, for the hauler profiles' `manifests`. */
+    haulManifests: { name: string; description?: string }[];
     fleetRepos: { name: string; description?: string; default: boolean }[];
     /** Inputs of the catalog's secrets and configmaps, by name. */
     inputs: Record<string, SecretShape>;
@@ -77,6 +107,8 @@ export interface CheckResult {
     diagnostics: Diagnostic[];
     missingSecrets: string[];
     plan?: string;
+    /** The Lab document as templates see it (`lab`), its references filled in. */
+    lab?: { name?: string; spec?: unknown };
 }
 
 async function call<T>(method: string, url: string, body?: unknown): Promise<T> {

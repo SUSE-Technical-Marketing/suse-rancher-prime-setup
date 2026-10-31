@@ -74,12 +74,12 @@ spec:
   rancher: odin
   harvester: asgard
   distro: k3s
-  # needs-traefik: Fleet's apps/base/traefik installs Traefik, so k3s's own is turned off.
-  # ServiceLB stays on. SUSE Observability's volumes use longhorn-single: needs-longhorn installs
-  # Longhorn (apps/platform), needs-storage the storage class (apps/base).
-  labels:
-    needs-observability: "true"
-    needs-storage: "true"
+  # Fleet's Traefik (the traefik Fleet profile) replaces k3s's own, which is turned off below.
+  # ServiceLB stays on. SUSE Observability's volumes use storage's longhorn-single class.
+  fleetProfiles:
+    traefik: {}
+    storage: {}
+    observability: {}
   annotations:
     hosted-domain: "{{ lab.domain }}"
   machineGlobalConfig:
@@ -113,9 +113,9 @@ spec:
       memory: 16Gi
       disk: 100Gi
       network: vlan20
-  labels:
-    needs-storage: "true"
-    needs-security: "true"
+  fleetProfiles:
+    storage: {}
+    security: {}
   annotations:
     hosted-domain: "{{ lab.domain }}"
 ---
@@ -144,6 +144,7 @@ spec:
         - controlplane
         - worker
   annotations:
-    hosted-domain: "{{ lab.domain }} "
-  labels:
-    has-gpu: nvidia
+    hosted-domain: "{{ lab.domain }}"
+  profiles: {}
+  fleetProfiles:
+    gpu-operator: {}

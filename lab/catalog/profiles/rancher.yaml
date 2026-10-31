@@ -14,6 +14,15 @@ spec:
       lockedValues:
         replicas: 1
         hostname: "{{ settings.hostname }}.{{ host.fqdn }}"
+        # The exposure setting: a Gateway on the host's GatewayClass and HTTPRoutes, or an Ingress;
+        # auto picks the Gateway API when the host has it.
+        networkExposure:
+          type: "{{ settings.exposure if settings.exposure != 'auto' else ('gateway' if outputs['gateway-api'] else 'ingress') }}"
+        gateway:
+          gatewayClass:
+            name: "{{ outputs['gateway-api'].gatewayClassName if outputs['gateway-api'] else '' }}"
+            tls: { source: secret, secretName: "{{ outputs.tls.secretName }}" }
+        # Its tls.source also decides how Rancher treats its CA, in either mode.
         ingress:
           ingressClassName: "{{ outputs.ingress.ingressClassName }}"
           tls: { source: secret, secretName: "{{ outputs.tls.secretName }}" }
@@ -25,8 +34,10 @@ spec:
       namespace: cattle-ai-agent-system
       when: "{{ settings.liz | default(false) }}"
   requires: [ kubernetes, ingress, tls, secret-propagation ]
-  # A SecretTemplate for Fleet can require Outrider; build it first.
-  uses: [ downstream-secrets ]
+  # A SecretTemplate for Fleet can require Outrider; build it first. The Gateway API when exposed on it.
+  uses: [ downstream-secrets, gateway-api ]
+  requiresWhen:
+    - { field: exposure, equals: gateway, capability: gateway-api }
   secretFields: [ adminPassword ]
   settings:
     type: object
@@ -38,6 +49,10 @@ spec:
         default: rancher
         description: "First label of Rancher's name: <hostname>.<host>.<domain>"
       adminPassword: { $ref: secretOrString }
+      exposure:
+        enum: [ auto, gateway, ingress ]
+        default: auto
+        description: "How Rancher is reached: gateway (a Gateway and HTTPRoutes), ingress (an Ingress), or auto: gateway when the host has the Gateway API"
       plugins:
         description: UI plugins by name (versions from the catalog), or name -> version; default the catalog's set
         anyOf:

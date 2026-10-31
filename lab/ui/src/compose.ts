@@ -35,6 +35,24 @@ export function defaultNetwork(harvester?: string): string {
 /** `network` for a host or pool on a Harvester: left out when it's the default. */
 const networkOn = (harvester: string, network?: string) => (network && network !== defaultNetwork(harvester) ? { network } : {});
 
+/**
+ * Add the host a catalog HostRecipe describes: its size, OS (default the composer's) and profiles,
+ * each profile's settings over what the personal config can fill in (Rancher's admin password). A
+ * VM goes on `on` (the Harvester, and network lane, it was dropped on) or the first Harvester.
+ */
+export function addRecipe(name: string, on?: string, network?: string) {
+    const r = catalog.value?.recipes.find(x => x.name === name);
+    if (!r) return;
+    const { profiles, os, ...size } = r.host;
+    const host = {
+        os: os ?? defaultOs(),
+        profiles: Object.fromEntries(Object.entries(profiles).map(([p, settings]) => [p, { ...profileDefaults(p), ...settings }])),
+    };
+    if (r.kind === "Machine") return addDoc("Machine", freeName("Machine", r.hostName), { address: "", ...host });
+    const harvester = on ?? firstOf("Harvester");
+    return addDoc("HarvesterVM", freeName("HarvesterVM", r.hostName), { harvester, ...networkOn(harvester, network), ...size, ...host });
+}
+
 /** Add a block; `on` is the Harvester (and network lane) or AWS site it was dropped on. */
 export function addBlock(block: Block, on?: string, network?: string) {
     const harvester = on ?? firstOf("Harvester");
@@ -44,11 +62,6 @@ export function addBlock(block: Block, on?: string, network?: string) {
             return addDoc("Harvester", freeName("Harvester", catalog.value?.personal.harvesters.find(h => !views.value.some(v => v.kind === "Harvester" && v.metadata?.name === h)) ?? "harvester"), { networks: { vlans: [] } });
         case "HarvesterVM":
             return addDoc("HarvesterVM", freeName("HarvesterVM", "vm"), { harvester, ...net, os: defaultOs(), profiles: {} });
-        case "RancherVM":
-            return addDoc("HarvesterVM", freeName("HarvesterVM", "rancher"), {
-                harvester, ...net, os: defaultOs(), memory: "16Gi", disk: "100Gi",
-                profiles: { k3s: {}, "cert-manager": {}, sprouter: {}, traefik: {}, outrider: {}, rancher: profileDefaults("rancher") },
-            });
         case "Machine":
             return addDoc("Machine", freeName("Machine", "machine"), { address: "", os: defaultOs(), profiles: {} });
         case "DownstreamCluster":
@@ -91,7 +104,7 @@ export function addK3k(parent: string) {
     addDoc("DownstreamCluster", freeName("DownstreamCluster", "virtual"), { type: "k3k", rancher, parent });
 }
 
-/** A profile dropped on a host. */
+/** A profile dropped on a host, or a ChartProfile on a downstream cluster. */
 export function addProfile(index: number, name: string) {
     const host = views.value[index];
     if (!host || host.spec?.profiles?.[name]) return;
@@ -119,4 +132,14 @@ export const runsKubernetes = (index: number) =>
 export function canBeNode(index: number): boolean {
     const name = views.value[index]?.metadata?.name;
     return !runsKubernetes(index) && !views.value.some(d => d.kind === "DownstreamCluster" && d.spec?.type === "metal" && (d.spec?.nodes ?? []).some((n: { host?: string }) => n.host === name));
+}
+
+/** A Fleet profile dropped on a downstream cluster: its labels and annotations go on the cluster. */
+export function addFleetProfile(index: number, name: string) {
+    if (views.value[index]?.spec?.fleetProfiles?.[name]) return;
+    set(index, ["spec", "fleetProfiles", name], {});
+}
+
+export function removeFleetProfile(index: number, name: string) {
+    set(index, ["spec", "fleetProfiles", name], undefined);
 }

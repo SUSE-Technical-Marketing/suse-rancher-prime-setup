@@ -1,0 +1,13 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: security
+  description: "SUSE Security (NeuVector), signed in through the cluster's Rancher (apps/platform/suse-security)"
+spec:
+  icon: shield-check
+  labels:
+    needs-security: "true"
+  annotations:
+    hosted-domain: "{{ lab.domain }}"
+    rancher-host: "{{ cluster.rancher }}"
+  requires: [ block-storage ]

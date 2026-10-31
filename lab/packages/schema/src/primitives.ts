@@ -28,7 +28,7 @@ export const TIMEOUTS = [
     "harvesterAddon", "image", "vmStart", "vmAddress", "cloudInit", "loadBalancerCleanup",
     "kubernetesApi", "resourceReady", "certificate",
     "rancherReady", "uiPlugin", "harvesterImport", "clusterRegistration", "downstreamReady", "downstreamDelete",
-    "helmJobWatch",
+    "helmJobWatch", "haulerSync",
 ] as const;
 export type TimeoutName = (typeof TIMEOUTS)[number];
 

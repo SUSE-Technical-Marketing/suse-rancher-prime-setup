@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { addBlock, addK3k, addNode, addProfile, canBeNode, defaultNetwork, removeProfile, runsKubernetes } from "../compose";
+import { addBlock, addFleetProfile, addK3k, addNode, addProfile, addRecipe, canBeNode, removeFleetProfile, defaultNetwork, removeProfile, runsKubernetes } from "../compose";
 import { dragging, end, start, target, type Payload } from "../dnd";
 import { catalog, file, problems, removeDoc, selected, views } from "../store";
 import { kindOf, type Category } from "../kinds";
@@ -20,7 +20,7 @@ const W = 184, H = 84, GAP_X = 52, GAP_Y = 30, PAD = 20, TOP = PAD + H + 32;
 const TOKEN = 26, TOKEN_GAP = 4;
 
 type EdgeKind = "runs" | "manages" | "node" | "inside";
-interface Box { index: number; key: string; kind: string; category?: Category; icon?: string; label: string; title: string; sub: string; chips: string[]; profiles: string[]; col: number; x: number; y: number }
+interface Box { index: number; key: string; kind: string; category?: Category; icon?: string; label: string; title: string; sub: string; chips: string[]; profiles: string[]; fleet: string[]; col: number; x: number; y: number }
 
 const docs = computed(() => views.value.map((v, index) => ({ v, index })));
 const name = (d: { v: { metadata?: { name?: string } } }) => d.v.metadata?.name ?? "";
@@ -37,10 +37,14 @@ function columnOf(d: { v: { kind?: string; spec?: any } }): number {
   }
 }
 
-function describe(d: { v: any; index: number }): Pick<Box, "label" | "title" | "sub" | "chips" | "profiles"> {
+function describe(d: { v: any; index: number }): Pick<Box, "label" | "title" | "sub" | "chips" | "profiles" | "fleet"> {
   const base = describeBox(d);
   const host = d.v.kind === "HarvesterVM" || d.v.kind === "Machine";
-  return { ...base, chips: host ? [] : base.chips, profiles: host ? Object.keys(d.v.spec?.profiles ?? {}) : [] };
+  const cluster = d.v.kind === "DownstreamCluster";
+  const fleet = cluster ? Object.keys(d.v.spec?.fleetProfiles ?? {}) : [];
+  // A host's profiles, or a cluster's ChartProfiles: round tokens; a cluster's Fleet profiles square ones after them.
+  const profiles = host || cluster ? Object.keys(d.v.spec?.profiles ?? {}) : [];
+  return { ...base, chips: host || profiles.length || fleet.length ? [] : base.chips, profiles, fleet };
 }
 
 function describeBox(d: { v: any; index: number }): Pick<Box, "label" | "title" | "sub" | "chips"> {
@@ -251,28 +255,41 @@ function onKey(e: KeyboardEvent, b: Box) {
 // --- Dropping palette blocks and profiles ----------------------------------------------------------
 const over = ref<number | "canvas">();
 const accepts = (b: Box, p: Payload) => {
-  if (p.type === "profile") return (b.kind === "HarvesterVM" || b.kind === "Machine") && p.from !== b.index && !b.profiles.includes(p.name);
+  if (p.type === "profile") {
+    if (p.from === b.index || b.profiles.includes(p.name)) return false;
+    if (b.kind === "HarvesterVM" || b.kind === "Machine") return true;
+    // A downstream cluster takes ChartProfiles; a Profile (code in the engine) is for lab hosts.
+    return b.kind === "DownstreamCluster" && catalog.value?.profiles.find(x => x.name === p.name)?.kind === "chart";
+  }
+  if (p.type === "fleet") return b.kind === "DownstreamCluster" && p.from !== b.index && !b.fleet.includes(p.name);
   if (p.type === "block") {
-    if (b.kind === "Harvester") return ["HarvesterVM", "RancherVM", "DownstreamCluster"].includes(p.block);
+    if (b.kind === "Harvester") return ["HarvesterVM", "DownstreamCluster"].includes(p.block);
     if (b.kind === "AwsSite") return p.block === "Ec2Cluster" || p.block === "EksCluster";
     if (b.kind === "DownstreamCluster") return p.block === "K3kCluster" && !b.label.startsWith("k3k");
     if (b.kind === "HarvesterVM" || b.kind === "Machine") return p.block === "MetalCluster" && canBeNode(b.index);
   }
+  if (p.type === "recipe") return b.kind === "Harvester" && catalog.value?.recipes.find(r => r.name === p.name)?.kind === "HarvesterVM";
   if (p.type === "host") return b.label.startsWith("metal") && !runsKubernetes(p.index);
   return false;
 };
 const dropOn = (b: Box) => target(p => accepts(b, p), p => {
   if (p.type === "profile") { addProfile(b.index, p.name); if (p.from !== undefined) removeProfile(p.from, p.name); }
+  else if (p.type === "fleet") { addFleetProfile(b.index, p.name); if (p.from !== undefined) removeFleetProfile(p.from, p.name); }
   else if (p.type === "block" && b.kind === "Harvester") addBlock(p.block, b.title, defaultNetwork(b.title));
   else if (p.type === "block" && b.kind === "AwsSite") addBlock(p.block, b.title);
   else if (p.type === "block" && (b.kind === "HarvesterVM" || b.kind === "Machine")) addBlock(p.block, b.title);
   else if (p.type === "block") addK3k(b.title);
+  else if (p.type === "recipe") addRecipe(p.name, b.title, defaultNetwork(b.title));
   else if (p.type === "host") addNode(b.index, views.value[p.index]?.metadata?.name ?? "");
 }, on => (over.value = on ? b.index : undefined));
-const onCanvas = target(p => p.type === "block", p => { if (p.type === "block") addBlock(p.block); }, on => (over.value = on ? "canvas" : undefined));
+const onCanvas = target(p => p.type === "block" || p.type === "recipe", p => {
+  if (p.type === "block") addBlock(p.block);
+  else if (p.type === "recipe") addRecipe(p.name);
+}, on => (over.value = on ? "canvas" : undefined));
 const wants = (b: Box) => !!dragging.value && accepts(b, dragging.value);
 const badge = (i: number) => problems.value[i];
 const profileInfo = (name: string) => catalog.value?.profiles.find(p => p.name === name)?.description ?? "not in the catalog";
+const fleetInfo = (name: string) => catalog.value?.fleetProfiles.find(p => p.name === name)?.description ?? "not in the catalog";
 </script>
 
 <template>
@@ -326,10 +343,17 @@ const profileInfo = (name: string) => catalog.value?.profiles.find(p => p.name =
           <span
             v-for="(p, i) in b.profiles" :key="p" class="gtoken" draggable="true"
             :style="{ left: `${b.x + 10 + i * (TOKEN + TOKEN_GAP)}px`, top: `${b.y + H - TOKEN / 2}px` }"
-            :title="`${p}: ${profileInfo(p)}\ndrag to another host, or back to the palette to remove`"
+            :title="`${p}: ${profileInfo(p)}\ndrag to another host (or cluster, for a ChartProfile), or back to the palette to remove`"
             @dragstart="start($event, { type: 'profile', name: p, from: b.index })" @dragend="end"
             @click="emit('select', b.index)"
           ><ProfileIcon :name="p" :size="TOKEN" /></span>
+          <span
+            v-for="(p, i) in b.fleet" :key="`f-${p}`" class="gtoken fleet" draggable="true"
+            :style="{ left: `${b.x + 10 + (b.profiles.length + i) * (TOKEN + TOKEN_GAP)}px`, top: `${b.y + H - TOKEN / 2}px` }"
+            :title="`${p} (Fleet profile): ${fleetInfo(p)}\ndrag to another cluster, or back to the palette to remove`"
+            @dragstart="start($event, { type: 'fleet', name: p, from: b.index })" @dragend="end"
+            @click="emit('select', b.index)"
+          ><ProfileIcon :name="p" :size="TOKEN" fleet /></span>
         </template>
         <p v-if="boxes.length <= 1" class="graph-empty" :style="{ top: `${TOP}px`, left: `${PAD}px` }">Drag a Harvester or a Machine here to start.</p>
       </div>
@@ -379,6 +403,7 @@ const profileInfo = (name: string) => catalog.value?.profiles.find(p => p.name =
 .gchips { display: flex; gap: 4px; overflow: hidden; white-space: nowrap; mask-image: linear-gradient(to right, black 85%, transparent); }
 .gchip { font-size: 11px; padding: 0 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel-2); cursor: grab; }
 .graph-empty { position: absolute; margin: 0; color: var(--muted); }
+.gtoken.fleet { border-radius: 28%; }
 .gtoken { position: absolute; z-index: 1; display: inline-flex; border-radius: 50%; cursor: grab; box-shadow: 0 0 0 2px var(--panel-2); }
 .gtoken:hover { transform: scale(1.12); }
 .hint { font-style: italic; }

@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { CatalogLayer, ResolvedCatalog, resolveCatalog } from "./catalog";
 import { Diagnostics } from "./diagnostics";
 import type { LabRefs } from "./lab-refs";
-import { CatalogDocument, docAt, documentsLayer, FileKind, LabDocument, LabKind, parseDocuments } from "./documents";
+import { CatalogDocument, docAt, documentsLayer, FileKind, LabDocument, LabKind, parseDocuments, type PersonalVars } from "./documents";
 import { resolveLab, ResolveResult } from "./resolve";
 import { LabFile, LabSpec, PersonalConfig } from "./schema";
 
@@ -71,8 +71,9 @@ export interface ConfigFile<T> {
 function loadConfigFile<T>(
     source: string, text: string, kind: FileKind, diags: Diagnostics,
     toValue: (main: { name: string; spec: unknown }) => { ok: true; value: T; include: string[] } | { ok: false },
+    personal?: PersonalVars,
 ): ConfigFile<T> | undefined {
-    const parsed = parseDocuments(text, source, diags, kind);
+    const parsed = parseDocuments(text, source, diags, kind, {}, personal);
     if (!parsed.main) {
         if (diags.ok) diags.error(source, "", `must start with a document of kind: ${kind}`);
         return undefined;
@@ -106,7 +107,8 @@ export function loadPersonal(source: string, diags: Diagnostics): ConfigFile<Per
 /** Where each of a lab's Harvesters, hosts and clusters is defined, for messages. */
 type LabIndex = Map<string, { kind: LabKind; name: string; source: string }>;
 
-function loadLabFile(source: string, text: string, diags: Diagnostics): (ConfigFile<LabFile> & { index: LabIndex }) | undefined {
+/** A lab file; `personal`: the personal config's `vars`, defaults for the lab's. */
+function loadLabFile(source: string, text: string, diags: Diagnostics, personal?: PersonalVars): (ConfigFile<LabFile> & { index: LabIndex }) | undefined {
     const file = loadConfigFile<LabSpec>(source, text, "Lab", diags, ({ name, spec }) => {
         if (!name) {
             diags.error(source, "metadata.name", "required: the lab's name");
@@ -118,7 +120,7 @@ function loadLabFile(source: string, text: string, diags: Diagnostics): (ConfigF
             return { ok: false };
         }
         return { ok: true, value: { ...parsed.data, lab: name } as LabSpec & { lab: string }, include: parsed.data.include };
-    });
+    }, personal);
     if (!file) return undefined;
     // The lab's own documents, by the section of the lab they fill. Hosts of both kinds share names.
     const lab = { ...(file.value as LabSpec & { lab: string }), harvesters: {}, awsSites: {}, hosts: {}, downstream: {} } as LabFile;
@@ -198,7 +200,7 @@ export function loadCatalog(opts: Omit<LoadOptions, "labFile"> & { labFile?: str
     const personal = opts.withoutPersonal ? undefined : loadPersonal(personalSource, diags);
     if (personal) layers.push(...personal.layers);
     if (opts.labFile) {
-        const lab = loadLabFile(opts.labFile, fs.readFileSync(opts.labFile, "utf8"), diags);
+        const lab = loadLabFile(opts.labFile, fs.readFileSync(opts.labFile, "utf8"), diags, personal && { vars: personal.value.vars, source: personalSource });
         if (lab) layers.push(...lab.layers);
     }
     if (!diags.ok) return { diagnostics: diags };
@@ -225,8 +227,9 @@ export function loadLab(opts: LoadOptions): LoadResult {
     } catch (e) {
         diags.error(labSource, "", `can't read lab file: ${(e as Error).message}`);
     }
-    const lab = labText === undefined ? undefined : loadLabFile(labSource, labText, diags);
+    // The personal config first: its vars are defaults for the lab's.
     const personal = loadPersonal(personalSource, diags);
+    const lab = labText === undefined ? undefined : loadLabFile(labSource, labText, diags, personal && { vars: personal.value.vars, source: personalSource });
     const builtin = loadBuiltinCatalog(opts.catalogDir ?? BUILTIN_CATALOG_DIR, diags);
 
     if (!lab || !personal || !diags.ok) {

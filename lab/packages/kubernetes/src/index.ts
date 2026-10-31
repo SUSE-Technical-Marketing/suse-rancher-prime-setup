@@ -4,3 +4,4 @@ export * from "./cluster";
 export * from "./helm";
 export * from "./kube-ops";
 export * from "./objects";
+export * from "./hauler";

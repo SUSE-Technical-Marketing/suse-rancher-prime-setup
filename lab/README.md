@@ -128,7 +128,18 @@ Any value in the lab's own documents can also refer to the Lab document, as `lab
 `hosted-domain: "{{ lab.domain }}"` on a cluster. `validate` rejects a reference to anything the Lab
 document doesn't have (`lab.spec.domain`, a typo), so none is left in the lab as text. Values of
 your own go under `vars` in the Lab document, any keys: `vars: { team: tmm }`, then
-`"{{ lab.vars.team }}"`; profiles and cloud-init can use them too.
+`"{{ lab.vars.team }}"`; profiles and cloud-init can use them too. Your personal config can have
+`vars:` as well: defaults for every lab, merged under the lab's own key by key, so a lab can
+override any of them (`vars: { owner: "me@{{ lab.domain }}", dns: { zone: geeko.me } }`). Lab values can build on each
+other at any depth (`b: "{{ lab.vars.a }}-y"`, `c: "{{ lab.vars.b }}-z"`); a circle is reported with
+its links. A value can mix both kinds (`"{{ secrets.k }}@{{ lab.domain }}"`): the lab part is filled
+in, the secret when the lab is built. Secrets only get their values in secret fields and chart
+values; `validate` reports one anywhere else (an annotation), where it would end up as text.
+
+In the lab composer, typing `{{` in any text box (form fields and the YAML) offers what can follow:
+`lab.…` from the Lab document, with its values, and `secrets.…` from the personal config, by name
+and shape only. ↑/↓ choose, Enter or Tab take one (a map goes one level down, a value closes the
+`}}`), Esc closes the list.
 
 ## Catalog: the defaults
 
@@ -142,6 +153,9 @@ directories by kind (the directories don't matter to the loader; the `kind` does
 | `Defaults` | what the engine uses where a lab doesn't say: the SSH user, a VM's size, Harvester's cluster network and storage class, and how long each step may take | `defaults.yaml` |
 | `HelmChart` | a chart: repo, chart, version, default namespace | `charts/` |
 | `Manifest` | a manifest URL template and its version (Gateway API) | `charts/` |
+| `Binary` | a release tarball a host downloads (Hauler, lego): URL template and version | `binaries/` |
+| `HaulManifest` | what a Hauler store holds: images, charts, files | `hauler/` |
+| `HostRecipe` | a standard host for the composer's palette (Rancher VM, Registry VM): its kind, size, OS and profiles; add your own in the personal config or an included catalog | `recipes/` |
 | `Profile` | what you can put on a host under `profiles:`, with its rules and settings | `profiles/` |
 | `SecretTemplate`, `ConfigMapTemplate` | Secrets/ConfigMaps built from `inputs` | `secrets/`, `configmaps/` |
 | `FleetRepo`, `ClusterGroup` | Fleet GitRepos and the groups they target | `fleet/` |

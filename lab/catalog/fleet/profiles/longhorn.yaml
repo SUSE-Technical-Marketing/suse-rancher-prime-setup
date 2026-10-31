@@ -1,0 +1,13 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: longhorn
+  description: "Longhorn from its upstream chart (apps/platform/longhorn)"
+spec:
+  icon: hard-drive-download
+  labels:
+    needs-longhorn: "true"
+  annotations:
+    hosted-domain: "{{ lab.domain }}"
+  provides: [ block-storage ]
+  conflicts: [ block-storage ]

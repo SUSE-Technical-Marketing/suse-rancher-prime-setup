@@ -2,15 +2,22 @@ apiVersion: lab.geeko.me/v1alpha1
 kind: Profile
 metadata:
   name: hauler
-  description: Hauler registry for air-gapped installs; on Kubernetes if the host has it, else as a systemd service
+  description: Hauler registry as systemd services, its store synced from HaulManifests; TLS from lego (DNS-01)
 spec:
   icon: truck                # in the lab UI (lucide.dev/icons)
+  # On Kubernetes, hauler-chart does this with the official chart.
   provides: [ registry ]
+  conflicts: [ registry ]
   settings:
     type: object
     properties:
+      # The hauler Binary's version (catalog/binaries/hauler.yaml) unless set.
+      version: { type: string }
+      # HaulManifests (catalog/hauler/, or a lab's own) the store syncs.
       manifests:
         type: array
-        items: { type: string }
+        items: { $ref: haulManifest }
         default: []
-      port: { type: integer, minimum: 1, maximum: 65535 }
+      port: { type: integer, minimum: 1, maximum: 65535, default: 5000 }
+      # Serve the store's files too, on this port.
+      fileserverPort: { type: integer, minimum: 1, maximum: 65535 }

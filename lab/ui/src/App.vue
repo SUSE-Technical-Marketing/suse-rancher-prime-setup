@@ -9,6 +9,7 @@ import HarvesterEditor from "./components/HarvesterEditor.vue";
 import HostEditor from "./components/HostEditor.vue";
 import LabEditor from "./components/LabEditor.vue";
 import Palette from "./components/Palette.vue";
+import RefComplete from "./components/RefComplete.vue";
 import SidePane from "./components/SidePane.vue";
 import GraphCanvas from "./components/GraphCanvas.vue";
 import KindIcon from "./components/KindIcon.vue";
@@ -171,6 +172,7 @@ window.addEventListener("beforeunload", e => { if (dirty.value) e.preventDefault
       <button v-if="status.text" type="button" class="status" :class="status.cls" title="Show the problems" @click="showProblems">{{ status.text }}</button>
     </header>
     <p v-if="error" class="banner">{{ error }} <button type="button" class="icon" @click="error = ''">×</button></p>
+    <RefComplete v-if="catalog" />
     <main v-if="catalog" class="layout">
       <Palette />
       <section class="center">

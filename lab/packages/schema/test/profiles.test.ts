@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { BUILTIN_CATALOG_DIR, generateProfileSettingsTs, loadCatalog, loadLab } from "../src";
+import { activeRequirements, BUILTIN_CATALOG_DIR, generateProfileSettingsTs, loadCatalog, loadLab } from "../src";
 
 const GENERATED = path.resolve(__dirname, "..", "..", "..", "program", "generated", "profile-settings.ts");
 const noPersonal = path.join(os.tmpdir(), "lab-no-such-config.yaml");
@@ -12,7 +12,7 @@ describe("profiles in the catalog", () => {
         const { catalog, diagnostics } = loadCatalog({ personalConfig: noPersonal });
         expect(diagnostics.errors).toEqual([]);
         expect(Object.keys(catalog!.profiles).sort()).toEqual([
-            "ai-factory", "cert-manager", "harvester-cloud-provider", "hauler", "k3s", "metallb", "mlm-client", "mlm-server",
+            "ai-factory", "cert-manager", "harvester-cloud-provider", "hauler", "hauler-chart", "k3s", "metallb", "mlm-client", "mlm-server",
             "outrider", "rancher", "rke2", "sprouter", "traefik",
         ]);
         expect(catalog!.profiles.rancher).toMatchObject({ requires: ["kubernetes", "ingress", "tls", "secret-propagation"], chart: "rancher" });
@@ -33,12 +33,16 @@ describe("profiles in the catalog", () => {
         ]);
         expect(catalog!.profiles.rancher).toMatchObject({
             chart: "rancher",
-            protectedValues: ["replicas", "hostname", "ingress.ingressClassName", "ingress.tls.source", "ingress.tls.secretName", "privateCA", "agentTLSMode"],
+            protectedValues: [
+                "replicas", "hostname", "networkExposure.type", "gateway.gatewayClass.name", "gateway.gatewayClass.tls.source", "gateway.gatewayClass.tls.secretName",
+                "ingress.ingressClassName", "ingress.tls.source", "ingress.tls.secretName", "privateCA", "agentTLSMode",
+            ],
         });
         expect(catalog!.profiles.rancher.outputs).toBeUndefined();
         expect(catalog!.profiles.traefik).toMatchObject({
             protectedValues: ["providers.kubernetesGateway.enabled", "service.annotations"],
-            outputs: { ingress: { ingressClassName: "traefik" } },
+            provides: ["ingress", "gateway-api"],
+            outputs: { ingress: { ingressClassName: "traefik" }, "gateway-api": { gatewayClassName: "traefik" } },
         });
         expect(catalog!.profiles.sprouter.charts![0].values).toEqual({ excludedNamespaces: ["kube-system", "kube-public", "cattle-local-user-passwords"] });
         expect(catalog!.profiles.traefik.charts!.map(e => e.chart ?? e.manifest)).toEqual(["gateway-api", "traefik"]);
@@ -74,7 +78,7 @@ describe("profiles in the catalog", () => {
         ].join("\n"));
         const { diagnostics } = loadCatalog({ personalConfig: noPersonal, catalogDir: dir });
         expect(diagnostics.errors.map(d => `${d.path}: ${d.message}`)).toEqual([
-            'Profile/broken.spec.settings.properties.a.$ref: unknown type "nope"; one of dnsLabel, dnsName, quantity, ipv4, url, secretOrString, credentials, chartValues',
+            'Profile/broken.spec.settings.properties.a.$ref: unknown type "nope"; one of dnsLabel, dnsName, quantity, ipv4, url, secretOrString, credentials, chartValues, haulManifest',
             'Profile/broken.spec.settings.properties.b.format: unsupported keyword "format"',
             'Profile/broken.spec.settings.required: "missing" isn\'t one of the settings',
             'Profile/broken.spec.charts[0].chart: no HelmChart "nope"',
@@ -100,12 +104,22 @@ describe("profile templates", () => {
         ].join("\n"));
         const result = loadLab({ labFile, personalConfig: noPersonal, catalogDir: dir });
         expect(result.diagnostics.errors.map(d => `${d.path}: ${d.message}`)).toEqual([
-            "Profile/sprouter.spec.charts[0].lockedValues.a: template: attempted to output null or undefined value (on host vm)",
-            "Profile/sprouter.spec.charts[0].lockedValues.b: template: expected variable end (on host vm)",
+            "ChartProfile/sprouter.spec.charts[0].lockedValues.a: template: attempted to output null or undefined value (on host vm)",
+            "ChartProfile/sprouter.spec.charts[0].lockedValues.b: template: expected variable end (on host vm)",
             // sprouter doesn't require tls: a template only sees the outputs of what its profile waits for.
-            "Profile/sprouter.spec.charts[0].lockedValues.c: template: attempted to output null or undefined value (on host vm)",
+            "ChartProfile/sprouter.spec.charts[0].lockedValues.c: template: attempted to output null or undefined value (on host vm)",
         ]);
         fs.rmSync(dir, { recursive: true, force: true });
         fs.rmSync(tmp, { recursive: true, force: true });
+    });
+});
+
+describe("requiresWhen", () => {
+    it("requires a capability when a setting is set, or has a value", () => {
+        const { catalog } = loadCatalog({ personalConfig: noPersonal });
+        const rancher = catalog!.profiles.rancher;
+        expect(activeRequirements(rancher, { exposure: "gateway" })).toContain("gateway-api");
+        expect(activeRequirements(rancher, { exposure: "auto" })).not.toContain("gateway-api");
+        expect(activeRequirements(rancher, { exposure: "ingress" })).not.toContain("gateway-api");
     });
 });

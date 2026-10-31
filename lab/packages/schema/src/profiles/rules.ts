@@ -21,7 +21,7 @@ function isSet(value: unknown): boolean {
 export function activeRequirements(def: ProfileDefinition, settings: unknown): string[] {
     return [
         ...(def.requires ?? []),
-        ...(def.requiresWhen ?? []).filter(r => isSet(getPath(settings, r.field))).map(r => r.capability),
+        ...(def.requiresWhen ?? []).filter(r => (r.equals === undefined ? isSet(getPath(settings, r.field)) : getPath(settings, r.field) === r.equals)).map(r => r.capability),
     ];
 }
 
@@ -119,18 +119,56 @@ export function checkHostProfiles(ctx: HostRulesContext): void {
             else if (!hostCapabilities(registry, targetProfiles).has(ref.provides)) ctx.error(`${at}.${ref.field}`, `host "${target}" doesn't run ${describe(ref.provides)}`);
         }
 
-        const values = settings.values as Record<string, unknown> | undefined;
-        for (const leaf of values ? valuePaths(values) : []) {
-            const owned = (def.protectedValues ?? []).find(p => leaf === p || leaf.startsWith(`${p}.`) || p.startsWith(`${leaf}.`));
-            if (owned) ctx.error(`${at}.values.${leaf}`, `is set by the lab engine (${owned}); it can't be overridden`);
-        }
+        checkSettings(def, settings, at, ctx);
+    }
+}
 
-        const declared = secretFieldsOf(def);
-        for (const { field, shape } of declared) {
-            ctx.secretField(getPath(settings, field) as string | Credentials | undefined, `${at}.${field}`, shape);
+/** What a profile's settings may not do (override its locked values), and the secrets they use. */
+function checkSettings(def: ProfileDefinition, settings: Record<string, unknown>, at: string, ctx: Pick<HostRulesContext, "error" | "secretField" | "secretTemplate">): void {
+    const values = settings.values as Record<string, unknown> | undefined;
+    for (const leaf of values ? valuePaths(values) : []) {
+        const owned = (def.protectedValues ?? []).find(p => leaf === p || leaf.startsWith(`${p}.`) || p.startsWith(`${leaf}.`));
+        if (owned) ctx.error(`${at}.values.${leaf}`, `is set by the lab engine (${owned}); it can't be overridden`);
+    }
+    const declared = secretFieldsOf(def);
+    for (const { field, shape } of declared) {
+        ctx.secretField(getPath(settings, field) as string | Credentials | undefined, `${at}.${field}`, shape);
+    }
+    // Secrets in other settings (chart values) are string secrets.
+    walkSecretTemplates(settings, at, ctx.secretTemplate, new Set(declared.map(d => `${at}.${d.field}`)));
+}
+
+/** A downstream cluster's capabilities: `kubernetes`, its own, and what its ChartProfiles provide. */
+export function clusterCapabilities(registry: ProfileRegistry, profiles: Profiles): Map<string, string[]> {
+    const caps = hostCapabilities(registry, profiles);
+    caps.set("kubernetes", ["the cluster"]);
+    return caps;
+}
+
+/** Check the ChartProfiles on a downstream cluster against their rules: as on a host, `kubernetes` being the cluster's. */
+export function checkClusterProfiles(ctx: Pick<HostRulesContext, "registry" | "error" | "secretField" | "secretTemplate"> & { cluster: { name: string; profiles: Profiles } }): void {
+    const { cluster, registry } = ctx;
+    const caps = clusterCapabilities(registry, cluster.profiles);
+    const reported = new Set<string>();
+    for (const name of activeProfiles(cluster.profiles)) {
+        const def = registry[name];
+        if (!def) continue;
+        const settings = cluster.profiles[name];
+        const at = `downstream.${cluster.name}.profiles.${name}`;
+        for (const required of activeRequirements(def, settings)) {
+            if ((caps.get(required) ?? []).filter(p => p !== name).length === 0) {
+                ctx.error(at, `needs ${describeCapability(registry, required)} on the same cluster`);
+            }
         }
-        // Secrets in other settings (chart values) are string secrets.
-        walkSecretTemplates(settings, at, ctx.secretTemplate, new Set(declared.map(d => `${at}.${d.field}`)));
+        for (const conflict of def.conflicts ?? []) {
+            for (const other of (caps.get(conflict) ?? []).filter(p => p !== name && p !== "the cluster")) {
+                const key = [name, other].sort().join("+");
+                if (reported.has(key)) continue;
+                reported.add(key);
+                ctx.error(`downstream.${cluster.name}.profiles`, `${[name, other].sort().join(" and ")} can't run on the same cluster`);
+            }
+        }
+        checkSettings(def, settings, at, ctx);
     }
 }
 

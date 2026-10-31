@@ -2,9 +2,11 @@ import { parseAllDocuments } from "yaml";
 import { z } from "zod";
 import { AcmeServerInput, CatalogLayer, DefaultsInput } from "./catalog";
 import { Diagnostics } from "./diagnostics";
-import { ClusterSelector, FleetHelmOpInput, FleetRepoInput } from "./fleet";
-import { LabRefs, labRefsFrom, labRefsOf, renderLabRefs } from "./lab-refs";
+import { ClusterSelector, FleetHelmOpInput, FleetProfileInput, FleetRepoInput } from "./fleet";
+import { haulManifestName, HaulManifestInput } from "./hauler";
+import { LabRefs, labRefsFrom, renderLabRefs, renderLabSpec, withPersonalVars } from "./lab-refs";
 import { ConfigMapInput, SecretInput } from "./objects";
+import { HostRecipeInput } from "./recipes";
 import { awsZone, cidr, dnsLabel, duration, osName, quantity, TIMEOUTS } from "./primitives";
 import { ProfileInput } from "./profiles";
 import { AwsSiteInput, DownstreamInput, HarvesterInput, HarvesterVMSpec, LabSpec, MachineSpec, OsProfileInput, VersionValue } from "./schema";
@@ -52,6 +54,11 @@ export const CATALOG_KINDS = {
         name: dnsLabel,
         spec: z.strictObject({ url: z.string().min(1).optional(), version: VersionValue.optional() }),
     },
+    /** A release tarball a host downloads and unpacks (Hauler, lego): `{version}` and `{arch}` (amd64, arm64) in its URL. */
+    Binary: {
+        name: dnsLabel,
+        spec: z.strictObject({ url: z.string().min(1).optional(), version: VersionValue.optional() }),
+    },
     KubernetesDistribution: {
         name: dnsLabel,
         spec: z.strictObject({
@@ -69,6 +76,16 @@ export const CATALOG_KINDS = {
             dataDir: z.string().min(1).optional(),
             /** Uninstall scripts, run on a metal cluster's existing machines; missing ones are skipped. */
             uninstall: z.array(z.string().min(1)).optional(),
+            /**
+             * Its own ingress controller, when no profile replaces it: the HelmChart the distribution
+             * deploys (`rke2-traefik`) and values for it, set with a HelmChartConfig (its Gateway provider).
+             */
+            ingress: z.strictObject({
+                chart: z.string().min(1),
+                values: z.record(z.string(), z.unknown()).optional(),
+                /** Catalog Manifests applied first: the Gateway API CRDs, where the distribution doesn't ship them (k3s). */
+                manifests: z.array(z.string().min(1)).optional(),
+            }).optional(),
             /** Downstream clusters' default CNI. */
             cni: z.string().min(1).optional(),
         }),
@@ -108,10 +125,16 @@ export const CATALOG_KINDS = {
         }),
     },
     Profile: { name: dnsLabel, spec: ProfileInput },
+    ChartProfile: { name: dnsLabel, spec: ProfileInput },
     SecretTemplate: { name: dnsLabel, spec: ObjectTemplateSpec(true) },
     ConfigMapTemplate: { name: dnsLabel, spec: ObjectTemplateSpec(false) },
     FleetRepo: { name: dnsLabel, spec: FleetRepoInput },
     FleetHelmOp: { name: dnsLabel, spec: FleetHelmOpInput },
+    FleetProfile: { name: dnsLabel, spec: FleetProfileInput },
+    /** A standard host for the composer's palette (a Rancher VM): its kind, size, OS and profiles. */
+    HostRecipe: { name: dnsLabel, spec: HostRecipeInput },
+    /** What a Hauler store holds (images, charts, files), for the hauler profiles' `manifests`. */
+    HaulManifest: { name: haulManifestName, spec: HaulManifestInput },
     ClusterGroup: { name: dnsLabel, spec: z.strictObject({ selector: ClusterSelector.optional() }) },
     UiPluginRepository: {
         name: dnsLabel,
@@ -202,7 +225,10 @@ export interface ParsedFile {
  * Parse a file of documents. `main` says which file kind the first document must be (a lab file
  * starts with `kind: Lab`); every other document is a catalog document.
  */
-export function parseDocuments(text: string, source: string, diags: Diagnostics, main?: FileKind, refs: LabRefs = {}): ParsedFile {
+/** The personal config's `vars` (defaults for a lab's) and its file, for messages. */
+export interface PersonalVars { vars: Record<string, unknown>; source: string }
+
+export function parseDocuments(text: string, source: string, diags: Diagnostics, main?: FileKind, refs: LabRefs = {}, personal?: PersonalVars): ParsedFile {
     const result: ParsedFile = { documents: [], labDocuments: [] };
     // The Lab document's references, rendered in it and in the lab documents after it (§5.1).
     const render = (spec: unknown, at: string) => renderLabRefs(spec ?? {}, result.refs ?? refs, at, (p, m) => diags.error(source, p, m));
@@ -234,10 +260,23 @@ export function parseDocuments(text: string, source: string, diags: Diagnostics,
                 result.main = { kind: main, name: meta.data.name ?? "", description: meta.data.description, spec: spec ?? {} };
                 return;
             }
-            // The Lab document first, with itself as written; the lab's other documents then see it
-            // rendered, with its defaults (`lab.tls.acme`).
-            result.refs = labRefsOf({ name: meta.data.name, spec });
-            const rendered = render(spec, "spec") as Record<string, unknown>;
+            // The Lab document first, with itself as written (the personal config's vars under its
+            // own); the lab's other documents then see it rendered, with its defaults (`lab.tls.acme`).
+            // A problem in a var only the personal config has is its problem, found rendering this lab.
+            const own = (spec as { vars?: unknown } | undefined)?.vars;
+            const fromPersonal = (p: string) => {
+                const keys = /^spec\.vars\.(.*)$/.exec(p)?.[1].replace(/\[\d+\]/g, "").split(".");
+                if (!personal || !keys) return false;
+                let at: unknown = own;
+                for (const k of keys) {
+                    if (typeof at !== "object" || at === null || !(k in at)) return true;
+                    at = (at as Record<string, unknown>)[k];
+                }
+                return false;
+            };
+            const rendered = renderLabSpec(meta.data.name, withPersonalVars(spec, personal?.vars), "spec", (p, m) => (fromPersonal(p)
+                ? diags.error(personal!.source, p, `${m} (rendering lab ${meta.data.name ?? source})`)
+                : diags.error(source, p, m))) as Record<string, unknown>;
             const checked = LabSpec.safeParse(rendered);
             result.refs = labRefsFrom(meta.data.name ?? "", checked.success ? checked.data as Record<string, unknown> : rendered);
             result.main = { kind: main, name: meta.data.name ?? "", description: meta.data.description, spec: rendered };
@@ -290,13 +329,14 @@ export function documentsLayer(docs: CatalogDocument[], source: string, diags: D
     const layer: CatalogLayer = {
         source,
         components: {}, componentSources: {}, componentDescriptions: {}, profiles: {},
-        secrets: {}, configmaps: {}, fleet: { groups: {}, repos: {}, helmOps: {} }, plugins: {}, pluginSources: {}, os: {}, acme: {},
+        secrets: {}, configmaps: {}, fleet: { groups: {}, repos: {}, helmOps: {}, profiles: {} }, plugins: {}, pluginSources: {}, os: {}, acme: {},
+        haulManifests: {}, recipes: {},
     };
     const seen = new Map<string, string>();
     for (const d of docs) {
         const key = `${d.kind}/${d.name}`;
         // Charts, manifests and distributions share one namespace: profiles and the engine refer to them by name.
-        const ns = ["HelmChart", "Manifest", "KubernetesDistribution"].includes(d.kind) ? `component/${d.name}` : key;
+        const ns = ["HelmChart", "Manifest", "Binary", "KubernetesDistribution"].includes(d.kind) ? `component/${d.name}` : key;
         const other = seen.get(ns);
         if (other !== undefined && (builtin || other !== d.kind)) {
             diags.error(d.source, docAt(d.kind, d.name), other === d.kind ? "is defined twice" : `has the same name as ${other}/${d.name}`);
@@ -307,9 +347,11 @@ export function documentsLayer(docs: CatalogDocument[], source: string, diags: D
         switch (d.kind) {
             case "HelmChart":
             case "Manifest":
+            case "Binary":
             case "KubernetesDistribution": {
                 const { url, ...rest } = spec;
-                layer.components[d.name] = d.kind === "Manifest" ? { ...rest, ...(url !== undefined ? { manifest: url } : {}) } : rest;
+                const field = d.kind === "Manifest" ? "manifest" : "download";
+                layer.components[d.name] = d.kind === "KubernetesDistribution" ? rest : { ...rest, ...(url !== undefined ? { [field]: url } : {}) };
                 layer.componentSources![d.name] = d.source;
                 if (d.description) layer.componentDescriptions![d.name] = d.description;
                 layer.componentKinds = { ...layer.componentKinds, [d.name]: d.kind };
@@ -320,7 +362,12 @@ export function documentsLayer(docs: CatalogDocument[], source: string, diags: D
                     diags.error(d.source, docAt(d.kind, d.name), "Profiles can only be defined in the engine's catalog (lab/catalog/): their builders are written against them");
                     break;
                 }
-                layer.profiles![d.name] = { profile: spec as ProfileInput, description: d.description ?? d.name, source: d.source };
+                layer.profiles![d.name] = { profile: spec as ProfileInput, description: d.description ?? d.name, source: d.source, kind: "custom" };
+                break;
+            case "ChartProfile":
+                // No builder behind it: any catalog can have one (a lab's own, the personal config's).
+                layer.profiles = layer.profiles ?? {};
+                layer.profiles[d.name] = { profile: spec as ProfileInput, description: d.description ?? d.name, source: d.source, kind: "chart" };
                 break;
             case "SecretTemplate":
             case "ConfigMapTemplate": {
@@ -343,6 +390,15 @@ export function documentsLayer(docs: CatalogDocument[], source: string, diags: D
                 break;
             case "FleetHelmOp":
                 layer.fleet.helmOps[d.name] = { value: spec as FleetHelmOpInput, source: d.source };
+                break;
+            case "FleetProfile":
+                layer.fleet.profiles[d.name] = { value: { ...(spec as FleetProfileInput), ...(d.description ? { description: d.description } : {}) } as FleetProfileInput, source: d.source };
+                break;
+            case "HostRecipe":
+                layer.recipes[d.name] = { value: { ...(spec as HostRecipeInput), ...(d.description ? { description: d.description } : {}) }, source: d.source };
+                break;
+            case "HaulManifest":
+                layer.haulManifests[d.name] = { value: { ...(spec as HaulManifestInput), ...(d.description ? { description: d.description } : {}) }, source: d.source };
                 break;
             case "ClusterGroup":
                 if (spec.selector) layer.fleet.groups[d.name] = { value: spec.selector as ClusterSelector, source: d.source };

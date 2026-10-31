@@ -1,0 +1,9 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: metallb
+  description: "MetalLB for LoadBalancer services, from the Application Collection (apps/appco/metallb)"
+spec:
+  icon: network
+  labels:
+    needs-metallb: "true"

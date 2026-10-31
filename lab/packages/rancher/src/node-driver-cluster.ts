@@ -63,7 +63,7 @@ export function nodeDriverCluster(
     args: NodeDriverClusterArgs,
     pools: NodePool[],
     driver: (o: pulumi.CustomResourceOptions, clusterName: string) => MachineDriver,
-): { cluster: provisioning.v1.Cluster; provider: k8s.Provider; clusterId: pulumi.Output<string> } {
+): { cluster: provisioning.v1.Cluster; provider: k8s.Provider; kubeconfig: pulumi.Output<string>; clusterId: pulumi.Output<string> } {
     const o: pulumi.CustomResourceOptions = { parent: self, provider: args.rancher.provider, dependsOn: [...args.rancher.ready, ...(args.after ?? [])] };
     const clusterName = name.split("/").pop()!;
     const machines = driver(o, clusterName);
@@ -107,7 +107,7 @@ export function nodeDriverCluster(
         insecure: args.rancher.insecure,
     }, { parent: self, dependsOn: [cluster], deletedWith: cluster });
     const provider = new k8s.Provider(`${name}/provider`, { kubeconfig: kubeconfig.kubeconfig, suppressHelmHookWarnings: true }, { parent: self });
-    return { cluster, provider, clusterId: managementClusterId(kubeconfig.kubeconfig) };
+    return { cluster, provider, kubeconfig: kubeconfig.kubeconfig, clusterId: managementClusterId(kubeconfig.kubeconfig) };
 }
 
 const UNITS: Record<string, number> = { Mi: 1 / 1024, Gi: 1, Ti: 1024 };

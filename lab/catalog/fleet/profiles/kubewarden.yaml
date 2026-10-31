@@ -1,0 +1,9 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: kubewarden
+  description: "SUSE Security Admission Controller (Kubewarden) with its default policies (apps/platform/kubewarden)"
+spec:
+  icon: shield-check
+  labels:
+    needs-kubewarden: "true"

@@ -1,0 +1,12 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: observability
+  description: "SUSE Observability (a Fleet HelmOp), its volumes on the longhorn-single storage class"
+spec:
+  icon: activity
+  labels:
+    needs-observability: "true"
+  annotations:
+    hosted-domain: "{{ lab.domain }}"
+  requires: [ storage ]

@@ -1,0 +1,9 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: gpu-operator
+  description: "NVIDIA GPU operator (apps/ai/nvidia-gpu-operator)"
+spec:
+  icon: gpu
+  labels:
+    has-gpu: "nvidia"

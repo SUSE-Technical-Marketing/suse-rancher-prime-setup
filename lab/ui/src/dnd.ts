@@ -4,10 +4,13 @@ import { shallowRef } from "vue";
 // decide whether they accept it (and light up).
 export type Payload =
     | { type: "block"; block: Block }
+    /** A HostRecipe from the catalog: a standard host. */
+    | { type: "recipe"; name: string }
     | { type: "profile"; name: string; from?: number }
+    | { type: "fleet"; name: string; from?: number }
     | { type: "host"; index: number };
 
-export type Block = "Harvester" | "HarvesterVM" | "RancherVM" | "Machine" | "DownstreamCluster" | "AwsSite" | "Ec2Cluster" | "EksCluster" | "MetalCluster" | "K3kCluster";
+export type Block = "Harvester" | "HarvesterVM" | "Machine" | "DownstreamCluster" | "AwsSite" | "Ec2Cluster" | "EksCluster" | "MetalCluster" | "K3kCluster";
 
 export const dragging = shallowRef<Payload>();
 const MIME = "application/x-lab-composer";

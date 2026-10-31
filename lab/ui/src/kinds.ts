@@ -29,7 +29,6 @@ export const BLOCK_KIND: Record<Block, { category: Category; icon: string }> = {
     Harvester: { category: "infra", icon: "server-cog" },
     AwsSite: { category: "infra", icon: "cloud" },
     HarvesterVM: { category: "machine", icon: "monitor" },
-    RancherVM: { category: "machine", icon: "monitor-cog" },
     Machine: { category: "machine", icon: "server" },
     DownstreamCluster: { category: "cluster", icon: "ship-wheel" },
     Ec2Cluster: { category: "cluster", icon: "ship-wheel" },

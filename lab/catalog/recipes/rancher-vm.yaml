@@ -1,0 +1,22 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HostRecipe
+metadata:
+  name: rancher-vm
+  description: "k3s, cert-manager, Traefik and Rancher: drop on a Harvester"
+spec:
+  label: Rancher VM
+  icon: monitor-cog          # lucide.dev/icons
+  kind: HarvesterVM
+  name: rancher
+  host:
+    cpu: 4
+    memory: 8Gi
+    disk: 100Gi
+    # Rancher's admin password comes from the personal config's rancher-admin secret, when it has one.
+    profiles:
+      k3s: {}
+      cert-manager: {}
+      sprouter: {}
+      traefik: {}
+      outrider: {}
+      rancher: {}

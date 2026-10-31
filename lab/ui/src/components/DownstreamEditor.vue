@@ -2,7 +2,10 @@
 import { computed } from "vue";
 import { useDoc } from "../doc";
 import { append, catalog, remove, views } from "../store";
+import { addFleetProfile, removeFleetProfile } from "../compose";
 import DocHeader from "./DocHeader.vue";
+import ProfileIcon from "./ProfileIcon.vue";
+import ProfilesEditor from "./ProfilesEditor.vue";
 import KeyValue from "./KeyValue.vue";
 import ListField from "./ListField.vue";
 import RolesField from "./RolesField.vue";
@@ -83,6 +86,19 @@ function addNodeGroup() {
 function addNode() {
   append(props.index, ["spec", "nodes"], { host: nodeHosts.value[0] ?? "", roles: ["etcd", "controlplane", "worker"] });
 }
+
+/** The cluster's Fleet profiles, and the others it can add. */
+const fleetNames = computed(() => Object.keys(spec.value.fleetProfiles ?? {}));
+const fleetChoices = computed(() => (catalog.value?.fleetProfiles ?? []).filter(p => !fleetNames.value.includes(p.name)));
+const fleetInfo = (name: string) => {
+  const p = catalog.value?.fleetProfiles.find(x => x.name === name);
+  return p ? `${p.description}\nlabels: ${Object.entries(p.labels).map(([k, v]) => `${k}=${v}`).join(", ")}` : "not in the catalog";
+};
+function addFleet(e: Event) {
+  const select = e.target as HTMLSelectElement;
+  if (select.value) addFleetProfile(props.index, select.value);
+  select.value = "";
+}
 </script>
 
 <template>
@@ -123,14 +139,6 @@ function addNode() {
       <template v-if="publicProfiles.length">give it {{ publicProfiles.join(" or ") }}.</template>
       <template v-else>no profile makes a Rancher public yet (the Cloudflare tunnel's public-ingress is coming). You can compose and save this cluster; validation keeps rejecting it until then.</template>
     </p>
-
-    <section>
-      <h3>Fleet</h3>
-      <div class="grid">
-        <KeyValue label="labels" hint="Fleet groups select on these; apps look for needs-traefik, needs-longhorn, needs-storage, needs-observability, …" v-bind="bind('spec.labels')" />
-        <KeyValue label="annotations" hint="fleet.yaml reads them as .ClusterAnnotations, e.g. hosted-domain: {{ lab.domain }}" v-bind="bind('spec.annotations')" />
-      </div>
-    </section>
 
     <section v-if="type === 'harvester' || type === 'ec2'">
       <h3>Machine pools</h3>
@@ -200,6 +208,27 @@ function addNode() {
       </div>
       <button type="button" class="link" @click="addNode">+ add a node</button>
     </section>
+
+    <section>
+      <h3>Fleet</h3>
+      <p class="muted">Fleet profiles put their labels and annotations on the cluster; Fleet installs what they select. Drop them on the cluster box, or add them here.</p>
+      <div class="fleet-profiles">
+        <span v-for="p in fleetNames" :key="p" class="fleet-chip" :title="fleetInfo(p)">
+          <ProfileIcon :name="p" :size="20" fleet />{{ p }}
+          <button type="button" class="icon" :title="`Remove ${p}`" @click="removeFleetProfile(index, p)">×</button>
+        </span>
+        <select v-if="fleetChoices.length" class="fleet-add" :value="''" @change="addFleet">
+          <option value="" disabled>+ add a Fleet profile</option>
+          <option v-for="p in fleetChoices" :key="p.name" :value="p.name">{{ p.name }} — {{ p.description }}</option>
+        </select>
+      </div>
+      <div class="grid">
+        <KeyValue label="labels" hint="more labels of your own: Fleet groups select on them too" v-bind="bind('spec.labels')" />
+        <KeyValue label="annotations" hint="fleet.yaml reads them as .ClusterAnnotations, e.g. hosted-domain: {{ lab.domain }}" v-bind="bind('spec.annotations')" />
+      </div>
+    </section>
+
+    <ProfilesEditor :model-value="spec.profiles" target="cluster" @set="(n, x) => set(['spec', 'profiles', n], x ?? {})" @remove="n => set(['spec', 'profiles', n], undefined)" />
 
     <details class="advanced">
       <summary>More</summary>

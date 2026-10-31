@@ -1,5 +1,5 @@
 apiVersion: lab.geeko.me/v1alpha1
-kind: Profile
+kind: ChartProfile
 metadata:
   name: traefik
   description: Traefik ingress controller with the Gateway API CRDs and its Gateway provider
@@ -16,12 +16,16 @@ spec:
         providers: { kubernetesGateway: { enabled: true } }
         # With a load-balancer profile on the host, its Service takes an address from it.
         service: { annotations: "{{ outputs['load-balancer'].serviceAnnotations | default({}) }}" }
+  # State as when this profile was code: a running lab keeps its release.
+  aliases: [ lab:apps:Traefik ]
   requires: [ kubernetes ]
   uses: [ load-balancer ]
-  provides: [ ingress ]
-  conflicts: [ ingress ]
+  # Ingresses, and Gateways on the GatewayClass the chart creates (both "traefik").
+  provides: [ ingress, gateway-api ]
+  conflicts: [ ingress, gateway-api ]
   outputs:
     ingress: { ingressClassName: traefik }
+    gateway-api: { gatewayClassName: traefik }
   settings:
     type: object
     properties:

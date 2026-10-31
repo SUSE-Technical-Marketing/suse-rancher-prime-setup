@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { parseAllDocuments } from "yaml";
 import { formatDiagnostic, loadLab, LoadResult, ObjectTemplate, objectTemplateContext, renderSecretTemplate, renderTemplate } from "../src";
 import { labDocument, personalDocument, resolverPath } from "./as-documents";
 
@@ -157,7 +158,9 @@ hosts:
         expect(errors(builtin)).toEqual([]);
         const vm = builtin.lab!.hosts[0];
         expect(vm.providers).toMatchObject({ ingress: ["k3s"], "load-balancer": ["k3s"], kubernetes: ["k3s"] });
-        expect(vm.outputs.ingress).toEqual({ ingressClassName: "traefik" });
+        // k3s's own Traefik, with its Gateway provider turned on: an IngressClass and a GatewayClass.
+        expect(vm.providers).toMatchObject({ "gateway-api": ["k3s"] });
+        expect(vm.outputs).toMatchObject({ ingress: { ingressClassName: "traefik" }, "gateway-api": { gatewayClassName: "traefik" } });
 
         const own = host("k3s: {}, traefik: {}, metallb: { addresses: [10.0.0.10-10.0.0.20] }").lab!.hosts[0];
         expect(own.providers).toMatchObject({ ingress: ["traefik"], "load-balancer": ["metallb"] });
@@ -284,6 +287,22 @@ describe("profile rules", () => {
         const { lab, diagnostics } = load(host(`{ ${RANCHER_STACK}, hauler: {} }`));
         expect(diagnostics.errors).toEqual([]);
         expect(lab!.hosts[0].profileOrder).toEqual(["hauler", "k3s", "cert-manager", "sprouter", "traefik", "rancher"]);
+    });
+
+    it("reports a secret in a field that isn't filled in with secrets, through a var or mixed with the lab", () => {
+        const lab = (annotations: string, password = "{{ lab.vars.pw }}") => load(`${BASE.replace("harvesters:", "vars: { pw: \"{{ secrets.ra }}\" }\nharvesters:")}
+hosts:
+  vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: "${password}" } } }
+downstream:
+  apps: { type: harvester, rancher: vm, harvester: hv-north, annotations: ${annotations}, pools: [{ name: a, quantity: 1, roles: [etcd, controlplane, worker], cpu: 2, memory: 4Gi, disk: 40Gi, os: leap-16 }] }
+`);
+        // A var holding a secret, in a secret field: filled in when the lab is built.
+        expect(errors(lab("{ team: tmm, domain: \"{{ lab.domain }}\" }"))).toEqual([]);
+        expect(errors(lab("{ a: \"{{ secrets.ra }}\", b: \"{{ lab.vars.pw }}\", c: \"{{ secrets.ra }}@{{ lab.domain }}\" }"))).toEqual([
+            "downstream.apps.annotations.a: uses a secret, but this field isn't filled in with secrets: the template would be used as text. Secrets go in secret fields (passwords, credentials, tokens) and in chart values",
+            "downstream.apps.annotations.b: uses a secret, but this field isn't filled in with secrets: the template would be used as text. Secrets go in secret fields (passwords, credentials, tokens) and in chart values",
+            "downstream.apps.annotations.c: uses a secret, but this field isn't filled in with secrets: the template would be used as text. Secrets go in secret fields (passwords, credentials, tokens) and in chart values",
+        ]);
     });
 
     it("needs a host running rancher for downstream clusters", () => {
@@ -768,6 +787,9 @@ spec: { timeouts: { downstreamReady: soon, nope: 1m } }
         expect(host.chartValues.rancher.entries[0].lockedValues).toEqual({
             replicas: 1,
             hostname: "manager.vm.lab.geeko.me",
+            // The traefik profile's GatewayClass: Rancher on the Gateway API, with the host's certificate.
+            networkExposure: { type: "gateway" },
+            gateway: { gatewayClass: { name: "traefik", tls: { source: "secret", secretName: "wildcard-cert" } } },
             ingress: { ingressClassName: "traefik", tls: { source: "secret", secretName: "wildcard-cert" } },
             privateCA: true,                      // BASE uses Let's Encrypt staging: a real boolean
             agentTLSMode: "strict",
@@ -780,6 +802,29 @@ spec: { timeouts: { downstreamReady: soon, nope: 1m } }
         expect(host.chartValues.traefik.entries[0]).toMatchObject({ install: true, vars: { channel: "standard" } });
         expect(host.chartValues.traefik.entries[0].version).toBeUndefined();
         expect(host.outputs).toMatchObject({ tls: { secretName: "wildcard-cert" }, ingress: { ingressClassName: "traefik" } });
+    });
+
+    it("puts Rancher on the Gateway API with the distribution's own Traefik too", () => {
+        const result = load(`${BASE}
+hosts:
+  vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { rke2: {}, cert-manager: {}, sprouter: {}, rancher: { adminPassword: "{{ secrets.ra }}" } } }
+`);
+        expect(errors(result)).toEqual([]);
+        expect(result.lab!.hosts[0].chartValues.rancher.entries[0].lockedValues).toMatchObject({
+            networkExposure: { type: "gateway" },
+            gateway: { gatewayClass: { name: "traefik", tls: { source: "secret", secretName: "wildcard-cert" } } },
+        });
+    });
+
+    it("exposes Rancher as its exposure setting says; gateway needs the Gateway API on the host", () => {
+        const exposed = (exposure: string, extra = "") => load(rancherHost(`, exposure: ${exposure}`).replace("traefik: {}, ", extra));
+        const type = (r: LoadResult) => r.lab!.hosts[0].chartValues.rancher.entries[0].lockedValues.networkExposure;
+        expect(type(load(rancherHost("")))).toEqual({ type: "gateway" });
+        expect(type(exposed("ingress", "traefik: {}, "))).toEqual({ type: "ingress" });
+        expect(type(exposed("gateway", "traefik: {}, "))).toEqual({ type: "gateway" });
+        // Without the traefik profile, k3s's own Traefik has the Gateway API too.
+        expect(type(exposed("gateway"))).toEqual({ type: "gateway" });
+        expect(errors(exposed("sideways", "traefik: {}, "))).toEqual([expect.stringMatching(/^hosts\.vm\.profiles\.rancher\.exposure: /)]);
     });
 
     it("rejects a scalar where the engine needs a map", () => {
@@ -826,6 +871,70 @@ hosts:
     });
 });
 
+describe("fleet profiles", () => {
+    const lab = (cluster: string, catalog = "") => `${BASE}
+hosts:
+  rancher: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { ${RANCHER_STACK} } }
+downstream:
+  apps:
+    type: harvester
+    rancher: rancher
+    harvester: hv-north
+    pools: [{ name: a, quantity: 1, roles: [etcd, controlplane, worker], cpu: 2, memory: 4Gi, disk: 40Gi, os: leap-16 }]
+${cluster}
+${catalog}`;
+    const cluster = (r: LoadResult) => r.lab!.downstream[0] as unknown as { labels: Record<string, string>; annotations: Record<string, string> };
+
+    it("puts their labels and annotations on the cluster, with its own", () => {
+        const result = load(lab("    labels: { team: a }\n    annotations: { hosted-domain: lab.geeko.me }\n    fleetProfiles: { storage: {}, security: {} }"));
+        expect(errors(result)).toEqual([]);
+        expect(cluster(result).labels).toEqual({ team: "a", "needs-storage": "true", "needs-security": "true" });
+        // The same value from the cluster and a profile is fine; rancher-host is the cluster's Rancher host.
+        expect(cluster(result).annotations).toEqual({ "hosted-domain": "lab.geeko.me", "rancher-host": "rancher" });
+    });
+
+    it("checks names, requirements and conflicts among a cluster's Fleet profiles", () => {
+        expect(errors(load(lab("    fleetProfiles: { nope: {}, security: {}, storage: {}, longhorn: {} }")))).toEqual([
+            expect.stringMatching(/^downstream\.apps\.fleetProfiles\.nope: unknown Fleet profile "nope"; known: .*security/),
+            "downstream.apps.fleetProfiles.storage: conflicts with longhorn (both block-storage)",
+            "downstream.apps.fleetProfiles.longhorn: conflicts with storage (both block-storage)",
+        ]);
+        expect(errors(load(lab("    fleetProfiles: { security: {} }")))).toEqual([
+            "downstream.apps.fleetProfiles.security: needs block-storage, which none of this cluster's Fleet profiles provides",
+        ]);
+    });
+
+    it("doesn't let a Fleet profile change a value the cluster or another profile set", () => {
+        expect(errors(load(lab("    annotations: { hosted-domain: other.example.com }\n    fleetProfiles: { traefik: {} }")))).toEqual([
+            'downstream.apps.fleetProfiles.traefik: sets annotation hosted-domain to "lab.geeko.me", but the cluster\'s annotations has "other.example.com"',
+        ]);
+    });
+
+    it("installs ChartProfiles on the cluster, rendered for it", () => {
+        const result = load(lab("    profiles: { cert-manager: {}, sprouter: {} }"));
+        expect(errors(result)).toEqual([]);
+        const cp = result.lab!.downstream[0].chartProfiles!;
+        expect(cp.order).toEqual(["cert-manager", "sprouter"]);
+        // target is the cluster: its wildcard is *.<cluster>.<domain>, as the Fleet apps name things.
+        const cert = cp.chartValues["cert-manager"].objects.find(o => o.name === "wildcard")!;
+        expect((cert.object.spec as { dnsNames: string[] }).dnsNames).toEqual(["*.apps.lab.geeko.me", "apps.lab.geeko.me"]);
+    });
+
+    it("takes only ChartProfiles, with their rules, on a cluster", () => {
+        expect(errors(load(lab("    profiles: { k3s: {}, storage: {}, nope: {}, ai-factory: { applicationCollection: \"{{ secrets.a }}\", suseRegistry: \"{{ secrets.s }}\" } }")))).toEqual([
+            expect.stringMatching(/^downstream\.apps\.profiles\.k3s: is a Profile for lab hosts .*a downstream cluster takes ChartProfiles: ai-factory, cert-manager, hauler-chart, metallb, outrider, sprouter, traefik$/),
+            "downstream.apps.profiles.storage: is a Fleet profile: list it under fleetProfiles",
+            expect.stringMatching(/^downstream\.apps\.profiles\.nope: unknown ChartProfile "nope"/),
+            expect.stringMatching(/^downstream\.apps\.profiles\.ai-factory: needs rancher .*on the same cluster$/),
+        ]);
+    });
+
+    it("reports a template that refers to something that isn't there", () => {
+        const result = load(lab("    fleetProfiles: { mine: {} }", "catalog:\n  fleet:\n    profiles:\n      mine: { labels: { x: \"{{ cluster.nope }}\" } }\n"));
+        expect(result.diagnostics.errors.map(d => d.path)).toContain("FleetProfile/mine.spec.labels.x");
+    });
+});
+
 describe("downstream passthroughs", () => {
     const lab = (extra: string) => `${BASE}
 hosts:
@@ -859,7 +968,7 @@ hosts:
   vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { nope: {}, k3s: { versoin: x }, hauler: { port: 70000 } } }
 `);
         expect(errors(result)).toEqual([
-            'hosts.vm.profiles: unknown profile "nope"; known: ai-factory, cert-manager, harvester-cloud-provider, hauler, k3s, metallb, mlm-client, mlm-server, outrider, rancher, rke2, sprouter, traefik',
+            'hosts.vm.profiles: unknown profile "nope"; known: ai-factory, cert-manager, harvester-cloud-provider, hauler, hauler-chart, k3s, metallb, mlm-client, mlm-server, outrider, rancher, rke2, sprouter, traefik',
             'hosts.vm.profiles.k3s.versoin: unknown field "versoin"',
             "hosts.vm.profiles.hauler.port: Too big: expected number to be <=65535",
         ]);
@@ -867,8 +976,50 @@ hosts:
 
     it("applies the catalog's defaults", () => {
         const { lab } = load(`${BASE}\nhosts:\n  vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { hauler: {} } }\n`);
-        expect(lab!.hosts[0].profiles.hauler).toEqual({ manifests: [] });
+        expect(lab!.hosts[0].profiles.hauler).toEqual({ manifests: [], port: 5000 });
         expect(lab!.hosts[0].capabilities).toEqual(["hauler", "registry"]);
+    });
+
+    it("checks HaulManifest names against the catalog, and hands the lab the ones it uses, rendered", () => {
+        const vm = (manifests: string) => load(`${BASE}\nhosts:\n  vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { hauler: { manifests: ${manifests} } } }\n`);
+        expect(errors(vm("[ rancher-2.15, nope ]"))).toEqual([
+            'hosts.vm.profiles.hauler.manifests[1]: no HaulManifest "nope"; known: rancher-2.15',
+        ]);
+        const { lab } = vm("[ rancher-2.15 ]");
+        expect(Object.keys(lab!.haulManifests)).toEqual(["rancher-2.15"]);
+        const docs = parseAllDocuments(lab!.haulManifests["rancher-2.15"]).map(d => d.toJS());
+        expect(docs.map(d => [d.apiVersion, d.kind, d.metadata.name])).toEqual([
+            ["content.hauler.cattle.io/v1", "Images", "rancher-2.15-images"],
+            ["content.hauler.cattle.io/v1", "Charts", "rancher-2.15-charts"],
+        ]);
+        expect(docs[1].spec.charts[0]).toEqual({ name: "rancher", repoURL: "https://charts.rancher.com/server-charts/prime", version: "2.15.2", "add-images": true });
+    });
+
+    it("takes a lab's own HaulManifest, and renders hauler-chart's ConfigMap and sync Job from them", () => {
+        const result = loadDocs(`${labDocument(`${BASE}\nhosts:\n  vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { ${RANCHER_STACK}, hauler-chart: { manifests: [ tools ] } } }\n`)}---
+kind: HaulManifest
+metadata: { name: tools }
+spec:
+  images: [ { name: busybox:1.37, platform: linux/amd64 } ]
+  files: [ { path: https://example.com/a.txt } ]
+`);
+        expect(errors(result)).toEqual([]);
+        const values = result.lab!.hosts[0].chartValues["hauler-chart"];
+        const configMap = values.objects.find(o => o.name === "manifests")!.object as { data: Record<string, string> };
+        expect(Object.keys(configMap.data)).toEqual(["tools.yaml"]);
+        expect(parseAllDocuments(configMap.data["tools.yaml"]).map(d => d.toJS().kind)).toEqual(["Images", "Files"]);
+        const job = values.objects.find(o => o.name === "sync")!;
+        expect(job.wait).toEqual({ condition: "Complete", timeout: "haulerSync" });
+        expect((job.object as any).spec.template.metadata.annotations["lab.geeko.me/manifests"]).toMatch(/^[0-9a-f]{12}$/);
+        expect(values.entries[0].lockedValues).toMatchObject({
+            haulerRegistry: { ingress: { hostname: "registry.vm.lab.geeko.me", ingressClassName: "traefik", tls: { secretName: "wildcard-cert" } } },
+            haulerFileserver: { enabled: false },
+        });
+    });
+
+    it("lets only one registry on a host", () => {
+        const result = load(`${BASE}\nhosts:\n  vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { ${RANCHER_STACK}, hauler: {}, hauler-chart: {} } }\n`);
+        expect(errors(result)).toEqual(["hosts.vm.profiles: hauler and hauler-chart can't run on the same host"]);
     });
 
     it("can't have its rules changed, or new ones added, from a lab", () => {

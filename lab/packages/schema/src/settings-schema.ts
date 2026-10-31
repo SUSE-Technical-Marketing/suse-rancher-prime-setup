@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { haulManifestName } from "./hauler";
 import { chartValues, Credentials, dnsLabel, dnsName, ipv4, quantity, secretOrString } from "./primitives";
 
 /**
@@ -36,6 +37,8 @@ const REFS: Record<string, { zod: z.ZodType; ts: string }> = {
     secretOrString: { zod: secretOrString, ts: "string" },
     credentials: { zod: Credentials, ts: "Credentials" },
     chartValues: { zod: chartValues.unwrap(), ts: "Record<string, unknown>" },
+    /** A HaulManifest's name: the resolver checks the catalog has it (`refsIn`). */
+    haulManifest: { zod: haulManifestName, ts: "string" },
 };
 export const SETTING_REFS = Object.keys(REFS);
 
@@ -142,4 +145,20 @@ export function generateProfileSettingsTs(profiles: Record<string, { settingsSch
     for (const name of names) out.push(`    ${JSON.stringify(name)}: ${pascal(name)}Settings;`);
     out.push("}", "");
     return out.join("\n");
+}
+
+/**
+ * The values in parsed settings that a schema types as `$ref: <ref>`, with their dot paths: for
+ * checks against the catalog (a HaulManifest's name). Unions are skipped; nothing uses one for these.
+ */
+export function refsIn(s: SettingSchema, value: unknown, ref: string, at = ""): { at: string; value: unknown }[] {
+    if (value === undefined || value === null) return [];
+    if (s.$ref === ref) return [{ at, value }];
+    if (s.type === "array" && s.items && Array.isArray(value)) return value.flatMap((v, i) => refsIn(s.items!, v, ref, `${at}[${i}]`));
+    if (typeof value !== "object" || Array.isArray(value)) return [];
+    const record = value as Record<string, unknown>;
+    const join = (k: string) => (at ? `${at}.${k}` : k);
+    if (s.properties) return Object.entries(s.properties).flatMap(([k, sub]) => refsIn(sub, record[k], ref, join(k)));
+    if (typeof s.additionalProperties === "object") return Object.entries(record).flatMap(([k, v]) => refsIn(s.additionalProperties as SettingSchema, v, ref, join(k)));
+    return [];
 }

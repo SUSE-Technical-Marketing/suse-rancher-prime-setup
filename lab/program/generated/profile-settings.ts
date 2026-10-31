@@ -26,10 +26,21 @@ export type HarvesterCloudProviderSettings = {
     values?: Record<string, unknown>;
 };
 
-/** Settings of the `hauler` profile: Hauler registry for air-gapped installs; on Kubernetes if the host has it, else as a systemd service */
+/** Settings of the `hauler` profile: Hauler registry as systemd services, its store synced from HaulManifests; TLS from lego (DNS-01) */
 export type HaulerSettings = {
+    version?: string;
     manifests: string[];
-    port?: number;
+    port: number;
+    fileserverPort?: number;
+};
+
+/** Settings of the `hauler-chart` profile: Hauler registry on Kubernetes (the official chart), its store synced from HaulManifests by a Job */
+export type HaulerChartSettings = {
+    version?: string;
+    manifests: string[];
+    storage: string;
+    fileserver: boolean;
+    values?: Record<string, unknown>;
 };
 
 /** Settings of the `k3s` profile: Single-node k3s cluster on the host */
@@ -72,6 +83,8 @@ export type RancherSettings = {
     /** First label of Rancher's name: <hostname>.<host>.<domain> */
     hostname: string;
     adminPassword: string;
+    /** How Rancher is reached: gateway (a Gateway and HTTPRoutes), ingress (an Ingress), or auto: gateway when the host has the Gateway API */
+    exposure: "auto" | "gateway" | "ingress";
     /** UI plugins by name (versions from the catalog), or name -> version; default the catalog's set */
     plugins?: string[] | Record<string, string>;
     /** Install Liz, Rancher's AI assistant */
@@ -119,6 +132,7 @@ export interface ProfileSettings {
     "cert-manager": CertManagerSettings;
     "harvester-cloud-provider": HarvesterCloudProviderSettings;
     "hauler": HaulerSettings;
+    "hauler-chart": HaulerChartSettings;
     "k3s": K3sSettings;
     "metallb": MetallbSettings;
     "mlm-client": MlmClientSettings;

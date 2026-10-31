@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { OS_FAMILIES } from "../primitives";
+import { OS_FAMILIES, TIMEOUTS } from "../primitives";
 import { SettingSchema } from "../settings-schema";
 
 /**
@@ -32,6 +32,27 @@ export const ProfileChartEntry = z.strictObject({
 });
 export type ProfileChartEntry = z.infer<typeof ProfileChartEntry>;
 
+/**
+ * A Kubernetes object a profile creates on its host's cluster, after its charts (DESIGN.md §17):
+ * strings in it are templates as in chart values, secrets too. Created in order, each after the one
+ * before; the last is what the profile's capabilities wait for.
+ */
+export const ProfileObjectEntry = z.strictObject({
+    /** Its name in the lab's state, under the profile (a template): keep it, or a running lab replaces the object. */
+    name: z.string().min(1),
+    object: z.record(z.string(), z.unknown()),
+    /** A template that must render to true or false: the object is only created when true. */
+    when: z.string().min(1).optional(),
+    /**
+     * First wait until the cluster's API server admits it (a dry run): a chart's webhook (MetalLB's)
+     * can report Ready before the API server reaches it, and the create would fail.
+     */
+    admitted: z.boolean().optional(),
+    /** Wait until the object has this condition True (`Ready`), up to one of the lab's timeouts. */
+    wait: z.strictObject({ condition: z.string().min(1), timeout: z.enum(TIMEOUTS).default("resourceReady") }).optional(),
+});
+export type ProfileObjectEntry = z.infer<typeof ProfileObjectEntry>;
+
 export const ProfileInput = z.strictObject({
     /** Its icon in the lab UI: a Lucide icon name (https://lucide.dev/icons), e.g. `tractor`. */
     icon: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "must be a Lucide icon name like server-cog").optional(),
@@ -40,6 +61,13 @@ export const ProfileInput = z.strictObject({
      * profile's own: the lab's `values` and the profile's `version` setting apply to it.
      */
     charts: z.array(ProfileChartEntry).optional(),
+    /** Objects it creates after its charts (an issuer, a certificate, an address pool). */
+    objects: z.array(ProfileObjectEntry).optional(),
+    /**
+     * Component types its resources were created under before (`lab:apps:CertManager`, from when it
+     * had code of its own): a running lab keeps them instead of replacing them.
+     */
+    aliases: z.array(z.string().min(1)).optional(),
     /** The KubernetesDistribution it installs (k3s, RKE2). */
     distribution: z.string().min(1).optional(),
     /** Extra capabilities this profile gives its host. */
@@ -52,7 +80,8 @@ export const ProfileInput = z.strictObject({
     /** Capabilities other profiles on the same host must provide; their providers are built first. */
     requires: z.array(z.string().min(1)).optional(),
     /** Like `requires`, but only when a settings field (dot path) is set: a non-empty value, list or map. */
-    requiresWhen: z.array(z.strictObject({ field: z.string().min(1), capability: z.string().min(1) })).optional(),
+    /** A capability required when a setting is set, or (`equals`) has that value. */
+    requiresWhen: z.array(z.strictObject({ field: z.string().min(1), equals: z.union([z.string(), z.number(), z.boolean()]).optional(), capability: z.string().min(1) })).optional(),
     /** Capabilities used when the host has them, without requiring them: their providers are built first. */
     uses: z.array(z.string().min(1)).optional(),
     /** Capabilities no other profile on the same host may provide. */
@@ -81,6 +110,8 @@ export const ProfileInput = z.strictObject({
 export type ProfileInput = z.infer<typeof ProfileInput>;
 
 export interface ProfileDefinition extends Omit<ProfileInput, "settings"> {
+    /** `custom`: a Profile, with a builder in the engine, for lab hosts; `chart`: a ChartProfile, for hosts and downstream clusters. */
+    kind: "custom" | "chart";
     /** Its first chart: the one the lab's `values` and the `version` setting apply to. */
     chart?: string;
     /** Value paths a lab's `values` may not touch: the leaves of the first chart's `lockedValues`. */

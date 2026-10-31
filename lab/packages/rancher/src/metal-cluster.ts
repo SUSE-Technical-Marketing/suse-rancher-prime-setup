@@ -58,6 +58,8 @@ export class MetalCluster extends pulumi.ComponentResource {
     readonly provider: k8s.Provider;
     /** Rancher's management cluster id (`c-m-...`). */
     readonly clusterId: pulumi.Output<string>;
+    /** Its kubeconfig through Rancher (secret), for checks the provider can't make (a webhook's admission). */
+    readonly kubeconfig: pulumi.Output<string>;
 
     constructor(name: string, args: MetalClusterArgs, opts?: pulumi.ComponentResourceOptions) {
         // Called a custom cluster in Rancher, and here until it was renamed: the alias keeps existing stacks' clusters.
@@ -137,6 +139,7 @@ export class MetalCluster extends pulumi.ComponentResource {
         }, { parent: this, dependsOn: [ready], deletedWith: this.cluster });
         this.provider = new k8s.Provider(`${name}/provider`, { kubeconfig: kubeconfig.kubeconfig, suppressHelmHookWarnings: true }, { parent: this });
         this.clusterId = managementClusterId(kubeconfig.kubeconfig);
+        this.kubeconfig = kubeconfig.kubeconfig;
 
         this.registerOutputs({});
     }

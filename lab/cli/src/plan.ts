@@ -52,6 +52,7 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
             line(`  ${h.name}  existing machine ${h.user}@${h.address}, ${h.os}`);
         }
         line(`    ${h.fqdn}  profiles: ${profiles(h.profileOrder)}`);
+        if (h.charts.length > 0) line(`    charts: ${h.charts.map(c => `${c.name} ${c.version} (${c.namespace})`).join(", ")}`);
     }
 
     if (lab.downstream.length > 0) {
@@ -85,6 +86,10 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
                 line(`  ${d.name}  metal ${d.distro}, managed by Rancher on ${d.rancher}${meta}`);
                 for (const n of d.nodes) line(`    node ${n.host} [${n.roles.join(", ")}]`);
             }
+            // Their labels and annotations are among the cluster's above; Fleet installs what they select.
+            const fleet = Object.keys(d.fleetProfiles ?? {});
+            if (fleet.length > 0) line(`    Fleet profiles: ${fleet.join(", ")} (installed by Fleet)`);
+            if (d.chartProfiles) line(`    profiles: ${profiles(d.chartProfiles.order)} (ChartProfiles, installed by the engine)`);
         }
     }
 
@@ -137,6 +142,7 @@ export function renderProfiles(registry: ProfileRegistry): string {
         if (p.provides) rules.push(`provides: ${p.provides.join(", ")}`);
         if (p.requires) rules.push(`requires on the same host: ${p.requires.map(describe).join(", ")}`);
         if (p.uses) rules.push(`uses when the host has it: ${p.uses.map(describe).join(", ")}`);
+        for (const r of p.requiresWhen ?? []) rules.push(`requires when ${r.field} ${r.equals === undefined ? "is set" : `is ${r.equals}`}: ${describe(r.capability)}`);
         if (p.conflicts) {
             const own = new Set([p.name, ...(p.provides ?? [])]);
             const exclusive = p.conflicts.filter(c => own.has(c));
@@ -173,7 +179,7 @@ export function renderCatalog(catalog: ResolvedCatalog): string {
         for (const [a, b, c] of rows) out.push(`  ${a.padEnd(w0)}  ${b.padEnd(w1)}  ${c}`);
     };
     const versionText = (v: VersionValue | undefined) => v === undefined ? "-" : typeof v === "string" ? v : Object.entries(v).map(([minor, x]) => `${minor}: ${x}`).join(", ");
-    for (const kind of ["KubernetesDistribution", "HelmChart", "Manifest"] as const) {
+    for (const kind of ["KubernetesDistribution", "HelmChart", "Manifest", "Binary"] as const) {
         const entries = Object.entries(catalog.components).filter(([, c]) => c.value.kind === kind).sort(([a], [b]) => a.localeCompare(b));
         if (entries.length === 0) continue;
         if (out.length > 0) out.push("");
@@ -181,7 +187,7 @@ export function renderCatalog(catalog: ResolvedCatalog): string {
         table(entries.map(([key, { value, source }]) => [
             key,
             versionText(value.version),
-            `${shortSource(source).padEnd(10)}  ${"manifest" in value ? value.manifest : "chart" in value ? `${value.repo ? `${value.repo} ` : ""}${value.chart}${value.namespace ? `  (${value.namespace})` : ""}` : ""}`,
+            `${shortSource(source).padEnd(10)}  ${"manifest" in value ? value.manifest : "download" in value ? value.download : "chart" in value ? `${value.repo ? `${value.repo} ` : ""}${value.chart}${value.namespace ? `  (${value.namespace})` : ""}` : ""}`,
         ]));
     }
     out.push("", "UiPlugin");
@@ -206,6 +212,12 @@ export function renderCatalog(catalog: ResolvedCatalog): string {
         fleetSource(source),
     ]));
     out.push("  (* default: created when a rancher profile doesn't list fleet.helmOps)");
+    out.push("", "FleetProfile");
+    table(Object.entries(catalog.fleet.profiles).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value, source }]) => [
+        name,
+        Object.entries(value.labels ?? {}).map(([k, v]) => `${k}=${v}`).join(", "),
+        fleetSource(source),
+    ]));
     for (const [section, entries] of [["SecretTemplate", catalog.secrets], ["ConfigMapTemplate", catalog.configmaps]] as const) {
         if (Object.keys(entries).length === 0) continue;
         out.push("", section);
@@ -213,6 +225,22 @@ export function renderCatalog(catalog: ResolvedCatalog): string {
             name,
             `inputs: ${Object.entries(value.inputs ?? {}).map(([i, shape]) => `${i} (${shape})`).join(", ") || "none"}`,
             shortSource(source.replace(/ \(catalog\.[^)]*\)$/, "")),
+        ]));
+    }
+    if (Object.keys(catalog.haulManifests).length > 0) {
+        out.push("", "HaulManifest");
+        table(Object.entries(catalog.haulManifests).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value, source }]) => [
+            name,
+            [["images", value.images], ["charts", value.charts], ["files", value.files]].filter(([, l]) => l?.length).map(([k, l]) => `${(l as unknown[]).length} ${k}`).join(", ") || "empty",
+            shortSource(source),
+        ]));
+    }
+    if (Object.keys(catalog.recipes).length > 0) {
+        out.push("", "HostRecipe");
+        table(Object.entries(catalog.recipes).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value, source }]) => [
+            name,
+            `${value.kind}: ${Object.keys(value.host.profiles).join(", ") || "no profiles"}`,
+            shortSource(source),
         ]));
     }
     out.push("", "ClusterGroup");

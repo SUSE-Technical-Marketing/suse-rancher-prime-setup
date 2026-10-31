@@ -1,0 +1,11 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: traefik
+  description: "Traefik as the cluster's ingress, with Gateway API (apps/base/traefik); turn the distribution's own off"
+spec:
+  icon: route
+  labels:
+    needs-traefik: "true"
+  annotations:
+    hosted-domain: "{{ lab.domain }}"

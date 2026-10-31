@@ -8,7 +8,7 @@ import { asRoot, ClusterObjects, helmApp, helmJobWatch, HostAccess, runExisting,
 import { Amazonec2Credential, Ec2Cluster, EksCluster, HarvesterCluster, HarvesterCredential, HarvesterImport, K3kCluster, MetalCluster, RancherAccess } from "@lab/rancher";
 import { machineSetup, renderCloudConfig } from "@lab/os";
 import { AWS_CREDENTIAL_FIELDS, cloudInitVars, usesSecrets, type CloudInitVars, type ResolvedLab, type ResolvedOs } from "@lab/schema";
-import { buildHostProfiles, profileCloudInit, profileUninstall } from "./profiles";
+import { buildHostProfiles, installChartProfile, profileCloudInit, profileUninstall } from "./profiles";
 import { credentials, objectValue, secretMap, secrets, secretString } from "./secrets";
 import { chart, chartInNamespace, distribution, harvesterChart, version } from "./catalog";
 
@@ -384,12 +384,25 @@ for (const d of lab.downstream) {
 }
 
 /** The catalog secrets and configmaps placed on a downstream cluster, once it is Ready. */
-function placeObjects(name: string, cluster: { provider: k8s.Provider; cluster: pulumi.Resource }) {
+/**
+ * What the lab puts on a downstream cluster once it's ready: catalog secrets and configmaps, then
+ * its ChartProfiles in build order, through Rancher (each after the profiles on it it waits for).
+ */
+function placeObjects(name: string, cluster: { provider: k8s.Provider; cluster: pulumi.Resource; kubeconfig?: pulumi.Output<string> }) {
     const objects = lab.objects.filter(o => "downstream" in o.target && o.target.downstream === name);
-    if (objects.length === 0) return;
-    new ClusterObjects(`downstream/${name}/objects`, { objects, value: objectValue }, {
+    const placed = objects.length > 0 ? new ClusterObjects(`downstream/${name}/objects`, { objects, value: objectValue }, {
         provider: cluster.provider, deletedWith: cluster.cluster, dependsOn: [cluster.cluster],
-    });
+    }).resources : [];
+    const cp = lab.downstream.find(d => d.name === name)?.chartProfiles;
+    if (!cp) return;
+    const target = { name: `downstream/${name}`, chartValues: cp.chartValues };
+    const ready: Record<string, pulumi.Resource[]> = {};
+    for (const profile of cp.order) {
+        const p = lab.profileCharts[profile];
+        const after = [cluster.cluster, ...placed, ...p.waitFor.flatMap(c => ready[c] ?? [])];
+        const done = installChartProfile(lab, target, profile, { provider: cluster.provider, deletedWith: cluster.cluster, kubeconfig: cluster.kubeconfig }, cp.profiles[profile] as { version?: string; values?: Record<string, unknown> }, after);
+        for (const c of p.provides) ready[c] = done.slice(-1);
+    }
 }
 
 export const name = lab.name;

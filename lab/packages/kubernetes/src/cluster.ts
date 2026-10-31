@@ -20,7 +20,7 @@ export interface ClusterAccess {
 }
 
 /** Options for a resource on a lab cluster. */
-export function onCluster(cluster: ClusterAccess, parent: pulumi.Resource, extra: pulumi.CustomResourceOptions = {}): pulumi.CustomResourceOptions {
+export function onCluster(cluster: Pick<ClusterAccess, "provider" | "deletedWith">, parent: pulumi.Resource, extra: pulumi.CustomResourceOptions = {}): pulumi.CustomResourceOptions {
     return { parent, provider: cluster.provider, deletedWith: cluster.deletedWith, ...extra };
 }
 

@@ -1,0 +1,20 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HaulManifest
+metadata:
+  name: rancher-2.15
+  description: A starter set for Rancher 2.15 with cert-manager; not the full air-gap image list
+spec:
+  # The charts and the images they reference (addImages). A complete air-gapped install needs the
+  # release's rancher-images.txt as well; add the images you need here.
+  charts:
+    - name: rancher
+      repoURL: https://charts.rancher.com/server-charts/prime
+      version: 2.15.2
+      addImages: true
+    - name: cert-manager
+      repoURL: https://charts.jetstack.io
+      version: v1.20.2
+      addImages: true
+  images:
+    - name: rancher/rancher-agent:v2.15.2
+    - name: rancher/shell:v0.8.3

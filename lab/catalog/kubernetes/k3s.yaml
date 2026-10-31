@@ -27,5 +27,12 @@ spec:
   dataDir: /var/lib/rancher/k3s
   # Run on a metal cluster's existing machines when the lab goes; missing ones are skipped.
   uninstall: [ /usr/local/bin/k3s-uninstall.sh, /usr/local/bin/k3s-agent-uninstall.sh ]
+  # Its own Traefik, when no profile replaces it: with its Gateway provider, so it has a "traefik"
+  # GatewayClass too; set with a HelmChartConfig. k3s doesn't ship the Gateway API CRDs: applied first.
+  ingress:
+    chart: traefik
+    manifests: [ gateway-api ]
+    values:
+      providers: { kubernetesGateway: { enabled: true } }
   # Downstream clusters' default CNI.
   cni: flannel

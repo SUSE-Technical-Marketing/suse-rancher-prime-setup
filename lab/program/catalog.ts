@@ -77,6 +77,13 @@ export function installCommand(d: ResolvedDistribution, version: string): string
     return String(out);
 }
 
+/** A catalog Binary: its download URL template (`{version}`, `{arch}`) and version (`own` wins). */
+export function download(key: string, lab: ResolvedLab, own?: string): { url: string; version: string } {
+    const c = component(key, lab);
+    if (c.kind !== "Binary") throw new Error(`catalog.components.${key} needs to be a Binary`);
+    return { url: c.download, version: version(key, lab, own) };
+}
+
 /** The catalog manifest URL template for `key`. */
 export function manifest(key: string, lab: ResolvedLab): string {
     const c = component(key, lab);
@@ -88,7 +95,7 @@ export function manifest(key: string, lab: ResolvedLab): string {
  * A profile's chart: its HelmChart at its version (the profile's own `version` setting wins), the
  * namespace its Profile document names, and the document's default and locked values.
  */
-export function profileChart(profile: string, host: ResolvedHost, lab: ResolvedLab, own?: string): RenderedProfileChart {
+export function profileChart(profile: string, host: Pick<ResolvedHost, "chartValues">, lab: ResolvedLab, own?: string): RenderedProfileChart {
     const p = lab.profileCharts[profile];
     if (!p) throw new Error(`profile ${profile} has no charts in the catalog`);
     // Its own chart (the first in `charts`), with the values the resolver rendered for this host.

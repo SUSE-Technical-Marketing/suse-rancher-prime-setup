@@ -1,0 +1,17 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HostRecipe
+metadata:
+  name: registry-vm
+  description: "A Hauler registry for air-gapped installs, as systemd services: drop on a Harvester"
+spec:
+  label: Registry VM
+  icon: truck                # lucide.dev/icons
+  kind: HarvesterVM
+  name: registry
+  host:
+    cpu: 2
+    memory: 4Gi
+    # The store holds every image and chart it syncs.
+    disk: 200Gi
+    profiles:
+      hauler: { manifests: [ rancher-2.15 ] }

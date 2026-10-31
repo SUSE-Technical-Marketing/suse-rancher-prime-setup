@@ -1,0 +1,9 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Binary
+metadata:
+  name: lego
+  description: lego ACME client, for certificates on hosts without cert-manager (DNS-01 with the lab's Cloudflare token)
+spec:
+  # https://github.com/go-acme/lego/releases; {arch} is amd64 or arm64.
+  url: https://github.com/go-acme/lego/releases/download/{version}/lego_{version}_linux_{arch}.tar.gz
+  version: v5.6.0

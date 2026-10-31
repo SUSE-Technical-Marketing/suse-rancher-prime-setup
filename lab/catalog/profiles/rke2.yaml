@@ -10,9 +10,11 @@ spec:
   conflicts: [ kubernetes ]
   # RKE2's own ServiceLB and Traefik, unless another profile on the host provides them (metallb,
   # traefik): its KubernetesDistribution's `withCapability` then turns them off.
-  fallback: [ load-balancer, ingress ]
+  fallback: [ load-balancer, ingress, gateway-api ]
   outputs:
     ingress: { ingressClassName: traefik }
+    # Its Traefik's Gateway provider, turned on by the engine (its KubernetesDistribution's `ingress`).
+    gateway-api: { gatewayClassName: traefik }
   settings:
     type: object
     properties:

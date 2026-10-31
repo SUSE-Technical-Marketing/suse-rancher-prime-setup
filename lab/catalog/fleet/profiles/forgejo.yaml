@@ -1,0 +1,11 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: forgejo
+  description: "Forgejo git server (apps/thirdparty/forgejo)"
+spec:
+  icon: git-branch
+  labels:
+    needs-forgejo: "true"
+  annotations:
+    hosted-domain: "{{ lab.domain }}"

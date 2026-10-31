@@ -1,0 +1,10 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: hauler-helm
+  description: Hauler's registry and fileserver on Kubernetes (the official chart)
+spec:
+  repo: https://hauler-dev.github.io/hauler-helm
+  chart: hauler-helm
+  version: 2.4.2
+  namespace: hauler

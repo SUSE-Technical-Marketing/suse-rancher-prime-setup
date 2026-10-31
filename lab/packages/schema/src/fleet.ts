@@ -75,6 +75,25 @@ export const FleetHelmOpInput = z.strictObject({
 });
 export type FleetHelmOpInput = z.infer<typeof FleetHelmOpInput>;
 
+/**
+ * A Fleet profile: labels and annotations for a downstream cluster, which the lab's Fleet repos and
+ * HelmOps select on (`needs-security: "true"`) and read (`hosted-domain`). It installs nothing
+ * itself: Fleet does, on the clusters Rancher manages. Values are templates over `lab` and `cluster`
+ * (`name`, `type`, `rancher`: the Rancher host's name).
+ */
+export const FleetProfileInput = z.strictObject({
+    /** Its icon in the lab UI: a Lucide icon name. */
+    icon: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "must be a Lucide icon name like hard-drive").optional(),
+    labels: z.record(z.string(), z.string()).optional(),
+    annotations: z.record(z.string(), z.string()).optional(),
+    /** Capabilities the cluster's other Fleet profiles must provide (each provides its own name). */
+    requires: z.array(z.string().min(1)).optional(),
+    provides: z.array(z.string().min(1)).optional(),
+    /** Capabilities no other Fleet profile on the same cluster may provide. */
+    conflicts: z.array(z.string().min(1)).optional(),
+});
+export type FleetProfileInput = z.infer<typeof FleetProfileInput>;
+
 export const FleetCatalogInput = z.strictObject({
     groups: z.record(dnsLabel, ClusterSelector).default({}),
     repos: z.record(dnsLabel, FleetRepoInput).default({}),

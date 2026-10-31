@@ -1,5 +1,5 @@
 apiVersion: lab.geeko.me/v1alpha1
-kind: Profile
+kind: ChartProfile
 metadata:
   name: sprouter
   description: "Sprouter: copies labelled secrets (the wildcard certificate) into every namespace"

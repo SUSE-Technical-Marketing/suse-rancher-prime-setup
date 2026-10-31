@@ -2,16 +2,19 @@ import * as path from "node:path";
 import { Diagnostics } from "./diagnostics";
 import { CatalogLayer, catalogValues, ResolvedAcmeServer, ResolvedComponent, ResolvedPlugins, resolveCatalog, Timeouts } from "./catalog";
 import { FleetSettings, ResolvedFleet, resolveFleet } from "./fleet";
+import { haulManifestFiles, renderHaulManifest } from "./hauler";
 import { createObjects, ObjectTarget, Placement, placementOf, ResolvedObject } from "./objects";
 import { docAt } from "./documents";
 import { isTemplate, renderTemplates, TemplateContext } from "./templates";
+import { refsIn } from "./settings-schema";
 import { checkSecretTemplate, describeShape, mapShape, mergeShapes, type SecretShape, usesSecrets } from "./secrets";
 import { ResolvedOs } from "./os";
+import type { TimeoutName } from "./primitives";
 
 /** cloud-config keys an existing machine (no user data) gets, over SSH instead (packages are always refreshed first). */
 export const MACHINE_CLOUD_INIT_KEYS = ["packages", "runcmd", "package_update"];
 import { Profiles } from "./profiles";
-import { activeRequirements, blocksMetalClusterNode, checkHostProfiles, describeCapability, hostCapabilities, profileBuildOrder } from "./profiles/rules";
+import { activeRequirements, blocksMetalClusterNode, checkClusterProfiles, checkHostProfiles, clusterCapabilities, describeCapability, hostCapabilities, profileBuildOrder } from "./profiles/rules";
 import {
     AWS_CREDENTIAL_FIELDS, AwsCredentials, Credentials, DownstreamInput, durationSeconds, HarvesterInput, ImageSource, LabFile, NODE_ROLES,
     PersonalConfig, VersionValue,
@@ -68,6 +71,16 @@ export interface RenderedChartEntry {
     vars: Record<string, string>;
 }
 
+/** One of a profile's `objects` on a host (only those whose `when` holds), its templates rendered. */
+export interface RenderedObject {
+    /** Its name in the lab's state, under the profile. */
+    name: string;
+    object: Record<string, unknown>;
+    /** Wait for the API server to admit it first (a webhook). */
+    admitted?: boolean;
+    wait?: { condition: string; timeout: TimeoutName };
+}
+
 /** How a profile installs its chart: the HelmChart and namespace (its values are per host: `chartValues`). */
 export interface ProfileChart {
     /** What it installs, in order; `main` marks its own chart (the lab's `values`, the `version` setting). */
@@ -76,6 +89,8 @@ export interface ProfileChart {
     provides: string[];
     /** Capabilities whose providers it installs after (`requires`, `uses`, `requiresWhen`). */
     waitFor: string[];
+    /** Component types its resources were created under before: kept, not replaced. */
+    aliases?: string[];
 }
 
 export interface ResolvedChartPlacement {
@@ -101,7 +116,7 @@ interface ResolvedHostBase {
     /** Catalog HelmCharts installed on the host's cluster after its profiles (§17). */
     charts: ResolvedChartPlacement[];
     /** By chart profile on this host: its Profile's `values` and `lockedValues`, templates rendered. */
-    chartValues: Record<string, { entries: RenderedChartEntry[] }>;
+    chartValues: Record<string, { entries: RenderedChartEntry[]; objects: RenderedObject[] }>;
     /** By capability: what the profile providing it on this host declares under `outputs`. */
     outputs: Record<string, Record<string, unknown>>;
     /** DNS name the host is reached at. */
@@ -136,7 +151,21 @@ type EksDownstreamInput = Extract<DownstreamInput, { type: "eks" }>;
 /** An EKS node group with its defaults filled in. */
 export type ResolvedEksNodeGroup = EksDownstreamInput["nodeGroups"][number] & { min: number; max: number; instanceType: string; disk: string; zones: string[] };
 /** A downstream cluster; a Harvester or EC2 one's pools with their machine size filled in, an EKS one's version and node groups. */
-export type ResolvedDownstream = { name: string } & (
+/** A downstream cluster's ChartProfiles, as a host's profiles are resolved. */
+export interface ResolvedClusterProfiles {
+    /** Name -> its settings, defaults applied. */
+    profiles: Profiles;
+    /** Build order: each after the profiles it requires. */
+    order: string[];
+    /** By profile: its charts' values and its objects, templates rendered. */
+    chartValues: Record<string, { entries: RenderedChartEntry[]; objects: RenderedObject[] }>;
+}
+
+export type ResolvedDownstream = {
+    name: string;
+    /** Its ChartProfiles (`profiles`), checked and rendered: the engine installs them once the cluster is ready. */
+    chartProfiles?: ResolvedClusterProfiles;
+} & (
     | Exclude<DownstreamInput, { type: "harvester" | "ec2" | "eks" }>
     | (Omit<EksDownstreamInput, "nodeGroups" | "version"> & { version: string; nodeGroups: ResolvedEksNodeGroup[] })
     | (Omit<HarvesterDownstreamInput, "pools"> & { pools: (HarvesterDownstreamInput["pools"][number] & { cpu: number; memory: string; disk: string })[] })
@@ -176,6 +205,8 @@ export interface ResolvedLab {
     timeouts: Timeouts;
     /** Images the engine runs itself (Defaults `images`). */
     images: { kubectl: string };
+    /** The HaulManifests the lab's profiles name, rendered as Hauler content documents. */
+    haulManifests: Record<string, string>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -218,8 +249,12 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         secrets[name] = merged;
     };
 
+    /** Where the lab file's secrets are filled in (secret fields, chart values): a secret anywhere else is text. */
+    const secretSites = new Set<string>();
+
     /** A template that may use secrets: report what's wrong with it, register the secrets it uses. */
     const useTemplate = (template: string, shape: SecretShape, source: string, at: string, vars?: Record<string, unknown>) => {
+        if (source === L) secretSites.add(at);
         const { uses, error } = checkSecretTemplate(template, shape, vars);
         if (error) diags.error(source, at, error);
         for (const u of uses) needSecret(u.name, u.shape, source, at);
@@ -448,6 +483,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
 
     // --- Hosts -------------------------------------------------------------------------------
     const registry = catalog.profiles;
+    const usedHaulManifests = new Set<string>();
     /** A host's `profiles:`: known names, settings checked against each profile's schema. */
     const parseProfiles = (profiles: Record<string, Record<string, unknown>>, at: string): Profiles => {
         const result: Profiles = {};
@@ -458,8 +494,17 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 continue;
             }
             const parsed = def.settings.safeParse(settings ?? {});
-            if (parsed.success) result[name] = parsed.data as Record<string, unknown>;
-            else diags.addZodError(L, parsed.error, [...at.split("."), "profiles", name]);
+            if (!parsed.success) {
+                diags.addZodError(L, parsed.error, [...at.split("."), "profiles", name]);
+                continue;
+            }
+            result[name] = parsed.data as Record<string, unknown>;
+            // Settings naming a HaulManifest: the catalog must have it; the lab gets it rendered.
+            for (const ref of refsIn(def.settingsSchema, parsed.data, "haulManifest")) {
+                const manifest = String(ref.value);
+                if (catalog.haulManifests[manifest]) usedHaulManifests.add(manifest);
+                else diags.error(L, `${at}.profiles.${name}.${ref.at}`, `no HaulManifest "${manifest}"; known: ${Object.keys(catalog.haulManifests).sort().join(", ") || "none"}`);
+            }
         }
         return result;
     };
@@ -527,6 +572,66 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         for (const host of hosts.values()) host.profileOrder = profileBuildOrder(registry, host.profiles);
     }
 
+    /**
+     * A profile's charts and objects on a host or downstream cluster, their templates rendered
+     * (§17); undefined when it has neither, or misses requirements (the rules report those).
+     */
+    const renderedHaul = Object.fromEntries(Object.entries(catalog.haulManifests).map(([n, { value }]) => [n, renderHaulManifest(n, value)]));
+    const renderProfile = (
+        name: string, profiles: Profiles, outputs: Record<string, Record<string, unknown>>,
+        where: Pick<TemplateContext, "host" | "target">, on: string,
+    ): { entries: RenderedChartEntry[]; objects: RenderedObject[] } | undefined => {
+        const def = registry[name];
+        if (!def?.charts?.length && !def?.objects?.length) return undefined;
+        // Missing requirements are reported by the profile rules; its templates would only add noise.
+        const caps = hostCapabilities(registry, profiles);
+        if (where.target.kind === "cluster") caps.set("kubernetes", ["the cluster"]);
+        if (activeRequirements(def, profiles[name]).some(c => !caps.has(c))) return undefined;
+        // Only what the profile waits for: a template can't read a profile built after it.
+        const waitFor = new Set([...(def.requires ?? []), ...(def.uses ?? []), ...(def.requiresWhen ?? []).map(r => r.capability)]);
+        const ctx: TemplateContext = {
+            settings: profiles[name],
+            ...where,
+            lab: {
+                name: lab.lab, domain: lab.domain, vars: lab.vars,
+                tls: {
+                    acme: lab.tls.acme, privateCA: !!acme?.ca,
+                    ...(acme ? { url: acme.url } : {}),
+                    ...(lab.tls.email ? { email: lab.tls.email } : {}),
+                    // A secret template ("{{ secrets.cloudflare.token }}"), rendered with its value when the lab is built.
+                    ...(lab.tls.cloudflare ? { cloudflare: lab.tls.cloudflare } : {}),
+                },
+            },
+            outputs: Object.fromEntries(Object.entries(outputs).filter(([cap]) => waitFor.has(cap))),
+            haulManifests: names => haulManifestFiles(names, renderedHaul),
+        };
+        const errorAt = (part: string) => (path: string, message: string) =>
+            diags.error(def.source, docAt(def.kind === "chart" ? "ChartProfile" : "Profile", name, `spec.${part}${path ? `.${path}` : ""}`), `${message} (on ${on})`);
+        return {
+            entries: (def.charts ?? []).map((e, i) => {
+                const error = (field: string) => errorAt(`charts[${i}].${field}`);
+                const install = e.when === undefined ? true : renderTemplates(e.when, ctx, "", error("when"));
+                if (typeof install !== "boolean") error("when")("", `must render to true or false, not ${JSON.stringify(install)}`);
+                const version = e.version === undefined ? undefined : renderTemplates(e.version, ctx, "", error("version"));
+                return {
+                    values: renderTemplates(e.values ?? {}, ctx, "", error("values")) as Record<string, unknown>,
+                    lockedValues: renderTemplates(e.lockedValues ?? {}, ctx, "", error("lockedValues")) as Record<string, unknown>,
+                    install: install === true,
+                    ...(typeof version === "string" && version !== "" ? { version } : {}),
+                    vars: Object.fromEntries(Object.entries(e.vars ?? {}).map(([k, v]) => [k, String(renderTemplates(v, ctx, "", error(`vars.${k}`)))])),
+                };
+            }),
+            objects: (def.objects ?? []).flatMap((e, i) => {
+                const error = (field: string) => errorAt(`objects[${i}].${field}`);
+                const create = e.when === undefined ? true : renderTemplates(e.when, ctx, "", error("when"));
+                if (typeof create !== "boolean") error("when")("", `must render to true or false, not ${JSON.stringify(create)}`);
+                if (create !== true) return [];
+                const object = renderTemplates(e.object, ctx, "", error("object")) as Record<string, unknown>;
+                return [{ name: String(renderTemplates(e.name, ctx, "", error("name"))), object, ...(e.admitted ? { admitted: true } : {}), ...(e.wait ? { wait: e.wait } : {}) }];
+            }),
+        };
+    };
+
     // --- Chart profiles' values: their templates, rendered per host (§17) -------------------------
     for (const host of hosts.values()) {
         // Only from the profile that actually provides each capability (not a fallback another profile replaced).
@@ -534,35 +639,8 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             for (const [cap, o] of Object.entries(registry[name]?.outputs ?? {})) if (host.providers[cap]?.includes(name)) host.outputs[cap] = o;
         }
         for (const name of Object.keys(host.profiles)) {
-            const def = registry[name];
-            if (!def?.charts?.length) continue;
-            // Missing requirements are reported by the profile rules; its templates would only add noise.
-            const caps = hostCapabilities(registry, host.profiles);
-            if (activeRequirements(def, host.profiles[name]).some(c => !caps.has(c))) continue;
-            // Only what the profile waits for: a template can't read a profile built after it.
-            const waitFor = new Set([...(def.requires ?? []), ...(def.uses ?? []), ...(def.requiresWhen ?? []).map(r => r.capability)]);
-            const ctx: TemplateContext = {
-                settings: host.profiles[name],
-                host: { name: host.name, fqdn: host.fqdn },
-                lab: { name: lab.lab, domain: lab.domain, vars: lab.vars, tls: { acme: lab.tls.acme, privateCA: !!acme?.ca, ...(lab.tls.email ? { email: lab.tls.email } : {}) } },
-                outputs: Object.fromEntries(Object.entries(host.outputs).filter(([cap]) => waitFor.has(cap))),
-            };
-            host.chartValues[name] = {
-                entries: (def.charts ?? []).map((e, i) => {
-                    const error = (field: string) => (path: string, message: string) =>
-                        diags.error(def.source, docAt("Profile", name, `spec.charts[${i}].${field}${path ? `.${path}` : ""}`), `${message} (on host ${host.name})`);
-                    const install = e.when === undefined ? true : renderTemplates(e.when, ctx, "", error("when"));
-                    if (typeof install !== "boolean") error("when")("", `must render to true or false, not ${JSON.stringify(install)}`);
-                    const version = e.version === undefined ? undefined : renderTemplates(e.version, ctx, "", error("version"));
-                    return {
-                        values: renderTemplates(e.values ?? {}, ctx, "", error("values")) as Record<string, unknown>,
-                        lockedValues: renderTemplates(e.lockedValues ?? {}, ctx, "", error("lockedValues")) as Record<string, unknown>,
-                        install: install === true,
-                        ...(typeof version === "string" && version !== "" ? { version } : {}),
-                        vars: Object.fromEntries(Object.entries(e.vars ?? {}).map(([k, v]) => [k, String(renderTemplates(v, ctx, "", error(`vars.${k}`)))])),
-                    };
-                }),
-            };
+            const rendered = renderProfile(name, host.profiles, host.outputs, { host: { name: host.name, fqdn: host.fqdn }, target: { kind: "host", name: host.name, fqdn: host.fqdn } }, `host ${host.name}`);
+            if (rendered) host.chartValues[name] = rendered;
         }
     }
     const describe = (capability: string) => describeCapability(registry, capability);
@@ -721,15 +799,54 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         if (missing.length > 0) diags.error(L, at, `no node has the ${missing.join(", ")} role${missing.length > 1 ? "s" : ""}; a cluster needs at least one of each`);
     }
 
-    // --- Charts placed on hosts (§17) ----------------------------------------------------------
-    for (const host of hosts.values()) {
-        const placements = lab.hosts[host.name]?.charts ?? [];
-        if (placements.length === 0) continue;
-        const at = `hosts.${host.name}.charts`;
-        if (!host.capabilities.includes("kubernetes")) {
-            diags.error(L, at, `needs ${describe("kubernetes")} on the host to install charts on`);
-            continue;
+    // --- Fleet profiles on downstream clusters (§16.3) -----------------------------------------
+    // Their labels and annotations, rendered, go on the cluster with its own; Fleet installs what they
+    // select. Each key has one value: a Fleet profile can't quietly change another's, or the cluster's.
+    for (const d of downstream) {
+        const names = Object.keys(d.fleetProfiles ?? {});
+        if (names.length === 0) continue;
+        const at = `downstream.${d.name}.fleetProfiles`;
+        const known = catalog.fleet.profiles;
+        const caps = new Map<string, string[]>();
+        for (const n of names) {
+            const p = known[n]?.value;
+            if (!p) {
+                diags.error(L, `${at}.${n}`, `unknown Fleet profile "${n}"; known: ${Object.keys(known).sort().join(", ") || "none"}`);
+                continue;
+            }
+            for (const c of [n, ...(p.provides ?? [])]) caps.set(c, [...(caps.get(c) ?? []), n]);
         }
+        const ctx = { lab: { name: lab.lab, domain: lab.domain, vars: lab.vars }, cluster: { name: d.name, type: d.type, rancher: d.rancher } };
+        const set: Record<"labels" | "annotations", Record<string, { value: string; from: string }>> = { labels: {}, annotations: {} };
+        for (const field of ["labels", "annotations"] as const) {
+            for (const [k, v] of Object.entries(d[field] ?? {})) set[field][k] = { value: v, from: `the cluster's ${field}` };
+        }
+        for (const n of names.filter(n => known[n])) {
+            const { value: p, source } = known[n];
+            for (const r of p.requires ?? []) {
+                if (!caps.has(r)) diags.error(L, `${at}.${n}`, `needs ${r}, which none of this cluster's Fleet profiles provides`);
+            }
+            for (const c of p.conflicts ?? []) {
+                const others = (caps.get(c) ?? []).filter(o => o !== n);
+                if (others.length > 0) diags.error(L, `${at}.${n}`, `conflicts with ${others.join(", ")} (both ${c})`);
+            }
+            for (const field of ["labels", "annotations"] as const) {
+                for (const [k, template] of Object.entries(p[field] ?? {})) {
+                    const value = String(renderTemplates(template, ctx, "", (_p, message) => diags.error(source, docAt("FleetProfile", n, `spec.${field}.${k}`), `${message} (on cluster ${d.name})`)));
+                    const before = set[field][k];
+                    if (before && before.value !== value) diags.error(L, `${at}.${n}`, `sets ${field === "labels" ? "label" : "annotation"} ${k} to "${value}", but ${before.from} has "${before.value}"`);
+                    else set[field][k] = { value, from: `Fleet profile ${n}` };
+                }
+            }
+        }
+        const target = d as { labels?: Record<string, string>; annotations?: Record<string, string> };
+        target.labels = Object.fromEntries(Object.entries(set.labels).map(([k, v]) => [k, v.value]));
+        target.annotations = Object.fromEntries(Object.entries(set.annotations).map(([k, v]) => [k, v.value]));
+    }
+
+    // --- Charts placed on hosts and downstream clusters (§17) ---------------------------------
+    const placeCharts = (placements: { name: string; namespace?: string; values?: Record<string, unknown> }[], at: string): ResolvedChartPlacement[] => {
+        const placed: ResolvedChartPlacement[] = [];
         placements.forEach((p, i) => {
             const c = catalog.components[p.name]?.value;
             if (!c || c.kind !== "HelmChart") {
@@ -747,8 +864,61 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 return;
             }
             walkRefs(p.values ?? {}, `${at}[${i}].values`);
-            host.charts.push({ name: p.name, chart: c.chart, ...(c.repo ? { repo: c.repo } : {}), version: c.version, namespace, values: p.values ?? {} });
+            placed.push({ name: p.name, chart: c.chart, ...(c.repo ? { repo: c.repo } : {}), version: c.version, namespace, values: p.values ?? {} });
         });
+        return placed;
+    };
+    for (const host of hosts.values()) {
+        const placements = lab.hosts[host.name]?.charts ?? [];
+        if (placements.length === 0) continue;
+        const at = `hosts.${host.name}.charts`;
+        if (!host.capabilities.includes("kubernetes")) {
+            diags.error(L, at, `needs ${describe("kubernetes")} on the host to install charts on`);
+            continue;
+        }
+        host.charts.push(...placeCharts(placements, at));
+    }
+
+    // --- ChartProfiles on downstream clusters (§17) ---------------------------------------------
+    // Only ChartProfiles: a Profile has code for lab hosts; a Fleet profile goes under fleetProfiles.
+    for (const d of downstream) {
+        const asked = Object.entries(d.profiles ?? {});
+        if (asked.length === 0) continue;
+        const at = `downstream.${d.name}`;
+        const chartProfiles = Object.values(registry).filter(p => p.kind === "chart").map(p => p.name).sort();
+        const own: Record<string, Record<string, unknown>> = {};
+        for (const [n, settings] of asked) {
+            const def = registry[n];
+            if (def?.kind === "chart") own[n] = settings;
+            else if (def) diags.error(L, `${at}.profiles.${n}`, `is a Profile for lab hosts (the engine has code for it); a downstream cluster takes ChartProfiles: ${chartProfiles.join(", ")}`);
+            else if (catalog.fleet.profiles[n]) diags.error(L, `${at}.profiles.${n}`, `is a Fleet profile: list it under fleetProfiles`);
+            else diags.error(L, `${at}.profiles.${n}`, `unknown ChartProfile "${n}"; known: ${chartProfiles.join(", ")}`);
+        }
+        const profiles = parseProfiles(own, at);
+        checkClusterProfiles({
+            registry,
+            cluster: { name: d.name, profiles },
+            error: (path, message) => diags.error(L, path, message),
+            secretField: (value, path, shape) => {
+                if (value === undefined) return;
+                if (shape === "credentials") useCredentials(value as Credentials, L, path);
+                else useSecretOrString(value as string, L, path);
+            },
+            secretTemplate: (template, path) => useTemplate(template, "string", L, path),
+        });
+        // Outputs only from the profile providing each capability, as on a host.
+        const caps = clusterCapabilities(registry, profiles);
+        const outputs: Record<string, Record<string, unknown>> = {};
+        for (const n of Object.keys(profiles)) {
+            for (const [cap, o] of Object.entries(registry[n]?.outputs ?? {})) if (caps.get(cap)?.includes(n)) outputs[cap] = o;
+        }
+        const target = { kind: "cluster" as const, name: d.name, fqdn: `${d.name}.${lab.domain}` };
+        const chartValues: ResolvedClusterProfiles["chartValues"] = {};
+        for (const n of Object.keys(profiles)) {
+            const rendered = renderProfile(n, profiles, outputs, { target }, `cluster ${d.name}`);
+            if (rendered) chartValues[n] = rendered;
+        }
+        d.chartProfiles = { profiles, order: diags.ok ? profileBuildOrder(registry, profiles) : Object.keys(profiles), chartValues };
     }
 
     // --- Objects placed on host and downstream clusters ----------------------------------------
@@ -843,6 +1013,19 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         }
     }
 
+    // Secrets only get their values where they're filled in; anywhere else (an annotation, an
+    // address) the lab would use the template as text. `vars` are a source: what refers to them is checked.
+    const walkSecretText = (value: unknown, at: string): void => {
+        if (typeof value === "string") {
+            if (usesSecrets(value) && !secretSites.has(at)) {
+                diags.error(L, at, "uses a secret, but this field isn't filled in with secrets: the template would be used as text. Secrets go in secret fields (passwords, credentials, tokens) and in chart values");
+            }
+        } else if (Array.isArray(value)) value.forEach((v, i) => walkSecretText(v, `${at}[${i}]`));
+        else if (typeof value === "object" && value !== null) for (const [k, v] of Object.entries(value)) walkSecretText(v, `${at}.${k}`);
+    };
+    // Only on an otherwise clean lab: a field whose document has errors may not have been looked at.
+    if (diags.ok) for (const key of ["tls", "ssh", "inputs", "images", "harvesters", "awsSites", "hosts", "downstream"] as const) walkSecretText(lab[key], key);
+
     if (!diags.ok) return { diagnostics: diags };
     return {
         diagnostics: diags,
@@ -854,11 +1037,12 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             ...(acme ? { acme } : {}),
             ssh,
             components: catalogValues(catalog.components),
-            profileCharts: Object.fromEntries(Object.values(catalog.profiles).filter(p => p.charts?.length).map(p => [p.name, {
-                entries: p.charts!.map((e, i) => e.chart !== undefined
+            profileCharts: Object.fromEntries(Object.values(catalog.profiles).filter(p => p.charts?.length || p.objects?.length).map(p => [p.name, {
+                entries: (p.charts ?? []).map((e, i) => e.chart !== undefined
                     ? { kind: "chart" as const, chart: e.chart, namespace: e.namespace!, main: i === p.charts!.findIndex(x => x.chart !== undefined) }
                     : { kind: "manifest" as const, manifest: e.manifest! }),
                 provides: [p.name, ...(p.provides ?? [])],
+                ...(p.aliases ? { aliases: p.aliases } : {}),
                 waitFor: [...(p.requires ?? []), ...(p.uses ?? []), ...(p.requiresWhen ?? []).map(r => r.capability)],
             }])),
             plugins: catalog.plugins.value,
@@ -873,6 +1057,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             secrets,
             timeouts: catalog.defaults.value.timeouts,
             images: catalog.defaults.value.images,
+            haulManifests: Object.fromEntries([...usedHaulManifests].sort().map(n => [n, renderedHaul[n]])),
         },
     };
 }

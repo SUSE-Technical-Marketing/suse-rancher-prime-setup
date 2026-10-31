@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import * as nunjucks from "nunjucks";
 
 // Jinja2 templates (Nunjucks) in a Profile's `values` and `lockedValues` (DESIGN.md §17): string
@@ -25,6 +26,9 @@ env.addFilter("field", (value: unknown, field: string) => {
     throw new Error(`field('${field}'): expects a secret or a map`);
 });
 
+/** `hash`: a short digest of a value (a string, or anything as JSON), to name or annotate what has to change with it. */
+env.addFilter("hash", (value: unknown) => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value) ?? "").digest("hex").slice(0, 12));
+
 const WHOLE = /^\s*\{\{([\s\S]*)\}\}\s*$/;
 export const isTemplate = (s: string) => s.includes("{{") || s.includes("{%");
 
@@ -32,11 +36,20 @@ export const isTemplate = (s: string) => s.includes("{{") || s.includes("{%");
 export interface TemplateContext {
     /** The profile's own settings, defaults applied. */
     settings: Record<string, unknown>;
-    host: { name: string; fqdn: string };
+    /** The lab host it's on (a Profile's, or a ChartProfile's on a host); none on a downstream cluster. */
+    host?: { name: string; fqdn: string };
+    /**
+     * Where it's installed, host or downstream cluster: a ChartProfile's templates use this. A
+     * cluster's `fqdn` is `<cluster>.<domain>`, as the Fleet apps name things there.
+     */
+    target: { kind: "host" | "cluster"; name: string; fqdn: string };
     /** `tls.privateCA`: the ACME server's CA isn't trusted by default (Let's Encrypt staging). */
-    lab: { name: string; domain: string; vars: Record<string, unknown>; tls: { acme: string; privateCA: boolean; email?: string } };
+    /** `tls.url`: the ACME server's directory; `tls.cloudflare`: the DNS-01 token, a secret template. */
+    lab: { name: string; domain: string; vars: Record<string, unknown>; tls: { acme: string; privateCA: boolean; url?: string; email?: string; cloudflare?: string } };
     /** By capability: what the profiles on the same host that provide it declare under `outputs`. */
     outputs: Record<string, Record<string, unknown>>;
+    /** `haulManifests(settings.manifests)`: the HaulManifests named, as Hauler syncs them (`<name>.yaml` → its documents). */
+    haulManifests(names: string[]): Record<string, string>;
 }
 
 /** Nunjucks' messages start with where it thinks it is; ours say that already. */

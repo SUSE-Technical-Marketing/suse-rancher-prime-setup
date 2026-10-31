@@ -1,0 +1,9 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: FleetProfile
+metadata:
+  name: ingress-cloudflare
+  description: "Cloudflare tunnel ingress controller (apps/base/ingress-cloudflare)"
+spec:
+  icon: cloud-upload
+  labels:
+    needs-ingress-cloudflare: "true"

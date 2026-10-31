@@ -1,5 +1,5 @@
 apiVersion: lab.geeko.me/v1alpha1
-kind: Profile
+kind: ChartProfile
 metadata:
   name: metallb
   description: "MetalLB in L2 mode: LoadBalancer services get an address from a range on the host's network (instead of ServiceLB)"
@@ -10,6 +10,24 @@ spec:
       namespace: metallb-system
       # L2 only: no BGP stack (the chart's frr-k8s backend).
       values: { frrk8s: { enabled: false } }
+  # One pool of the settings' addresses, announced over L2: the node answers ARP for them. Names
+  # (state) as when this profile was code, so a running lab keeps them.
+  objects:
+    - name: pool
+      # The controller's webhook validates it, and can be Ready before the API server reaches it.
+      admitted: true
+      object:
+        apiVersion: metallb.io/v1beta1
+        kind: IPAddressPool
+        metadata: { name: lab, namespace: metallb-system }
+        spec: { addresses: "{{ settings.addresses }}" }
+    - name: l2
+      object:
+        apiVersion: metallb.io/v1beta1
+        kind: L2Advertisement
+        metadata: { name: lab, namespace: metallb-system }
+        spec: { ipAddressPools: [ lab ] }
+  aliases: [ lab:apps:MetalLb ]
   requires: [ kubernetes ]
   provides: [ load-balancer ]
   conflicts: [ load-balancer ]

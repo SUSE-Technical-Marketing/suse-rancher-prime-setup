@@ -5,6 +5,8 @@ export * from "./diagnostics";
 export * from "./catalog";
 export * from "./documents";
 export * from "./fleet";
+export * from "./hauler";
+export * from "./recipes";
 export * from "./objects";
 export * from "./settings-schema";
 export * from "./templates";
