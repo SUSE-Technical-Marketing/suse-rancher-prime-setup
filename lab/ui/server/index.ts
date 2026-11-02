@@ -9,8 +9,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { parseAllDocuments } from "yaml";
 import {
-    defaultPersonalConfigPath, Diagnostics, loadCatalog, loadLab, loadPersonal, profileTargets, renderLabSpec, withPersonalVars, type ResolvedCatalog,
+    capabilityReport, defaultPersonalConfigPath, Diagnostics, loadCatalog, loadLab, loadPersonal, profileTargets, renderLabSpec, withPersonalVars, type ResolvedCatalog,
 } from "../../packages/schema/src/index.ts";
+import type {
+    CapabilityReport, Catalog, CatalogProfile, CheckResult, FleetProfileInfo, HostRecipe, LabFileEntry, LabFileText, PersonalSecret, SecretShape,
+} from "../src/api-types.ts";
 import { renderPlan } from "../../cli/src/plan.ts";
 import { secretEnvName } from "../../cli/src/secrets.ts";
 
@@ -24,15 +27,18 @@ const personalConfig = process.env.LAB_CONFIG ?? defaultPersonalConfigPath();
 const LAB_FILE = /^[a-z0-9][a-z0-9.-]*\.yaml$/;
 
 const json = (body: unknown, status = 200) => Response.json(body, { status });
+/** An answer of the API: typed by api-types.ts, which the UI reads it with. */
+const reply = <T>(body: T, status = 200) => json(body, status);
 
-function catalogInfo(catalog: ResolvedCatalog) {
-    const inputs: Record<string, string> = {};
+function catalogInfo(catalog: ResolvedCatalog): Omit<Catalog, "personal"> {
+    const inputs: Record<string, SecretShape> = {};
     for (const o of [...Object.values(catalog.secrets), ...Object.values(catalog.configmaps)]) {
         for (const [name, shape] of Object.entries(o.value.inputs ?? {})) inputs[name] = shape;
     }
     return {
         os: Object.values(catalog.os).map(({ value: o }) => ({ name: o.name, displayName: o.displayName, family: o.family, image: o.image, ami: !!o.ami })),
-        profiles: Object.values(catalog.profiles).map(p => ({
+        profiles: Object.values(catalog.profiles).map((p): CatalogProfile => ({
+            ...(p.status === "planned" ? { status: "planned" as const } : {}),
             kind: p.kind,
             name: p.name,
             description: p.description,
@@ -46,18 +52,17 @@ function catalogInfo(catalog: ResolvedCatalog) {
             targets: profileTargets(p),
             clusterRefs: p.clusterRefs ?? [],
             osFamilies: p.osFamilies,
-            secretFields: p.secretFields ?? [],
             settings: p.settingsSchema,
         })),
         acme: Object.keys(catalog.acme).sort(),
         // The palette's standard hosts, in name order.
-        recipes: Object.entries(catalog.recipes).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]) => ({
+        recipes: Object.entries(catalog.recipes).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]): HostRecipe => ({
             name, label: value.label ?? name, description: value.description ?? "", icon: value.icon, kind: value.kind, hostName: value.name ?? name, host: value.host,
         })),
         haulManifests: Object.entries(catalog.haulManifests).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]) => ({ name, description: value.description })),
         fleetRepos: Object.entries(catalog.fleet.repos).map(([name, { value }]) => ({ name, description: value.description, default: !!value.default })),
         // Labels and annotations for downstream clusters; Fleet installs what they select.
-        fleetProfiles: Object.entries(catalog.fleet.profiles).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]) => ({
+        fleetProfiles: Object.entries(catalog.fleet.profiles).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]): FleetProfileInfo => ({
             name, description: value.description ?? "", icon: value.icon,
             labels: value.labels ?? {}, annotations: value.annotations ?? {},
             requires: value.requires ?? [], provides: value.provides ?? [], conflicts: value.conflicts ?? [],
@@ -79,12 +84,12 @@ function shapeOf(v: unknown): "string" | "credentials" | "map" | "other" {
  * A secret and every field in it, by path (`cloudflare`, `cloudflare.token`, `cloudflare.tunnel.id`):
  * shapes and a map's field names, never values.
  */
-function secretPaths(at: string[], v: unknown): { name: string; path: string[]; shape: ReturnType<typeof shapeOf>; fields?: string[] }[] {
+function secretPaths(at: string[], v: unknown): PersonalSecret[] {
     const here = { name: at.join("."), path: at, shape: shapeOf(v), ...(isMap(v) ? { fields: Object.keys(v).sort() } : {}) };
     return isMap(v) ? [here, ...Object.entries(v).flatMap(([k, x]) => secretPaths([...at, k], x))] : [here];
 }
 
-function personalInfo() {
+function personalInfo(): Catalog["personal"] {
     const diags = new Diagnostics();
     const personal = loadPersonal(personalConfig, diags)?.value;
     return {
@@ -113,7 +118,37 @@ function labValues(text: string): { name?: string; spec?: unknown } | undefined 
     }
 }
 
-function check(text: string, name: string) {
+/** The profiles' targets by document kind: lab hosts, downstream clusters, Harvesters. */
+const TARGETS: Record<string, "host" | "cluster" | "harvester"> = { HarvesterVM: "host", Machine: "host", DownstreamCluster: "cluster", Harvester: "harvester" };
+
+/**
+ * Each host's, cluster's and Harvester's capabilities by the engine's own rules (what `validate`
+ * checks), from the text as it is: also while the lab has errors, when the composer needs them most.
+ */
+function capabilities(text: string, labFile: string): Record<string, CapabilityReport> {
+    const catalog = loadCatalog({ labFile, personalConfig }).catalog ?? loadCatalog({ personalConfig }).catalog;
+    if (!catalog) return {};
+    const fleetKnown = Object.fromEntries(Object.entries(catalog.fleet.profiles).map(([n, { value }]) => [n, value]));
+    const out: Record<string, CapabilityReport> = {};
+    let docs: any[];
+    try {
+        docs = parseAllDocuments(text).map(d => d.toJS());
+    } catch {
+        return {};
+    }
+    for (const doc of docs) {
+        const target = TARGETS[doc?.kind];
+        const name = doc?.metadata?.name;
+        if (!target || typeof name !== "string") continue;
+        // `rancher:` with nothing after it is a profile with its default settings.
+        const profiles = Object.fromEntries(Object.entries(isMap(doc.spec?.profiles) ? doc.spec.profiles : {}).map(([n, v]) => [n, isMap(v) ? v : {}]));
+        const fleet = target === "cluster" ? { names: Object.keys(isMap(doc.spec?.fleetProfiles) ? doc.spec.fleetProfiles : {}), known: fleetKnown } : undefined;
+        out[`${doc.kind}/${name}`] = capabilityReport(catalog.profiles, target, profiles, fleet);
+    }
+    return out;
+}
+
+function check(text: string, name: string): CheckResult {
     const tmp = path.join(LABS_DIR, `.ui-check-${process.pid}-${Math.random().toString(36).slice(2)}.yaml`);
     fs.writeFileSync(tmp, text);
     try {
@@ -121,7 +156,8 @@ function check(text: string, name: string) {
         const shown = name || "lab.yaml";
         const diagnostics = result.diagnostics.items.map(d => ({ ...d, source: d.source === tmp ? shown : d.source }));
         const lab = labValues(text);
-        if (!result.lab || !result.personal) return { ok: false, diagnostics, missingSecrets: [], plan: undefined, lab };
+        const caps = capabilities(text, tmp);
+        if (!result.lab || !result.personal) return { ok: false, diagnostics, missingSecrets: [], plan: undefined, lab, capabilities: caps };
         const set = new Set(Object.keys(result.personal.secrets));
         const missing = Object.keys(result.lab.secrets).filter(s => !set.has(s) && process.env[secretEnvName(s)] === undefined);
         return {
@@ -130,6 +166,7 @@ function check(text: string, name: string) {
             missingSecrets: missing,
             plan: renderPlan(result.lab, new Set(missing)).replaceAll(tmp, shown),
             lab,
+            capabilities: caps,
         };
     } finally {
         fs.rmSync(tmp, { force: true });
@@ -147,11 +184,11 @@ async function api(req: Request, url: URL): Promise<Response> {
             if (without.catalog) ({ diagnostics, catalog } = without);
         }
         if (!catalog) return json({ error: diagnostics.items.map(d => `${d.source}: ${d.path}: ${d.message}`).join("\n") }, 500);
-        return json({ ...catalogInfo(catalog), personal: personalInfo() });
+        return reply<Catalog>({ ...catalogInfo(catalog), personal: personalInfo() });
     }
     if (route === "/labs" && req.method === "GET") {
         const files = fs.readdirSync(LABS_DIR).filter(f => LAB_FILE.test(f)).sort();
-        return json(files.map(file => ({ file })));
+        return reply<LabFileEntry[]>(files.map(file => ({ file })));
     }
     const lab = /^\/labs\/([^/]+)$/.exec(route);
     if (lab) {
@@ -160,20 +197,20 @@ async function api(req: Request, url: URL): Promise<Response> {
         const full = path.join(LABS_DIR, file);
         if (req.method === "GET") {
             if (!fs.existsSync(full)) return json({ error: `${file} doesn't exist` }, 404);
-            return json({ file, text: fs.readFileSync(full, "utf8") });
+            return reply<LabFileText>({ file, text: fs.readFileSync(full, "utf8") });
         }
         if (req.method === "PUT") {
             const body = await req.json() as { text?: string; overwrite?: boolean };
             if (typeof body.text !== "string") return json({ error: "text is required" }, 400);
             if (fs.existsSync(full) && !body.overwrite) return json({ error: `${file} exists`, exists: true }, 409);
             fs.writeFileSync(full, body.text.endsWith("\n") ? body.text : `${body.text}\n`);
-            return json({ file });
+            return reply<LabFileEntry>({ file });
         }
     }
     if (route === "/check" && req.method === "POST") {
         const body = await req.json() as { text?: string; name?: string };
         if (typeof body.text !== "string") return json({ error: "text is required" }, 400);
-        return json(check(body.text, body.name ?? ""));
+        return reply<CheckResult>(check(body.text, body.name ?? ""));
     }
     return json({ error: "not found" }, 404);
 }

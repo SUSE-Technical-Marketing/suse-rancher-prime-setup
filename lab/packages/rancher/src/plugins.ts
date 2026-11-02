@@ -1,6 +1,6 @@
 import * as pulumi from "@pulumi/pulumi";
 import { catalog } from "@lab/crds";
-import { rancherLogin, rancherRequest } from "@lab/kube";
+import { poll, rancherLogin, rancherRequest } from "@lab/kube";
 import { onCluster, withCluster } from "@lab/kubernetes";
 import { RancherAccess } from "./server";
 
@@ -35,14 +35,14 @@ const appProvider: pulumi.dynamic.ResourceProvider = {
             namespace: inputs.namespace,
         }, t);
         if (res.status < 200 || res.status >= 300) throw new Error(`installing ${inputs.chart} failed: HTTP ${res.status} ${JSON.stringify(res.body)}`);
-        const deadline = Date.now() + inputs.timeoutSeconds * 1000;
-        while (Date.now() < deadline) {
+        await poll(async seen => {
             const app = await rancherRequest(endpoint, "GET", `/v1/catalog.cattle.io.apps/${inputs.namespace}/${inputs.chart}`, undefined, t);
             const status = app.body?.spec?.info?.status ?? app.body?.status?.summary?.state;
-            if (app.status === 200 && status === "deployed") return { id: `${inputs.namespace}/${inputs.chart}`, outs: inputs };
-            await new Promise(r => setTimeout(r, 5000));
-        }
-        throw new Error(`timed out waiting for ${inputs.chart} to be deployed`);
+            if (app.status === 200 && status === "deployed") return true;
+            seen(app.status === 200 ? String(status) : `HTTP ${app.status}`);
+            return undefined;
+        }, { timeoutSeconds: inputs.timeoutSeconds, failure: last => `timed out waiting for ${inputs.chart} to be deployed (last: ${last})` });
+        return { id: `${inputs.namespace}/${inputs.chart}`, outs: inputs };
     },
     async diff(_id: string, olds: AppInputs, news: AppInputs) {
         const changes = (["url", "repo", "chart", "version", "namespace"] as const).some(k => olds[k] !== news[k]);

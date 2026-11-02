@@ -5,7 +5,7 @@ import {
     EC2Client, type Filter,
 } from "@aws-sdk/client-ec2";
 import { DescribeClusterCommand, EKSClient, ListClustersCommand } from "@aws-sdk/client-eks";
-import { AWS_CREDENTIAL_FIELDS, mapOf, renderSecretTemplate, ResolvedAwsSite, ResolvedLab } from "@lab/schema";
+import { awsFootprint, AWS_CREDENTIAL_FIELDS, mapOf, renderSecretTemplate, ResolvedAwsSite, ResolvedLab } from "@lab/schema";
 import { ResolvedSecret } from "./secrets";
 
 /** Keep in sync with packages/aws (TAGS, awsProfile). */
@@ -65,11 +65,12 @@ export async function findAwsLeftovers(lab: ResolvedLab, keys: AwsKeys[]): Promi
                 report("network interfaces in the lab's VPC", enis.map(e => `${e.NetworkInterfaceId}${e.Description ? ` (${e.Description})` : ""}`));
             }
             // The node driver names a machine's key pair after the machine: <cluster>-<pool>-<id>.
-            const clusters = lab.downstream.filter(d => d.type === "ec2" && d.site === k.site.name).map(d => `${d.name}-`);
+            const onSite = lab.downstream.map(awsFootprint).filter(aws => aws?.site === k.site.name);
+            const clusters = onSite.flatMap(aws => aws!.keyPairPrefixes);
             const pairs = (await ec2.send(new DescribeKeyPairsCommand({}))).KeyPairs ?? [];
             report("key pairs of the lab's machines", pairs.map(p => p.KeyName!).filter(n => clusters.some(c => n.startsWith(c))));
 
-            const eksNames = lab.downstream.filter(d => d.type === "eks" && d.site === k.site.name).map(d => d.name);
+            const eksNames = onSite.flatMap(aws => aws!.eksClusters);
             if (eksNames.length > 0) {
                 const eks = new EKSClient(options(k));
                 const listed = new Set((await eks.send(new ListClustersCommand({}))).clusters ?? []);

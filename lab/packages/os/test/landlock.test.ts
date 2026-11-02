@@ -144,16 +144,17 @@ describe("a node's user data", () => {
     const user = { name: "lab", publicKey: "ssh-ed25519 AAAA lab" };
     const vars = { secrets: {}, lab: { name: "lab1", domain: "lab.example.com", vars: {} } };
     const render = (landlock: boolean) => parse(renderCloudConfig({
-        os: { ...base, cloudInit: { bootcmd: ["cloud-init-per once register suseconnect"] } }, harvester: true, kubernetes: true, user, vars, landlock,
+        os: { ...base, cloudInit: { bootcmd: ["cloud-init-per once register suseconnect"] } }, harvester: true, kubernetes: true, user, vars,
+        bootcmd: landlock ? [landlockScript(base, CLOUD_INIT_REBOOT)] : [],
     }));
 
-    it("turns Landlock on at boot, after the OS profile's bootcmd, with cloud-init's reboot", () => {
+    it("runs the host's bootcmd (Landlock's) after the OS profile's, with cloud-init's reboot", () => {
         const { bootcmd } = render(true);
         expect(bootcmd).toEqual(["cloud-init-per once register suseconnect", landlockScript(base, CLOUD_INIT_REBOOT)]);
         expect(bootcmd[1]).toContain("systemctl reboot");
     });
 
-    it("leaves bootcmd alone without the landlock profile", () => {
+    it("leaves bootcmd alone without any of its own", () => {
         expect(render(false).bootcmd).toEqual(["cloud-init-per once register suseconnect"]);
     });
 });

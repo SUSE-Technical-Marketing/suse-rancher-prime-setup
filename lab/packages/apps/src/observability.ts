@@ -1,6 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { observabilityRequest } from "@lab/kube";
+import { observabilityRequest, poll } from "@lab/kube";
 import { helmApp, type ClusterAccess } from "@lab/kubernetes";
 
 // SUSE Observability agents (DESIGN.md §9.6): each registered with its instance as its CLI does it
@@ -64,14 +64,13 @@ const REJECTED_GRACE_MS = 15 * 60 * 1000;
  * is unknown"); if it keeps being rejected, the token is wrong.
  */
 async function waitForApi(i: Inputs): Promise<void> {
-    const deadline = Date.now() + i.timeoutSeconds * 1000;
-    let last = "no answer yet";
     let rejectedSince: number | undefined;
-    while (Date.now() < deadline) {
+    await poll(async seen => {
         try {
             const res = await observabilityRequest(i, i.adminToken, "GET", "/security/tokens");
-            if (res.status === 200) return;
-            last = describe(res);
+            if (res.status === 200) return true;
+            const last = describe(res);
+            seen(last);
             // 401/403: the token is wrong, or not there yet; 402: no valid license ("Your SUBSCRIPTION
             // is expired"), or the old one until Fleet has redeployed with a new one.
             if (res.status === 401 || res.status === 402 || res.status === 403) {
@@ -86,11 +85,13 @@ async function waitForApi(i: Inputs): Promise<void> {
             }
         } catch (e) {
             if ((e as { fatal?: boolean }).fatal) throw e;
-            last = (e as Error).message;
+            seen((e as Error).message);
         }
-        await new Promise(r => setTimeout(r, Math.min(10000, i.timeoutSeconds * 200)));
-    }
-    throw new Error(`timed out after ${i.timeoutSeconds}s waiting for SUSE Observability's API at ${i.url} (last: ${last})`);
+        return undefined;
+    }, {
+        timeoutSeconds: i.timeoutSeconds, everyMs: Math.min(10000, i.timeoutSeconds * 200),
+        failure: last => `timed out after ${i.timeoutSeconds}s waiting for SUSE Observability's API at ${i.url} (last: ${last})`,
+    });
 }
 
 /** The id of the cluster's kubernetes-v2 StackPack instance, if it has one. */

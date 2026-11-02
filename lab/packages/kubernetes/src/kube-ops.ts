@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { kubeRequest } from "@lab/kube";
+import { kubeRequest, poll } from "@lab/kube";
 
 // Waiting on and patching objects that something else creates (Rancher's settings, the `local`
 // Fleet cluster, CRDs installed by a chart). Dynamic providers are serialized into the state, so
@@ -14,21 +14,18 @@ interface WaitInputs {
 }
 
 async function waitFor(inputs: WaitInputs): Promise<any> {
-    const deadline = Date.now() + inputs.timeoutSeconds * 1000;
-    let last = "not found";
-    while (Date.now() < deadline) {
+    return poll(async seen => {
         const res = await kubeRequest({ kubeconfig: inputs.kubeconfig }, "GET", inputs.path).catch(e => ({ status: 0, body: String(e) }));
-        if (res.status === 200) {
-            if (!inputs.condition) return res.body;
-            const cond = (res.body?.status?.conditions ?? []).find((c: any) => c.type === inputs.condition);
-            if (cond?.status === "True") return res.body;
-            last = cond ? `${inputs.condition}=${cond.status}${cond.message ? ` (${cond.message})` : ""}` : `no ${inputs.condition} condition yet`;
-        } else {
-            last = res.status === 404 ? "not found" : `HTTP ${res.status}`;
+        if (res.status !== 200) {
+            seen(res.status === 404 ? "not found" : `HTTP ${res.status}`);
+            return undefined;
         }
-        await new Promise(r => setTimeout(r, 5000));
-    }
-    throw new Error(`timed out waiting for ${inputs.path}${inputs.condition ? ` to be ${inputs.condition}` : ""}: ${last}`);
+        if (!inputs.condition) return res.body;
+        const cond = (res.body?.status?.conditions ?? []).find((c: any) => c.type === inputs.condition);
+        if (cond?.status === "True") return res.body;
+        seen(cond ? `${inputs.condition}=${cond.status}${cond.message ? ` (${cond.message})` : ""}` : `no ${inputs.condition} condition yet`);
+        return undefined;
+    }, { timeoutSeconds: inputs.timeoutSeconds, failure: last => `timed out waiting for ${inputs.path}${inputs.condition ? ` to be ${inputs.condition}` : ""}: ${last}` });
 }
 
 const waitProvider: pulumi.dynamic.ResourceProvider = {
@@ -115,16 +112,14 @@ interface AdmitInputs {
 
 const admitProvider: pulumi.dynamic.ResourceProvider = {
     async create(inputs: AdmitInputs) {
-        const deadline = Date.now() + inputs.timeoutSeconds * 1000;
-        let last = "";
-        while (Date.now() < deadline) {
+        await poll(async seen => {
             const res = await kubeRequest({ kubeconfig: inputs.kubeconfig }, "POST", `${inputs.path}?dryRun=All`, inputs.object).catch(e => ({ status: 0, body: String(e) }));
             // Answered: accepted, or rejected by the webhook itself (a real problem, reported by the create).
-            if (res.status < 500 && res.status !== 0 && res.status !== 404) return { id: inputs.path, outs: inputs };
-            last = `HTTP ${res.status} ${typeof res.body === "object" ? res.body?.message ?? "" : String(res.body)}`.slice(0, 300);
-            await new Promise(r => setTimeout(r, 5000));
-        }
-        throw new Error(`timed out waiting for the API server to admit an object in ${inputs.path}: ${last}`);
+            if (res.status < 500 && res.status !== 0 && res.status !== 404) return true;
+            seen(`HTTP ${res.status} ${typeof res.body === "object" ? res.body?.message ?? "" : String(res.body)}`.slice(0, 300));
+            return undefined;
+        }, { timeoutSeconds: inputs.timeoutSeconds, failure: last => `timed out waiting for the API server to admit an object in ${inputs.path}: ${last}` });
+        return { id: inputs.path, outs: inputs };
     },
     async diff(_id: string, olds: AdmitInputs, news: AdmitInputs) {
         const changes = olds.path !== news.path;

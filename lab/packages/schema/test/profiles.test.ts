@@ -2,7 +2,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { activeRequirements, BUILTIN_CATALOG_DIR, generateProfileSettingsTs, loadCatalog, loadLab } from "../src";
+import { PROFILE_HOOKS } from "../src/profiles/hooks";
+import { activeRequirements, BUILTIN_CATALOG_DIR, capabilityReport, generateProfileSettingsTs, loadCatalog, loadLab, profileTargets } from "../src";
 
 const GENERATED = path.resolve(__dirname, "..", "..", "..", "program", "generated", "profile-settings.ts");
 const noPersonal = path.join(os.tmpdir(), "lab-no-such-config.yaml");
@@ -121,5 +122,38 @@ describe("requiresWhen", () => {
         expect(activeRequirements(rancher, { exposure: "gateway" })).toContain("gateway-api");
         expect(activeRequirements(rancher, { exposure: "auto" })).not.toContain("gateway-api");
         expect(activeRequirements(rancher, { exposure: "ingress" })).not.toContain("gateway-api");
+    });
+});
+
+describe("profile hooks", () => {
+    it("are for profiles in the catalog, on targets those profiles go on", () => {
+        const { catalog } = loadCatalog({ personalConfig: "/nonexistent/lab-config.yaml" });
+        const wrong = Object.entries(PROFILE_HOOKS).flatMap(([name, hooks]) => {
+            const def = catalog!.profiles[name];
+            if (!def) return [`${name}: not in the catalog`];
+            return (["host", "cluster", "harvester"] as const).filter(t => hooks[t] && !profileTargets(def).includes(t)).map(t => `${name}: ${t} hook, but it doesn't go on a ${t}`);
+        });
+        expect(wrong).toEqual([]);
+    });
+});
+
+describe("capability reports", () => {
+    const { catalog } = loadCatalog({ personalConfig: "/nonexistent/lab-config.yaml" });
+    const registry = catalog!.profiles;
+    const fleetKnown = Object.fromEntries(Object.entries(catalog!.fleet.profiles).map(([n, { value }]) => [n, value]));
+
+    it("say what a host's profiles need that none of the others provides (fallbacks counting)", () => {
+        const report = capabilityReport(registry, "host", { k3s: {}, sprouter: {}, rancher: { adminPassword: "x" } });
+        // k3s's own Traefik is the ingress; nothing issues certificates.
+        expect(report.provided).toContain("ingress");
+        expect(report.needs).toEqual(["tls"]);
+        expect(capabilityReport(registry, "host", { k3s: {}, "cert-manager": {}, sprouter: {}, rancher: { adminPassword: "x" } }).needs).toEqual([]);
+    });
+
+    it("count a cluster's kubernetes and its Fleet profiles among themselves; a Harvester only has kubernetes", () => {
+        expect(capabilityReport(registry, "cluster", { sprouter: {} }).needs).toEqual([]);
+        expect(capabilityReport(registry, "cluster", {}, { names: ["observability"], known: fleetKnown }).needs).toEqual(["storage"]);
+        expect(capabilityReport(registry, "cluster", {}, { names: ["observability", "storage"], known: fleetKnown })).toMatchObject({ needs: [] });
+        expect(capabilityReport(registry, "harvester", { "harvester-dns-controller": {} }).provided).toEqual(["harvester-dns-controller", "kubernetes"]);
     });
 });

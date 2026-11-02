@@ -232,3 +232,42 @@ export function blocksMetalClusterNode(registry: ProfileRegistry, profiles: Prof
         return capabilitiesOf(def).includes("kubernetes") || (def.conflicts ?? []).includes("kubernetes");
     });
 }
+
+/** What a host's, cluster's or Harvester's profiles provide, and what they need that nothing there provides. */
+export interface CapabilityReport {
+    provided: string[];
+    needs: string[];
+}
+
+/**
+ * The capabilities on a lab host, a downstream cluster or a Harvester, judged as the checks above
+ * judge them: what its profiles provide (a cluster's and a Harvester's `kubernetes` included), and
+ * the requirements no other profile there meets. A cluster's Fleet profiles count among themselves,
+ * as the resolver checks them. For the composer, which shows them as it edits.
+ */
+export function capabilityReport(
+    registry: ProfileRegistry,
+    target: "host" | "cluster" | "harvester",
+    profiles: Profiles,
+    fleet?: { names: string[]; known: Record<string, { requires?: string[]; provides?: string[] }> },
+): CapabilityReport {
+    const caps = target === "host" ? hostCapabilities(registry, profiles) : clusterCapabilities(registry, profiles);
+    const needs = new Set<string>();
+    for (const name of activeProfiles(profiles)) {
+        const def = registry[name];
+        if (!def) continue;
+        for (const required of activeRequirements(def, profiles[name])) {
+            // A Harvester is a Kubernetes cluster and nothing more; elsewhere another profile must provide it.
+            const met = target === "harvester" ? required === "kubernetes" : (caps.get(required) ?? []).some(p => p !== name);
+            if (!met) needs.add(required);
+        }
+    }
+    const provided = new Set(caps.keys());
+    if (fleet) {
+        const known = fleet.names.filter(n => fleet.known[n]);
+        const fleetCaps = new Set(known.flatMap(n => [n, ...(fleet.known[n].provides ?? [])]));
+        for (const n of known) for (const r of fleet.known[n].requires ?? []) if (!fleetCaps.has(r)) needs.add(r);
+        for (const c of fleetCaps) provided.add(c);
+    }
+    return { provided: [...provided].sort(), needs: [...needs].sort() };
+}

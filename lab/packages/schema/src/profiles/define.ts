@@ -54,6 +54,11 @@ export const ProfileObjectEntry = z.strictObject({
 export type ProfileObjectEntry = z.infer<typeof ProfileObjectEntry>;
 
 export const ProfileInput = z.strictObject({
+    /**
+     * `planned`: in the catalog with its rules and settings, but the engine doesn't build it yet. A
+     * lab using it validates with a warning (a design for later), and `lab up` refuses it.
+     */
+    status: z.enum(["ready", "planned"]).optional(),
     /** Its icon in the lab UI: a Lucide icon name (https://lucide.dev/icons), e.g. `tractor`. */
     icon: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "must be a Lucide icon name like server-cog").optional(),
     /**

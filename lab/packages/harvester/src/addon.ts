@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { kubeRequest } from "@lab/kube";
+import { kubeRequest, poll } from "@lab/kube";
 
 export interface HarvesterAddonArgs {
     /** The Harvester's name, which is also its kubeconfig context. */
@@ -37,6 +37,8 @@ interface Inputs {
 /** What's stored: the inputs, and whether the add-on was there already (then it isn't the lab's). */
 interface Outputs extends Inputs {
     adopted?: boolean;
+    /** Only after a refresh found it disabled (by hand, in the Harvester UI): the next update enables it again. */
+    enabled?: false;
 }
 
 /**
@@ -44,7 +46,7 @@ interface Outputs extends Inputs {
  * gone (the uninstall ran), then delete it. Deleting an enabled Add-on object directly makes the
  * uninstall job lose its service account to garbage collection, leaving the chart installed.
  */
-const provider: pulumi.dynamic.ResourceProvider = {
+export const addonProvider: pulumi.dynamic.ResourceProvider = {
     async create(inputs: Inputs) {
         const base = `/apis/harvesterhci.io/v1beta1/namespaces/${inputs.namespace}/addons`;
         const res = await kubeRequest({ context: inputs.harvester }, "POST", base, {
@@ -67,10 +69,35 @@ const provider: pulumi.dynamic.ResourceProvider = {
         return { id: `${inputs.harvester}/${inputs.namespace}/${inputs.name}`, outs: inputs };
     },
 
+    /**
+     * A refresh (`lab up --refresh`): the add-on as it is on the Harvester. Gone, it's created again;
+     * disabled, or with another chart, version or values (changed in the Harvester UI), the next
+     * update puts the lab's back. Someone else's (adopted) is the lab's to use as it is.
+     */
+    async read(id: string, props: Outputs) {
+        const res = await kubeRequest({ context: props.harvester }, "GET", `/apis/harvesterhci.io/v1beta1/namespaces/${props.namespace}/addons/${props.name}`);
+        if (res.status === 404) return { id: "" };
+        if (res.status !== 200) throw new Error(`reading add-on ${props.namespace}/${props.name} on ${props.harvester} failed: HTTP ${res.status}`);
+        if (props.adopted) return { id, props };
+        const spec = res.body?.spec ?? {};
+        const { enabled: _was, ...rest } = props;
+        return {
+            id,
+            props: {
+                ...rest, repo: spec.repo ?? "", chart: spec.chart ?? "", version: spec.version ?? "",
+                ...(rest.valuesContent !== undefined || spec.valuesContent ? { valuesContent: spec.valuesContent ?? "" } : {}),
+                ...(spec.enabled === false ? { enabled: false } : {}),
+            },
+        };
+    },
+
     async diff(_id: string, olds: Outputs, news: Inputs) {
         const replaces = (["harvester", "name", "namespace"] as const).filter(k => olds[k] !== news[k]);
         const { adopted, ...was } = olds;
-        const changes = replaces.length > 0 || JSON.stringify(was) !== JSON.stringify(news);
+        // Field by field: a refreshed state lists them in its own order.
+        const field = (o: object, k: string) => JSON.stringify((o as Record<string, unknown>)[k]);
+        const fields = new Set([...Object.keys(was), ...Object.keys(news)]);
+        const changes = replaces.length > 0 || [...fields].some(k => field(was, k) !== field(news, k));
         return { changes, replaces, deleteBeforeReplace: true };
     },
 
@@ -94,34 +121,32 @@ const provider: pulumi.dynamic.ResourceProvider = {
         const disabled = await kubeRequest({ context: props.harvester }, "PATCH", addon, { spec: { enabled: false } });
         if (disabled.status === 404) return;
         if (disabled.status !== 200) throw new Error(`disabling add-on ${props.name} failed: HTTP ${disabled.status}`);
-        await poll(`add-on ${props.name} to uninstall`, props, async () => (await kubeRequest({ context: props.harvester }, "GET", chart)).status === 404);
+        await until(`add-on ${props.name} to uninstall`, props, async () => (await kubeRequest({ context: props.harvester }, "GET", chart)).status === 404);
         const deleted = await kubeRequest({ context: props.harvester }, "DELETE", addon);
         if (deleted.status !== 200 && deleted.status !== 202 && deleted.status !== 404) throw new Error(`deleting add-on ${props.name} failed: HTTP ${deleted.status}`);
-        await poll(`add-on ${props.name} to be deleted`, props, async () => (await kubeRequest({ context: props.harvester }, "GET", addon)).status === 404);
+        await until(`add-on ${props.name} to be deleted`, props, async () => (await kubeRequest({ context: props.harvester }, "GET", addon)).status === 404);
     },
 };
 
 async function waitCompleted(inputs: Inputs): Promise<void> {
     const path = `/apis/harvesterhci.io/v1beta1/namespaces/${inputs.namespace}/addons/${inputs.name}`;
-    await poll(`add-on ${inputs.name} to deploy`, inputs, async () => {
+    await until(`add-on ${inputs.name} to deploy`, inputs, async () => {
         const res = await kubeRequest({ context: inputs.harvester }, "GET", path);
         const conditions: any[] = res.body?.status?.conditions ?? [];
         return conditions.some(c => c.type === "Completed" && c.status === "True");
     });
 }
 
-async function poll(what: string, inputs: Inputs, done: () => Promise<boolean>): Promise<void> {
+/** Wait until `done`; an error asking counts as not yet. */
+async function until(what: string, inputs: Inputs, done: () => Promise<boolean>): Promise<void> {
     // Add-ons created before the timeout was an input waited 15 minutes.
-    const deadline = Date.now() + (inputs.timeoutSeconds ?? 900) * 1000;
-    while (Date.now() < deadline) {
-        if (await done().catch(() => false)) return;
-        await new Promise(r => setTimeout(r, 5000));
-    }
-    throw new Error(`timed out waiting for ${what}`);
+    await poll(async () => ((await done().catch(() => false)) ? true : undefined), {
+        timeoutSeconds: inputs.timeoutSeconds ?? 900, failure: () => `timed out waiting for ${what}`,
+    });
 }
 
 export class HarvesterAddon extends pulumi.dynamic.Resource {
     constructor(name: string, args: HarvesterAddonArgs, opts?: pulumi.CustomResourceOptions) {
-        super(provider, name, args, opts, "lab", "HarvesterAddon");
+        super(addonProvider, name, args, opts, "lab", "HarvesterAddon");
     }
 }

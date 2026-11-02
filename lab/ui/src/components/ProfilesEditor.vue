@@ -2,14 +2,15 @@
 import { computed, ref } from "vue";
 import type { CatalogProfile } from "../api";
 import { clustersProviding, profileDefaults } from "../compose";
-import { catalog } from "../store";
+import { catalog, reportOf } from "../store";
 import ProfileIcon from "./ProfileIcon.vue";
 import SchemaField from "./SchemaField.vue";
 
 // A host's, downstream cluster's or Harvester's profiles: which ones, and each one's settings (a form
 // from its JSON Schema). A cluster or a Harvester (`hci`) takes the profiles that target it, and is
 // itself `kubernetes`. A setting naming a cluster (the agent's observer) offers the ones that qualify.
-const props = defineProps<{ modelValue?: Record<string, Record<string, unknown>>; target: "harvester" | "ssh" | "cluster" | "hci" }>();
+// What they need and don't have is the engine's say (the last check), not worked out here.
+const props = defineProps<{ index: number; modelValue?: Record<string, Record<string, unknown>>; target: "harvester" | "ssh" | "cluster" | "hci" }>();
 const emit = defineEmits<{ set: [name: string, settings: Record<string, unknown> | undefined]; remove: [name: string] }>();
 
 const all = computed(() => catalog.value?.profiles ?? []);
@@ -23,16 +24,13 @@ const clusterOptions = (p: CatalogProfile, key: string) => {
   const ref = p.clusterRefs.find(r => r.field === key);
   return ref ? clustersProviding(ref.provides) : undefined;
 };
-const available = computed(() => all.value.filter(p => !enabled.value.includes(p.name) && fits(p)));
+const available = computed(() => all.value.filter(p => p.status !== "planned" && !enabled.value.includes(p.name) && fits(p)));
 const open = ref<Record<string, boolean>>({});
 
-/** Capabilities the host's profiles provide (their own fallbacks count). */
-const provided = computed(() => new Set([
-  ...enabled.value.flatMap(n => [...(byName.value[n]?.provides ?? []), ...(byName.value[n]?.fallback ?? []), n]),
-  ...(props.target === "cluster" || props.target === "hci" ? ["kubernetes"] : []),
-]));
+/** What its profiles need that nothing on it provides, as the engine judged it at the last check. */
+const needs = computed(() => new Set(reportOf(props.index)?.needs ?? []));
 const providers = (cap: string) => all.value.filter(p => p.provides.includes(cap) || p.fallback.includes(cap)).map(p => p.name);
-const missing = (p: CatalogProfile) => p.requires.filter(c => !provided.value.has(c));
+const missing = (p: CatalogProfile) => p.requires.filter(c => needs.value.has(c));
 
 function add(e: Event) {
   const name = (e.target as HTMLSelectElement).value;
@@ -59,12 +57,13 @@ const hasSettings = (p?: CatalogProfile) => !!p && Object.keys(p.settings.proper
           <ProfileIcon :name="name" :size="22" />
           <strong>{{ name }}</strong>
           <span class="muted">{{ byName[name]?.description ?? "not in the catalog" }}</span>
+          <span v-if="byName[name]?.status === 'planned'" class="chip bad" title="the engine doesn't build it yet: lab up refuses this lab">planned</span>
         </button>
         <button type="button" class="icon" title="Remove profile" @click="emit('remove', name)">×</button>
       </header>
       <div v-if="byName[name]" class="caps">
         <span v-for="c in byName[name].provides" :key="'p' + c" class="chip ok" title="provides">{{ c }}</span>
-        <span v-for="c in byName[name].requires" :key="'r' + c" class="chip" :class="provided.has(c) ? 'muted-chip' : 'bad'" :title="provided.has(c) ? 'requires (provided)' : `requires: add ${providers(c).join(' or ')}`">
+        <span v-for="c in byName[name].requires" :key="'r' + c" class="chip" :class="needs.has(c) ? 'bad' : 'muted-chip'" :title="needs.has(c) ? `requires: add ${providers(c).join(' or ')}` : 'requires (provided)'">
           needs {{ c }}
         </span>
       </div>

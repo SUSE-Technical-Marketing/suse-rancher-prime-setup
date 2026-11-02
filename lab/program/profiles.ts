@@ -1,14 +1,21 @@
-import { createHash } from "node:crypto";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { ChartProfile, HarvesterCloudProvider } from "@lab/apps";
-import { HarvesterCloudConfig } from "@lab/harvester";
-import { ClusterAccess, clusterFromHost, ClusterObjects, Distro, distroInstall, HaulerRegistry, helmApp, helmJobWatch, HostAccess, KubeAdmitted, KubeWait, type ProfileChartSpec, type RenderedProfileChart } from "@lab/kubernetes";
-import { Fleet, RancherAccess, RancherServer, UiPlugins } from "@lab/rancher";
-import type { ObjectValue, RenderedObject, ResolvedHost, ResolvedLab } from "@lab/schema";
+import { ChartProfile } from "@lab/apps";
+import type { HarvesterBase } from "@lab/harvester";
+import { ClusterAccess, ClusterObjects, helmApp, HostAccess, KubeAdmitted, type ProfileChartSpec, type RenderedProfileChart } from "@lab/kubernetes";
+import type { RancherAccess } from "@lab/rancher";
+import type { RenderedObject, ResolvedDownstream, ResolvedHarvester, ResolvedHost, ResolvedLab, ResolvedOs } from "@lab/schema";
 import type { ProfileSettings } from "./generated/profile-settings";
-import { chartValuesWithSecrets, objectValue, secretString } from "./secrets";
-import { chart, distribution, download, installCommand, manifest, profileChart, version } from "./catalog";
+import { chartValuesWithSecrets, objectValue } from "./secrets";
+import { chart, manifest, profileChart, version } from "./catalog";
+import { harvesterCloudProvider } from "./builders/harvester-cloud-provider";
+import { dnsController } from "./builders/harvester-dns-controller";
+import { hauler } from "./builders/hauler";
+import { k3s, rke2 } from "./builders/kubernetes";
+import { landlock } from "./builders/landlock";
+import { rancher } from "./builders/rancher";
+import { observabilityAgent } from "./builders/suse-observability-agent";
+import { need } from "./builders/util";
 
 /** What a consumer of a capability has to wait for. */
 interface Ready { ready: pulumi.Resource[] }
@@ -61,236 +68,119 @@ export interface ProfileContext extends CloudInitContext {
 /** A profile in the catalog, as the generated settings know it. */
 export type ProfileName = keyof ProfileSettings;
 
+/** A node the lab creates (a VM, a cluster's machine): its OS, for what it runs at boot. */
+export interface BootContext {
+    lab: ResolvedLab;
+    os: ResolvedOs;
+}
+
 /**
- * One profile's build steps. `cloudInit` is what the host runs as root to set it up: a VM's user
- * data, or commands over SSH on an existing machine, which also runs `uninstall` (scripts; missing
- * ones are skipped) when the lab goes, because the machine stays. `build` runs once the host is up.
+ * A host being set up: an existing machine before its own setup (nothing has run on it yet), a VM
+ * once cloud-init is done (`after`).
+ */
+export interface SetupContext {
+    lab: ResolvedLab;
+    host: ResolvedHost;
+    access: HostAccess;
+    os: ResolvedOs;
+    /** The VM, for a Harvester host: deleting it deletes everything on it. */
+    machine?: pulumi.Resource;
+    after: pulumi.Resource[];
+}
+
+/** A downstream cluster a profile goes on, once it's Ready and the profiles it waits for are done. */
+export interface ClusterProfileContext {
+    lab: ResolvedLab;
+    cluster: ResolvedDownstream;
+    /** What its resources are named under: `downstream/<cluster>`. */
+    prefix: string;
+    /** Its API, and what deleting it deletes. */
+    access: ChartCluster;
+    /** The cluster is Ready, its objects are placed, the profiles this one waits for are done. */
+    after: pulumi.Resource[];
+}
+
+/** A Harvester a profile goes on itself, with its base. */
+export interface HarvesterProfileContext {
+    lab: ResolvedLab;
+    harvester: ResolvedHarvester;
+    provider: k8s.Provider;
+    /** The Harvester's base: the parent of what goes with it, which its VMs wait for. */
+    base: HarvesterBase;
+}
+
+/** A cluster something can go on or report to: what to install with, and when it's there. */
+export type LabCluster = Pick<ClusterAccess, "provider" | "deletedWith"> & { ready: pulumi.Resource[] };
+
+/** Every cluster of the lab, once all are built: for profiles that reach from one to another. */
+export interface LabClusters {
+    /** Lab hosts' clusters, by host. */
+    hosts: Record<string, LabCluster>;
+    /** Downstream clusters, by name. */
+    downstream: Record<string, LabCluster>;
+    /** Harvesters' own clusters, by name. */
+    harvesters: Record<string, { provider: k8s.Provider; ready: pulumi.Resource[] }>;
+    /** Each Rancher host's Fleet HelmOps and GitRepos (what Fleet installs on the clusters). */
+    fleet: Record<string, pulumi.Resource[]>;
+}
+
+/** Where a profile is, in the last phase: a host, a downstream cluster or a Harvester, by name. */
+export type ProfileTarget = { kind: "host" | "cluster" | "harvester"; name: string };
+
+export interface LastContext {
+    lab: ResolvedLab;
+    on: ProfileTarget;
+    clusters: LabClusters;
+}
+
+/**
+ * One profile's build steps, by where it goes (its Profile's `targets`) and when:
+ * - `boot`: `bootcmd` lines for the nodes the lab creates (VMs, a cluster's machines), first thing at
+ *   every boot, before packages or `runcmd`; a metal cluster's profiles give them to its nodes too.
+ * - `setup`: on a host (or a metal cluster's node) before anything else uses it: an existing
+ *   machine before its own setup, a VM once cloud-init is done. What it returns, the host's other
+ *   steps wait for.
+ * - `cloudInit`: what a host runs as root to set it up: a VM's user data, or commands over SSH on an
+ *   existing machine, which also runs `uninstall` (scripts; missing ones are skipped) when the lab
+ *   goes, because the machine stays.
+ * - `host`: on a lab host, once it's up, in the host's build order.
+ * - `cluster`: on a downstream cluster, once it's Ready, in the cluster's build order; returns what
+ *   it made, the last being what the profiles after it wait for.
+ * - `harvester`: on a Harvester itself, with its base: its VMs wait for what it returns.
+ * - `last`: once every host, cluster and Harvester is built, on each of them it's on (an agent
+ *   reporting to another cluster).
+ * A test checks every target a profile declares has one of them.
  */
 export interface ProfileBuilder<N extends ProfileName> {
+    boot?(ctx: BootContext, settings: ProfileSettings[N]): string[];
+    setup?(ctx: SetupContext, settings: ProfileSettings[N]): pulumi.Resource[];
     cloudInit?(ctx: CloudInitContext, settings: ProfileSettings[N]): { runcmd: string[]; uninstall?: string[] };
-    build(ctx: ProfileContext, settings: ProfileSettings[N]): HostOutputs | void;
+    host?(ctx: ProfileContext, settings: ProfileSettings[N]): HostOutputs | void;
+    cluster?(ctx: ClusterProfileContext, settings: ProfileSettings[N]): pulumi.Resource[];
+    harvester?(ctx: HarvesterProfileContext, settings: ProfileSettings[N]): pulumi.Resource[];
+    last?(ctx: LastContext, settings: ProfileSettings[N]): void;
 }
-
-/** The resolver guarantees required capabilities exist; this only narrows the type. */
-function need<K extends keyof HostOutputs>(ctx: ProfileContext, capability: K): NonNullable<HostOutputs[K]> {
-    const value = ctx.outputs[capability];
-    if (!value) throw new Error(`host ${ctx.host.name}: ${capability} isn't available (profile order bug)`);
-    return value as NonNullable<HostOutputs[K]>;
-}
-
-const notBuiltYet = (profile: ProfileName, milestone: string) => ({
-    build(ctx: ProfileContext): void {
-        pulumi.log.warn(`host ${ctx.host.name}: the ${profile} profile isn't built yet (${milestone}); nothing is created for it`);
-    },
-});
-
-const kubernetesCloudInit = (distro: Distro, { lab, host }: CloudInitContext, own?: string) => {
-    const d = distribution(distro, lab);
-    return {
-        // What other profiles do instead of the distribution (ingress, load balancing, the cloud provider).
-        runcmd: [
-            helmJobWatch(d, lab.timeouts.helmJobWatch),
-            ...distroInstall(d, installCommand(d, version(distro, lab, own)), host.fqdn, { capabilities: byOthers(host, distro) }).runcmd,
-        ],
-        uninstall: d.uninstall,
-    };
-};
-/** Capabilities other profiles on the host provide: the distribution turns its own off for those. */
-const byOthers = (host: ResolvedHost, profile: string) =>
-    Object.entries(host.providers).filter(([, providers]) => !providers.includes(profile)).map(([cap]) => cap);
-
-const kubernetesBuild = (distro: Distro, { lab, host, access, ready, machine }: ProfileContext): HostOutputs => {
-    const kubernetes = clusterFromHost(`${host.name}/${distro}`, access, { name: distro, ...distribution(distro, lab) }, lab.timeouts.kubernetesApi, { dependsOn: ready, deletedWith: machine });
-    const outputs: HostOutputs = { kubernetes };
-    // Its own ServiceLB and Traefik (the profile's fallbacks), when no other profile replaces them.
-    // Traefik is there once the distribution has installed its IngressClass.
-    if (host.providers["load-balancer"]?.includes(distro)) outputs["load-balancer"] = { ready: [] };
-    if (host.providers.ingress?.includes(distro)) {
-        const ingressClass = String(host.outputs.ingress?.ingressClassName ?? "traefik");
-        const ingress = new KubeWait(`${host.name}/${distro}/ingress`, {
-            kubeconfig: kubernetes.kubeconfig,
-            path: `/apis/networking.k8s.io/v1/ingressclasses/${ingressClass}`,
-            timeoutSeconds: lab.timeouts.resourceReady,
-        }, { deletedWith: machine });
-        outputs.ingress = { ready: [ingress] };
-
-        // The Gateway API on that same Traefik (its gateway-api fallback): its Gateway provider turned
-        // on through the distribution's own HelmChartConfig, after the CRDs where the distribution
-        // doesn't ship them (k3s); its Helm controller upgrades Traefik, which then has a GatewayClass.
-        const own = distribution(distro, lab).ingress;
-        const gatewayClass = host.outputs["gateway-api"]?.gatewayClassName;
-        if (host.providers["gateway-api"]?.includes(distro) && own?.values && gatewayClass) {
-            const crds = (own.manifests ?? []).map(m => new k8s.yaml.v2.ConfigFile(`${host.name}/${distro}/${m}`, {
-                file: manifest(m, lab).replace(/\{version\}/g, version(m, lab)).replace(/\{channel\}/g, "standard"),
-            }, { provider: kubernetes.provider, deletedWith: machine, dependsOn: [ingress] }));
-            const config = new k8s.apiextensions.CustomResource(`${host.name}/${distro}/ingress-config`, {
-                apiVersion: "helm.cattle.io/v1",
-                kind: "HelmChartConfig",
-                metadata: { name: own.chart, namespace: "kube-system" },
-                // JSON is YAML too.
-                spec: { valuesContent: JSON.stringify(own.values) },
-            }, { provider: kubernetes.provider, deletedWith: machine, dependsOn: [ingress, ...crds] });
-            outputs["gateway-api"] = {
-                ready: [new KubeWait(`${host.name}/${distro}/gateway-class`, {
-                    kubeconfig: kubernetes.kubeconfig,
-                    path: `/apis/gateway.networking.k8s.io/v1/gatewayclasses/${String(gatewayClass)}`,
-                    condition: "Accepted",
-                    timeoutSeconds: lab.timeouts.resourceReady,
-                }, { deletedWith: machine, dependsOn: [config] })],
-            };
-        }
-    }
-    return outputs;
-};
 
 /**
  * Builders for the profiles that need code (`lab/catalog/profiles/`): computed values, real wiring.
  * A profile that only installs its chart has none; `chartProfileBuilder` installs it. Settings are
  * typed by `ProfileSettings`, generated from the Profile documents (`mise run profile-types`), so a
  * builder reading a setting its profile doesn't declare is a compile error; a test checks that
- * every profile has a builder or a chart.
+ * every profile has a builder or a chart. Each builder with code of its own is in builders/.
  */
 export const BUILDERS: { [N in ProfileName]?: ProfileBuilder<N> } = {
-    k3s: { cloudInit: (ctx, s) => kubernetesCloudInit("k3s", ctx, s.version), build: ctx => kubernetesBuild("k3s", ctx) },
-    rke2: { cloudInit: (ctx, s) => kubernetesCloudInit("rke2", ctx, s.version), build: ctx => kubernetesBuild("rke2", ctx) },
-
-    "harvester-cloud-provider": {
-        build(ctx, settings) {
-            const { lab, host } = ctx;
-            if (!ctx.harvester) throw new Error(`host ${host.name}: harvester-cloud-provider only runs on Harvester VMs`);
-            const name = `${host.name}/harvester-cloud-provider`;
-            const cloudConfig = new HarvesterCloudConfig(`${name}/cloud-config`, {
-                harvester: ctx.harvester.name,
-                namespace: lab.name,
-                serviceAccountName: `${host.name}-cloud-provider`,
-            }, { dependsOn: ctx.harvester.ready });
-            const ccm = new HarvesterCloudProvider(name, {
-                cluster: need(ctx, "kubernetes"),
-                chart: profileChart("harvester-cloud-provider", host, lab, settings.version),
-                values: chartValuesWithSecrets(settings.values),
-                cloudConfig: cloudConfig.kubeconfig,
-            });
-            return { "load-balancer": { ready: [ccm.release] }, "cloud-provider": { ready: [ccm.release] } };
-        },
-    },
-
-
-
-    rancher: {
-        build(ctx, settings) {
-            const { lab, host } = ctx;
-            const tls = need(ctx, "tls");
-            const ingress = need(ctx, "ingress");
-            const name = `${host.name}/rancher`;
-            const server = new RancherServer(name, {
-                cluster: need(ctx, "kubernetes"),
-                chart: profileChart("rancher", host, lab, settings.version),
-                values: chartValuesWithSecrets(settings.values),
-                hostname: String(profileChart("rancher", host, lab).lockedValues.hostname),
-                adminPassword: secretString(settings.adminPassword),
-                // A CA nothing trusts (Let's Encrypt staging): agents (imported Harvesters, downstream
-                // nodes) trust Rancher through its roots, and the engine skips verifying it.
-                insecure: !!lab.acme?.ca,
-                privateCa: lab.acme?.ca,
-                settings: settings.settings ?? {},
-                features: settings.features,
-                timeoutSeconds: lab.timeouts.rancherReady,
-            }, { dependsOn: [...tls.ready, ...ingress.ready, ...(ctx.outputs["gateway-api"]?.ready ?? []), ...need(ctx, "secret-propagation").ready] });
-            const rancher = server.access;
-
-            const plugins = settings.plugins ?? lab.plugins.default;
-            new UiPlugins(`${name}/plugins`, {
-                rancher,
-                repo: lab.plugins.repo,
-                plugins: Array.isArray(plugins)
-                    ? Object.fromEntries(plugins.map(p => [p, lab.plugins.versions[p]])) // names checked by the resolver
-                    : plugins,
-                timeoutSeconds: lab.timeouts.uiPlugin,
-            });
-
-            // The repos' secrets live on this cluster too (in Rancher's namespaces): after Rancher.
-            const objects = ctx.hostObjects(rancher.cluster, [...rancher.ready, ...(ctx.outputs["downstream-secrets"]?.ready ?? [])]);
-            const fleet = new Fleet(`${name}/fleet`, {
-                rancher,
-                fleet: lab.fleet[host.name],
-                after: objects?.resources,
-                timeoutSeconds: lab.timeouts.resourceReady,
-                valuesFingerprints: valuesFingerprints(lab, host.name),
-            });
-            return { rancher, fleet: { ready: fleet.installs } };
-        },
-    },
-
-    hauler: {
-        build(ctx, settings) {
-            const { lab, host } = ctx;
-            // A certificate from the lab's ACME server (the resolver requires tls.cloudflare for one); plain HTTP for tls.acme: none.
-            const tls = lab.acme && lab.tls.cloudflare
-                ? { lego: download("lego", lab), server: lab.acme.url, email: lab.tls.email, cloudflareToken: secretString(lab.tls.cloudflare) }
-                : undefined;
-            if (!tls) pulumi.log.warn(`host ${host.name}: tls.acme is none; Hauler's registry speaks plain HTTP`);
-            const registry = new HaulerRegistry(`${host.name}/hauler`, {
-                host: ctx.access,
-                hauler: download("hauler", lab, settings.version),
-                manifests: Object.fromEntries(settings.manifests.map(m => [`${m}.yaml`, lab.haulManifests[m]])), // names checked by the resolver
-                port: settings.port,
-                fileserverPort: settings.fileserverPort,
-                tls,
-                after: ctx.ready,
-                timeoutSeconds: lab.timeouts.haulerSync,
-            }, { deletedWith: ctx.machine });
-            return { registry: { ready: [registry.setup] } };
-        },
-    },
-    // Registered with, and reporting to, a downstream cluster: built with the lab's other agents, once
-    // the clusters exist (program/observability.ts), on hosts, downstream clusters and Harvesters alike.
-    "suse-observability-agent": { build() {} },
-    "mlm-server": notBuiltYet("mlm-server", "M6"),
-    "mlm-client": notBuiltYet("mlm-client", "M6"),
-
-    // Nothing to build once the host is up: it turned Landlock on before its setup and was checked
-    // (program/landlock.ts); what runs on it waits for that.
-    landlock: { build() {} },
-
-    // On a Harvester, not a host: the add-on goes with the Harvester's base (HarvesterBase), before its VMs.
-    "harvester-dns-controller": { build() {} },
+    k3s,
+    rke2,
+    "harvester-cloud-provider": harvesterCloudProvider,
+    rancher,
+    hauler,
+    "suse-observability-agent": observabilityAgent,
+    landlock,
+    "harvester-dns-controller": dnsController,
 };
 
 type AnyBuilder = ProfileBuilder<ProfileName>;
 
-/**
- * For each of a Rancher host's HelmOps, a number derived from the values its `valuesFrom` reads: the
- * keys of the lab's catalog Secrets on the host it names (copied downstream by Outrider), their
- * values rendered. Fleet doesn't watch those Secrets; this, as `forceSyncGeneration`, makes it
- * deploy again when one changes. Only a hash of them is stored.
- */
-function valuesFingerprints(lab: ResolvedLab, host: string): Record<string, pulumi.Output<number>> {
-    const leaves = (v: unknown, at: string, out: [string, pulumi.Input<string>][]) => {
-        if (typeof v === "string" || (typeof v === "object" && v !== null && "$template" in v)) out.push([at, objectValue(v as ObjectValue)]);
-        else if (Array.isArray(v)) v.forEach((x, i) => leaves(x, `${at}[${i}]`, out));
-        else if (typeof v === "object" && v !== null) for (const [k, x] of Object.entries(v)) leaves(x, `${at}.${k}`, out);
-        return out;
-    };
-    const result: Record<string, pulumi.Output<number>> = {};
-    for (const op of lab.fleet[host]?.helmOps ?? []) {
-        const read: [string, pulumi.Input<string>][] = [];
-        for (const ref of (op.valuesFrom ?? []) as { secretKeyRef?: { name?: string; key?: string } }[]) {
-            const { name, key } = ref.secretKeyRef ?? {};
-            const object = lab.objects.find(o => o.kind === "Secret" && o.name === name && "host" in o.target && o.target.host === host);
-            if (object && key && key in object.data) leaves(object.data[key], `${name}/${key}`, read);
-        }
-        if (read.length === 0) continue;
-        // 32 bits of a hash: nothing to read the values back from, so not kept secret (the HelmOp's spec stays readable).
-        result[op.name] = pulumi.unsecret(pulumi.all(read.map(([at, v]) => pulumi.all([at, v]))).apply(pairs =>
-            parseInt(createHash("sha256").update(JSON.stringify(pairs)).digest("hex").slice(0, 8), 16)));
-    }
-    return result;
-}
-
-/**
- * For a profile with a chart and no builder: install the chart once the profiles it requires or
- * uses are ready, and report the release under each of its capabilities.
- */
 /**
  * A profile's chart with the secrets its templates name rendered into its values (`field('username')`
  * of a credentials setting gives `{{ secrets.appco.username }}`), kept secret.
@@ -329,7 +219,7 @@ export function installChartProfile(
 
 function chartProfileBuilder(name: string): AnyBuilder {
     return {
-        build(ctx, settings) {
+        host(ctx, settings) {
             const { lab, host } = ctx;
             const p = lab.profileCharts[name];
             const outputs = ctx.outputs as Record<string, { ready?: pulumi.Resource[] } | undefined>;
@@ -354,6 +244,10 @@ function chartProfileBuilder(name: string): AnyBuilder {
             if (objects.length > 0) done.push(...applyObjects(lab, `${host.name}/${name}`, cluster, objects, component, done.slice(-1)));
             return Object.fromEntries(p.provides.map(c => [c, { ready: done.slice(-1) }])) as HostOutputs;
         },
+        cluster(ctx, settings) {
+            const target = { name: ctx.prefix, chartValues: ctx.cluster.chartProfiles?.chartValues ?? {} };
+            return installChartProfile(ctx.lab, target, name, ctx.access, settings as { version?: string; values?: Record<string, unknown> }, ctx.after);
+        },
     };
 }
 
@@ -364,7 +258,7 @@ function chartProfileBuilder(name: string): AnyBuilder {
 /** Where a profile's entries go: a host, or a downstream cluster (`name` prefixes the resources). */
 type ChartTarget = { name: string; chartValues: ResolvedHost["chartValues"] };
 /** The cluster a profile's charts and objects go on: its kubeconfig for what the provider can't check (admission). */
-type ChartCluster = Pick<ClusterAccess, "provider" | "deletedWith"> & { kubeconfig?: pulumi.Input<string> };
+export type ChartCluster = Pick<ClusterAccess, "provider" | "deletedWith"> & { kubeconfig?: pulumi.Input<string> };
 
 function installEntries(lab: ResolvedLab, host: ChartTarget, profile: string, cluster: ChartCluster, indices: number[], after: pulumi.Resource[]): pulumi.Resource[] {
     const done: pulumi.Resource[] = [];
@@ -483,7 +377,7 @@ export function buildHostProfiles(
         const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, k) => from + k);
         const waitFor = (lab.profileCharts[name]?.waitFor ?? []).flatMap(c => (outputs as Record<string, { ready?: pulumi.Resource[] } | undefined>)[c]?.ready ?? []);
         const before = cluster && main > 0 ? installEntries(lab, host, name, cluster, range(0, main), waitFor) : [];
-        const built = builderOf(lab, name).build({ lab, host, access, ready, machine, harvester, outputs, hostObjects, before }, settingsOf(host, name)) ?? {};
+        const built = builderOf(lab, name).host?.({ lab, host, access, ready, machine, harvester, outputs, hostObjects, before }, settingsOf(host, name)) ?? {};
         Object.assign(outputs, built);
         if (cluster && main >= 0 && main < entries.length - 1) {
             const builtReady = Object.values(built).flatMap(v => (v && "ready" in v ? (v.ready as pulumi.Resource[]) : []));
@@ -508,4 +402,65 @@ export function buildHostProfiles(
         }
     }
     return outputs;
+}
+
+/**
+ * A downstream cluster's profiles in build order, once it's Ready (DESIGN.md §17): each after the
+ * profiles it requires or uses. Returns, by capability, what the profiles providing it made.
+ */
+export function buildClusterProfiles(lab: ResolvedLab, cluster: ResolvedDownstream, access: ChartCluster, after: pulumi.Resource[]): Record<string, pulumi.Resource[]> {
+    const ready: Record<string, pulumi.Resource[]> = {};
+    const cp = cluster.chartProfiles;
+    if (!cp) return ready;
+    for (const name of cp.order) {
+        const builder = builderOf(lab, name);
+        if (!builder.cluster) continue;
+        const p = lab.profileCharts[name];
+        const waitFor = (p?.waitFor ?? []).flatMap(c => ready[c] ?? []);
+        const done = builder.cluster({ lab, cluster, prefix: `downstream/${cluster.name}`, access, after: [...after, ...waitFor] }, cp.profiles[name] as never);
+        for (const c of p?.provides ?? [name]) ready[c] = done.slice(-1);
+    }
+    return ready;
+}
+
+/** A Harvester's own profiles, with its base: returns what its VMs wait for. */
+export function buildHarvesterProfiles(lab: ResolvedLab, harvester: ResolvedHarvester, provider: k8s.Provider, base: HarvesterBase): pulumi.Resource[] {
+    return Object.keys(harvester.profiles).sort().flatMap(name =>
+        builderOf(lab, name).harvester?.({ lab, harvester, provider, base }, harvester.profiles[name] as never) ?? []);
+}
+
+/** Every profile's `last` step, on each host, downstream cluster and Harvester it's on, in their build order. */
+export function buildLastProfiles(lab: ResolvedLab, clusters: LabClusters): void {
+    const run = (profiles: [string, unknown][], on: ProfileTarget) => {
+        for (const [name, settings] of profiles) builderOf(lab, name).last?.({ lab, on, clusters }, settings as never);
+    };
+    for (const host of lab.hosts) run(ordered(host.profiles, host.profileOrder), { kind: "host", name: host.name });
+    for (const d of lab.downstream) run(clusterProfiles(d), { kind: "cluster", name: d.name });
+    for (const h of lab.harvesters) run(ordered(h.profiles, Object.keys(h.profiles).sort()), { kind: "harvester", name: h.name });
+}
+
+/** Profiles as [name, settings], in the given order. */
+const ordered = (profiles: Record<string, unknown>, order: string[]): [string, unknown][] => order.map(name => [name, profiles[name]]);
+
+/** A downstream cluster's profiles, in its build order. */
+export const clusterProfiles = (d: ResolvedDownstream): [string, unknown][] => (d.chartProfiles ? ordered(d.chartProfiles.profiles, d.chartProfiles.order) : []);
+
+/**
+ * The profiles acting on a host as a node, in build order: those of the metal cluster it's a node of
+ * (Landlock on every node), then its own.
+ */
+export function nodeProfiles(lab: ResolvedLab, host: ResolvedHost): [string, unknown][] {
+    const metal = lab.downstream.find(d => d.type === "metal" && d.nodes.some(n => n.host === host.name));
+    return [...(metal ? clusterProfiles(metal) : []), ...ordered(host.profiles, host.profileOrder)];
+}
+
+/** `bootcmd` lines the profiles give a node the lab creates with this OS. */
+export function profileBootcmd(lab: ResolvedLab, profiles: [string, unknown][], os: ResolvedOs): string[] {
+    return profiles.flatMap(([name, settings]) => builderOf(lab, name).boot?.({ lab, os }, settings as never) ?? []);
+}
+
+/** The node profiles' `setup` steps on a host, after `after`: what its later steps wait for (`after` when there are none). */
+export function profileSetup(lab: ResolvedLab, host: ResolvedHost, ctx: Omit<SetupContext, "lab" | "host">): pulumi.Resource[] {
+    const made = nodeProfiles(lab, host).flatMap(([name, settings]) => builderOf(lab, name).setup?.({ lab, host, ...ctx }, settings as never) ?? []);
+    return made.length > 0 ? made : ctx.after;
 }

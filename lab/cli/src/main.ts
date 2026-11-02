@@ -35,6 +35,8 @@ Commands
 Options
   --config <file>       Personal config (default: $LAB_CONFIG or ~/.config/lab/config.yaml)
   --yes, -y             Don't ask for confirmation
+  --refresh             Read what's really there first (preview, up): an add-on deleted or
+                        changed in the Harvester UI is put back
   --show-secrets        Show secret outputs in plain text (outputs)
   --harvester <name>    Only this Harvester (release; repeatable)
   --force               Release a claim owned by another lab or user (release)
@@ -140,6 +142,7 @@ async function main(argv: string[]): Promise<void> {
             "show-secrets": { type: "boolean" },
             harvester: { type: "string", multiple: true },
             force: { type: "boolean" },
+            refresh: { type: "boolean" },
             check: { type: "boolean" },
             help: { type: "boolean", short: "h" },
         },
@@ -186,6 +189,10 @@ async function main(argv: string[]): Promise<void> {
         case "preview":
         case "up": {
             const ctx = load(labFile, configPath);
+            // A design for later validates; deploying it would leave out what isn't built yet.
+            if (ctx.lab.planned.length > 0) {
+                throw new UsageError(`${labFile} uses ${ctx.lab.planned.join(", ")}, which the engine doesn't build yet (status: planned); "${command}" needs a lab without them`);
+            }
             const { values } = secretsFor(ctx, true);
             const settings = workspaceSettings();
             if (settings.createdPassphrase) {
@@ -202,7 +209,7 @@ async function main(argv: string[]): Promise<void> {
                 if (command === "preview" || !opts.yes) {
                     log.step(`Preview of lab ${ctx.lab.name}`);
                     const watch = new CloudInitWatch();
-                    await stack.preview({ ...pulumiOutput, onEvent: watch.onEvent });
+                    await stack.preview({ ...pulumiOutput, onEvent: watch.onEvent, refresh: !!opts.refresh });
                     for (const w of watch.warnings(labFile)) log.warn(w);
                     if (command === "preview") return;
                     if (!(await confirm(`Apply these changes to lab ${ctx.lab.name}?`))) {
@@ -218,7 +225,7 @@ async function main(argv: string[]): Promise<void> {
                 // With --yes there was no preview to warn in; warn after the update, also when it fails.
                 const watch = new CloudInitWatch();
                 try {
-                    await stack.up({ ...pulumiOutput, onEvent: opts.yes ? watch.onEvent : undefined });
+                    await stack.up({ ...pulumiOutput, onEvent: opts.yes ? watch.onEvent : undefined, refresh: !!opts.refresh });
                 } finally {
                     for (const w of watch.warnings(labFile)) log.warn(w);
                 }

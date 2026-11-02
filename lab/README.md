@@ -16,7 +16,8 @@ mise run lab -- validate     # (installs the workspace's packages with bun first
 mise run lab -- plan     labs/rancher-harvester-rke2.yaml
 ```
 
-Commands: `validate`, `plan`, `preview`, `up`, `destroy`, `outputs`, `release`, `profiles`
+Commands: `validate`, `plan`, `preview`, `up` (`--refresh` first reads what's really there: an
+add-on deleted or changed in the Harvester UI is put back), `destroy`, `outputs`, `release`, `profiles`
 (lists every host profile with its rules) and `catalog [lab.yaml]` (the effective defaults:
 components, plugins, secrets, configmaps, Fleet repos and groups, OS profiles and the
 Defaults, and where each comes from). Run `mise run lab -- --help` for options.
@@ -392,7 +393,7 @@ mise run crds            # after changing packages/crds/crd-sources/: regenerate
 | Path | What |
 |---|---|
 | `cli/` | The `lab` command (Pulumi Automation API, secrets, Harvester claims) |
-| `program/` | The Pulumi program the CLI runs; `profiles.ts` has one builder per profile |
+| `program/` | The Pulumi program the CLI runs; `profiles.ts` has the builder steps and loops, `builders/` the larger builders |
 | `packages/schema/` | Lab file schema, loading, validation and resolution |
 | `packages/schema/src/profiles/` | Profile rule checks; the profiles themselves are `Profile` documents in `catalog/profiles/` |
 | `packages/core/` | Harvester API client, ownership claims |

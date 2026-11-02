@@ -1,9 +1,11 @@
 // Building a lab from blocks: what a new Harvester, AWS site, VM, Machine or cluster starts with, and what
 // dropping a profile or a host does. The palette's clicks and the board's drops both use these.
 
+import { CLUSTER_UI, clusterOfBlock, clusterType } from "./clusters";
+import type { ClusterTypeName } from "../../packages/schema/src/clusters/names";
 import type { Block } from "./dnd";
 import { secretTemplate } from "./secrets";
-import { addDoc, append, catalog, freeName, set, views } from "./store";
+import { addDoc, append, catalog, freeName, reportOf, set, views } from "./store";
 
 /** The OS new hosts and pools get; the engine adds what Harvester and Kubernetes need to it. */
 const defaultOs = () => catalog.value?.os[0]?.name ?? "";
@@ -14,12 +16,9 @@ const firstOf = (kind: string) => views.value.find(v => v.kind === kind)?.metada
 const rancherHost = () => views.value.find(v => (v.kind === "HarvesterVM" || v.kind === "Machine") && v.spec?.profiles && "rancher" in v.spec.profiles)?.metadata?.name ?? "";
 
 /** A profile's settings when it's added: what it can't do without, where the personal config has it. */
-/** The lab's downstream clusters whose Fleet profiles provide a capability (SUSE Observability's observers). */
+/** The lab's downstream clusters that provide a capability, as the engine judged them (SUSE Observability's observers). */
 export function clustersProviding(capability: string): string[] {
-    const fleet = catalog.value?.fleetProfiles ?? [];
-    return views.value.filter(v => v.kind === "DownstreamCluster" && v.metadata?.name
-        && Object.keys(v.spec?.fleetProfiles ?? {}).some(f => f === capability || fleet.find(p => p.name === f)?.provides.includes(capability)))
-        .map(v => String(v.metadata!.name));
+    return views.value.flatMap((v, i) => v.kind === "DownstreamCluster" && v.metadata?.name && reportOf(i)?.provided.includes(capability) ? [String(v.metadata.name)] : []);
 }
 
 export function profileDefaults(name: string): Record<string, unknown> {
@@ -73,6 +72,8 @@ export function addRecipe(name: string, on?: string, network?: string) {
 
 /** Add a block; `on` is the Harvester (and network lane) or AWS site it was dropped on. */
 export function addBlock(block: Block, on?: string, network?: string) {
+    const type = clusterOfBlock(block);
+    if (type) return addCluster(type, on, network);
     const harvester = on ?? firstOf("Harvester");
     const net = networkOn(harvester, network);
     switch (block) {
@@ -82,44 +83,38 @@ export function addBlock(block: Block, on?: string, network?: string) {
             return addDoc("HarvesterVM", freeName("HarvesterVM", "vm"), { harvester, ...net, os: defaultOs(), profiles: {} });
         case "Machine":
             return addDoc("Machine", freeName("Machine", "machine"), { address: "", os: defaultOs(), profiles: {} });
-        case "DownstreamCluster":
-            return addDoc("DownstreamCluster", freeName("DownstreamCluster", "cluster"), {
-                type: "harvester", rancher: rancherHost(), harvester, distro: "rke2",
-                pools: [{ name: "all", quantity: 1, roles: ["etcd", "controlplane", "worker"], os: defaultOs(), ...net }],
-            });
         case "AwsSite": {
             const mine = catalog.value?.personal.awsSites.find(s => !views.value.some(v => v.kind === "AwsSite" && v.metadata?.name === s.name));
             // Not in the personal config: the first secret there holding AWS keys, if any.
             const keys = catalog.value?.personal.secrets.find(s => s.fields?.includes("accessKey") && s.fields.includes("secretKey"))?.path;
             return addDoc("AwsSite", freeName("AwsSite", mine?.name ?? "aws"), mine || !keys ? {} : { credentials: secretTemplate(keys) });
         }
-        case "Ec2Cluster":
-            return addDoc("DownstreamCluster", freeName("DownstreamCluster", "cloud"), {
-                type: "ec2", rancher: rancherHost(), site: on ?? firstOf("AwsSite"), distro: "rke2",
-                pools: [{ name: "all", quantity: 1, roles: ["etcd", "controlplane", "worker"], os: ec2Os() }],
-            });
-        case "EksCluster":
-            return addDoc("DownstreamCluster", freeName("DownstreamCluster", "eks"), {
-                type: "eks", rancher: rancherHost(), site: on ?? firstOf("AwsSite"),
-                nodeGroups: [{ name: "general", quantity: 2 }],
-            });
-        case "MetalCluster": {
-            // Its first node: the host it was dropped on, or the first one that can be one.
-            const host = on ?? views.value.find((v, i) => (v.kind === "Machine" || v.kind === "HarvesterVM") && canBeNode(i))?.metadata?.name;
-            return addDoc("DownstreamCluster", freeName("DownstreamCluster", "metal"), {
-                type: "metal", rancher: rancherHost(), distro: "rke2",
-                nodes: host ? [{ host, roles: ["etcd", "controlplane", "worker"] }] : [],
-            });
-        }
-        case "K3kCluster":
-            return addK3k(views.value.find(v => v.kind === "DownstreamCluster" && v.spec?.type !== "k3k")?.metadata?.name ?? "");
+        default:
+            return undefined;
     }
 }
 
-/** A k3k cluster in a harvester, ec2, eks or metal cluster, managed by the same Rancher. */
-export function addK3k(parent: string) {
-    const rancher = views.value.find(v => v.kind === "DownstreamCluster" && v.metadata?.name === parent)?.spec?.rancher ?? rancherHost();
-    addDoc("DownstreamCluster", freeName("DownstreamCluster", "virtual"), { type: "k3k", rancher, parent });
+/** Whether a box (document) can take a cluster of this type: a host that can be a node, a cluster that holds nested ones. */
+function fits(type: ClusterTypeName, index: number): boolean {
+    const v = views.value[index];
+    if (!v?.kind || !(CLUSTER_UI[type].dropOn as string[]).includes(v.kind)) return false;
+    if (v.kind === "HarvesterVM" || v.kind === "Machine") return canBeNode(index);
+    if (v.kind === "DownstreamCluster") return !!CLUSTER_UI[clusterType(v.spec)].holdsNested;
+    return true;
+}
+
+/** A cluster of a type, on what it was dropped on (`on`), or the first document it fits. */
+export function addCluster(type: ClusterTypeName, on?: string, network?: string) {
+    const target = on ?? views.value.find((v, i) => fits(type, i))?.metadata?.name ?? "";
+    const ui = CLUSTER_UI[type];
+    return addDoc("DownstreamCluster", freeName("DownstreamCluster", ui.newName), ui.create({
+        on: target,
+        rancher: rancherHost(),
+        rancherOf: cluster => views.value.find(v => v.kind === "DownstreamCluster" && v.metadata?.name === cluster)?.spec?.rancher ?? rancherHost(),
+        network: type === "harvester" ? networkOn(target, network) : {},
+        os: defaultOs(),
+        ec2Os: ec2Os(),
+    }));
 }
 
 /** A profile dropped on a host, or a ChartProfile on a downstream cluster. */

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useDoc } from "../doc";
-import { append, catalog, remove, views } from "../store";
+import { append, catalog, remove, reportOf, views } from "../store";
 import { addFleetProfile, removeFleetProfile } from "../compose";
+import { CLUSTER_UI, clusterType } from "../clusters";
+import type { ClusterTypeName } from "../../../packages/schema/src/clusters/names";
 import DocHeader from "./DocHeader.vue";
 import ProfileIcon from "./ProfileIcon.vue";
 import ProfilesEditor from "./ProfilesEditor.vue";
@@ -18,7 +20,7 @@ import YamlField from "./YamlField.vue";
 const props = defineProps<{ index: number }>();
 const { v, bind, set } = useDoc(() => props.index);
 const spec = computed(() => v.value.spec ?? {});
-const type = computed(() => spec.value.type ?? "harvester");
+const type = computed(() => clusterType(spec.value));
 const defaults = computed(() => catalog.value?.defaults.vm);
 
 const hosts = computed(() => views.value.filter(d => d.kind === "HarvesterVM" || d.kind === "Machine"));
@@ -34,32 +36,27 @@ const zones = computed<string[]>(() => site.value?.spec?.zones ?? catalog.value?
 const amiOs = computed(() => (catalog.value?.os ?? []).filter(o => o.ami).map(o => o.name));
 /** Whether the Rancher host can be reached from the internet: it needs a profile providing public-ingress. */
 const rancherPublic = computed(() => {
-  const host = hosts.value.find(h => h.metadata?.name === spec.value.rancher);
-  return Object.keys(host?.spec?.profiles ?? {}).some(n => n === "public-ingress" || catalog.value?.profiles.find(p => p.name === n)?.provides.includes("public-ingress"));
+  const host = views.value.findIndex(h => (h.kind === "HarvesterVM" || h.kind === "Machine") && h.metadata?.name === spec.value.rancher);
+  return host >= 0 && !!reportOf(host)?.provided.includes("public-ingress");
 });
 const publicProfiles = computed(() => (catalog.value?.profiles ?? []).filter(p => p.name === "public-ingress" || p.provides.includes("public-ingress")).map(p => p.name));
 /** A metal cluster's nodes: hosts without Kubernetes of their own. */
 const nodeHosts = computed(() => hosts.value.filter(h => !Object.keys(h.spec?.profiles ?? {}).some(n => catalog.value?.profiles.find(p => p.name === n)?.distribution)).map(h => h.metadata?.name ?? ""));
 const pools = computed<any[]>(() => spec.value.pools ?? []);
-/** The fields each type has (the schema's DownstreamCluster variants); switching type drops the others. */
-const FIELDS: Record<string, string[]> = {
-  harvester: ["rancher", "harvester", "distro", "version", "labels", "annotations", "cni", "machineGlobalConfig", "chartValues", "secrets", "configmaps", "pools"],
-  ec2: ["rancher", "site", "distro", "version", "labels", "annotations", "cni", "machineGlobalConfig", "chartValues", "secrets", "configmaps", "pools"],
-  eks: ["rancher", "site", "version", "labels", "annotations", "publicAccessSources", "logging", "secrets", "configmaps", "nodeGroups"],
-  metal: ["rancher", "distro", "version", "labels", "annotations", "cni", "machineGlobalConfig", "chartValues", "secrets", "configmaps", "nodes"],
-  k3k: ["rancher", "parent", "mode", "servers", "agents", "version", "namespace", "persistence", "labels", "annotations", "secrets", "configmaps"],
-};
+/** The type select's choices, one per cluster type. */
+const TYPES = (Object.keys(CLUSTER_UI) as ClusterTypeName[]).map(t => ({ value: t, label: CLUSTER_UI[t].option }));
 /** A pool's fields per type: a Harvester VM's size and network, or an EC2 machine's. */
-const POOL_FIELDS: Record<string, string[]> = {
+const POOL_FIELDS: Partial<Record<ClusterTypeName, string[]>> = {
   harvester: ["name", "quantity", "roles", "os", "cpu", "memory", "disk", "network"],
   ec2: ["name", "quantity", "roles", "os", "instanceType", "disk", "zone"],
 };
 function setType(t: unknown) {
-  const type = (t as string | undefined) ?? "harvester";
-  for (const key of Object.keys(spec.value)) if (key !== "type" && !FIELDS[type].includes(key)) set(["spec", key], undefined);
+  const type = clusterType({ type: t as string | undefined });
+  // The fields each type has (the engine's schema); switching type drops the others.
+  for (const key of Object.keys(spec.value)) if (key !== "type" && !CLUSTER_UI[type].fields.includes(key)) set(["spec", key], undefined);
   // Pools carry over between harvester and ec2, without the other's fields.
   pools.value.forEach((pool, i) => {
-    for (const key of Object.keys(pool)) if (POOL_FIELDS[type] && !POOL_FIELDS[type].includes(key)) set(["spec", "pools", i, key], undefined);
+    for (const key of Object.keys(pool)) if (POOL_FIELDS[type] && !POOL_FIELDS[type]!.includes(key)) set(["spec", "pools", i, key], undefined);
   });
   if ((type === "ec2" || type === "eks") && !spec.value.site && sites.value[0]) set("spec.site", sites.value[0]);
   // An EKS version is a minor of its own (1.34), not a distribution's.
@@ -68,8 +65,8 @@ function setType(t: unknown) {
   set("spec.type", type);
 }
 
-/** A k3k cluster's possible parents: the other harvester, ec2, eks and metal clusters. */
-const parents = computed(() => views.value.filter(d => d.kind === "DownstreamCluster" && d.spec?.type !== "k3k" && d.metadata?.name !== v.value.metadata?.name).map(d => d.metadata?.name ?? ""));
+/** A k3k cluster's possible parents: the other clusters that hold nested ones. */
+const parents = computed(() => views.value.filter(d => d.kind === "DownstreamCluster" && CLUSTER_UI[clusterType(d.spec)].holdsNested && d.metadata?.name !== v.value.metadata?.name).map(d => d.metadata?.name ?? ""));
 const nodes = computed<any[]>(() => spec.value.nodes ?? []);
 const nodeGroups = computed<any[]>(() => spec.value.nodeGroups ?? []);
 const onAws = computed(() => type.value === "ec2" || type.value === "eks");
@@ -108,7 +105,7 @@ function addFleet(e: Event) {
     <section>
       <h3>Cluster</h3>
       <div class="grid">
-        <SelectField label="type" :options="[{ value: 'harvester', label: 'harvester — VMs Rancher creates' }, { value: 'ec2', label: 'ec2 — machines Rancher creates on AWS' }, { value: 'eks', label: 'eks — an EKS cluster Rancher creates' }, { value: 'metal', label: 'metal — Rancher installs Kubernetes on the lab\'s hosts' }, { value: 'k3k', label: 'k3k — a virtual cluster in another' }]" required :model-value="spec.type" @update:model-value="setType" />
+        <SelectField label="type" :options="TYPES" required :model-value="spec.type" @update:model-value="setType" />
         <SelectField label="Rancher" required :options="ranchers" :hint="onAws ? 'a host with the rancher profile, reachable from the internet' : 'a host with the rancher profile'" v-bind="bind('spec.rancher')" />
         <SelectField v-if="type === 'harvester'" label="Harvester" required :options="harvesters" v-bind="bind('spec.harvester')" />
         <SelectField v-if="onAws" label="AWS site" required :options="sites" :hint="!sites.length ? 'add an AWS site first' : type === 'eks' ? 'it runs in the lab\'s VPC there, over two zones at least' : 'the machines go in the lab\'s VPC there'" v-bind="bind('spec.site')" />
@@ -228,7 +225,7 @@ function addFleet(e: Event) {
       </div>
     </section>
 
-    <ProfilesEditor :model-value="spec.profiles" target="cluster" @set="(n, x) => set(['spec', 'profiles', n], x ?? {})" @remove="n => set(['spec', 'profiles', n], undefined)" />
+    <ProfilesEditor :index="index" :model-value="spec.profiles" target="cluster" @set="(n, x) => set(['spec', 'profiles', n], x ?? {})" @remove="n => set(['spec', 'profiles', n], undefined)" />
 
     <details class="advanced">
       <summary>More</summary>

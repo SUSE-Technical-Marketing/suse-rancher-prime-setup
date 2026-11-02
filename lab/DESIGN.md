@@ -538,6 +538,21 @@ the Fleet cluster, so `fleet.groups` selectors match the labels and a `fleet.yam
 labels and the annotations their apps read. Their labels and annotations join the cluster's own.
 `profiles` installs ChartProfiles on it, with the engine's Helm through Rancher (§17).
 
+**How the code is organized: one module per type.** Each cluster type is a module in each layer,
+registered in a table keyed by the type, so a type missing from a table fails to compile (and
+`assertNever` ends what still branches on the type):
+
+| Layer | Module | What it holds |
+|---|---|---|
+| Schema | `packages/schema/src/clusters/<type>.ts` | its zod schema (a member of `DownstreamInput`), its resolve step (defaults, checks against the lab around it, through a `ClusterContext`), its `lab plan` lines, whether its machines reach Rancher over the internet, and on AWS its footprint (`aws`: its site, the machines and control planes billed there, what `destroy --check` looks for) |
+| Program | `program/clusters/<type>.ts` | its Pulumi build, through a `ClusterBuildContext` (its Rancher, one credential per Rancher and Harvester or site, the site's network, pool user data), and whether it runs inside another (built after the others) |
+| UI | `ui/src/clusters.ts` | its palette block, icon and board column, how a new one is made and where it can be dropped, its board tile and arrows, its form's fields |
+
+The resolver only checks what all clusters share (their Rancher, and a public one for clusters
+that reach it over the internet). The UI can't build the schema's modules, so it keys its table by
+`packages/schema/src/clusters/names.ts`, a file without imports; the schema checks those names
+are its own. Adding a cluster type is three modules and three table entries, plus the name.
+
 ### 5.6 AWS sites
 
 An `AwsSite` is an AWS account and region Rancher creates machines in. The lab gets a VPC of its
@@ -731,6 +746,17 @@ lab.yaml ──► load ──► validate (zod) ──► resolve ──► gra
 - **resolve**: cross-references (`on`, `server`, `rancher`, `harvester`, `host`), profile
   requirements, OS/profile compatibility, and derived data. It produces a `ResolvedLab` that the
   Pulumi program uses directly. This step is pure TypeScript and fully unit-testable.
+  `resolveLab` (`packages/schema/src/resolve.ts`) is a list of phases (`phases/`), each a function on
+  the shared `Resolution` (`phases/context.ts`: the lab, the diagnostics, the catalog, the maps of
+  Harvesters, sites, hosts and clusters filled in so far, and the helpers they share, such as
+  `useOs`, `needSecret`, `checkNetwork`, `renderProfile`). They run in this order, each on what
+  the ones before resolved, and report in that order: the catalog (with the shared state),
+  Harvesters, AWS sites, hosts (with their profiles' rules, order and chart values), the catalog
+  secrets and configmaps, Fleet repos, downstream clusters (each by its type, §5.5), their Fleet
+  profiles, hosts' charts, clusters' profiles, Harvesters' profiles, profiles' own checks, the
+  objects' placement, images, and the top level (vars, TLS, SSH, unused Harvesters and sites,
+  secrets used as text). A new check goes in the phase that has what it needs, or a new phase in
+  the list.
 - **build**: one function per entry kind creates Pulumi components, passing outputs between them.
 
 `validate` and `plan` (§3) stop after resolve.
@@ -773,7 +799,12 @@ Every component takes some of these and returns one. That is what makes them com
 - **Dynamic providers only for real API gaps** (Harvester cloud-provider kubeconfig, image upload,
   MLM API, readiness polling), following the rules in
   `pulumi/modules/rancher/src/PROVIDER_PATTERNS.md`.
-  Every dynamic provider implements `delete` properly: a lab must clean up.
+  Every dynamic provider implements `delete` properly: a lab must clean up. Each waits with the one
+  helper `poll` (`@lab/kube`: try until done, then fail with what it saw last), self-contained like
+  `kubeRequest` since dynamic providers are serialized into the state. `HarvesterAddon` implements
+  `read`, so a refresh (`lab up --refresh`) sees an add-on deleted, disabled or changed in the
+  Harvester UI and the update puts the lab's back; the others only wait for something or do a
+  one-time job, with nothing of their own to drift.
 - Secrets inside outputs use `additionalSecretOutputs`, as in `pulumi/`.
 
 ### 7.5 Resource naming
@@ -841,6 +872,7 @@ Rules are expressed in **capabilities**. Every profile provides its own name, pl
 | `aliases` | Component types its resources were created under before (`lab:apps:CertManager`, from when the profile was code): a running lab keeps them rather than replacing them | program |
 | `outputs` | Data other profiles on the host can use in their templates, by capability this profile provides (`tls: { secretName: wildcard-cert }`); only from the profile actually providing it on the host | resolver |
 | `settings` | The settings under `profiles.<name>`: a JSON Schema object (subset; `required` inside it) | resolver |
+| `status` | `planned`: in the catalog with its rules and settings, but not built yet (MLM). A lab using it validates with a warning (a design for later); `preview` and `up` refuse it; the composer doesn't offer it | resolver, CLI, UI |
 
 Strings using `secrets` anywhere else in a profile's settings (chart values) are collected too, as string secrets.
 
@@ -863,11 +895,32 @@ or a chart. The program builds each host's profiles in
 `profileOrder` (from the resolver) and passes the outputs of earlier profiles to later ones, keyed
 by capability.
 
+A builder (`ProfileBuilder`) has a step for each place and moment it acts, and the program runs
+every profile through the same loops; none is wired by name:
+
+| Step | Runs | Example |
+|---|---|---|
+| `boot` | `bootcmd` lines for nodes the lab creates (VMs, a cluster's machines; a metal cluster's profiles for its nodes) | Landlock turned on |
+| `setup` | on a host or metal node before anything uses it: an existing machine before its own setup, a VM once cloud-init is done | the Landlock check, a machine's reboot |
+| `cloudInit` | the host's `runcmd` (over SSH on a machine), and its uninstall | k3s, RKE2 |
+| `host` | on a lab host once it's up, in `profileOrder` | Rancher, Hauler, ChartProfiles |
+| `cluster` | on a downstream cluster once it's Ready, in its build order | ChartProfiles, the Landlock DaemonSet |
+| `harvester` | on a Harvester with its base, before its VMs (children of the base) | the DNS controller |
+| `last` | once every cluster exists, on each target the profile is on | SUSE Observability agents |
+
+A test checks that every target a profile declares has a step that runs there. Builders with
+more than a few lines live in `program/builders/<profile>.ts`.
+
+A profile's checks that only code can make (beyond its declared rules) are its **hooks**
+(`packages/schema/src/profiles/hooks.ts`), run by the resolver on each host, cluster and Harvester
+the profile is on: Landlock needs an OS profile with `landlock.enable` and rejects k3k and EKS,
+cert-manager needs an ACME server, the DNS controller's `values` can't override the engine's.
+
 **Adding a profile**: a `Profile` document in `lab/catalog/profiles/` and `mise run profile-types`.
 A profile that only installs charts or manifests needs nothing else (its HelmChart documents and
 its Profile's `charts` say it all, Kubewarden's three charts included); one with real wiring also gets
-a builder (plus its components in a package). No changes to the resolver, the CLI or the
-program's main loop.
+a builder (plus its components in a package), and a hook if it has checks of its own. No changes to
+the resolver's or the program's main loops, or the CLI.
 
 ---
 
@@ -1080,7 +1133,7 @@ it's on to its observer.
   (`<url>/receiver/stsAgent`), `stackstate.cluster.name` the host's, cluster's or Harvester's name
   (`clusterName`). On a Harvester it's a Harvester add-on, the Secret next to it. Images come from
   registry.rancher.com, which allows anonymous pulls.
-- **Order**: agents are built last (`program/observability.ts`), after their observer cluster, so a
+- **Order**: agents are built last (the builder's `last` step, `program/builders/suse-observability-agent.ts`), after their observer cluster, so a
   Rancher host or a Harvester can report to a cluster built after it.
 
 ### 9.7 Landlock
@@ -1231,6 +1284,15 @@ CloudFormation stacks and the launch template Rancher names after it).
   the package manager only: the CLI runs on Node (tsx), and so does the Pulumi program (Pulumi's
   Node.js host; `packagemanager: bun` in Pulumi.yaml). `lab/ui` is a Bun project of its own; its
   `install` installs `lab/` too, since its server uses the engine's packages.
+- **The composer and its server agree by construction.** The server (`ui/server/index.ts`) runs the
+  engine itself: `/api/check` is `lab validate` and `lab plan`, plus each host's, cluster's and
+  Harvester's capabilities (`capabilityReport` in `profiles/rules.ts`: what its profiles provide, what
+  nothing there provides that they need), from the text as it is, errors and all. The composer shows
+  those (a profile's "needs" chips, the palette's suggestions, which clusters can be an observer)
+  and computes no rules of its own. The API's types are in `ui/src/api-types.ts`, a file of types
+  only: the UI reads the answers with them and the server declares its answers with them, so a field
+  added or dropped on one side fails to compile on the other. (The UI can't build the engine's
+  modules; the cluster types' names come from `packages/schema/src/clusters/names.ts`, §5.5.)
 - TypeScript is pinned to 5.9: Pulumi's TypeScript runtime (ts-node) doesn't support TypeScript 7.
 - TypeScript, strict mode, a Bun workspace. Packages are consumed as source; `typecheck` runs
   `tsc --noEmit` in every package (`bun run --filter '@lab/*' typecheck`).

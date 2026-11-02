@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { BUILTIN_CATALOG_DIR, describeCapability, ProfileRegistry, ResolvedCatalog, ResolvedLab, VersionValue } from "@lab/schema";
+import { awsFootprint, BUILTIN_CATALOG_DIR, describeCapability, planCluster, ProfileRegistry, ResolvedCatalog, ResolvedLab, VersionValue } from "@lab/schema";
 
 /** Human-readable summary of what a lab will build, for `lab plan`. */
 export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): string {
@@ -30,12 +30,10 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
             const machines = new Map<string, number>();
             const add = (type: string, n: number) => machines.set(type, (machines.get(type) ?? 0) + n);
             let eks = 0;
-            for (const d of lab.downstream) {
-                if (d.type === "ec2" && d.site === s.name) for (const p of d.pools) add(p.instanceType, p.quantity);
-                if (d.type === "eks" && d.site === s.name) {
-                    eks++;
-                    for (const g of d.nodeGroups) add(g.instanceType, g.quantity);
-                }
+            for (const aws of lab.downstream.map(awsFootprint)) {
+                if (aws?.site !== s.name) continue;
+                for (const m of aws.machines) add(m.instanceType, m.quantity);
+                eks += aws.controlPlanes;
             }
             if (machines.size > 0) line(`    EC2 machines (billed while the lab runs): ${[...machines].map(([type, n]) => `${n} × ${type}`).join(", ")}`);
             if (eks > 0) line(`    EKS control planes (billed per hour): ${eks}`);
@@ -62,30 +60,7 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
             const labels = Object.entries(d.labels).map(([k, v]) => `${k}=${v}`).join(", ");
             const annotations = Object.entries(d.annotations).map(([k, v]) => `${k}=${v}`).join(", ");
             const meta = `${labels ? `, labels ${labels}` : ""}${annotations ? `, annotations ${annotations}` : ""}`;
-            if (d.type === "harvester") {
-                line(`  ${d.name}  ${d.distro} on ${d.harvester}, managed by Rancher on ${d.rancher}${meta}`);
-                for (const p of d.pools) {
-                    line(`    pool ${p.name}: ${p.quantity} × ${p.cpu} CPU / ${p.memory} / ${p.disk}, ${p.os}, network ${p.network} [${p.roles.join(", ")}]`);
-                }
-            } else if (d.type === "ec2") {
-                line(`  ${d.name}  ${d.distro} on EC2 (${d.site}), managed by Rancher on ${d.rancher}${meta}`);
-                for (const p of d.pools) {
-                    line(`    pool ${p.name}: ${p.quantity} × ${p.instanceType} / ${p.disk}, ${p.os}, zone ${p.zone} [${p.roles.join(", ")}]`);
-                }
-            } else if (d.type === "eks") {
-                line(`  ${d.name}  EKS ${d.version} (${d.site}), created and managed by Rancher on ${d.rancher}${meta}`);
-                for (const g of d.nodeGroups) {
-                    const size = g.min === g.max ? `${g.quantity}` : `${g.quantity} (${g.min}–${g.max})`;
-                    line(`    node group ${g.name}: ${size} × ${g.instanceType} / ${g.disk}, zones ${g.zones.join(", ")}`);
-                }
-            } else if (d.type === "k3k") {
-                const persistence = d.persistence?.type === "ephemeral" ? "ephemeral" : `etcd on a ${d.persistence?.size ?? "default-size"} PVC (${d.persistence?.storageClass ?? "default StorageClass"})`;
-                line(`  ${d.name}  k3k ${d.mode} in ${d.parent} (namespace ${d.namespace}), managed by Rancher on ${d.rancher}${meta}`);
-                line(`    ${d.servers} server${d.servers > 1 ? "s" : ""}, ${d.agents} agent${d.agents === 1 ? "" : "s"}, k3s ${d.version ?? "as the parent"}, ${persistence}`);
-            } else {
-                line(`  ${d.name}  metal ${d.distro}, managed by Rancher on ${d.rancher}${meta}`);
-                for (const n of d.nodes) line(`    node ${n.host} [${n.roles.join(", ")}]`);
-            }
+            for (const l of planCluster(d, meta)) line(l);
             // Their labels and annotations are among the cluster's above; Fleet installs what they select.
             const fleet = Object.keys(d.fleetProfiles ?? {});
             if (fleet.length > 0) line(`    Fleet profiles: ${fleet.join(", ")} (installed by Fleet)`);

@@ -1,0 +1,46 @@
+import { z } from "zod";
+import { annotations, checkPassthrough, checkRoles, ClusterPassthrough, distro, fleetProfiles, labels, profiles, roles } from "./common";
+import type { ClusterType } from "./types";
+
+// Rancher installs Kubernetes on the lab's own hosts (Machines, bare VMs): Rancher's "custom" cluster.
+
+export const MetalClusterInput = z.strictObject({
+    /** Rancher installs Kubernetes on the lab's own hosts (Machines, bare VMs): Rancher's "custom" cluster. */
+    type: z.literal("metal"),
+    rancher: z.string(),
+    distro,
+    version: z.string().optional(),
+    labels,
+    annotations,
+    fleetProfiles,
+    profiles,
+    ...ClusterPassthrough,
+    nodes: z.array(z.strictObject({ host: z.string(), roles })).min(1),
+});
+type Input = z.infer<typeof MetalClusterInput>;
+export type ResolvedMetalCluster = Input & { name: string };
+
+export const metalCluster: ClusterType<Input, ResolvedMetalCluster> = {
+    resolve(ctx, name, d, at) {
+        checkPassthrough(ctx, d, at);
+        d.nodes.forEach((node, i) => {
+            const host = ctx.hosts.get(node.host);
+            const nodeAt = `${at}.nodes[${i}].host`;
+            if (!host) {
+                ctx.error(nodeAt, `unknown host "${node.host}"`);
+                return;
+            }
+            const owner = ctx.metalNodeOwner.get(node.host);
+            if (owner) ctx.error(nodeAt, `host "${node.host}" is already a node of downstream cluster "${owner}"`);
+            ctx.metalNodeOwner.set(node.host, name);
+            const blocking = ctx.blocksMetalNode(host);
+            if (blocking.length > 0) ctx.error(nodeAt, `host "${node.host}" can't join a metal cluster: it runs ${blocking.join(", ")}, which can't share a host with Kubernetes`);
+        });
+        checkRoles(ctx, d.nodes, at);
+        return { ...d, name };
+    },
+    plan: (d, meta) => [
+        `  ${d.name}  metal ${d.distro}, managed by Rancher on ${d.rancher}${meta}`,
+        ...d.nodes.map(n => `    node ${n.host} [${n.roles.join(", ")}]`),
+    ],
+};

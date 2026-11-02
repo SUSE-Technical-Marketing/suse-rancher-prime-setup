@@ -4,8 +4,9 @@ import KindIcon from "./KindIcon.vue";
 import { computed, reactive, ref, watch } from "vue";
 import { addBlock, addFleetProfile, addProfile, addRecipe, removeFleetProfile, removeProfile } from "../compose";
 import { dragging, end, start, target, type Block, type Payload } from "../dnd";
+import { CLUSTER_UI } from "../clusters";
 import { BLOCK_KIND, CATEGORIES } from "../kinds";
-import { catalog, drawer, selected, views } from "../store";
+import { catalog, drawer, reportOf, selected, views } from "../store";
 
 // Building blocks, by category, as small tiles, and the profiles, one line each, to drag onto the
 // board. A block can also be clicked: it goes on the first Harvester or AWS site. One search box
@@ -16,12 +17,9 @@ const BLOCKS: { block: Block; label: string; hint: string }[] = [
   { block: "Harvester", label: "Harvester", hint: "a Harvester the lab uses: drop on the board" },
   { block: "HarvesterVM", label: "VM", hint: "a VM: drop on a Harvester" },
   { block: "Machine", label: "Machine", hint: "an existing machine, reached over SSH: drop on the board" },
-  { block: "DownstreamCluster", label: "Harvester cluster", hint: "a cluster Rancher creates from VMs on a Harvester: drop on a Harvester" },
   { block: "AwsSite", label: "AWS site", hint: "an AWS account and region; the lab gets its own VPC there: drop on the board" },
-  { block: "Ec2Cluster", label: "EC2 cluster", hint: "machines Rancher creates on AWS (needs a public Rancher): drop on an AWS site" },
-  { block: "EksCluster", label: "EKS cluster", hint: "an EKS cluster Rancher creates and manages (needs a public Rancher): drop on an AWS site" },
-  { block: "MetalCluster", label: "Metal cluster", hint: "Rancher installs Kubernetes on the lab's Machines or bare VMs: drop on one, then drop more on the cluster" },
-  { block: "K3kCluster", label: "k3k cluster", hint: "a virtual cluster inside another, imported into Rancher: drop on a cluster" },
+  // One per downstream cluster type.
+  ...Object.values(CLUSTER_UI).map(ui => ({ block: ui.block, label: ui.label, hint: ui.hint })),
 ];
 
 /** One palette entry: a block, or a catalog HostRecipe (a standard host), as it's drawn and dragged. */
@@ -78,7 +76,8 @@ const following = computed(() => !!context.value && where.value === context.valu
 /** A profile row: an engine Profile, a ChartProfile or a Fleet profile. */
 interface Row { key: string; name: string; description: string; title: string; fleet: boolean; kind: "custom" | "chart" | "fleet"; provides: string[] }
 const goesOn = (targets: string[]) => where.value === "all" || targets.includes(where.value);
-const profileRows = computed<Row[]>(() => (catalog.value?.profiles ?? []).filter(p => goesOn(p.targets) && hit(p.name, p.description)).map(p => ({
+// Planned profiles aren't built yet: not offered (a lab using one shows it in its form).
+const profileRows = computed<Row[]>(() => (catalog.value?.profiles ?? []).filter(p => p.status !== "planned" && goesOn(p.targets) && hit(p.name, p.description)).map(p => ({
   key: `p-${p.name}`, name: p.name, description: p.description, fleet: false, kind: p.kind,
   provides: [...p.provides, ...p.fallback, p.name],
   title: `${p.description}\nprovides: ${p.provides.join(", ") || "—"}\nneeds: ${p.requires.join(", ") || "—"}\ngoes on: ${p.targets.map(t => ({ host: "a VM or Machine", cluster: "a downstream cluster", harvester: "a Harvester" })[t]).join(", ")}`,
@@ -89,19 +88,11 @@ const fleetRows = computed<Row[]>(() => (where.value === "all" || where.value ==
     title: `${p.description}\nlabels: ${Object.entries(p.labels).map(([k, v]) => `${k}=${v}`).join(", ") || "—"}\nneeds: ${p.requires.join(", ") || "—"}\ngoes on: a downstream cluster (Fleet installs it)`,
   })));
 
-/** What the open document's profiles need that none of them provides, and the profiles that do. */
+/** What the open document's profiles need that nothing on it provides (the engine's say, at the last check), and the profiles that do. */
 const suggested = computed(() => {
   const c = context.value;
   if (!c || !following.value) return { needs: [] as string[], rows: [] as Row[] };
-  const all = catalog.value?.profiles ?? [];
-  const fleet = catalog.value?.fleetProfiles ?? [];
-  const on = [...all.filter(p => c.profiles.has(p.name)), ...fleet.filter(p => c.fleet.has(p.name))];
-  const provided = new Set([
-    ...all.filter(p => c.profiles.has(p.name)).flatMap(p => [...p.provides, ...p.fallback, p.name]),
-    ...fleet.filter(p => c.fleet.has(p.name)).flatMap(p => [...p.provides, p.name]),
-    ...(c.where === "host" ? [] : ["kubernetes"]),
-  ]);
-  const needs = [...new Set(on.flatMap(p => p.requires))].filter(cap => !provided.has(cap)).sort();
+  const needs = reportOf(c.index)?.needs ?? [];
   const rows = [...profileRows.value, ...fleetRows.value].filter(r => !isOn(r) && r.provides.some(cap => needs.includes(cap)));
   return { needs, rows };
 });

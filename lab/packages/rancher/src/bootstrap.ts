@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { kubeRequest, rancherLogin, rancherRequest } from "@lab/kube";
+import { kubeRequest, poll, rancherLogin, rancherRequest } from "@lab/kube";
 
 interface Inputs {
     kubeconfig: string;
@@ -17,13 +17,9 @@ interface Inputs {
 const provider: pulumi.dynamic.ResourceProvider = {
     async create(inputs: Inputs) {
         const endpoint = { url: inputs.url, insecure: inputs.insecure };
-        const deadline = Date.now() + inputs.timeoutSeconds * 1000;
-        let last = "";
-        while (Date.now() < deadline) {
+        await poll(async seen => {
             try {
-                if (await rancherLogin(endpoint, "admin", inputs.password)) {
-                    return { id: `${inputs.url}#admin`, outs: inputs };
-                }
+                if (await rancherLogin(endpoint, "admin", inputs.password)) return true;
                 const secret = await kubeRequest({ kubeconfig: inputs.kubeconfig }, "GET", "/api/v1/namespaces/cattle-system/secrets/bootstrap-secret");
                 const encoded = secret.body?.data?.bootstrapPassword;
                 if (secret.status === 200 && encoded) {
@@ -31,20 +27,20 @@ const provider: pulumi.dynamic.ResourceProvider = {
                     const token = await rancherLogin(endpoint, "admin", bootstrap);
                     if (token) {
                         const res = await rancherRequest(endpoint, "POST", "/v3/users?action=changepassword", { currentPassword: bootstrap, newPassword: inputs.password }, token);
-                        if (res.status >= 200 && res.status < 300) continue; // verified by the login at the top
-                        last = `changing the password failed: HTTP ${res.status} ${JSON.stringify(res.body)}`;
+                        if (res.status >= 200 && res.status < 300) seen("password changed; logging in with it");
+                        else seen(`changing the password failed: HTTP ${res.status} ${JSON.stringify(res.body)}`);
                     } else {
-                        last = "neither the admin password nor the bootstrap password is accepted";
+                        seen("neither the admin password nor the bootstrap password is accepted");
                     }
                 } else {
-                    last = "bootstrap secret not there yet";
+                    seen("bootstrap secret not there yet");
                 }
             } catch (e) {
-                last = (e as Error).message; // Rancher not answering yet
+                seen((e as Error).message); // Rancher not answering yet
             }
-            await new Promise(r => setTimeout(r, 10000));
-        }
-        throw new Error(`setting the Rancher admin password at ${inputs.url} timed out: ${last}`);
+            return undefined;
+        }, { timeoutSeconds: inputs.timeoutSeconds, everyMs: 10000, failure: last => `setting the Rancher admin password at ${inputs.url} timed out: ${last}` });
+        return { id: `${inputs.url}#admin`, outs: inputs };
     },
     async diff(_id: string, olds: Inputs, news: Inputs) {
         const changes = olds.url !== news.url || olds.password !== news.password;

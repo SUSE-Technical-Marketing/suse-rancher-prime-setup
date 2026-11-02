@@ -139,6 +139,7 @@
         "@pulumi/command": "^1.2.1",
         "@pulumi/kubernetes": "^4.34.2",
         "@pulumi/pulumi": "^3.271.0",
+        "yaml": "^2.9.1",
       },
       "devDependencies": {
         "@types/node": "^26.6.5",

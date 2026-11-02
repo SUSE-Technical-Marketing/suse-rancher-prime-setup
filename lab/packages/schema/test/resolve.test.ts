@@ -319,6 +319,15 @@ describe("TLS", () => {
         const result = load(`${BASE.replace("acme: letsencrypt-staging", "acme: none")}hosts:\n  r: { on: hv-north, os: leap-16, profiles: { ${RANCHER_STACK} } }\n`);
         expect(errors(result)).toContain("hosts.r.profiles.cert-manager: issues certificates from the lab's ACME server; set tls.acme (and tls.email, tls.cloudflare), not none");
     });
+
+    it("needs it for cert-manager on a downstream cluster too", () => {
+        const result = load(`${BASE.replace("acme: letsencrypt-staging", "acme: none")}hosts:
+  r: { on: hv-north, os: leap-16, profiles: { ${RANCHER_STACK} } }
+downstream:
+  apps: { type: harvester, rancher: r, harvester: hv-north, pools: [{ name: a, quantity: 1, roles: [etcd, controlplane, worker], os: leap-16 }], profiles: { cert-manager: {} } }
+`);
+        expect(errors(result)).toContain("downstream.apps.profiles.cert-manager: issues certificates from the lab's ACME server; set tls.acme (and tls.email, tls.cloudflare), not none");
+    });
 });
 
 describe("k3k clusters", () => {
@@ -968,7 +977,7 @@ describe("Harvester DNS (the harvester-dns-controller profile)", () => {
     it("takes either backend, a TTL, TLS settings and other chart values", () => {
         const { lab: resolved, diagnostics } = lab(`{ backend: glinet, host: router.lab.geeko.me, credentials: "{{ secrets.router }}", ttl: 1h, useTls: true, tlsVerify: false, values: { logLevel: debug, dns: { useGuestClusterLabel: false } } }`);
         expect(diagnostics.errors).toEqual([]);
-        expect(resolved!.harvesters[0].dns).toMatchObject({ backend: "glinet", host: "router.lab.geeko.me", ttl: "1h", useTls: true, values: { logLevel: "debug" } });
+        expect(resolved!.harvesters[0].profiles["harvester-dns-controller"]).toMatchObject({ backend: "glinet", host: "router.lab.geeko.me", ttl: "1h", useTls: true, values: { logLevel: "debug" } });
     });
 
     it("needs the router's login, and won't let values override what the engine sets", () => {
@@ -1521,7 +1530,7 @@ describe("landlock", () => {
 ${hosts}
 ${downstream ? `downstream:\n${downstream}` : ""}`);
 
-    it("goes on the hosts that have it, the nodes of a metal cluster that has it, and clusters", () => {
+    it("goes on hosts, metal clusters (for their nodes) and clusters Rancher creates machines for", () => {
         const result = lab([
             "  sandbox: { on: hv-north, os: leap-16, profiles: { k3s: {}, landlock: {} } }",
             "  plain: { on: hv-north, os: leap-16, profiles: { k3s: {} } }",
@@ -1532,8 +1541,14 @@ ${downstream ? `downstream:\n${downstream}` : ""}`);
             `  infer: { type: harvester, rancher: r, harvester: hv-north, ${POOL} }`,
         ].join("\n"));
         expect(errors(result)).toEqual([]);
-        expect(Object.fromEntries(result.lab!.hosts.map(h => [h.name, h.landlock]))).toEqual({ r: false, sandbox: true, plain: false, node: true });
-        expect(Object.fromEntries(result.lab!.downstream.map(d => [d.name, d.landlock ?? false]))).toEqual({ edge: true, apps: true, infer: false });
+        expect(result.lab!.downstream.find(d => d.name === "edge")!.chartProfiles!.profiles).toHaveProperty("landlock");
+    });
+
+    it("needs a metal cluster's nodes' OS to say how", () => {
+        const result = lab("  bare-node: { on: hv-north, os: bare }",
+            "  edge: { type: metal, rancher: r, nodes: [{ host: bare-node, roles: [etcd, controlplane, worker] }], profiles: { landlock: {} } }",
+            "catalog:\n  os:\n    bare: { family: suse, image: { url: https://example.com/bare.qcow2 } }\n");
+        expect(errors(result)).toEqual(["downstream.edge.profiles.landlock (node bare-node): OS profile bare doesn't say how to turn Landlock on: it has no landlock.enable"]);
     });
 
     it("isn't for k3k clusters (their parent's nodes), and needs the OS to say how", () => {
@@ -1550,5 +1565,19 @@ ${downstream ? `downstream:\n${downstream}` : ""}`);
             "downstream.apps.pools[0].os: OS profile bare doesn't say how to turn Landlock on: it has no landlock.enable",
             "downstream.team.profiles.landlock: a k3k cluster runs on its parent's nodes: put landlock on apps",
         ]);
+    });
+});
+
+describe("planned profiles", () => {
+    it("validate with a warning, and are listed for `lab up` to refuse", () => {
+        const result = load(`${BASE}hosts:
+  mlm: { on: hv-north, os: sl-micro-6.1, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { mlm-server: { adminPassword: "{{ secrets.m }}" } } }
+images:
+  sl-micro-6.1: { url: https://example.com/sl-micro.qcow2 }
+`);
+        expect(errors(result)).toEqual([]);
+        expect(result.diagnostics.warnings.map(d => `${resolverPath(d.path)}: ${d.message}`)).toContain(
+            "hosts.mlm.profiles.mlm-server: isn't built yet (status: planned): the lab validates with it, but `lab up` refuses it");
+        expect(result.lab!.planned).toEqual(["mlm-server"]);
     });
 });

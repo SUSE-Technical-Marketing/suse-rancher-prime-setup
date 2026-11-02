@@ -104,6 +104,6 @@ function addVlan() {
         <YamlField label="storage class" hint="{ name, replicas, parameters }, merged over the defaults" v-bind="bind('spec.storageClass')" />
       </div>
     </details>
-    <ProfilesEditor :model-value="v.spec?.profiles" target="hci" @set="(n, x) => set(['spec', 'profiles', n], x ?? {})" @remove="n => set(['spec', 'profiles', n], undefined)" />
+    <ProfilesEditor :index="index" :model-value="v.spec?.profiles" target="hci" @set="(n, x) => set(['spec', 'profiles', n], x ?? {})" @remove="n => set(['spec', 'profiles', n], undefined)" />
   </div>
 </template>

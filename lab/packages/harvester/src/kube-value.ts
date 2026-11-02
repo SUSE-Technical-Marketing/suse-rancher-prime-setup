@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { KubeTarget, kubeRequest } from "@lab/kube";
+import { KubeTarget, kubeRequest, poll } from "@lab/kube";
 
 /**
  * Waits for a field on a Kubernetes object to get a value, and returns it. Used for things
@@ -27,17 +27,13 @@ interface Inputs {
 // Dynamic providers are serialized into the state; kubeRequest is self-contained for that reason.
 const provider: pulumi.dynamic.ResourceProvider = {
     async create(inputs: Inputs) {
-        const deadline = Date.now() + inputs.timeoutSeconds * 1000;
-        while (Date.now() < deadline) {
+        const value = await poll(async () => {
             const res = await kubeRequest(inputs.target, "GET", inputs.path).catch(() => undefined);
             const obj = res?.status === 200 ? res.body : undefined;
-            const value = inputs.field.split(".").reduce((v: any, key) => (v == null ? undefined : v[key]), obj);
-            if (value !== undefined && value !== null && value !== "") {
-                return { id: `${inputs.path}#${inputs.field}`, outs: { ...inputs, value: String(value) } };
-            }
-            await new Promise(r => setTimeout(r, 5000));
-        }
-        throw new Error(`timed out waiting for ${inputs.field} on ${inputs.path}`);
+            const found = inputs.field.split(".").reduce((v: any, key) => (v == null ? undefined : v[key]), obj);
+            return found !== undefined && found !== null && found !== "" ? String(found) : undefined;
+        }, { timeoutSeconds: inputs.timeoutSeconds, failure: () => `timed out waiting for ${inputs.field} on ${inputs.path}` });
+        return { id: `${inputs.path}#${inputs.field}`, outs: { ...inputs, value } };
     },
 
     async diff(_id: string, olds: Inputs, news: Inputs) {

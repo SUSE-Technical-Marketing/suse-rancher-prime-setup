@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { addBlock, addFleetProfile, addK3k, addNode, addProfile, addRecipe, canBeNode, removeFleetProfile, defaultNetwork, removeProfile, runsKubernetes } from "../compose";
+import { addBlock, addFleetProfile, addNode, addProfile, addRecipe, canBeNode, removeFleetProfile, defaultNetwork, removeProfile, runsKubernetes } from "../compose";
+import { CLUSTER_UI, clusterOfBlock, clusterType } from "../clusters";
+import type { ClusterTypeName } from "../../../packages/schema/src/clusters/names";
 import { dragging, end, start, target, type Payload } from "../dnd";
 import { catalog, file, problems, removeDoc, selected, views } from "../store";
 import { kindOf, type Category } from "../kinds";
@@ -20,11 +22,11 @@ const W = 184, H = 84, GAP_X = 52, GAP_Y = 30, PAD = 20, TOP = PAD + H + 32;
 const TOKEN = 26, TOKEN_GAP = 4;
 
 type EdgeKind = "runs" | "manages" | "node" | "inside" | "observes";
-interface Box { index: number; key: string; kind: string; category?: Category; icon?: string; label: string; title: string; sub: string; chips: string[]; profiles: string[]; fleet: string[]; col: number; x: number; y: number }
+interface Box { index: number; key: string; kind: string; type?: ClusterTypeName; category?: Category; icon?: string; label: string; title: string; sub: string; chips: string[]; profiles: string[]; fleet: string[]; col: number; x: number; y: number }
 
 const docs = computed(() => views.value.map((v, index) => ({ v, index })));
 const name = (d: { v: { metadata?: { name?: string } } }) => d.v.metadata?.name ?? "";
-const typeOf = (d: { v: { kind?: string; spec?: any } }) => (d.v.kind === "DownstreamCluster" ? d.v.spec?.type ?? "harvester" : undefined);
+const typeOf = (d: { v: { kind?: string; spec?: any } }) => (d.v.kind === "DownstreamCluster" ? clusterType(d.v.spec) : undefined);
 const defaults = computed(() => catalog.value?.defaults.vm);
 
 /** Column: Harvesters and AWS sites, VMs and Machines, the clusters Rancher creates, k3k clusters; anything else below. */
@@ -32,7 +34,7 @@ function columnOf(d: { v: { kind?: string; spec?: any } }): number {
   switch (d.v.kind) {
     case "Harvester": case "AwsSite": return 0;
     case "HarvesterVM": case "Machine": return 1;
-    case "DownstreamCluster": return typeOf(d) === "k3k" ? 3 : 2;
+    case "DownstreamCluster": return CLUSTER_UI[clusterType(d.v.spec)].column;
     default: return -1;
   }
 }
@@ -67,22 +69,8 @@ function describeBox(d: { v: any; index: number }): Pick<Box, "label" | "title" 
       };
     }
     case "DownstreamCluster": {
-      const t = typeOf(d);
-      if (t === "k3k") return { label: `k3k · ${s.mode ?? "shared"}`, title, sub: `${s.servers ?? 1} server · ${s.agents ?? 0} agents · ${s.namespace ?? `k3k-${title}`}`, chips: Object.entries(s.labels ?? {}).map(([k, v]) => `${k}=${v}`) };
-      if (t === "metal") return { label: `metal · ${s.distro ?? "rke2"}`, title, sub: `${(s.nodes ?? []).length} node(s)`, chips: Object.entries(s.labels ?? {}).map(([k, v]) => `${k}=${v}`) };
-      if (t === "ec2") return {
-        label: `ec2 · ${s.distro ?? "rke2"}`, title, chips: Object.entries(s.labels ?? {}).map(([k, v]) => `${k}=${v}`),
-        sub: ((s.pools ?? []) as any[]).map(p => `${p.quantity ?? 1}× ${p.instanceType ?? catalog.value?.defaults.aws.instanceType}`).join(", ") || "no pools",
-      };
-      if (t === "eks") return {
-        label: `eks · ${s.version ?? catalog.value?.defaults.aws.eksVersion}`, title, chips: Object.entries(s.labels ?? {}).map(([k, v]) => `${k}=${v}`),
-        sub: ((s.nodeGroups ?? []) as any[]).map(g => `${g.quantity ?? 1}× ${g.instanceType ?? catalog.value?.defaults.aws.instanceType}`).join(", ") || "no node groups",
-      };
-      const pools = (s.pools ?? []) as any[];
-      return {
-        label: `harvester · ${s.distro ?? "rke2"}`, title, chips: Object.entries(s.labels ?? {}).map(([k, v]) => `${k}=${v}`),
-        sub: pools.map(p => `${p.quantity ?? 1}× ${p.cpu ?? defaults.value?.cpu} CPU · ${p.memory ?? defaults.value?.memory}`).join(", ") || "no pools",
-      };
+      const tile = CLUSTER_UI[clusterType(s)].tile(s, title, { vm: defaults.value, aws: catalog.value?.defaults.aws });
+      return { ...tile, title, chips: Object.entries(s.labels ?? {}).map(([k, v]) => `${k}=${v}`) };
     }
     default: return { label: d.v.kind ?? "?", title, sub: "catalog override", chips: [] };
   }
@@ -120,7 +108,7 @@ const boxes = computed<Box[]>(() => {
     const key = `${d.v.kind}/${name(d)}`;
     const at = moved.value[key] ?? { x, y };
     const k = kindOf(d.v.kind, typeOf(d));
-    out.push({ index: d.index, key, kind: d.v.kind ?? "", category: k?.category, icon: k?.icon, col, ...describe(d), x: at.x, y: at.y } as Box);
+    out.push({ index: d.index, key, kind: d.v.kind ?? "", type: typeOf(d), category: k?.category, icon: k?.icon, col, ...describe(d), x: at.x, y: at.y } as Box);
   };
   const lab = all.find(d => d.v.kind === "Lab");
   if (lab) place(lab, -1, PAD, PAD);
@@ -174,10 +162,8 @@ const edges = computed(() => {
     // Every cluster, k3k ones too, is managed by its Rancher.
     const rancher = find(["HarvesterVM", "Machine"], s.rancher);
     if (rancher !== undefined) out.push({ from: rancher, to: d.index, kind: "manages" });
-    if (t === "k3k") { add(find(["DownstreamCluster"], s.parent), "inside"); continue; }
-    if (t === "harvester") add(find(["Harvester"], s.harvester), "runs");
-    if (t === "ec2" || t === "eks") add(find(["AwsSite"], s.site), "runs");
-    if (t === "metal") for (const n of (s.nodes ?? []) as { host?: string }[]) add(find(["HarvesterVM", "Machine"], n.host), "node");
+    // What it runs on or in, by its type.
+    for (const e of CLUSTER_UI[t!].edges(s)) add(find(e.to, e.name), e.kind);
   }
   return out;
 });
@@ -272,22 +258,22 @@ const accepts = (b: Box, p: Payload) => {
   }
   if (p.type === "fleet") return b.kind === "DownstreamCluster" && p.from !== b.index && !b.fleet.includes(p.name);
   if (p.type === "block") {
-    if (b.kind === "Harvester") return ["HarvesterVM", "DownstreamCluster"].includes(p.block);
-    if (b.kind === "AwsSite") return p.block === "Ec2Cluster" || p.block === "EksCluster";
-    if (b.kind === "DownstreamCluster") return p.block === "K3kCluster" && !b.label.startsWith("k3k");
-    if (b.kind === "HarvesterVM" || b.kind === "Machine") return p.block === "MetalCluster" && canBeNode(b.index);
+    const type = clusterOfBlock(p.block);
+    if (!type) return b.kind === "Harvester" && p.block === "HarvesterVM";
+    // A cluster block: on the boxes its type goes on; a host only when it can be a node, a cluster only when it holds nested ones.
+    if (!(CLUSTER_UI[type].dropOn as string[]).includes(b.kind)) return false;
+    if (b.kind === "HarvesterVM" || b.kind === "Machine") return canBeNode(b.index);
+    if (b.kind === "DownstreamCluster") return !!b.type && !!CLUSTER_UI[b.type].holdsNested;
+    return true;
   }
   if (p.type === "recipe") return b.kind === "Harvester" && catalog.value?.recipes.find(r => r.name === p.name)?.kind === "HarvesterVM";
-  if (p.type === "host") return b.label.startsWith("metal") && !runsKubernetes(p.index);
+  if (p.type === "host") return !!b.type && !!CLUSTER_UI[b.type].takesNodes && !runsKubernetes(p.index);
   return false;
 };
 const dropOn = (b: Box) => target(p => accepts(b, p), p => {
   if (p.type === "profile") { addProfile(b.index, p.name); if (p.from !== undefined) removeProfile(p.from, p.name); }
   else if (p.type === "fleet") { addFleetProfile(b.index, p.name); if (p.from !== undefined) removeFleetProfile(p.from, p.name); }
-  else if (p.type === "block" && b.kind === "Harvester") addBlock(p.block, b.title, defaultNetwork(b.title));
-  else if (p.type === "block" && b.kind === "AwsSite") addBlock(p.block, b.title);
-  else if (p.type === "block" && (b.kind === "HarvesterVM" || b.kind === "Machine")) addBlock(p.block, b.title);
-  else if (p.type === "block") addK3k(b.title);
+  else if (p.type === "block") addBlock(p.block, b.title, b.kind === "Harvester" ? defaultNetwork(b.title) : undefined);
   else if (p.type === "recipe") addRecipe(p.name, b.title, defaultNetwork(b.title));
   else if (p.type === "host") addNode(b.index, views.value[p.index]?.metadata?.name ?? "");
 }, on => (over.value = on ? b.index : undefined));

@@ -1,3 +1,4 @@
+import { CLUSTER_UI, clusterType } from "./clusters";
 import type { Block } from "./dnd";
 
 // What the lab is made of, in three kinds the palette groups and the board draws alike: where
@@ -19,20 +20,19 @@ export function kindOf(kind?: string, type?: string): { category: Category; icon
         case "AwsSite": return { category: "infra", icon: "cloud" };
         case "HarvesterVM": return { category: "machine", icon: "monitor" };
         case "Machine": return { category: "machine", icon: "server" };
-        case "DownstreamCluster": return type === "k3k" ? { category: "virtual", icon: "boxes" } : { category: "cluster", icon: "ship-wheel" };
+        case "DownstreamCluster": {
+            const ui = CLUSTER_UI[clusterType({ type })];
+            return { category: ui.category, icon: ui.icon };
+        }
         default: return undefined;
     }
 }
 
-/** A palette block's category and icon. */
-export const BLOCK_KIND: Record<Block, { category: Category; icon: string }> = {
+/** A palette block's category and icon; a cluster type's from its descriptor (clusters.ts). */
+export const BLOCK_KIND = {
     Harvester: { category: "infra", icon: "server-cog" },
     AwsSite: { category: "infra", icon: "cloud" },
     HarvesterVM: { category: "machine", icon: "monitor" },
     Machine: { category: "machine", icon: "server" },
-    DownstreamCluster: { category: "cluster", icon: "ship-wheel" },
-    Ec2Cluster: { category: "cluster", icon: "ship-wheel" },
-    EksCluster: { category: "cluster", icon: "ship-wheel" },
-    MetalCluster: { category: "cluster", icon: "ship-wheel" },
-    K3kCluster: { category: "virtual", icon: "boxes" },
-};
+    ...Object.fromEntries(Object.values(CLUSTER_UI).map(ui => [ui.block, { category: ui.category, icon: ui.icon }])),
+} as Record<Block, { category: Category; icon: string }>;

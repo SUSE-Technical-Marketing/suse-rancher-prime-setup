@@ -1,16 +1,10 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { stringify } from "yaml";
 import { harvesterhci, k8s as cni, loadbalancer, network } from "@lab/crds";
 import type { ResolvedHarvester, Timeouts } from "@lab/schema";
 import { HarvesterAddon } from "./addon";
 import { LoadBalancerCleanup } from "./lb-cleanup";
 import { NamespaceBindingsCleanup } from "./rbac-cleanup";
-
-export interface Credentials {
-    username: pulumi.Input<string>;
-    password: pulumi.Input<string>;
-}
 
 export interface HarvesterBaseArgs {
     harvester: ResolvedHarvester;
@@ -21,9 +15,8 @@ export interface HarvesterBaseArgs {
     ssh?: { user: string; publicKey: string };
     /** Networks hosts or downstream pools use; only these (and networks with DHCP) are created. */
     usedNetworks: string[];
-    dnsCredentials?: Credentials;
     /** Catalog charts at their versions (DESIGN.md §16.2). */
-    charts: { dhcpController: Chart; dnsController: Chart };
+    charts: { dhcpController: Chart };
     timeouts: Pick<Timeouts, "harvesterAddon" | "image" | "loadBalancerCleanup">;
 }
 
@@ -45,8 +38,9 @@ const TIMEOUT = "pulumi.com/timeoutSeconds";
 
 /**
  * Everything a lab needs on one Harvester before VMs can be created: its namespace, storage
- * class, VM networks with DHCP, the DNS controller, the SSH key pair and the OS images. Nothing
- * here is retained on delete: a destroyed lab leaves the Harvester as it found it.
+ * class, VM networks with DHCP, the SSH key pair and the OS images. The Harvester's own profiles
+ * (the DNS controller) add their resources as its children and to `ready`. Nothing here is
+ * retained on delete: a destroyed lab leaves the Harvester as it found it.
  */
 export class HarvesterBase extends pulumi.ComponentResource {
     readonly namespace: k8s.core.v1.Namespace;
@@ -54,7 +48,7 @@ export class HarvesterBase extends pulumi.ComponentResource {
     readonly networks: Record<string, pulumi.Output<string>> = {};
     /** OS name -> image. */
     readonly images: Record<string, HarvesterImage> = {};
-    /** What a VM on this Harvester has to wait for (networks, DHCP pools, DNS controller). */
+    /** What a VM on this Harvester has to wait for (networks, DHCP pools, the Harvester's profiles). */
     readonly ready: pulumi.Resource[] = [];
 
     constructor(name: string, args: HarvesterBaseArgs, opts: pulumi.ComponentResourceOptions & { provider: k8s.Provider }) {
@@ -170,55 +164,6 @@ export class HarvesterBase extends pulumi.ComponentResource {
             // VMs wait for this instead of the pools, so on destroy it removes the guests' load
             // balancers after the VMs are gone and before the pools are deleted.
             this.ready.push(new LoadBalancerCleanup(child("lb-cleanup"), { harvester: h.name, namespace: ns, timeoutSeconds: args.timeouts.loadBalancerCleanup }, { parent: this, dependsOn: pools }));
-        }
-
-        // --- DNS controller --------------------------------------------------------------------
-        // A Harvester add-on, so it's listed (and its values shown) under the Harvester's Add-ons; the
-        // router's password stays in a Secret of its own, out of the values anyone can read there.
-        if (h.dns && args.dnsCredentials) {
-            const dns = h.dns;
-            const secret = new k8s.core.v1.Secret(child("dns-controller-secret"), {
-                metadata: { name: "lab-dns-controller", namespace: "harvester-system" },
-                stringData: { password: pulumi.secret(args.dnsCredentials.password) },
-            }, o);
-            const own = dns.values ?? {};
-            const valuesContent = pulumi.all([args.dnsCredentials.username, ns]).apply(([username, namespace]) => stringify({
-                ...own,
-                dns: {
-                    ...(own.dns as Record<string, unknown> | undefined),
-                    backend: dns.backend,
-                    host: dns.host,
-                    username,
-                    existingSecret: "lab-dns-controller",
-                    useTls: dns.useTls ?? false,
-                    ...(dns.tlsVerify !== undefined ? { tlsVerify: dns.tlsVerify } : {}),
-                    domain: args.domain,
-                    ...(dns.ttl ? { ttl: dns.ttl } : {}),
-                    // Its records on the router, by this comment: one per Harvester, so controllers of
-                    // Harvesters sharing a router never clean up each other's (it takes over a record of
-                    // its name under another comment).
-                    commentTag: `managed-by=harvester-dns-controller/${h.name}`,
-                },
-                watchNamespaces: namespace,
-            }, { lineWidth: 0 }));
-            this.ready.push(new HarvesterAddon(child("dns-controller"), {
-                harvester: h.name,
-                name: "harvester-dns-controller",
-                namespace: "harvester-system",
-                labels: { "addon.harvesterhci.io/experimental": "true" },
-                // An oci:// chart has no repo: Harvester's helm-controller pulls it by its reference.
-                repo: args.charts.dnsController.repo ?? "",
-                chart: args.charts.dnsController.chart,
-                version: args.charts.dnsController.version,
-                valuesContent,
-                timeoutSeconds: args.timeouts.harvesterAddon,
-            }, {
-                parent: this, dependsOn: [secret],
-                // It was a Helm release of the same name: that one is uninstalled first, so they never
-                // both run (or fight over the release name).
-                aliases: [{ type: "kubernetes:helm.sh/v3:Release" }],
-                deleteBeforeReplace: true,
-            }));
         }
 
         // --- SSH key pair and images --------------------------------------------------------------

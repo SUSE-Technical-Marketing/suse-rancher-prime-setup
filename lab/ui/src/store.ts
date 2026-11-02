@@ -207,3 +207,12 @@ export const problems = computed(() => {
     }
     return count;
 });
+
+/**
+ * A document's capabilities as the engine judges them (what its profiles provide, what nothing there
+ * provides that they need), from the last check; undefined until one has come back.
+ */
+export const reportOf = (index: number) => {
+    const doc = views.value[index];
+    return doc?.kind && doc.metadata?.name ? check.value?.capabilities?.[`${doc.kind}/${doc.metadata.name}`] : undefined;
+};

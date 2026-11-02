@@ -28,6 +28,12 @@ users:
 
 export interface Registered { type: string; name: string; inputs: any }
 
+/**
+ * Every resource's URN (its parents' types, its own type and name): a refactor that keeps these
+ * keeps a running lab's resources; one that changes them replaces them. Filled by `runProgram`.
+ */
+export const addresses: string[] = [];
+
 export interface RunOptions {
     secrets: Record<string, unknown>;
     /** Another catalog than the engine's. */
@@ -69,6 +75,8 @@ export async function runProgram(LAB: string, opts: RunOptions): Promise<Registe
     await import("../index");
     // Registrations finish as their inputs resolve.
     await new Promise(r => setTimeout(r, 1500));
+    // The mock monitor keeps each registered resource under its URN.
+    addresses.push(...((pulumi.runtime.getMonitor() as unknown as { resources: Map<string, unknown> }).resources.keys()));
     return registered;
 }
 

@@ -1,6 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { rancherLogin, rancherRequest } from "@lab/kube";
+import { poll, rancherLogin, rancherRequest } from "@lab/kube";
 import type { Timeouts } from "@lab/schema";
 import { toGiB } from "./node-driver-cluster";
 import { RancherAccess } from "./server";
@@ -88,19 +88,12 @@ type Request = ReturnType<typeof session>;
 
 /** Waits until Rancher reports the cluster active: EKS takes a quarter of an hour or so. */
 async function waitActive(request: Request, id: string, i: Inputs) {
-    const deadline = Date.now() + i.readySeconds * 1000;
-    let last = "";
-    for (;;) {
+    await poll(async seen => {
         const res = await request("GET", `/v3/clusters/${id}`);
-        if (res.status === 200) {
-            if (res.body.state === "active") return;
-            last = `${res.body.state}${res.body.transitioningMessage ? `: ${res.body.transitioningMessage}` : ""}`;
-        } else {
-            last = `HTTP ${res.status}`;
-        }
-        if (Date.now() > deadline) throw new Error(`EKS cluster ${i.name} (${id}) wasn't active after ${i.readySeconds}s; last: ${last}`);
-        await sleep(20000);
-    }
+        if (res.status === 200 && res.body.state === "active") return true;
+        seen(res.status === 200 ? `${res.body.state}${res.body.transitioningMessage ? `: ${res.body.transitioningMessage}` : ""}` : `HTTP ${res.status}`);
+        return undefined;
+    }, { timeoutSeconds: i.readySeconds, everyMs: 20000, failure: last => `EKS cluster ${i.name} (${id}) wasn't active after ${i.readySeconds}s; last: ${last}` });
 }
 
 /** A kubeconfig through Rancher's proxy, from Rancher's generateKubeconfig action, as JSON. */
@@ -182,13 +175,12 @@ const provider: pulumi.dynamic.ResourceProvider = {
         if (res.status === 404) return;
         if (res.status >= 300) throw new Error(`deleting EKS cluster ${props.name} (${id}) failed: HTTP ${res.status}`);
         // Rancher removes the node groups, the EKS cluster and the IAM stacks before the cluster object.
-        const deadline = Date.now() + props.deleteSeconds * 1000;
-        for (;;) {
+        await poll(async seen => {
             const left = await request("GET", `/v3/clusters/${id}`);
-            if (left.status === 404) return;
-            if (Date.now() > deadline) throw new Error(`EKS cluster ${props.name} (${id}) was still in Rancher after ${props.deleteSeconds}s: ${left.body?.transitioningMessage ?? left.body?.state ?? `HTTP ${left.status}`}`);
-            await sleep(20000);
-        }
+            if (left.status === 404) return true;
+            seen(left.body?.transitioningMessage ?? left.body?.state ?? `HTTP ${left.status}`);
+            return undefined;
+        }, { timeoutSeconds: props.deleteSeconds, everyMs: 20000, failure: last => `EKS cluster ${props.name} (${id}) was still in Rancher after ${props.deleteSeconds}s: ${last}` });
     },
 };
 

@@ -4,16 +4,18 @@ import * as command from "@pulumi/command";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { AwsNetwork, awsProfile, labTags, Pinned } from "@lab/aws";
-import { HarvesterBase, HarvesterCloudConfig, HarvesterVm } from "@lab/harvester";
-import { asRoot, ClusterObjects, helmApp, helmJobWatch, HostAccess, runExisting, runUploaded, sshConnection, stepScript, waitForCloudInit } from "@lab/kubernetes";
-import { Amazonec2Credential, Ec2Cluster, EksCluster, HarvesterCluster, HarvesterCredential, HarvesterImport, K3kCluster, MetalCluster, RancherAccess } from "@lab/rancher";
+import { HarvesterBase, HarvesterVm } from "@lab/harvester";
+import { asRoot, ClusterObjects, helmJobWatch, HostAccess, runExisting, runUploaded, sshConnection, stepScript, waitForCloudInit } from "@lab/kubernetes";
+import { Amazonec2Credential, HarvesterCredential, HarvesterImport, RancherAccess } from "@lab/rancher";
 import { machineSetup, renderCloudConfig, renderNetworkConfig } from "@lab/os";
-import { AWS_CREDENTIAL_FIELDS, cloudInitVars, usesSecrets, type CloudInitVars, type ResolvedLab, type ResolvedOs } from "@lab/schema";
-import { buildHostProfiles, installChartProfile, profileCloudInit, profileUninstall } from "./profiles";
-import { buildObservabilityAgents, type AgentTargets } from "./observability";
-import { credentials, objectValue, secretMap, secrets, secretString } from "./secrets";
-import { chart, chartInNamespace, distribution, harvesterChart, version } from "./catalog";
-import { landlockCheck, landlockDaemonSet, landlockOnMachine } from "./landlock";
+import { AWS_CREDENTIAL_FIELDS, cloudInitVars, usesSecrets, type CloudInitVars, type ResolvedDownstream, type ResolvedLab, type ResolvedOs } from "@lab/schema";
+import {
+    buildClusterProfiles, buildHarvesterProfiles, buildHostProfiles, buildLastProfiles, clusterProfiles, nodeProfiles, profileBootcmd, profileCloudInit, profileSetup,
+    profileUninstall, type LabClusters,
+} from "./profiles";
+import { objectValue, secretMap, secrets, secretString } from "./secrets";
+import { distribution, harvesterChart } from "./catalog";
+import { buildCluster, isNested, type BuiltCluster, type ClusterBuildContext } from "./clusters";
 
 // The CLI writes the resolved lab, the secret values and the Harvester versions into stack config
 // before every run; this program never reads the lab file itself. Harvester access comes from the
@@ -38,20 +40,18 @@ for (const h of lab.harvesters) {
         domain: lab.domain,
         ssh: lab.ssh,
         usedNetworks,
-        dnsCredentials: h.dns?.credentials ? credentials(h.dns.credentials) : undefined,
-        charts: {
-            dhcpController: harvesterChart("harvester-vm-dhcp-controller", lab, harvesterVersions[h.name]),
-            dnsController: chart("harvester-dns-controller", lab),
-        },
+        charts: { dhcpController: harvesterChart("harvester-vm-dhcp-controller", lab, harvesterVersions[h.name]) },
         timeouts: lab.timeouts,
     }, { provider: providers[h.name] });
+    // The Harvester's own profiles (the DNS controller): with its base, before its VMs.
+    bases[h.name].ready.push(...buildHarvesterProfiles(lab, h, providers[h.name], bases[h.name]));
 }
 
 /** Each provisioned cluster's kubeconfig (JSON), by name: host clusters and downstream clusters. */
 const clusterKubeconfigs: Record<string, pulumi.Output<string>> = {};
 
-/** Where SUSE Observability agents go, and the clusters they report to: built last. */
-const agentTargets: AgentTargets = {
+/** Every cluster of the lab, for the profiles' last step (SUSE Observability agents and the clusters they report to). */
+const clusters: LabClusters = {
     hosts: {},
     downstream: {},
     fleet: {},
@@ -125,7 +125,7 @@ for (const host of lab.hosts) {
             user: { name: lab.ssh!.user, publicKey: lab.ssh!.publicKey },
             vars,
             runcmd,
-            landlock: host.landlock,
+            bootcmd: profileBootcmd(lab, nodeProfiles(lab, host), os),
         }));
         const vm = new HarvesterVm(host.name, {
             harvester: host.harvester,
@@ -159,12 +159,13 @@ for (const host of lab.hosts) {
     if (host.profileOrder.length === 0 && !metalNodes.has(host.name)) continue;
     const access: HostAccess = { name: host.name, fqdn: host.fqdn, address, user: host.kind === "ssh" ? host.user : lab.ssh!.user, privateKey };
     let setUp: pulumi.Resource[] = [];
-    // Landlock on an existing machine: turned on (and rebooted) before its setup. A VM turned it on at
-    // its first boot; it's checked once cloud-init is done.
-    const landlocked = host.landlock && host.kind === "ssh" ? [landlockOnMachine(`${host.name}/landlock`, access, lab.os[host.os], {})] : [];
+    // Its profiles' setup steps (Landlock): on a VM once cloud-init is done, on an existing machine
+    // before its own setup (nothing has run on it yet).
+    const os = lab.os[host.os];
+    const first = host.kind === "ssh" ? profileSetup(lab, host, { access, os, after: [] }) : [];
     if (host.kind === "harvester") {
-        setUp = [waitForCloudInit(`${host.name}/cloud-init`, access, lab.timeouts.cloudInit, { dependsOn: ready, deletedWith: machine })];
-        if (host.landlock) setUp = [landlockCheck(`${host.name}/landlock`, access, { dependsOn: setUp, deletedWith: machine })];
+        const booted = waitForCloudInit(`${host.name}/cloud-init`, access, lab.timeouts.cloudInit, { dependsOn: ready, deletedWith: machine });
+        setUp = profileSetup(lab, host, { access, os, machine, after: [booted] });
     } else if (runcmd.length > 0) {
         // An existing machine gets no user data (it may not even have cloud-init): what a VM's would
         // do (the OS profile's packages and runcmd, the profiles' commands) runs over SSH instead,
@@ -178,19 +179,19 @@ for (const host of lab.hosts) {
             update: runUploaded("setup"),
             stdin: script,
             delete: asRoot(runExisting(profileUninstall(lab, host))),
-        }, { dependsOn: landlocked });
+        }, { dependsOn: first });
         setUp = [setup];
         // Like a VM: what the profiles create on it goes with the uninstall, not one by one before it.
         machine = setup;
     } else {
-        setUp = landlocked;
+        setUp = first;
     }
     nodeAccess[host.name] = { access, ready: setUp, machine };
     if (host.profileOrder.length === 0) continue;
     const outputs = buildHostProfiles(lab, host, access, setUp, machine, harvester);
-    if (outputs.fleet) agentTargets.fleet[host.name] = outputs.fleet.ready;
+    if (outputs.fleet) clusters.fleet[host.name] = outputs.fleet.ready;
     if (outputs.kubernetes) clusterKubeconfigs[host.name] = outputs.kubernetes.kubeconfig;
-    if (outputs.kubernetes) agentTargets.hosts[host.name] = { ...outputs.kubernetes, ready: Object.values(outputs).flatMap(v => (v && "ready" in v ? v.ready : [])) };
+    if (outputs.kubernetes) clusters.hosts[host.name] = { ...outputs.kubernetes, ready: Object.values(outputs).flatMap(v => (v && "ready" in v ? v.ready : [])) };
     if (outputs.rancher) {
         rancherUrls[host.name] = outputs.rancher.url;
         rancherAccess[host.name] = outputs.rancher;
@@ -243,11 +244,13 @@ function awsCredential(rancherHost: string, site: string): Amazonec2Credential {
 
 /**
  * A node's user data on a machine Rancher creates: its OS profile's, Kubernetes part included (and
- * the Harvester part on a Harvester VM), the lab's login, with a server the helm Job watch, and
- * Landlock turned on when the cluster has the landlock profile.
+ * the Harvester part on a Harvester VM), the lab's login, with a server the helm Job watch, and the
+ * cluster's profiles' bootcmd (Landlock).
  */
-function poolUserData(osName: string, distro: "rke2" | "k3s", roles: string[], harvester: boolean, landlock: boolean): pulumi.Output<string> {
+function poolUserData(cluster: ResolvedDownstream, osName: string, roles: string[], harvester: boolean): pulumi.Output<string> {
     const os = lab.os[osName];
+    // Only clusters whose machines Rancher creates have pools, and a distribution.
+    const distro = "distro" in cluster ? cluster.distro : "rke2";
     return pulumi.secret(osVars().apply(vars => renderCloudConfig({
         os,
         harvester,
@@ -256,206 +259,52 @@ function poolUserData(osName: string, distro: "rke2" | "k3s", roles: string[], h
         defaultUser: true,
         vars,
         runcmd: roles.some(r => r !== "worker") ? [helmJobWatch(distribution(distro, lab), lab.timeouts.helmJobWatch)] : [],
-        landlock,
+        bootcmd: profileBootcmd(lab, clusterProfiles(cluster), os),
     })));
 }
 
+// Each by its type (clusters/); those running inside another (k3k) once the others exist.
 const downstreamNames: string[] = [];
-/** The harvester, ec2, eks and metal clusters, by name: k3k clusters run in them. */
-const builtClusters: Record<string, MetalCluster | HarvesterCluster | Ec2Cluster | EksCluster> = {};
-for (const d of lab.downstream) {
-    if (d.type === "k3k") continue;
-    if (d.type === "metal") {
-        const cluster = new MetalCluster(`downstream/${d.name}`, {
-            rancher: rancherAccess[d.rancher],
-            distribution: distribution(d.distro, lab),
-            kubernetesVersion: d.version ?? version(d.distro, lab),
-            labels: d.labels,
-            annotations: d.annotations,
-            cni: d.cni,
-            machineGlobalConfig: d.machineGlobalConfig,
-            chartValues: d.chartValues,
-            timeouts: lab.timeouts,
-            nodes: d.nodes.map(node => {
-                const host = lab.hosts.find(h => h.name === node.host)!;
-                const { access, ready, machine } = nodeAccess[node.host];
-                return {
-                    host: access,
-                    roles: node.roles,
-                    // A lab VM got its OS profile's setup from its user data; a machine gets it now.
-                    prepare: host.kind === "ssh" ? machineCommands(lab.os[host.os], true) : [],
-                    after: ready,
-                    deletedWith: machine,
-                };
-            }),
-        });
-        placeObjects(d.name, cluster);
-        downstreamNames.push(d.name);
-        builtClusters[d.name] = cluster;
-        continue;
-    }
-    if (d.type === "eks") {
-        const site = lab.awsSites.find(s => s.name === d.site)!;
-        const network = networks[d.site];
-        const credential = awsCredential(d.rancher, d.site);
-        const cluster = new EksCluster(`downstream/${d.name}`, {
-            rancher: rancherAccess[d.rancher],
-            region: site.region,
-            kubernetesVersion: d.version,
-            labels: d.labels,
-            annotations: d.annotations,
-            cloudCredential: credential.secretName,
-            subnetIds: site.zones.map(z => network.subnets[z.letter].id),
-            tags: siteTags[d.site],
-            publicAccessSources: d.publicAccessSources,
-            logging: d.logging,
-            nodeGroups: d.nodeGroups.map(g => ({ ...g, subnetIds: g.zones.map(z => network.subnets[z].id) })),
-            timeouts: lab.timeouts,
-            // The cluster goes before its network does.
-            after: [credential, network, ...network.ready],
-        });
-        placeObjects(d.name, cluster);
-        downstreamNames.push(d.name);
-        builtClusters[d.name] = cluster;
-        continue;
-    }
-    if (d.type === "ec2") {
-        const site = lab.awsSites.find(s => s.name === d.site)!;
-        const network = networks[d.site];
-        const credential = awsCredential(d.rancher, d.site);
-        const cluster = new Ec2Cluster(`downstream/${d.name}`, {
-            rancher: rancherAccess[d.rancher],
-            distribution: distribution(d.distro, lab),
-            kubernetesVersion: d.version ?? version(d.distro, lab),
-            labels: d.labels,
-            annotations: d.annotations,
-            cloudCredential: credential.secretName,
-            cni: d.cni,
-            machineGlobalConfig: d.machineGlobalConfig,
-            chartValues: d.chartValues,
-            timeouts: lab.timeouts,
-            region: site.region,
-            vpcId: network.vpc.id,
-            securityGroup: network.securityGroup.name,
-            tags: siteTags[d.site],
-            pools: d.pools.map(pool => {
-                const os = lab.os[pool.os];
-                return {
-                    ...pool,
-                    ami: amiOf(d.site, pool.os),
-                    sshUser: os.ami!.user ?? os.defaultUser ?? "ec2-user",
-                    subnetId: network.subnets[pool.zone].id,
-                    userData: poolUserData(pool.os, d.distro, pool.roles, false, d.landlock ?? false),
-                };
-            }),
-            // The machines go before their network does.
-            after: [credential, network, ...network.ready],
-        });
-        placeObjects(d.name, cluster);
-        downstreamNames.push(d.name);
-        builtClusters[d.name] = cluster;
-        continue;
-    }
-    const base = bases[d.harvester];
-    const credential = harvesterCredential(d.rancher, d.harvester);
-    const cloudProviderConfig = d.distro === "rke2" ? new HarvesterCloudConfig(`downstream/${d.name}/cloud-provider-config`, {
-        harvester: d.harvester,
-        namespace: base.namespace.metadata.name,
-        serviceAccountName: d.name,
-    }, { dependsOn: [base.namespace] }).kubeconfig : undefined;
-    const cluster = new HarvesterCluster(`downstream/${d.name}`, {
-        rancher: rancherAccess[d.rancher],
-        distro: d.distro,
-        distribution: distribution(d.distro, lab),
-        kubernetesVersion: d.version ?? version(d.distro, lab),
-        labels: d.labels,
-        annotations: d.annotations,
-        cloudCredential: credential.secretName,
-        vmNamespace: base.namespace.metadata.name,
-        sshUser: lab.ssh!.user,
-        cloudProviderConfig,
-        cni: d.cni,
-        machineGlobalConfig: d.machineGlobalConfig,
-        chartValues: d.chartValues,
-        timeouts: lab.timeouts,
-        pools: d.pools.map(pool => ({
-            ...pool,
-            image: base.images[lab.os[pool.os].image].id,
-            network: base.networks[pool.network!],
-            userData: poolUserData(pool.os, d.distro, pool.roles, true, d.landlock ?? false),
-        })),
-        after: [credential, base.namespace, ...base.ready],
-    });
+const builtClusters: Record<string, BuiltCluster> = {};
+const buildContext = (d: ResolvedDownstream): ClusterBuildContext => ({
+    lab,
+    rancher: rancherAccess[d.rancher],
+    harvesterCredential: harvester => harvesterCredential(d.rancher, harvester),
+    awsCredential: site => awsCredential(d.rancher, site),
+    base: harvester => bases[harvester],
+    network: site => networks[site],
+    siteTags: site => siteTags[site],
+    amiOf,
+    poolUserData: (os, roles, harvester) => poolUserData(d, os, roles, harvester),
+    node: host => ({ host: lab.hosts.find(h => h.name === host)!, ...nodeAccess[host] }),
+    machineCommands,
+    built: builtClusters,
+});
+for (const d of [...lab.downstream.filter(d => !isNested(d)), ...lab.downstream.filter(isNested)]) {
+    const cluster = buildCluster(buildContext(d), d);
     placeObjects(d.name, cluster);
     downstreamNames.push(d.name);
     builtClusters[d.name] = cluster;
 }
 
-// k3k virtual clusters, once their parents exist. The k3k operator goes on each parent once,
-// however many k3k clusters run in it.
-const k3kOperators: Record<string, pulumi.Resource> = {};
-function k3kOperator(parent: string): pulumi.Resource {
-    const cluster = builtClusters[parent];
-    return k3kOperators[parent] ??= helmApp(`downstream/${parent}/k3k-operator`, chartInNamespace("k3k", lab), {
-        provider: cluster.provider, dependsOn: [cluster.cluster], deletedWith: cluster.cluster,
-    });
-}
-for (const d of lab.downstream) {
-    if (d.type !== "k3k") continue;
-    const parent = builtClusters[d.parent];
-    const cluster = new K3kCluster(`downstream/${d.name}`, {
-        rancher: rancherAccess[d.rancher],
-        parent: { name: d.parent, provider: parent.provider, clusterId: parent.clusterId, cluster: parent.cluster, operator: k3kOperator(d.parent) },
-        namespace: d.namespace!,
-        mode: d.mode,
-        servers: d.servers,
-        agents: d.agents,
-        version: d.version,
-        persistence: d.persistence,
-        labels: d.labels,
-        annotations: d.annotations,
-        kubectlImage: lab.images.kubectl,
-        timeouts: lab.timeouts,
-    });
-    placeObjects(d.name, cluster);
-    downstreamNames.push(d.name);
-}
-
-/** The catalog secrets and configmaps placed on a downstream cluster, once it is Ready. */
 /**
  * What the lab puts on a downstream cluster once it's ready: catalog secrets and configmaps, then
- * its ChartProfiles in build order, through Rancher (each after the profiles on it it waits for).
+ * its profiles in build order, through Rancher (each after the profiles on it it waits for).
  */
-function placeObjects(name: string, cluster: { provider: k8s.Provider; cluster: pulumi.Resource; kubeconfig?: pulumi.Output<string> }) {
+function placeObjects(name: string, cluster: BuiltCluster) {
     const objects = lab.objects.filter(o => "downstream" in o.target && o.target.downstream === name);
     const placed = objects.length > 0 ? new ClusterObjects(`downstream/${name}/objects`, { objects, value: objectValue }, {
         provider: cluster.provider, deletedWith: cluster.cluster, dependsOn: [cluster.cluster],
     }).resources : [];
-    agentTargets.downstream[name] = { provider: cluster.provider, deletedWith: cluster.cluster, ready: [cluster.cluster, ...placed] };
+    clusters.downstream[name] = { provider: cluster.provider, deletedWith: cluster.cluster, ready: [cluster.cluster, ...placed] };
     if (cluster.kubeconfig) clusterKubeconfigs[name] = cluster.kubeconfig;
+    // Its profiles in build order, each after the ones it waits for.
     const d = lab.downstream.find(x => x.name === name)!;
-    const cp = d.chartProfiles;
-    if (!cp) return;
-    const target = { name: `downstream/${name}`, chartValues: cp.chartValues };
-    const ready: Record<string, pulumi.Resource[]> = {};
-    // Landlock on every node: a metal cluster's were checked over SSH before they joined; machines
-    // Rancher creates by a DaemonSet. What requires landlock waits for it.
-    if (d.landlock) {
-        ready.landlock = d.type === "metal" ? [] : [landlockDaemonSet(`downstream/${name}/landlock`, lab.images.kubectl, lab.timeouts.resourceReady, {
-            provider: cluster.provider, deletedWith: cluster.cluster, dependsOn: [cluster.cluster],
-        })];
-    }
-    for (const profile of cp.order) {
-        const p = lab.profileCharts[profile];
-        // A Profile with code is built by its own phase (the SUSE Observability agent) or above (landlock).
-        if (!p) continue;
-        const after = [cluster.cluster, ...placed, ...p.waitFor.flatMap(c => ready[c] ?? [])];
-        const done = installChartProfile(lab, target, profile, { provider: cluster.provider, deletedWith: cluster.cluster, kubeconfig: cluster.kubeconfig }, cp.profiles[profile] as { version?: string; values?: Record<string, unknown> }, after);
-        for (const c of p.provides) ready[c] = done.slice(-1);
-    }
+    buildClusterProfiles(lab, d, { provider: cluster.provider, deletedWith: cluster.cluster, kubeconfig: cluster.kubeconfig }, [cluster.cluster, ...placed]);
 }
 
-buildObservabilityAgents(lab, agentTargets);
+// Once every cluster exists: the profiles' last steps (agents reporting to another cluster).
+buildLastProfiles(lab, clusters);
 
 export const name = lab.name;
 export const harvesters = lab.harvesters.map(h => h.name);

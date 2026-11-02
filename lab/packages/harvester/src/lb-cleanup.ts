@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { kubeRequest } from "@lab/kube";
+import { kubeRequest, poll } from "@lab/kube";
 
 interface Inputs {
     harvester: string;
@@ -37,13 +37,10 @@ const provider: pulumi.dynamic.ResourceProvider = {
             await kubeRequest(target, "DELETE", `${LBS(props.namespace)}/${lb.metadata.name}`);
         }
         const timeout = props.timeoutSeconds ?? 300;
-        const deadline = Date.now() + timeout * 1000;
-        while (Date.now() < deadline) {
+        await poll(async () => {
             const left = await kubeRequest(target, "GET", LBS(props.namespace));
-            if (left.status === 404 || (left.body?.items ?? []).length === 0) return;
-            await new Promise(r => setTimeout(r, 5000));
-        }
-        throw new Error(`load balancers in ${props.namespace} on ${props.harvester} weren't removed within ${timeout}s`);
+            return left.status === 404 || (left.body?.items ?? []).length === 0 ? true : undefined;
+        }, { timeoutSeconds: timeout, failure: () => `load balancers in ${props.namespace} on ${props.harvester} weren't removed within ${timeout}s` });
     },
 };
 

@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { kubeRequest } from "@lab/kube";
+import { kubeRequest, poll } from "@lab/kube";
 
 const NS = "fleet-default";
 const CLUSTERS = `/apis/provisioning.cattle.io/v1/namespaces/${NS}/clusters`;
@@ -21,10 +21,8 @@ interface RegistrationInputs {
  */
 const registrationProvider: pulumi.dynamic.ResourceProvider = {
     async create(inputs: RegistrationInputs) {
-        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
         const rancher = { kubeconfig: inputs.rancherKubeconfig };
-        const deadline = Date.now() + inputs.timeoutSeconds * 1000;
-        while (Date.now() < deadline) {
+        return poll(async () => {
             const clusterId = (await kubeRequest(rancher, "GET", `${CLUSTERS}/${inputs.cluster}`)).body?.status?.clusterName;
             const crt = clusterId ? (await kubeRequest(rancher, "GET", `/apis/management.cattle.io/v3/namespaces/${clusterId}/clusterregistrationtokens/default-token`)).body : undefined;
             const nodeCommand: string | undefined = inputs.insecure ? crt?.status?.insecureNodeCommand : crt?.status?.nodeCommand;
@@ -40,9 +38,8 @@ const registrationProvider: pulumi.dynamic.ResourceProvider = {
                 const outs = { nodeCommand: fill(nodeCommand), manifestUrl: fill(manifestUrl) };
                 if (outs.nodeCommand && outs.manifestUrl) return { id: `${NS}/${inputs.cluster}/registration`, outs: { ...inputs, clusterId, ...outs } };
             }
-            await sleep(5000);
-        }
-        throw new Error(`Rancher made no registration token for cluster ${inputs.cluster} within ${inputs.timeoutSeconds}s`);
+            return undefined;
+        }, { timeoutSeconds: inputs.timeoutSeconds, failure: () => `Rancher made no registration token for cluster ${inputs.cluster} within ${inputs.timeoutSeconds}s` });
     },
     async diff(_id: string, olds: RegistrationInputs, news: RegistrationInputs) {
         const replaces = (["cluster", "insecure"] as const).filter(k => olds[k] !== news[k]);

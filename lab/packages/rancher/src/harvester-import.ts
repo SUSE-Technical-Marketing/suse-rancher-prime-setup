@@ -1,5 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
-import { kubeRequest } from "@lab/kube";
+import { kubeRequest, poll } from "@lab/kube";
 
 interface Inputs {
     /** The Rancher cluster's kubeconfig (JSON). */
@@ -36,19 +36,11 @@ const TOKEN_PLACEHOLDER = "{token}";
  */
 const provider: pulumi.dynamic.ResourceProvider = {
     async create(inputs: Inputs) {
-        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
         const rancher = { kubeconfig: inputs.rancherKubeconfig };
         const harvester = { context: inputs.harvester };
         const timeout = inputs.timeoutSeconds!;
-        const until = async <T>(what: string, probe: () => Promise<T | undefined>): Promise<T> => {
-            const deadline = Date.now() + timeout * 1000;
-            while (Date.now() < deadline) {
-                const value = await probe();
-                if (value !== undefined) return value;
-                await sleep(5000);
-            }
-            throw new Error(`importing harvester ${inputs.harvester}: ${what} within ${timeout}s`);
-        };
+        const until = <T>(what: string, probe: () => Promise<T | undefined>): Promise<T> =>
+            poll(probe, { timeoutSeconds: timeout, failure: () => `importing harvester ${inputs.harvester}: ${what} within ${timeout}s` });
 
         const created = await kubeRequest(rancher, "POST", CLUSTERS, {
             apiVersion: "provisioning.cattle.io/v1",
@@ -100,11 +92,8 @@ const provider: pulumi.dynamic.ResourceProvider = {
         const timeout = props.timeoutSeconds ?? 600;
         const res = await kubeRequest(rancher, "DELETE", `${CLUSTERS}/${props.name}`);
         if (res.status !== 404) {
-            const deadline = Date.now() + timeout * 1000;
-            while ((await kubeRequest(rancher, "GET", `${CLUSTERS}/${props.name}`)).status !== 404) {
-                if (Date.now() > deadline) throw new Error(`cluster ${props.name} wasn't removed from Rancher within ${timeout}s`);
-                await sleep(5000);
-            }
+            await poll(async () => ((await kubeRequest(rancher, "GET", `${CLUSTERS}/${props.name}`)).status === 404 ? true : undefined),
+                { timeoutSeconds: timeout, failure: () => `cluster ${props.name} wasn't removed from Rancher within ${timeout}s` });
         }
 
         // Rancher runs a cleanup job on the Harvester, which leaves most of what the import

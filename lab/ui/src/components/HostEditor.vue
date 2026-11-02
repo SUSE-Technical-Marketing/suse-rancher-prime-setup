@@ -55,7 +55,7 @@ function setProfile(name: string, settings: Record<string, unknown> | undefined)
       </div>
     </section>
 
-    <ProfilesEditor :model-value="v.spec?.profiles" :target="isVm ? 'harvester' : 'ssh'" @set="setProfile" @remove="n => set(['spec', 'profiles', n], undefined)" />
+    <ProfilesEditor :index="index" :model-value="v.spec?.profiles" :target="isVm ? 'harvester' : 'ssh'" @set="setProfile" @remove="n => set(['spec', 'profiles', n], undefined)" />
 
     <details class="advanced">
       <summary>More</summary>
