@@ -13,6 +13,7 @@ import { buildHostProfiles, installChartProfile, profileCloudInit, profileUninst
 import { buildObservabilityAgents, type AgentTargets } from "./observability";
 import { credentials, objectValue, secretMap, secrets, secretString } from "./secrets";
 import { chart, chartInNamespace, distribution, harvesterChart, version } from "./catalog";
+import { landlockCheck, landlockDaemonSet, landlockOnMachine } from "./landlock";
 
 // The CLI writes the resolved lab, the secret values and the Harvester versions into stack config
 // before every run; this program never reads the lab file itself. Harvester access comes from the
@@ -124,6 +125,7 @@ for (const host of lab.hosts) {
             user: { name: lab.ssh!.user, publicKey: lab.ssh!.publicKey },
             vars,
             runcmd,
+            landlock: host.landlock,
         }));
         const vm = new HarvesterVm(host.name, {
             harvester: host.harvester,
@@ -157,8 +159,12 @@ for (const host of lab.hosts) {
     if (host.profileOrder.length === 0 && !metalNodes.has(host.name)) continue;
     const access: HostAccess = { name: host.name, fqdn: host.fqdn, address, user: host.kind === "ssh" ? host.user : lab.ssh!.user, privateKey };
     let setUp: pulumi.Resource[] = [];
+    // Landlock on an existing machine: turned on (and rebooted) before its setup. A VM turned it on at
+    // its first boot; it's checked once cloud-init is done.
+    const landlocked = host.landlock && host.kind === "ssh" ? [landlockOnMachine(`${host.name}/landlock`, access, lab.os[host.os], {})] : [];
     if (host.kind === "harvester") {
         setUp = [waitForCloudInit(`${host.name}/cloud-init`, access, lab.timeouts.cloudInit, { dependsOn: ready, deletedWith: machine })];
+        if (host.landlock) setUp = [landlockCheck(`${host.name}/landlock`, access, { dependsOn: setUp, deletedWith: machine })];
     } else if (runcmd.length > 0) {
         // An existing machine gets no user data (it may not even have cloud-init): what a VM's would
         // do (the OS profile's packages and runcmd, the profiles' commands) runs over SSH instead,
@@ -172,10 +178,12 @@ for (const host of lab.hosts) {
             update: runUploaded("setup"),
             stdin: script,
             delete: asRoot(runExisting(profileUninstall(lab, host))),
-        });
+        }, { dependsOn: landlocked });
         setUp = [setup];
         // Like a VM: what the profiles create on it goes with the uninstall, not one by one before it.
         machine = setup;
+    } else {
+        setUp = landlocked;
     }
     nodeAccess[host.name] = { access, ready: setUp, machine };
     if (host.profileOrder.length === 0) continue;
@@ -235,9 +243,10 @@ function awsCredential(rancherHost: string, site: string): Amazonec2Credential {
 
 /**
  * A node's user data on a machine Rancher creates: its OS profile's, Kubernetes part included (and
- * the Harvester part on a Harvester VM), the lab's login, and with a server the helm Job watch.
+ * the Harvester part on a Harvester VM), the lab's login, with a server the helm Job watch, and
+ * Landlock turned on when the cluster has the landlock profile.
  */
-function poolUserData(osName: string, distro: "rke2" | "k3s", roles: string[], harvester: boolean): pulumi.Output<string> {
+function poolUserData(osName: string, distro: "rke2" | "k3s", roles: string[], harvester: boolean, landlock: boolean): pulumi.Output<string> {
     const os = lab.os[osName];
     return pulumi.secret(osVars().apply(vars => renderCloudConfig({
         os,
@@ -247,6 +256,7 @@ function poolUserData(osName: string, distro: "rke2" | "k3s", roles: string[], h
         defaultUser: true,
         vars,
         runcmd: roles.some(r => r !== "worker") ? [helmJobWatch(distribution(distro, lab), lab.timeouts.helmJobWatch)] : [],
+        landlock,
     })));
 }
 
@@ -335,7 +345,7 @@ for (const d of lab.downstream) {
                     ami: amiOf(d.site, pool.os),
                     sshUser: os.ami!.user ?? os.defaultUser ?? "ec2-user",
                     subnetId: network.subnets[pool.zone].id,
-                    userData: poolUserData(pool.os, d.distro, pool.roles, false),
+                    userData: poolUserData(pool.os, d.distro, pool.roles, false, d.landlock ?? false),
                 };
             }),
             // The machines go before their network does.
@@ -372,7 +382,7 @@ for (const d of lab.downstream) {
             ...pool,
             image: base.images[lab.os[pool.os].image].id,
             network: base.networks[pool.network!],
-            userData: poolUserData(pool.os, d.distro, pool.roles, true),
+            userData: poolUserData(pool.os, d.distro, pool.roles, true, d.landlock ?? false),
         })),
         after: [credential, base.namespace, ...base.ready],
     });
@@ -423,13 +433,21 @@ function placeObjects(name: string, cluster: { provider: k8s.Provider; cluster: 
     }).resources : [];
     agentTargets.downstream[name] = { provider: cluster.provider, deletedWith: cluster.cluster, ready: [cluster.cluster, ...placed] };
     if (cluster.kubeconfig) clusterKubeconfigs[name] = cluster.kubeconfig;
-    const cp = lab.downstream.find(d => d.name === name)?.chartProfiles;
+    const d = lab.downstream.find(x => x.name === name)!;
+    const cp = d.chartProfiles;
     if (!cp) return;
     const target = { name: `downstream/${name}`, chartValues: cp.chartValues };
     const ready: Record<string, pulumi.Resource[]> = {};
+    // Landlock on every node: a metal cluster's were checked over SSH before they joined; machines
+    // Rancher creates by a DaemonSet. What requires landlock waits for it.
+    if (d.landlock) {
+        ready.landlock = d.type === "metal" ? [] : [landlockDaemonSet(`downstream/${name}/landlock`, lab.images.kubectl, lab.timeouts.resourceReady, {
+            provider: cluster.provider, deletedWith: cluster.cluster, dependsOn: [cluster.cluster],
+        })];
+    }
     for (const profile of cp.order) {
         const p = lab.profileCharts[profile];
-        // A Profile with code (the SUSE Observability agent) is built by its own phase.
+        // A Profile with code is built by its own phase (the SUSE Observability agent) or above (landlock).
         if (!p) continue;
         const after = [cluster.cluster, ...placed, ...p.waitFor.flatMap(c => ready[c] ?? [])];
         const done = installChartProfile(lab, target, profile, { provider: cluster.provider, deletedWith: cluster.cluster, kubeconfig: cluster.kubeconfig }, cp.profiles[profile] as { version?: string; values?: Record<string, unknown> }, after);

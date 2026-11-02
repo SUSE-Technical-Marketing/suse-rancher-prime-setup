@@ -247,6 +247,10 @@ export const BUILDERS: { [N in ProfileName]?: ProfileBuilder<N> } = {
     "suse-observability-agent": { build() {} },
     "mlm-server": notBuiltYet("mlm-server", "M6"),
     "mlm-client": notBuiltYet("mlm-client", "M6"),
+
+    // Nothing to build once the host is up: it turned Landlock on before its setup and was checked
+    // (program/landlock.ts); what runs on it waits for that.
+    landlock: { build() {} },
 };
 
 type AnyBuilder = ProfileBuilder<ProfileName>;

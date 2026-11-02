@@ -128,6 +128,8 @@ interface ResolvedHostBase {
     fqdn: string;
     /** It runs Kubernetes (a k3s / RKE2 profile, or a metal cluster's node): its OS profile's `kubernetes` part applies. */
     kubernetes: boolean;
+    /** It turns Landlock on: it has the `landlock` profile, or is a node of a metal cluster that has it. */
+    landlock: boolean;
 }
 
 export interface ResolvedHarvesterHost extends ResolvedHostBase {
@@ -178,6 +180,8 @@ export type ResolvedDownstream = {
     chartProfiles?: ResolvedClusterProfiles;
     /** What its Fleet profiles say Fleet installs, by capability (`suse-observability: { url }`), rendered. */
     fleetOutputs?: Record<string, Record<string, string>>;
+    /** Its nodes turn Landlock on (the `landlock` profile). */
+    landlock?: boolean;
 } & (
     | Exclude<DownstreamInput, { type: "harvester" | "ec2" | "eks" }>
     | (Omit<EksDownstreamInput, "nodeGroups" | "version"> & { version: string; nodeGroups: ResolvedEksNodeGroup[] })
@@ -639,7 +643,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             const ignored = Object.keys(kubernetes ? allOs[h.os]?.kubernetes ?? {} : {}).filter(k => !MACHINE_CLOUD_INIT_KEYS.includes(k));
             if (ignored.length > 0) diags.warning(L, `${at}.os`, `OS profile ${h.os}: kubernetes.cloudInit.${ignored.join(", ")} only apply to VMs; a machine only gets its packages and runcmd, over SSH`);
             hosts.set(name, {
-                kind: "ssh", name, os: h.os, profiles: parseProfiles(h.profiles, at), profileOrder: [], capabilities: [], providers: {}, charts: [], chartValues: {}, outputs: {}, kubernetes,
+                kind: "ssh", name, os: h.os, profiles: parseProfiles(h.profiles, at), profileOrder: [], capabilities: [], providers: {}, charts: [], chartValues: {}, outputs: {}, kubernetes, landlock: false,
                 address: h.address ?? "", fqdn: h.address ?? "", user: h.user ?? lab.ssh?.user ?? catalog.defaults.value.ssh.user,
             });
         } else {
@@ -655,6 +659,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 kind: "harvester", name, os: h.os, profiles: parseProfiles(h.profiles, at), profileOrder: [], capabilities: [], providers: {}, charts: [], chartValues: {},
                 outputs: {}, fqdn: h.fqdn ?? `${name}.${lab.domain}`,
                 kubernetes: runsKubernetes(name, h.profiles),
+                landlock: false,
                 harvester: harvester.name, cpu: h.cpu ?? vmDefaults.cpu, memory: h.memory ?? vmDefaults.memory, disk: h.disk ?? vmDefaults.disk,
                 network, macAddress: h.macAddress,
                 ...fixedAddress(harvester, network, h, at),
@@ -1094,6 +1099,33 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             }
         }
     };
+    // --- Landlock (the landlock profile) ---------------------------------------------------------
+    // On the nodes of the hosts and clusters that have it, each by its OS profile's `landlock.enable`.
+    const noLandlock = (os: string, at: string) => {
+        if (allOs[os] && !allOs[os].landlock) diags.error(L, at, `OS profile ${os} doesn't say how to turn Landlock on: it has no landlock.enable`);
+    };
+    for (const host of hosts.values()) {
+        if (!("landlock" in host.profiles)) continue;
+        host.landlock = true;
+        noLandlock(host.os, `hosts.${host.name}.profiles.landlock`);
+    }
+    for (const d of downstream) {
+        if (!d.chartProfiles || !("landlock" in d.chartProfiles.profiles)) continue;
+        const at = `downstream.${d.name}.profiles.landlock`;
+        if (d.type === "k3k") diags.error(L, at, `a k3k cluster runs on its parent's nodes: put landlock on ${d.parent}`);
+        else if (d.type === "eks") diags.error(L, at, "the lab doesn't make an EKS cluster's node images, so it can't turn Landlock on there");
+        else d.landlock = true;
+        if (d.type === "harvester" || d.type === "ec2") d.pools.forEach((pool, i) => noLandlock(pool.os, `downstream.${d.name}.pools[${i}].os`));
+        if (d.type === "metal") {
+            for (const node of d.nodes) {
+                const host = hosts.get(node.host);
+                if (!host) continue;
+                host.landlock = true;
+                noLandlock(host.os, `${at} (node ${node.host})`);
+            }
+        }
+    }
+
     for (const host of hosts.values()) checkClusterRefs(host.profiles, `hosts.${host.name}`);
     for (const d of downstream) checkClusterRefs(d.chartProfiles?.profiles ?? {}, `downstream.${d.name}`);
     for (const h of harvesters.values()) checkClusterRefs(h.profiles, `harvesters.${h.name}`);

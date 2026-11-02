@@ -326,6 +326,7 @@ profile. `lab profiles` prints the current list with all rules.
 | `mlm-server` | OS family `suse`; conflicts with `kubernetes` and `mlm-client`; secret `adminPassword` | `version`, `adminPassword`, `products` | `MlmAccess` |
 | `mlm-client` | `server` must name a host running `mlm-server` | `server`, `activationKey` | — |
 | `ai-factory` | requires `rancher`; secrets `applicationCollection`, `suseRegistry`, `nvidia` (credentials) | `version`, `applicationCollection` (required), `suseRegistry` (required; SCC), `nvidia` (the NGC login: user `$oauthtoken`, the API key as password), `values` | SUSE AI Factory on Rancher's cluster: the `aif-operator` chart, which installs the `aif-ui` extension and gets the registry logins as values, so its Settings need no Test and Apply |
+| `landlock` | a Profile for hosts and clusters (`targets`); not on k3k clusters (put it on the parent) or EKS; the OS profile needs `landlock.enable` | — | Landlock active on every node, which OpenShell's agent sandboxes need: turned on at first boot (VMs, a cluster's machines) or over SSH (machines), with one reboot, only where it isn't already; checked before `up` goes on (§9.7) |
 
 The apps a cluster needs are separate profiles, so they compose: a host can run Traefik without
 Rancher, or cert-manager for its own workloads. A Rancher host lists them all:
@@ -599,6 +600,13 @@ spec:
       runcmd:
         - systemctl enable --now iscsid
         - systemctl disable --now firewalld 2>/dev/null || true
+  landlock:                        # for the landlock profile (§9.7): lsm=$lsm on the kernel command line
+    enable: |
+      . /etc/sysconfig/bootloader
+      case "$LOADER_TYPE" in
+        grub2|grub2-efi) sed -i ... /etc/default/grub; update-bootloader --refresh ;;
+        systemd-boot|grub2-bls) sed -i ... /etc/kernel/cmdline; sdbootutil update-all-entries ;;
+      esac
 ```
 
 The engine only adds what depends on the host: the login (the lab's ssh user and key) and the
@@ -633,6 +641,15 @@ also swaps a minimal image's `kernel-default-base` (Leap 16 Minimal-VM) for the 
 the same version: only that has `iscsi_tcp`, and the same version means the running kernel finds it
 without a reboot. If the repositories no longer have that version, cloud-init says so and Longhorn
 can't attach volumes until the VM runs a full kernel.
+
+**`landlock`** is not cloud-config but a shell script, `enable`, for the `landlock` profile: it
+puts `lsm=$lsm` on the kernel command line, however the OS's bootloader keeps it. `$lsm` is the new
+LSM list (landlock, then the active ones), and the engine reboots afterwards (§9.7). An OS profile
+without it can't take the `landlock` profile: `validate` says so. The SUSE profiles read the
+bootloader from `/etc/sysconfig/bootloader` (GRUB 2, or systemd-boot / GRUB 2 with BLS), SL Micro
+writes it in a new snapshot (`transactional-update`), Rocky uses `grubby`, Ubuntu a `grub.d` file.
+Only Leap 16's has been tried on a real machine. Leap 16's image has Landlock active already, as
+Ubuntu's kernels should (not tried), so there it doesn't run.
 
 **Existing machines** get no user data, and are someone's own: no base packages, no guest agent, no
 firewall changes. One that runs Kubernetes gets its profile's `kubernetes` `packages` (with the
@@ -1063,6 +1080,43 @@ it's on to its observer.
   registry.rancher.com, which allows anonymous pulls.
 - **Order**: agents are built last (`program/observability.ts`), after their observer cluster, so a
   Rancher host or a Harvester can report to a cluster built after it.
+
+### 9.7 Landlock
+
+[Landlock](https://docs.kernel.org/userspace-api/landlock.html) is the kernel's sandboxing LSM.
+OpenShell's agent sandboxes need it on every node they can run on, or no sandbox starts (the
+[OpenShell writeup](https://github.com/wiredquill/openshell/tree/main/docs/landlock)); inference
+engines don't. So it's a profile, `landlock`, on just the hosts and clusters that run sandboxes,
+and a capability, so what needs it can `requires: [landlock]`. The lab's kernels have it built in
+(`CONFIG_SECURITY_LANDLOCK=y`); what differs is whether it's in the active LSM list, which only
+`lsm=` on the kernel command line changes, and that takes a reboot.
+
+- **The script** (`packages/os/src/landlock.ts`): nothing when `/sys/kernel/security/lsm` has
+  landlock. Otherwise `lsm=landlock,<the active list>`, so SELinux or AppArmor stay on, written by
+  the OS profile's `landlock.enable` (§6), then a reboot. If the command line already asks for
+  landlock and it still isn't active, the kernel can't: it fails rather than rebooting again.
+- **A VM or a cluster's machine** (Harvester VMs, Harvester and EC2 pools) runs it from its user
+  data's `bootcmd`, after the OS profile's own. bootcmd comes before sshd and before cloud-init
+  installs packages or runs `runcmd`, so Kubernetes and Rancher's agent are installed after the
+  reboot, on a node that has Landlock. It runs on every boot, and does nothing once it's on.
+- **An existing machine** (a `Machine`, or a metal cluster's node) gets it over SSH before its setup:
+  the script, a reboot 5 seconds after it returns, a minute's wait, then the check, whose connection
+  retries until the machine is back. The machine keeps Landlock when the lab goes.
+- **The check.** A host is checked over SSH once it's up (a VM after cloud-init); `up` fails with
+  the LSMs it has. A cluster's machines are checked by a `landlock-check` DaemonSet in `kube-system`:
+  its pods read the node's LSM list (`/sys/kernel/security` from the host) and only get ready where
+  landlock is in it, so `up` waits for all of them (`timeouts.resourceReady`). It stays, so a node
+  added later is checked too. A metal cluster's nodes were checked over SSH before they joined.
+  What requires `landlock` on a cluster waits for the check.
+- **Not on k3k or EKS.** A k3k cluster runs on its parent's nodes: `validate` asks for the profile on
+  the parent. An EKS cluster's nodes come from images the lab doesn't make.
+- **Adding it later** changes a VM's or machine's user data, which a running VM doesn't read again:
+  `up` warns, and the lab has to be recreated (§5.3). An existing machine gets it in place.
+- Tried on prod-virt-ams01, on Leap 16 VMs first booted without Landlock (`lsm=` without it): an
+  RKE2 VM with the profile turned it on at first boot, replacing that `lsm=`, and installed RKE2
+  after the reboot; a `Machine` got it over SSH, rebooted and passed the check; the DaemonSet's pod
+  got ready on a node with Landlock and kept failing, naming the LSMs, on one without. Inside pods,
+  Landlock works on RKE2 (containerd 2.3) with the `RuntimeDefault` seccomp profile and without one.
 
 ---
 

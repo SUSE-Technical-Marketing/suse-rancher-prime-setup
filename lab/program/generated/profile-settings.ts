@@ -49,6 +49,9 @@ export type K3sSettings = {
     version?: string;
 };
 
+/** Settings of the `landlock` profile: Landlock on every node: the kernel's sandboxing LSM, which OpenShell's agent sandboxes need */
+export type LandlockSettings = Record<string, never>;
+
 /** Settings of the `metallb` profile: MetalLB in L2 mode: LoadBalancer services get an address from a range on the host's network (instead of ServiceLB) */
 export type MetallbSettings = {
     /** Ranges or CIDRs it hands out, on the host's network and outside its DHCP range, e.g. 10.29.20.221-10.29.20.230 */
@@ -146,6 +149,7 @@ export interface ProfileSettings {
     "hauler": HaulerSettings;
     "hauler-chart": HaulerChartSettings;
     "k3s": K3sSettings;
+    "landlock": LandlockSettings;
     "metallb": MetallbSettings;
     "mlm-client": MlmClientSettings;
     "mlm-server": MlmServerSettings;

@@ -46,3 +46,18 @@ spec:
         # No firewalld on Kubernetes nodes, as the k3s and RKE2 docs advise: it conflicts with their
         # CNIs, and would block the API and ingress. Lab VMs sit on lab VLANs.
         - systemctl disable --now firewalld 2>/dev/null || true
+  # The landlock profile: put lsm=$lsm (landlock first, then the active LSMs) on the kernel command
+  # line, for the bootloader /etc/sysconfig/bootloader names; the engine reboots after it. (Leap 16's
+  # image has Landlock active already: then this doesn't run.)
+  landlock:
+    enable: |
+      . /etc/sysconfig/bootloader
+      case "$LOADER_TYPE" in
+        grub2|grub2-efi)
+          sed -i -E '/^GRUB_CMDLINE_LINUX_DEFAULT=/{s/lsm=[^ "]* ?//;s/^GRUB_CMDLINE_LINUX_DEFAULT="/&lsm='"$lsm"' /}' /etc/default/grub
+          update-bootloader --refresh ;;
+        systemd-boot|grub2-bls)
+          sed -i -E -e 's/ ?lsm=[^ ]*//' -e "1s/\$/ lsm=$lsm/" /etc/kernel/cmdline
+          sdbootutil update-all-entries ;;
+        *) echo "LOADER_TYPE \"$LOADER_TYPE\" in /etc/sysconfig/bootloader: no way to set lsm= for it" >&2; exit 1 ;;
+      esac

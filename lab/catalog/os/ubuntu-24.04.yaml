@@ -26,3 +26,11 @@ spec:
       packages: [ open-iscsi, nfs-common, cryptsetup ]
       runcmd:
         - systemctl enable --now iscsid
+  # The landlock profile: Ubuntu's kernels should have Landlock active already (not tried), and then
+  # this doesn't run.
+  # Otherwise lsm=$lsm (landlock first, then the active LSMs) goes on the kernel command line, in a
+  # grub.d file read after the cloud image's own; the engine reboots after it.
+  landlock:
+    enable: |
+      echo "GRUB_CMDLINE_LINUX_DEFAULT=\"\$GRUB_CMDLINE_LINUX_DEFAULT lsm=$lsm\"" > /etc/default/grub.d/99-lab-landlock.cfg
+      update-grub

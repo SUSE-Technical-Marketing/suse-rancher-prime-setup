@@ -17,3 +17,10 @@ spec:
       packages: [ qemu-guest-agent ]
       runcmd:
         - systemctl enable --now qemu-guest-agent
+  # The landlock profile: put lsm=$lsm (landlock first, then the active LSMs) on the kernel command
+  # line, in a new snapshot (the root file system is read-only); the engine reboots into it.
+  # Not tried yet: SL Micro has no public image.
+  landlock:
+    enable: |
+      transactional-update --non-interactive run sed -i -E "/^GRUB_CMDLINE_LINUX_DEFAULT=/{s/lsm=[^ \"]* ?//;s/^GRUB_CMDLINE_LINUX_DEFAULT=\"/&lsm=$lsm /}" /etc/default/grub
+      transactional-update --non-interactive --continue grub.cfg

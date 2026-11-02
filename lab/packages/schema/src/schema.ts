@@ -38,6 +38,13 @@ export const OsProfileInput = z.strictObject({
      * no firewalld. The only part an existing machine gets, and only then.
      */
     kubernetes: z.strictObject({ cloudInit: z.record(z.string(), z.unknown()).optional() }).optional(),
+    /**
+     * How the OS turns Landlock on, for hosts and clusters with the `landlock` profile: `enable` is
+     * a shell script, run as root, that puts `lsm=$lsm` (the new LSM list, landlock first) on the
+     * kernel command line its bootloader uses. The engine runs it only when Landlock isn't active
+     * yet, and reboots after it.
+     */
+    landlock: z.strictObject({ enable: z.string().min(1) }).optional(),
 });
 export type OsProfileInput = z.infer<typeof OsProfileInput>;
 

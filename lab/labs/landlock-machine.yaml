@@ -1,0 +1,12 @@
+# Throwaway: the landlock profile on an existing machine (ll-box of labs/landlock-probe.yaml).
+apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: landlock-machine }
+spec:
+  domain: lab.geeko.me
+  tls: { acme: none }
+  ssh: { user: lab, publicKey: { file: ~/.ssh/id_ed25519.pub }, privateKey: "{{ secrets['ssh-key'] }}" }
+---
+kind: Machine
+metadata: { name: ll-box }
+spec: { address: 10.29.40.201, os: leap-16, profiles: { landlock: {} } }

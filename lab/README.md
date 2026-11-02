@@ -342,6 +342,26 @@ spec:
     suse-observability-agent: { observer: heimdall }   # a cluster with fleetProfiles: { observability: {} }
 ```
 
+### Landlock
+
+OpenShell's agent sandboxes need [Landlock](https://docs.kernel.org/userspace-api/landlock.html)
+active on every node they run on. Put the `landlock` profile on the hosts and downstream clusters
+that run them (not on the ones that only run inference):
+
+```yaml
+kind: DownstreamCluster
+metadata: { name: agents }
+spec:
+  profiles:
+    landlock: {}
+```
+
+Each node turns it on where it isn't active yet, by its OS profile's `landlock.enable`, and reboots
+once: a VM or a cluster's machine at its first boot, before Kubernetes is installed; an existing
+machine over SSH. `up` then checks every node and fails on one without it. A k3k cluster runs on
+its parent's nodes, so the profile goes on the parent; EKS clusters can't have it. Leap 16 has
+Landlock on already. See DESIGN.md §9.7.
+
 ## State
 
 Lab state lives in `~/.local/share/lab/state` (`$LAB_STATE_URL` to override). Secrets in it are

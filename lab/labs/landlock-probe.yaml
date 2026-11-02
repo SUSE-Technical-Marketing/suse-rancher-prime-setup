@@ -1,5 +1,5 @@
-# Throwaway: a Leap 16 VM, to see whether Landlock is active by default (the kernel's CONFIG_LSM has
-# it) and which bootloader the image uses. SLES 16 and SL Micro 6.1 have no public images.
+# Throwaway, on prod-virt-ams01: the landlock profile from a node without Landlock. Leap 16's image
+# has it active, so leap-16-no-landlock first boots once with lsm= without it (a test only).
 apiVersion: lab.geeko.me/v1alpha1
 kind: Lab
 metadata: { name: landlock-probe }
@@ -12,15 +12,31 @@ apiVersion: lab.geeko.me/v1alpha1
 kind: Harvester
 metadata: { name: prod-virt-ams01 }
 spec:
-  # The VM uses prod-virt-ams01's own vlan40 network (pool .100-.150) with a fixed address.
+  # The VMs use prod-virt-ams01's own vlan40 network (pool .100-.150) with fixed addresses.
   # prod-virt-ams01 already has a longhorn-single StorageClass (not this lab's).
   storageClass: { name: longhorn-single-probe }
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: OperatingSystem
+metadata: { name: leap-16-no-landlock, description: "Leap 16 that boots without Landlock (a test)" }
+spec:
+  extends: leap-16
+  cloudInit:
+    bootcmd:
+      - |
+        [ -e /var/lib/lab-no-landlock ] || {
+          touch /var/lib/lab-no-landlock && sync
+          sed -i -E 's/^GRUB_CMDLINE_LINUX_DEFAULT="/&lsm=lockdown,capability,yama,selinux,bpf,ima,evm /' /etc/default/grub
+          update-bootloader --refresh
+          systemctl reboot
+          sleep 600
+        }
 ---
 kind: HarvesterVM
 metadata: { name: ll-leap16 }
 spec:
   harvester: prod-virt-ams01
-  os: leap-16
+  os: leap-16-no-landlock
   cpu: 2
   memory: 4Gi
   disk: 20Gi
@@ -29,3 +45,17 @@ spec:
   gateway: 10.29.40.1
   profiles:
     rke2: {}
+    landlock: {}
+---
+# Without profiles: the machine of labs/landlock-machine.yaml.
+kind: HarvesterVM
+metadata: { name: ll-box }
+spec:
+  harvester: prod-virt-ams01
+  os: leap-16-no-landlock
+  cpu: 1
+  memory: 2Gi
+  disk: 20Gi
+  network: default/vlan40
+  ip: 10.29.40.201/24
+  gateway: 10.29.40.1

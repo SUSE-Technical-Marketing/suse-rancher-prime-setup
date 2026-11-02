@@ -29,3 +29,8 @@ spec:
         # No firewalld on Kubernetes nodes, as the k3s and RKE2 docs advise: it conflicts with their
         # CNIs, and would block the API and ingress. Lab VMs sit on lab VLANs.
         - systemctl disable --now firewalld 2>/dev/null || true
+  # The landlock profile: put lsm=$lsm (landlock first, then the active LSMs) on every kernel's
+  # command line; the engine reboots after it. Not tried yet.
+  landlock:
+    enable: |
+      grubby --update-kernel=ALL --args="lsm=$lsm"

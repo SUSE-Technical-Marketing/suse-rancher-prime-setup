@@ -923,7 +923,7 @@ ${catalog}`;
 
     it("takes only ChartProfiles, with their rules, on a cluster", () => {
         expect(errors(load(lab("    profiles: { k3s: {}, storage: {}, nope: {}, ai-factory: { applicationCollection: \"{{ secrets.a }}\", suseRegistry: \"{{ secrets.s }}\" } }")))).toEqual([
-            expect.stringMatching(/^downstream\.apps\.profiles\.k3s: is a Profile for lab hosts .*a downstream cluster takes: ai-factory, cert-manager, hauler-chart, metallb, outrider, sprouter, suse-observability-agent, traefik$/),
+            expect.stringMatching(/^downstream\.apps\.profiles\.k3s: is a Profile for lab hosts .*a downstream cluster takes: ai-factory, cert-manager, hauler-chart, landlock, metallb, outrider, sprouter, suse-observability-agent, traefik$/),
             "downstream.apps.profiles.storage: is a Fleet profile: list it under fleetProfiles",
             expect.stringMatching(/^downstream\.apps\.profiles\.nope: unknown profile "nope"/),
             expect.stringMatching(/^downstream\.apps\.profiles\.ai-factory: needs rancher .*on the same cluster$/),
@@ -1034,7 +1034,7 @@ hosts:
   vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { nope: {}, k3s: { versoin: x }, hauler: { port: 70000 } } }
 `);
         expect(errors(result)).toEqual([
-            'hosts.vm.profiles: unknown profile "nope"; known: ai-factory, cert-manager, harvester-cloud-provider, hauler, hauler-chart, k3s, metallb, mlm-client, mlm-server, outrider, rancher, rke2, sprouter, suse-observability-agent, traefik',
+            'hosts.vm.profiles: unknown profile "nope"; known: ai-factory, cert-manager, harvester-cloud-provider, hauler, hauler-chart, k3s, landlock, metallb, mlm-client, mlm-server, outrider, rancher, rke2, sprouter, suse-observability-agent, traefik',
             'hosts.vm.profiles.k3s.versoin: unknown field "versoin"',
             "hosts.vm.profiles.hauler.port: Too big: expected number to be <=65535",
         ]);
@@ -1511,5 +1511,44 @@ describe("warnings", () => {
     it("warns about passwords written into the lab file", () => {
         const result = load(BASE.replace("hv-north: {}", "hv-north: { url: https://hv.example.com, credentials: { username: admin, password: hunter2 } }"));
         expect(result.diagnostics.warnings.map(d => d.path)).toContain("Harvester/hv-north.spec.credentials.password");
+    });
+});
+
+describe("landlock", () => {
+    const POOL = "pools: [{ name: a, quantity: 1, roles: [etcd, controlplane, worker], os: leap-16 }]";
+    const lab = (hosts: string, downstream = "", catalog = "") => load(`${BASE}${catalog}hosts:
+  r: { on: hv-north, os: leap-16, profiles: { ${RANCHER_STACK} } }
+${hosts}
+${downstream ? `downstream:\n${downstream}` : ""}`);
+
+    it("goes on the hosts that have it, the nodes of a metal cluster that has it, and clusters", () => {
+        const result = lab([
+            "  sandbox: { on: hv-north, os: leap-16, profiles: { k3s: {}, landlock: {} } }",
+            "  plain: { on: hv-north, os: leap-16, profiles: { k3s: {} } }",
+            "  node: { on: hv-north, os: leap-16 }",
+        ].join("\n"), [
+            "  edge: { type: metal, rancher: r, nodes: [{ host: node, roles: [etcd, controlplane, worker] }], profiles: { landlock: {} } }",
+            `  apps: { type: harvester, rancher: r, harvester: hv-north, ${POOL}, profiles: { landlock: {} } }`,
+            `  infer: { type: harvester, rancher: r, harvester: hv-north, ${POOL} }`,
+        ].join("\n"));
+        expect(errors(result)).toEqual([]);
+        expect(Object.fromEntries(result.lab!.hosts.map(h => [h.name, h.landlock]))).toEqual({ r: false, sandbox: true, plain: false, node: true });
+        expect(Object.fromEntries(result.lab!.downstream.map(d => [d.name, d.landlock ?? false]))).toEqual({ edge: true, apps: true, infer: false });
+    });
+
+    it("isn't for k3k clusters (their parent's nodes), and needs the OS to say how", () => {
+        const result = lab(
+            "  bare-vm: { on: hv-north, os: bare, profiles: { landlock: {} } }",
+            [
+                `  apps: { type: harvester, rancher: r, harvester: hv-north, pools: [{ name: a, quantity: 1, roles: [etcd, controlplane, worker], os: bare }], profiles: { landlock: {} } }`,
+                "  team: { type: k3k, rancher: r, parent: apps, profiles: { landlock: {} } }",
+            ].join("\n"),
+            "catalog:\n  os:\n    bare: { family: suse, image: { url: https://example.com/bare.qcow2 } }\n",
+        );
+        expect(errors(result)).toEqual([
+            "hosts.bare-vm.profiles.landlock: OS profile bare doesn't say how to turn Landlock on: it has no landlock.enable",
+            "downstream.apps.pools[0].os: OS profile bare doesn't say how to turn Landlock on: it has no landlock.enable",
+            "downstream.team.profiles.landlock: a k3k cluster runs on its parent's nodes: put landlock on apps",
+        ]);
     });
 });

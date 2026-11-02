@@ -1,0 +1,15 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: landlock
+  description: "Landlock on every node: the kernel's sandboxing LSM, which OpenShell's agent sandboxes need"
+spec:
+  icon: lock-keyhole          # in the lab UI (lucide.dev/icons)
+  # On a lab host, or on every node of a downstream cluster (not k3k: it runs on its parent's
+  # nodes; not EKS: the lab doesn't make its node images). Only what runs agent sandboxes needs it.
+  # Each node turns it on (the OS profile's `landlock.enable`) and reboots once, at its first boot,
+  # only when it isn't active yet; `up` fails when a node still doesn't have it.
+  targets: [ host, cluster ]
+  settings:
+    type: object
+    properties: {}

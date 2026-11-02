@@ -1,5 +1,6 @@
 import { osCloudInit, renderTemplates, type CloudInitVars, type OsFamily, type ResolvedOs } from "@lab/schema";
 import { stringify } from "yaml";
+import { CLOUD_INIT_REBOOT, landlockScript } from "./landlock";
 
 export interface CloudConfigInput {
     os: ResolvedOs;
@@ -21,6 +22,8 @@ export interface CloudConfigInput {
     vars: CloudInitVars;
     /** The host's own commands (k3s / RKE2, profiles), run after the OS profile's `runcmd`. */
     runcmd?: string[];
+    /** Turn Landlock on at its first boot (the `landlock` profile), after the OS profile's `bootcmd`. */
+    landlock?: boolean;
 }
 
 const quote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
@@ -61,9 +64,11 @@ export function renderCloudConfig(input: CloudConfigInput): string {
         lock_passwd: true,
     };
     const runcmd = [...list(os.runcmd), ...(input.runcmd ?? [])];
+    const bootcmd = [...list(os.bootcmd), ...(input.landlock ? [landlockScript(input.os, CLOUD_INIT_REBOOT)] : [])];
     const config: Record<string, unknown> = {
         ssh_pwauth: false,
         ...os,
+        ...(bootcmd.length > 0 ? { bootcmd } : {}),
         ...(input.hostname ? { hostname: input.hostname, fqdn: input.fqdn, prefer_fqdn_over_hostname: false, manage_etc_hosts: true } : {}),
         ...(input.defaultUser
             ? { system_info: { default_user: login }, users: ["default"], ssh_authorized_keys: [input.user.publicKey] }

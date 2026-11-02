@@ -21,6 +21,8 @@ export interface ResolvedOs {
     harvester: Record<string, unknown>;
     /** Added on hosts that run Kubernetes; all an existing machine gets. */
     kubernetes: Record<string, unknown>;
+    /** How it turns Landlock on (the `landlock` profile); none when the OS profile doesn't say. */
+    landlock?: { enable: string };
 }
 
 /** Where a host's cloud-config goes, which picks the OS profile's sections. */
@@ -150,6 +152,7 @@ export function resolveOsProfiles(layers: Record<string, OsLayerEntry>[], diags:
             cloudInit,
             harvester,
             kubernetes,
+            ...(profile.landlock ? { landlock: profile.landlock } : {}),
         };
     }
     return resolved;
