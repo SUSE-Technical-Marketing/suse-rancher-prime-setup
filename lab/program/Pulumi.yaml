@@ -3,4 +3,4 @@ description: Lab engine program. Driven by the lab CLI; do not run pulumi comman
 runtime:
   name: nodejs
   options:
-    packagemanager: pnpm
+    packagemanager: bun

@@ -1374,15 +1374,86 @@ catalog:
 });
 
 describe("networks", () => {
-    it("allows the untagged network without DHCP but requires it on VLANs", () => {
-        const ok = load(`${BASE.replace("hv-north: {}", "hv-north: { networks: { untagged: {} } }")}
+    it("allows networks without lab DHCP, untagged and VLAN (the LAN's DHCP, or fixed addresses)", () => {
+        const ok = load(`${BASE.replace("hv-north: {}", "hv-north: { networks: { untagged: {}, vlans: [{ id: 100 }] } }")}
 hosts:
   vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi }
+  vm2: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, network: vlan100 }
 `);
         expect(errors(ok)).toEqual([]);
+    });
+});
 
-        const bad = load(BASE.replace("hv-north: {}", "hv-north: { networks: { vlans: [{ id: 100 }] } }"));
-        expect(errors(bad)).toEqual(["harvesters.hv-north.networks.vlans[0].dhcp: required"]);
+describe("fixed addresses", () => {
+    const NETWORKS = `networks:
+      untagged: { cidr: 10.29.10.0/24, gateway: 10.29.10.1 }
+      vlans:
+        - { id: 50, cidr: 203.0.113.0/24, gateway: 203.0.113.1, dns: [ 9.9.9.9 ] }
+        - { id: 20, dhcp: { cidr: 10.29.20.0/24, gateway: 10.29.20.1, range: [ 10.29.20.100, 10.29.20.150 ] }, loadBalancer: { range: [ 10.29.20.200, 10.29.20.210 ] } }`;
+    const lab = (vms: string) => load(`${BASE.replace("  hv-north: {}", `  hv-north:\n    ${NETWORKS}`)}
+hosts:
+${vms}
+`);
+    const vm = (name: string, spec: string) => `  ${name}: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, ${spec} }`;
+
+    it("sets them from the network: its own subnet, or its DHCP's, outside the DHCP range", () => {
+        const { lab: resolved, diagnostics } = lab([
+            vm("a", "network: vlan50, ip: 203.0.113.20, fqdn: gitlab.example.com"),
+            vm("b", "network: untagged, ip: 10.29.10.5"),
+            vm("c", "network: vlan20, ip: 10.29.20.50"),
+            vm("d", "network: default/vlan40, ip: 10.29.40.200/24, gateway: 10.29.40.1"),
+        ].join("\n"));
+        expect(diagnostics.errors).toEqual([]);
+        const host = (n: string) => resolved!.hosts.find(h => h.name === n) as any;
+        expect(host("a")).toMatchObject({ fqdn: "gitlab.example.com", network: "vlan50", ip: { address: "203.0.113.20", prefix: 24, gateway: "203.0.113.1", dns: ["9.9.9.9"] } });
+        expect(host("b").ip).toEqual({ address: "10.29.10.5", prefix: 24, gateway: "10.29.10.1", dns: ["10.29.10.1"] });
+        expect(host("c").ip).toEqual({ address: "10.29.20.50", prefix: 24, gateway: "10.29.20.1", dns: ["10.29.20.1"] });
+        expect(host("d")).toMatchObject({ network: "default/vlan40", ip: { address: "10.29.40.200", prefix: 24, gateway: "10.29.40.1", dns: ["10.29.40.1"] } });
+        expect(host("b").fqdn).toBe("b.lab.geeko.me");
+    });
+
+    it("keeps them in the subnet, out of the DHCP range and load-balancer pool, off the network's own addresses, and unique", () => {
+        expect(errors(lab([
+            vm("a", "network: vlan20, ip: 10.29.20.120"),
+            vm("b", "network: vlan20, ip: 10.29.20.205"),
+            vm("c", "network: vlan20, ip: 10.29.20.1"),
+            vm("d", "network: vlan20, ip: 10.29.20.2"),
+            vm("e", "network: vlan50, ip: 198.51.100.4"),
+            vm("f", "network: vlan50, ip: 203.0.113.255"),
+            vm("g", "network: vlan50, ip: 203.0.113.30"),
+            vm("h", "network: vlan50, ip: 203.0.113.30"),
+            vm("i", "network: vlan50, ip: 203.0.113.31/16"),
+        ].join("\n")))).toEqual([
+            "hosts.a.ip: 10.29.20.120 is in the DHCP range 10.29.20.100-10.29.20.150; a fixed address goes outside it",
+            "hosts.b.ip: 10.29.20.205 is in the load-balancer pool 10.29.20.200-10.29.20.210",
+            "hosts.c.ip: 10.29.20.1 is the gateway",
+            "hosts.d.ip: 10.29.20.2 is the DHCP server",
+            "hosts.e.ip: 198.51.100.4 is outside vlan50's 203.0.113.0/24",
+            "hosts.f.ip: 203.0.113.255 is the network's broadcast address",
+            "hosts.h.ip: 203.0.113.30 is g's fixed address too",
+            "hosts.i.ip: /16 doesn't match vlan50's 203.0.113.0/24; leave the prefix out",
+        ]);
+    });
+
+    it("needs the prefix and gateway on a network the lab doesn't declare, and a subnet on one it does", () => {
+        expect(errors(lab([
+            vm("a", "network: default/vlan40, ip: 10.29.40.200"),
+            vm("b", "network: vlan50, ip: 203.0.113.20, gateway: 203.0.113.254"),
+            vm("c", "network: untagged, gateway: 10.29.10.1"),
+        ].join("\n")))).toEqual([
+            "hosts.a.ip: needs its prefix (10.29.40.200/24) on default/vlan40, a network the lab doesn't declare",
+            "hosts.a.gateway: required with ip on default/vlan40, a network the lab doesn't declare",
+            "hosts.b.gateway: comes from the network vlan50; set it there",
+            "hosts.c.gateway: only goes with ip",
+        ]);
+        const plain = load(`${BASE.replace("hv-north: {}", "hv-north: { networks: { vlans: [{ id: 60 }, { id: 70, cidr: 10.0.70.0/24 }] } }")}
+hosts:
+${vm("a", "network: vlan60, ip: 10.0.60.5")}
+`);
+        expect(errors(plain)).toEqual([
+            "harvesters.hv-north.networks.vlans[1]: needs both cidr and gateway, for its VMs' fixed addresses",
+            "hosts.a.ip: vlan60 has neither lab DHCP nor a cidr: give the network cidr and gateway",
+        ]);
     });
 });
 

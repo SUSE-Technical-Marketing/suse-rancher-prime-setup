@@ -1,0 +1,31 @@
+# Throwaway: a Leap 16 VM, to see whether Landlock is active by default (the kernel's CONFIG_LSM has
+# it) and which bootloader the image uses. SLES 16 and SL Micro 6.1 have no public images.
+apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: landlock-probe }
+spec:
+  domain: lab.geeko.me
+  tls: { acme: none }
+  ssh: { publicKey: { file: ~/.ssh/id_ed25519.pub }, privateKey: "{{ secrets['ssh-key'] }}" }
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Harvester
+metadata: { name: prod-virt-ams01 }
+spec:
+  # The VM uses prod-virt-ams01's own vlan40 network (pool .100-.150) with a fixed address.
+  # prod-virt-ams01 already has a longhorn-single StorageClass (not this lab's).
+  storageClass: { name: longhorn-single-probe }
+---
+kind: HarvesterVM
+metadata: { name: ll-leap16 }
+spec:
+  harvester: prod-virt-ams01
+  os: leap-16
+  cpu: 2
+  memory: 4Gi
+  disk: 20Gi
+  network: default/vlan40
+  ip: 10.29.40.200/24
+  gateway: 10.29.40.1
+  profiles:
+    rke2: {}

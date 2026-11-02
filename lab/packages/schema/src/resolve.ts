@@ -30,6 +30,8 @@ export interface ResolvedNetwork {
     name: string;
     vlanId?: number;
     dhcp?: { cidr: string; server: string; gateway: string; range: [string, string]; dns?: string[] };
+    /** Its subnet, gateway and DNS servers, for VMs with fixed addresses: from `dhcp`, or the network's own. */
+    subnet?: { cidr: string; gateway: string; dns: string[] };
     /** Harvester load-balancer IP pool for guest clusters' LoadBalancer services. */
     loadBalancer?: { cidr: string; gateway: string; range: [string, string] };
 }
@@ -134,8 +136,11 @@ export interface ResolvedHarvesterHost extends ResolvedHostBase {
     cpu: number;
     memory: string;
     disk: string;
+    /** A network of its Harvester document (`vlan20`), or `namespace/name` of one already on the Harvester. */
     network: string;
     macAddress?: string;
+    /** Its fixed address, set in the VM (cloud-init's network config): address, prefix, gateway, DNS servers. */
+    ip?: { address: string; prefix: number; gateway: string; dns: string[] };
 }
 
 export interface ResolvedSshHost extends ResolvedHostBase {
@@ -420,10 +425,28 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             }
             return { cidr, gateway, range: pool.range };
         };
+        /** A network's subnet for fixed addresses: its DHCP's, or its own (a network without lab DHCP). */
+        const subnetOf = (net: { dhcp?: unknown; cidr?: string; gateway?: string; dns?: string[] }, dhcp: ResolvedNetwork["dhcp"], netAt: string): ResolvedNetwork["subnet"] => {
+            const own = net.cidr !== undefined || net.gateway !== undefined || net.dns !== undefined;
+            if (dhcp) {
+                if (own) diags.error(L, netAt, "has lab DHCP: its cidr, gateway and dns are under dhcp");
+                return { cidr: dhcp.cidr, gateway: dhcp.gateway, dns: dhcp.dns ?? [dhcp.gateway] };
+            }
+            if (!own) return undefined;
+            if (!net.cidr || !net.gateway) {
+                diags.error(L, netAt, "needs both cidr and gateway, for its VMs' fixed addresses");
+                return undefined;
+            }
+            const [base, bits] = net.cidr.split("/");
+            if (nthAddress(net.cidr, 0) !== base) diags.error(L, `${netAt}.cidr`, `${net.cidr} isn't the start of its range; use ${nthAddress(net.cidr, 0)}/${bits}`);
+            if (!inCidr(net.gateway, net.cidr)) diags.error(L, `${netAt}.gateway`, `${net.gateway} is outside ${net.cidr}`);
+            return { cidr: net.cidr, gateway: net.gateway, dns: net.dns ?? [net.gateway] };
+        };
         const untaggedDhcp = withServer(h.networks.untagged.dhcp, `${at}.networks.untagged.dhcp`);
         const networks: ResolvedNetwork[] = [{
             name: "untagged",
             dhcp: untaggedDhcp,
+            subnet: subnetOf(h.networks.untagged, untaggedDhcp, `${at}.networks.untagged`),
             loadBalancer: withPool(h.networks.untagged.loadBalancer, untaggedDhcp, `${at}.networks.untagged.loadBalancer`),
         }];
         const seenVlans = new Set<number>();
@@ -432,7 +455,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             seenVlans.add(vlan.id);
             const dhcp = withServer(vlan.dhcp, `${at}.networks.vlans[${i}].dhcp`);
             networks.push({
-                name: `vlan${vlan.id}`, vlanId: vlan.id, dhcp,
+                name: `vlan${vlan.id}`, vlanId: vlan.id, dhcp, subnet: subnetOf(vlan, dhcp, `${at}.networks.vlans[${i}]`),
                 loadBalancer: withPool(vlan.loadBalancer, dhcp, `${at}.networks.vlans[${i}].loadBalancer`),
             });
         });
@@ -496,10 +519,69 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
 
     const checkNetwork = (harvester: ResolvedHarvester, network: string | undefined, at: string): string => {
         const name = network ?? harvester.defaultNetwork;
+        // `namespace/name`: a network already on the Harvester, which the lab doesn't declare.
+        if (/^[a-z0-9]([-a-z0-9]*[a-z0-9])?\/[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/.test(name)) return name;
         if (!harvester.networks.some(n => n.name === name)) {
             diags.error(L, at, `network "${name}" doesn't exist on harvester "${harvester.name}"; known: ${harvester.networks.map(n => n.name).join(", ")}`);
         }
         return name;
+    };
+
+    /**
+     * A VM's fixed address (`ip`), set in the VM itself, on a lab network (its subnet from the network)
+     * or one already on the Harvester (with its prefix and gateway): inside the subnet, outside its
+     * DHCP range and load-balancer pool, not one of its own addresses, and unique in the lab. A VM
+     * without one gets its address from DHCP: the lab's, or one already on the network (the LAN's).
+     */
+    const fixedTaken = new Map<string, string>();
+    const fixedAddress = (harvester: ResolvedHarvester, network: string, h: { ip?: string; gateway?: string; dns?: string[] }, at: string): { ip?: ResolvedHarvesterHost["ip"] } => {
+        const net = harvester.networks.find(n => n.name === network);
+        const existing = network.includes("/");
+        if (!h.ip) {
+            for (const f of ["gateway", "dns"] as const) if (h[f] !== undefined) diags.error(L, `${at}.${f}`, "only goes with ip");
+            return {};
+        }
+        const [address, prefixText] = h.ip.split("/");
+        if (address.split(".").some(o => Number(o) > 255)) {
+            diags.error(L, `${at}.ip`, `${address} isn't an IPv4 address`);
+            return {};
+        }
+        let subnet: { cidr: string; gateway: string; dns: string[] };
+        if (existing) {
+            // The lab doesn't know this network: the VM says what it looks like.
+            if (!prefixText) diags.error(L, `${at}.ip`, `needs its prefix (${address}/24) on ${network}, a network the lab doesn't declare`);
+            if (!h.gateway) diags.error(L, `${at}.gateway`, `required with ip on ${network}, a network the lab doesn't declare`);
+            if (!prefixText || !h.gateway) return {};
+            subnet = { cidr: `${nthAddress(`${address}/${prefixText}`, 0)}/${prefixText}`, gateway: h.gateway, dns: h.dns ?? [h.gateway] };
+        } else {
+            for (const f of ["gateway", "dns"] as const) if (h[f] !== undefined) diags.error(L, `${at}.${f}`, `comes from the network ${network}; set it there`);
+            if (!net) return {}; // reported by checkNetwork
+            if (!net.subnet) {
+                diags.error(L, `${at}.ip`, `${network} has neither lab DHCP nor a cidr: give the network cidr and gateway`);
+                return {};
+            }
+            subnet = net.subnet;
+            const bits = subnet.cidr.split("/")[1];
+            if (prefixText !== undefined && prefixText !== bits) diags.error(L, `${at}.ip`, `/${prefixText} doesn't match ${network}'s ${subnet.cidr}; leave the prefix out`);
+        }
+        const prefix = Number(subnet.cidr.split("/")[1]);
+        const problem = !inCidr(address, subnet.cidr) ? `${address} is outside ${network}'s ${subnet.cidr}`
+            : address === nthAddress(subnet.cidr, 0) ? `${address} is the network's own address`
+            : address === nthAddress(subnet.cidr, 2 ** (32 - prefix) - 1) ? `${address} is the network's broadcast address`
+            : address === subnet.gateway ? `${address} is the gateway`
+            : address === net?.dhcp?.server ? `${address} is the DHCP server`
+            : net?.dhcp && toInt(address) >= toInt(net.dhcp.range[0]) && toInt(address) <= toInt(net.dhcp.range[1]) ? `${address} is in the DHCP range ${net.dhcp.range[0]}-${net.dhcp.range[1]}; a fixed address goes outside it`
+            : net?.loadBalancer && toInt(address) >= toInt(net.loadBalancer.range[0]) && toInt(address) <= toInt(net.loadBalancer.range[1]) ? `${address} is in the load-balancer pool ${net.loadBalancer.range[0]}-${net.loadBalancer.range[1]}`
+            : undefined;
+        if (problem) {
+            diags.error(L, `${at}.ip`, problem);
+            return {};
+        }
+        const key = `${harvester.name}/${network}/${address}`;
+        const other = fixedTaken.get(key);
+        if (other) diags.error(L, `${at}.ip`, `${address} is ${other}'s fixed address too`);
+        fixedTaken.set(key, at.replace(/^hosts\./, ""));
+        return { ip: { address, prefix, gateway: subnet.gateway, dns: subnet.dns } };
     };
 
     // OS name -> Harvester names it's needed on, to work out images afterwards.
@@ -566,13 +648,16 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 diags.error(L, `${at}.on`, `unknown Harvester "${h.on}"; known: ${[...harvesters.keys()].sort().join(", ") || "none (add a Harvester document)"}`);
                 continue;
             }
-            if (h.address !== undefined) diags.error(L, `${at}.address`, `only applies to ssh hosts; a Harvester VM is reachable at ${name}.${lab.domain}`);
+            if (h.address !== undefined) diags.error(L, `${at}.address`, `only applies to ssh hosts; a Harvester VM is reachable at ${name}.${lab.domain}, or its ip`);
             needImage(harvester.name, h.os);
+            const network = checkNetwork(harvester, h.network, `${at}.network`);
             hosts.set(name, {
-                kind: "harvester", name, os: h.os, profiles: parseProfiles(h.profiles, at), profileOrder: [], capabilities: [], providers: {}, charts: [], chartValues: {}, outputs: {}, fqdn: `${name}.${lab.domain}`,
+                kind: "harvester", name, os: h.os, profiles: parseProfiles(h.profiles, at), profileOrder: [], capabilities: [], providers: {}, charts: [], chartValues: {},
+                outputs: {}, fqdn: h.fqdn ?? `${name}.${lab.domain}`,
                 kubernetes: runsKubernetes(name, h.profiles),
                 harvester: harvester.name, cpu: h.cpu ?? vmDefaults.cpu, memory: h.memory ?? vmDefaults.memory, disk: h.disk ?? vmDefaults.disk,
-                network: checkNetwork(harvester, h.network, `${at}.network`), macAddress: h.macAddress,
+                network, macAddress: h.macAddress,
+                ...fixedAddress(harvester, network, h, at),
             });
         }
     }

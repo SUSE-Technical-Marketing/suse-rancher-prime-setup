@@ -1,33 +1,44 @@
 [tools]
 node = "latest"
-pnpm = "latest"
+bun = "latest"
 pulumi = "latest"
 # Generates typed classes from the CRDs in packages/crds/crd-sources (mise run crds)
 "github:pulumi/crd2pulumi" = "latest"
 
+[tasks.install]
+description = "Install the workspace's packages (bun): the CLI, the program, and the composer's server use them"
+dir = "{{config_root}}"
+run = "bun install"
+
 [tasks.lab]
+depends = ["install"]
 description = "Run the lab CLI (mise run lab -- <command> <lab.yaml>)"
 dir = "{{cwd}}"
 run = "{{config_root}}/node_modules/.bin/tsx {{config_root}}/cli/src/main.ts"
 
 [tasks.test]
+depends = ["install"]
 description = "Run all unit tests"
-run = "pnpm -r test"
+run = "bun run --filter '@lab/*' test"
 
 [tasks.typecheck]
+depends = ["install"]
 description = "Typecheck all packages"
-run = "pnpm -r typecheck"
+run = "bun run --filter '@lab/*' typecheck"
 
 [tasks.crds]
+depends = ["install"]
 description = "Regenerate the typed CRD classes in packages/crds/generated from crd-sources/"
 dir = "{{config_root}}/packages/crds"
-run = "pnpm run generate"
+run = "bun run generate"
 
 [tasks.profile-types]
+depends = ["install"]
 description = "Regenerate program/generated/profile-settings.ts from the Profile documents in catalog/profiles/"
 run = "{{config_root}}/node_modules/.bin/tsx {{config_root}}/program/scripts/profile-types.ts"
 
 [tasks.ui]
+depends = ["install"]
 description = "Compose labs in the browser: builds and serves lab/ui on http://127.0.0.1:4173"
 dir = "{{config_root}}/ui"
 run = "mise run start"

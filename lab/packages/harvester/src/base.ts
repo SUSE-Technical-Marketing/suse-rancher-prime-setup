@@ -93,6 +93,8 @@ export class HarvesterBase extends pulumi.ComponentResource {
             chart: args.charts.dhcpController.chart,
             version: args.charts.dhcpController.version,
             timeoutSeconds: args.timeouts.harvesterAddon,
+            // One per Harvester: one already there (another setup's) is used as it is.
+            shared: true,
         }, { parent: this }) : undefined;
 
         const nads: Record<string, pulumi.Resource> = {};

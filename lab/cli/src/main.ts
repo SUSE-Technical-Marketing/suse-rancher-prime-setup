@@ -4,6 +4,7 @@ import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 import { defaultPersonalConfigPath, formatDiagnostic, loadCatalog, loadLab, PersonalConfig, ResolvedLab } from "@lab/schema";
 import { awsKeys, findAwsLeftovers } from "./aws";
+import { CloudInitWatch } from "./cloudinit";
 import {
     checkOwnership, claimHarvesters, closeSessions, currentUser, HarvesterSession, openSessions, releaseHarvesters, writeRunFiles,
 } from "./harvesters";
@@ -200,7 +201,9 @@ async function main(argv: string[]): Promise<void> {
 
                 if (command === "preview" || !opts.yes) {
                     log.step(`Preview of lab ${ctx.lab.name}`);
-                    await stack.preview(pulumiOutput);
+                    const watch = new CloudInitWatch();
+                    await stack.preview({ ...pulumiOutput, onEvent: watch.onEvent });
+                    for (const w of watch.warnings(labFile)) log.warn(w);
                     if (command === "preview") return;
                     if (!(await confirm(`Apply these changes to lab ${ctx.lab.name}?`))) {
                         log.info("Cancelled.");
@@ -212,7 +215,13 @@ async function main(argv: string[]): Promise<void> {
                     await claimHarvesters(ctx.lab, sessions);
                 }
                 log.step(`Updating lab ${ctx.lab.name}`);
-                await stack.up(pulumiOutput);
+                // With --yes there was no preview to warn in; warn after the update, also when it fails.
+                const watch = new CloudInitWatch();
+                try {
+                    await stack.up({ ...pulumiOutput, onEvent: opts.yes ? watch.onEvent : undefined });
+                } finally {
+                    for (const w of watch.warnings(labFile)) log.warn(w);
+                }
                 await writeLabKubeconfig(stack, labFile, ctx.lab.name);
                 log.ok(`Lab ${ctx.lab.name} is up. Run "lab outputs ${labFile}" to see its addresses.`);
             });

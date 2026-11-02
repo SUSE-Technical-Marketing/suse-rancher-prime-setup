@@ -121,7 +121,17 @@ async function call<T>(method: string, url: string, body?: unknown): Promise<T> 
         headers: body === undefined ? {} : { "content-type": "application/json" },
         body: body === undefined ? undefined : JSON.stringify(body),
     });
-    const data = await res.json();
+    // Not JSON: not the lab UI's server answering (Vite's proxy with the server down, another server),
+    // or a crash. Say so, with what came back, instead of the browser's parse error ("The string did
+    // not match the expected pattern" in Safari, "Unexpected token" elsewhere).
+    const text = await res.text();
+    let data: any;
+    try {
+        data = text ? JSON.parse(text) : {};
+    } catch {
+        const shown = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
+        throw Object.assign(new Error(`the lab UI's server didn't answer ${method} ${url} (HTTP ${res.status}${shown ? `: ${shown}` : ""}). Is it running? Start it with "mise run ui" in lab/ (or "mise run dev" in lab/ui) and check its console.`), { status: res.status });
+    }
     if (!res.ok) throw Object.assign(new Error(data.error ?? `HTTP ${res.status}`), { status: res.status, data });
     return data as T;
 }

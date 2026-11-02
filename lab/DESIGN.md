@@ -62,7 +62,7 @@ code from `pulumi/modules` is ported (copied and adapted), not imported.
 
 ```bash
 cd lab
-mise install                      # node, pnpm, pulumi
+mise install                      # node, bun, pulumi
 mise run lab -- validate labs/rancher-airgap.yaml   # schema + reference checks, no Pulumi
 mise run lab -- plan     labs/rancher-airgap.yaml   # print the resolved graph (hosts, profiles, order)
 mise run lab -- preview  labs/rancher-airgap.yaml   # pulumi preview
@@ -81,9 +81,8 @@ mise run lab -- destroy  labs/rancher-airgap.yaml   # remove everything
 ```
 lab/
   DESIGN.md
-  mise.toml                 # node, pnpm, pulumi — same approach as pulumi/
-  package.json              # workspace root
-  pnpm-workspace.yaml       # packages/*, cli, program
+  mise.toml                 # node, bun, pulumi; tasks install (bun install) first
+  package.json              # workspace root: workspaces packages/*, cli, program (bun)
   cli/                      # `lab` command: Automation API driver, secret resolution
   program/                  # the Pulumi project (Pulumi.yaml) the CLI runs
   packages/
@@ -212,6 +211,10 @@ harvesters:
         - id: 100
           dhcp: { cidr: 10.29.100.0/24, gateway: 10.29.100.1, range: [10.29.100.100, 10.29.100.150] }
           loadBalancer: { range: [10.29.100.200, 10.29.100.220] }   # optional Harvester LB pool
+        - id: 120                           # no lab DHCP: the subnet only, for fixed addresses
+          cidr: 10.29.120.0/24
+          gateway: 10.29.120.1
+          dns: [10.29.120.1]                # optional; default the gateway
 
   hv-south: {}                              # url and credentials from the personal config (§10)
 ```
@@ -219,12 +222,19 @@ harvesters:
 Everything here used to be hard-coded in `pulumi/setups/sample-setup/harvester-base.ts`
 (`10.29.<vlan>` addressing, `lab.geeko.me`, the RouterOS credentials).
 
-- **DHCP and DNS add-ons are always installed.** The vm-dhcp-controller and
-  harvester-dns-controller add-ons are installed on every Harvester in a lab. Every VLAN needs a
-  `dhcp` pool. On the untagged network `dhcp` is optional: leave it out when the physical network
-  already has a DHCP server (for example a home router), so the two don't conflict. VLANs are
+- **DHCP is optional, per network.** A network with `dhcp` gets a vm-dhcp-controller pool; the
+  vm-dhcp-controller add-on is installed only when some network has one. Leave `dhcp` out when the
+  physical network already has a DHCP server (for example a home router), so the two don't
+  conflict, or when its VMs all get fixed addresses (§5.3). A network without `dhcp` can still give
+  its subnet (`cidr`, `gateway`, `dns`), which fixed addresses are checked against. VLANs are
   optional.
-- **Every Harvester VM gets a DNS record** (`<host>.<domain>`) through the DNS controller.
+- **Networks already on the Harvester** can be used by name: a host's `network: default/vlan40`
+  attaches it to that NetworkAttachmentDefinition. The lab doesn't create, change or delete it, and
+  knows nothing of its addressing.
+- **DNS records come from the harvester-dns-controller**, installed only when the Harvester has
+  `dns:`. It registers `<host>.<domain>` for the VMs it can see an address for: those on a network
+  with lab DHCP. A VM with a fixed address or on a network with someone else's DHCP gets no record
+  from it; give it an `fqdn` that resolves elsewhere, or add the record yourself.
 - **Load-balancer pools** (`loadBalancer:` on a network) become a Harvester load-balancer IPPool,
   limited to the lab's namespace. Guest clusters on that network with the
   `harvester-cloud-provider` profile take their LoadBalancer addresses from it instead of using
@@ -253,7 +263,9 @@ hosts:
     memory: 16Gi
     disk: 100Gi
     network: vlan100             # optional; default = the harvester's default network
-    macAddress: 52:54:00:aa:bb:01   # optional, for a fixed DHCP lease
+    macAddress: 52:54:00:aa:bb:01   # optional; default a random one (a stable one with `ip`)
+    ip: 10.29.100.20             # optional fixed address, set in the guest (no DHCP)
+    fqdn: rancher.example.com    # optional; default <host>.<domain>
     profiles:
       k3s: {}
       rancher: { plugins: [harvester, kubewarden] }
@@ -268,7 +280,27 @@ hosts:
 
 - `cpu`, `memory`, `disk` of a Harvester host (and of a downstream pool) default to the catalog's `Defaults` (`vm`: 4 CPUs, 8Gi, 40Gi). There are no size presets.
 - A Harvester host's FQDN is `<host>.<domain>`, registered by the DNS controller. Rancher is
-  served at that FQDN by default (`https://rancher.lab.geeko.me`).
+  served at that FQDN by default (`https://rancher.lab.geeko.me`). With `fqdn` the host has a name
+  outside the lab (`gitlab.example.com`), used instead of `<host>.<domain>` everywhere (TLS
+  certificates, Rancher's hostname, `host.fqdn` in templates, outputs); its DNS record is
+  up to you.
+- **Fixed addresses.** `ip` gives a Harvester VM a fixed IPv4 address, written into the guest as
+  cloud-init network config (v2: the NIC matched by its MAC, DHCP off, the address, a default
+  route via the gateway, the DNS servers and the lab's domain as search domain). No DHCP
+  reservation is involved: vm-dhcp-controller 1.8 doesn't keep reservations, and 1.9 only for
+  addresses inside its pool range. Without a `macAddress` the VM gets a stable one derived from the
+  lab and host names, so the config keeps matching. `validate` checks the address against the
+  network: inside its subnet, not its network or broadcast address, the gateway or the DHCP server,
+  outside the DHCP range and the load-balancer pool, and unique in the lab. On a network the lab
+  declares, the prefix, gateway and DNS servers come from its subnet (`ip: 10.29.100.20`); on a
+  network already on the Harvester the host gives them (`ip: 10.29.40.200/24`, `gateway`, and
+  optionally `dns`, default the gateway). A VM on a network without lab DHCP needs no `ip`: the
+  network's own DHCP may serve it.
+- **A running VM keeps its first setup.** Its cloud-init (user data and network config) is only
+  read on first boot, so a change to it (a profile added, a new `ip`, `dns` or `fqdn`) doesn't
+  reach the VM, and the engine doesn't recreate the VM for it. `preview` and `up` warn about each
+  such host (with `--yes`, after the update); recreate the lab to apply the change. Likewise a new
+  `network` changes the VM's spec, but KubeVirt only applies it on a restart.
 - SSH hosts already have a DNS record. Their `address` is used as-is; the lab creates no records
   for them.
 
@@ -1138,11 +1170,14 @@ CloudFormation stacks and the launch template Rancher names after it).
 
 ## 12. Toolchain and quality
 
-- `lab/mise.toml`: node, pnpm, pulumi (as in `pulumi/mise.toml`), plus the tasks `lab` (the CLI,
-  run from the caller's directory so relative lab paths work), `test` and `typecheck`.
+- `lab/mise.toml`: node, bun, pulumi, plus the tasks `lab` (the CLI, run from the caller's directory
+  so relative lab paths work), `test` and `typecheck`, each after `install` (`bun install`). Bun is
+  the package manager only: the CLI runs on Node (tsx), and so does the Pulumi program (Pulumi's
+  Node.js host; `packagemanager: bun` in Pulumi.yaml). `lab/ui` is a Bun project of its own; its
+  `install` installs `lab/` too, since its server uses the engine's packages.
 - TypeScript is pinned to 5.9: Pulumi's TypeScript runtime (ts-node) doesn't support TypeScript 7.
-- TypeScript, strict mode, pnpm workspace. Packages are consumed as source; `pnpm -r typecheck`
-  runs `tsc --noEmit` everywhere.
+- TypeScript, strict mode, a Bun workspace. Packages are consumed as source; `typecheck` runs
+  `tsc --noEmit` in every package (`bun run --filter '@lab/*' typecheck`).
 - **Tests**
   - `schema`: unit tests for validation and resolution, using the four example labs plus broken
     variants (missing references, profile requirements, unknown OS).
@@ -1715,7 +1750,7 @@ document is.
 | `Harvester` | as `harvesters.<name>` in §5.2 | the lab's Harvesters (lab file and its includes only) |
 | `AwsSite` | `region`, `credentials`, `vpc.cidr`, `zones`, `ttl` (§5.6) | the lab's AWS sites, each with a VPC of its own (lab file and its includes only) |
 | `HarvesterVM` | as a host in §5.3, with `harvester:` instead of `on:` | the lab's hosts |
-| `Machine` | as an `on: ssh` host in §5.3 (no `cpu`, `memory`, `disk`, `network`, `macAddress`) | the lab's hosts |
+| `Machine` | as an `on: ssh` host in §5.3 (no `cpu`, `memory`, `disk`, `network`, `macAddress`, `ip`, `gateway`, `dns`, `fqdn`) | the lab's hosts |
 | `DownstreamCluster` | as `downstream.<name>` in §5.5 | the lab's downstream clusters |
 
 HelmChart, Manifest, Binary and KubernetesDistribution share one name space: profiles and the engine

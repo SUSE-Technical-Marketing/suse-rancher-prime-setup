@@ -5,7 +5,8 @@
 const OCTET = "(25[0-5]|2[0-4]\\d|1?\\d?\\d)";
 const IPV4 = new RegExp(`^(${OCTET}\\.){3}${OCTET}$`);
 
-export type AddressFormat = "ip" | "cidr";
+/** `ip-or-cidr`: an address, optionally with its prefix (a VM's fixed address, `10.29.40.200/24`). */
+export type AddressFormat = "ip" | "cidr" | "ip-or-cidr";
 
 export const toInt = (ip: string) => ip.split(".").reduce((n, o) => n * 256 + Number(o), 0);
 const toIp = (n: number) => [24, 16, 8, 0].map(s => Math.floor(n / 2 ** s) % 256).join(".");
@@ -15,6 +16,10 @@ export function addressProblem(value: unknown, format: AddressFormat): string | 
   if (typeof value !== "string" || value === "" || value.includes("{{")) return undefined;
   const v = value.trim();
   if (format === "ip") return IPV4.test(v) ? undefined : `${v} isn't an IPv4 address, like 10.0.20.1`;
+  if (format === "ip-or-cidr") {
+    const [ip, bits, ...rest] = v.split("/");
+    return !rest.length && IPV4.test(ip) && (bits === undefined || (/^\d{1,2}$/.test(bits) && Number(bits) <= 32)) ? undefined : `${v} isn't an IPv4 address, like 10.0.20.10 or 10.0.20.10/24`;
+  }
   const [ip, bits, ...rest] = v.split("/");
   if (rest.length || bits === undefined || !IPV4.test(ip) || !/^\d{1,2}$/.test(bits) || Number(bits) > 32) return `${v} isn't a CIDR, like 10.0.20.0/24`;
   const size = 2 ** (32 - Number(bits));

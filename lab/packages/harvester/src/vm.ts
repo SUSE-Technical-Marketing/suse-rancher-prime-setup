@@ -19,6 +19,10 @@ export interface HarvesterVmArgs {
     macAddress?: string;
     /** `#cloud-config` user data; secret because it may hold registration codes. */
     userData: pulumi.Input<string>;
+    /** cloud-init's network config, for a fixed address (then `macAddress` is set too). */
+    networkData?: string;
+    /** The fixed address: the VM's address, without waiting for the guest agent to report one. */
+    fixedAddress?: string;
     /** `namespace/name` of the Harvester key pair, shown in the Harvester UI. */
     keyPair?: pulumi.Input<string>;
     /** Seconds to wait for the VM to run, and then for its IP address. */
@@ -41,7 +45,7 @@ export class HarvesterVm extends pulumi.ComponentResource {
 
         const cloudInit = new k8s.core.v1.Secret(child("cloudinit"), {
             metadata: { name: `${args.vmName}-cloudinit`, namespace: args.namespace, labels },
-            stringData: { userdata: pulumi.secret(args.userData) },
+            stringData: { userdata: pulumi.secret(args.userData), ...(args.networkData ? { networkdata: args.networkData } : {}) },
         }, {
             ...o,
             // Same name, so the old one must go first. A running VM doesn't notice: cloud-init
@@ -99,14 +103,21 @@ export class HarvesterVm extends pulumi.ComponentResource {
                         networks: [{ name: "default", multus: { networkName: args.network } }],
                         volumes: [
                             { name: "disk-0", persistentVolumeClaim: { claimName: disk.metadata.name } },
-                            { name: "cloudinit", cloudInitNoCloud: { secretRef: { name: cloudInit.metadata.name } } },
+                            {
+                                name: "cloudinit",
+                                cloudInitNoCloud: {
+                                    secretRef: { name: cloudInit.metadata.name },
+                                    ...(args.networkData ? { networkDataSecretRef: { name: cloudInit.metadata.name } } : {}),
+                                },
+                            },
                         ],
                     },
                 },
             },
         }, { ...o, dependsOn: [disk, cloudInit] });
 
-        this.ipAddress = new KubeValue(child("ip"), {
+        // A fixed address is known; otherwise the guest agent reports the one DHCP gave it.
+        this.ipAddress = args.fixedAddress ? pulumi.output(args.fixedAddress) : new KubeValue(child("ip"), {
             target: { context: args.harvester },
             path: pulumi.interpolate`/apis/kubevirt.io/v1/namespaces/${args.namespace}/virtualmachineinstances/${args.vmName}`,
             field: "status.interfaces.0.ipAddress",

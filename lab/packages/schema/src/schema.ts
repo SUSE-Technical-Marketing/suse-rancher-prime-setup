@@ -53,6 +53,17 @@ const Dhcp = z.strictObject({
     dns: z.array(ipv4).optional(),
 });
 
+/**
+ * A network without lab DHCP, for VMs with fixed addresses (`ip`): its subnet, gateway and DNS
+ * servers, which the VMs get in their network config. A network with lab DHCP has them in `dhcp`.
+ */
+const Subnet = {
+    cidr: z.string().regex(CIDR, "must be a CIDR like 10.29.100.0/24").optional(),
+    gateway: ipv4.optional(),
+    /** Default: the gateway. */
+    dns: z.array(ipv4).optional(),
+};
+
 /** A Harvester load-balancer IP pool on a network, for LoadBalancer services in guest clusters. */
 const LoadBalancerPool = z.strictObject({
     range: z.tuple([ipv4, ipv4]),
@@ -96,8 +107,9 @@ export const HarvesterInput = z.strictObject({
     }).optional(),
     networks: z.strictObject({
         default: z.string().optional(),
-        untagged: z.strictObject({ dhcp: Dhcp.optional(), loadBalancer: LoadBalancerPool.optional() }).default({}),
-        vlans: z.array(z.strictObject({ id: z.int().min(1).max(4094), dhcp: Dhcp, loadBalancer: LoadBalancerPool.optional() })).default([]),
+        untagged: z.strictObject({ dhcp: Dhcp.optional(), loadBalancer: LoadBalancerPool.optional(), ...Subnet }).default({}),
+        /** A VLAN with lab DHCP (`dhcp`), or without: then fixed addresses only, on its `cidr`. */
+        vlans: z.array(z.strictObject({ id: z.int().min(1).max(4094), dhcp: Dhcp.optional(), loadBalancer: LoadBalancerPool.optional(), ...Subnet })).default([]),
     }).default({ untagged: {}, vlans: [] }),
 });
 export type HarvesterInput = z.infer<typeof HarvesterInput>;
@@ -148,8 +160,20 @@ export const HostInput = z.strictObject({
     cpu: z.int().min(1).optional(),
     memory: quantity.optional(),
     disk: quantity.optional(),
+    /** A network of the Harvester document (`vlan20`), or one already on the Harvester (`default/vlan40`). */
     network: z.string().optional(),
     macAddress: z.string().regex(MAC, "must be a MAC address like 52:54:00:aa:bb:01").optional(),
+    /**
+     * A fixed address, set in the VM itself (cloud-init's network config), no DHCP involved: in the
+     * network's subnet, outside its DHCP range. On a network already on the Harvester, with its
+     * prefix (`10.29.40.200/24`) and `gateway`, since the lab doesn't know that network.
+     */
+    ip: z.string().regex(/^(\d{1,3}\.){3}\d{1,3}(\/([0-9]|[12][0-9]|3[0-2]))?$/, "must be an IPv4 address, with /prefix on a network the lab doesn't declare").optional(),
+    /** For `ip` on a network already on the Harvester: its gateway and (default the gateway) DNS servers. */
+    gateway: ipv4.optional(),
+    dns: z.array(ipv4).optional(),
+    /** Its name, when it has one outside the lab (`gitlab.example.com`): instead of `<name>.<domain>`, everywhere. */
+    fqdn: dnsName.optional(),
     address: z.string().optional(),
     user: z.string().optional(),
     /** Profile name -> settings; checked against the profile's catalog schema by the resolver. */
@@ -169,7 +193,7 @@ export const HarvesterVMSpec = HostInput.omit({ on: true, address: true, user: t
 });
 
 /** A `Machine` document's spec: an existing machine the lab reaches over SSH. */
-export const MachineSpec = HostInput.omit({ on: true, cpu: true, memory: true, disk: true, network: true, macAddress: true });
+export const MachineSpec = HostInput.omit({ on: true, cpu: true, memory: true, disk: true, network: true, macAddress: true, ip: true, gateway: true, dns: true, fqdn: true });
 
 // ---------------------------------------------------------------------------------------------
 // Downstream clusters (§5.5)

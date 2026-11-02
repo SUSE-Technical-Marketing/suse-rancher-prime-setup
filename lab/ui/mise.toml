@@ -2,8 +2,8 @@
 bun = "latest"
 
 [tasks.install]
-description = "Install the UI's packages"
-run = "bun install"
+description = "Install the UI's packages, and the workspace's in lab/ (its server uses the engine's)"
+run = ["bun install --cwd {{config_root}}/..", "bun install"]
 
 [tasks.dev]
 description = "Run the UI with hot reload: Vite on http://127.0.0.1:5173, the API server behind it"

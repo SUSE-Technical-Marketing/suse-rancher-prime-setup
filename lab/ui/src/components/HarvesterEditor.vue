@@ -21,6 +21,19 @@ const vlanNames = computed(() => vlans.value.map(n => `vlan${n.id}`));
 const defaultNetwork = computed(() => (v.value.spec?.networks?.default === "untagged" ? undefined : v.value.spec?.networks?.default));
 const bools = [{ value: "true", label: "true" }, { value: "false", label: "false" }];
 
+const ADDRESSING = [{ value: "dhcp", label: "lab DHCP" }, { value: "none", label: "no lab DHCP" }];
+/** Switch a VLAN between lab DHCP and none, carrying its subnet, gateway and DNS servers across. */
+function setAddressing(i: number, dhcp: boolean) {
+  const vlan = { ...vlans.value[i] };
+  if (dhcp && !vlan.dhcp) {
+    const { cidr, gateway, dns, ...rest } = vlan;
+    set(["spec", "networks", "vlans", i], { ...rest, dhcp: { ...(cidr ? { cidr } : {}), ...(gateway ? { gateway } : {}), ...(dns ? { dns } : {}) } });
+  } else if (!dhcp && vlan.dhcp) {
+    const { dhcp: d, ...rest } = vlan;
+    set(["spec", "networks", "vlans", i], { ...rest, ...(d.cidr ? { cidr: d.cidr } : {}), ...(d.gateway ? { gateway: d.gateway } : {}), ...(d.dns ? { dns: d.dns } : {}) });
+  }
+}
+
 function addVlan() {
   const ids = vlans.value.map(n => Number(n.id));
   append(props.index, ["spec", "networks", "vlans"], { id: ids.length ? Math.max(...ids) + 1 : 100 });
@@ -76,11 +89,20 @@ function addVlan() {
         </header>
         <div class="grid">
           <TextField label="VLAN id" number required v-bind="bind(['spec', 'networks', 'vlans', i, 'id'])" />
-          <TextField label="DHCP CIDR" required placeholder="10.0.20.0/24" format="cidr" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'cidr'])" />
-          <TextField label="gateway" required placeholder="10.0.20.1" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'gateway'])" />
-          <RangeField label="DHCP range" required v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'range'])" />
-          <TextField label="DHCP server" placeholder="default: the second address" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'server'])" />
-          <ListField label="DNS servers" placeholder="default: the gateway" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'dns'])" />
+          <SelectField label="addresses" :options="ADDRESSING" :model-value="vlan.dhcp ? 'dhcp' : 'none'" hint="lab DHCP, or none: fixed addresses (or the LAN's DHCP)"
+            @update:model-value="x => setAddressing(i, x === 'dhcp')" />
+          <template v-if="vlan.dhcp">
+            <TextField label="DHCP CIDR" required placeholder="10.0.20.0/24" format="cidr" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'cidr'])" />
+            <TextField label="gateway" required placeholder="10.0.20.1" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'gateway'])" />
+            <RangeField label="DHCP range" required hint="fixed addresses go outside it" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'range'])" />
+            <TextField label="DHCP server" placeholder="default: the second address" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'server'])" />
+            <ListField label="DNS servers" placeholder="default: the gateway" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'dns'])" />
+          </template>
+          <template v-else>
+            <TextField label="CIDR" placeholder="203.0.113.0/24" format="cidr" hint="for its VMs' fixed addresses" v-bind="bind(['spec', 'networks', 'vlans', i, 'cidr'])" />
+            <TextField label="gateway" placeholder="203.0.113.1" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'gateway'])" />
+            <ListField label="DNS servers" placeholder="default: the gateway" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'dns'])" />
+          </template>
           <RangeField label="load-balancer range" hint="a Harvester LB pool for guest clusters (harvester-cloud-provider)" v-bind="bind(['spec', 'networks', 'vlans', i, 'loadBalancer', 'range'])" />
         </div>
       </div>
@@ -90,7 +112,7 @@ function addVlan() {
     <details class="advanced">
       <summary>More</summary>
       <div class="grid">
-        <YamlField label="untagged network" hint="{ dhcp, loadBalancer } on the untagged network" v-bind="bind('spec.networks.untagged')" />
+        <YamlField label="untagged network" hint="{ dhcp, loadBalancer } on the untagged network, or { cidr, gateway, dns } for fixed addresses without lab DHCP" v-bind="bind('spec.networks.untagged')" />
         <TextField label="cluster network" placeholder="default mgmt" v-bind="bind('spec.clusterNetwork')" />
         <YamlField label="storage class" hint="{ name, replicas, parameters }, merged over the defaults" v-bind="bind('spec.storageClass')" />
       </div>

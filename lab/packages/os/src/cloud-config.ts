@@ -85,3 +85,36 @@ export function machineSetup(os: ResolvedOs, vars: CloudInitVars, kubernetes: bo
     const runcmd = list(config.runcmd).map(c => (Array.isArray(c) ? c.map(a => quote(String(a))).join(" ") : String(c)));
     return [...(packages.length > 0 ? INSTALL[os.family](packages) : []), ...runcmd];
 }
+
+/** A VM's fixed address, for cloud-init's network config. */
+export interface FixedAddress {
+    /** The interface to configure, by its MAC (the VM's fixed MAC). */
+    macAddress: string;
+    address: string;
+    prefix: number;
+    gateway: string;
+    dns: string[];
+    /** DNS search domains (the lab's domain). */
+    search?: string[];
+}
+
+/**
+ * cloud-init's network config (version 2) for a fixed address: the interface with that MAC gets the
+ * address, a default route through the gateway and the DNS servers, and no DHCP. cloud-init writes
+ * it in the OS's own form (NetworkManager, netplan, wicked).
+ */
+export function renderNetworkConfig(f: FixedAddress): string {
+    return stringify({
+        version: 2,
+        ethernets: {
+            lab0: {
+                match: { macaddress: f.macAddress.toLowerCase() },
+                dhcp4: false,
+                dhcp6: false,
+                addresses: [`${f.address}/${f.prefix}`],
+                routes: [{ to: "0.0.0.0/0", via: f.gateway }],
+                nameservers: { addresses: f.dns, ...(f.search?.length ? { search: f.search } : {}) },
+            },
+        },
+    }, { lineWidth: 0 });
+}

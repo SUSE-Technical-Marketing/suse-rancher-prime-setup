@@ -11,9 +11,8 @@ one command. See [DESIGN.md](DESIGN.md) for the full design and the lab file ref
 
 ```bash
 cd lab
-mise install                 # node, pnpm, pulumi, crd2pulumi
-mise exec -- pnpm install
-mise run lab -- validate labs/rancher-harvester-rke2.yaml
+mise install                 # node, bun, pulumi, crd2pulumi
+mise run lab -- validate     # (installs the workspace's packages with bun first) labs/rancher-harvester-rke2.yaml
 mise run lab -- plan     labs/rancher-harvester-rke2.yaml
 ```
 
@@ -87,6 +86,26 @@ kind: HelmChart                            # a catalog override for this lab
 metadata: { name: rancher }
 spec: { version: v2.14.3 }
 ```
+
+A HarvesterVM gets its address from the network's DHCP by default. For a fixed address give it
+`ip` (set in the guest by cloud-init, outside the DHCP range). On a network the lab declares the
+subnet comes from that network; on a network already on the Harvester give the prefix and gateway:
+
+```yaml
+kind: HarvesterVM
+metadata: { name: gitlab }
+spec:
+  harvester: asgard
+  os: leap-16
+  network: default/vlan40         # an existing network, by namespace/name
+  ip: 10.29.40.200/24
+  gateway: 10.29.40.1             # dns: [...] is optional, default the gateway
+  fqdn: gitlab.example.com        # optional; instead of gitlab.<domain>, everywhere
+```
+
+A network without lab DHCP (no `dhcp:`, only `cidr`, `gateway` and optionally `dns`) suits VMs
+with fixed addresses, or a LAN that has its own DHCP server. The DNS controller only registers VMs
+on networks with lab DHCP; records for the others are up to you. See DESIGN.md §5.2 and §5.3.
 
 Each lab document name may be used once (HarvesterVMs and Machines share names, as hosts).
 Errors point at the document: `HarvesterVM/rancher.spec.cpu`, `HelmChart/rancher.spec.version`, or
