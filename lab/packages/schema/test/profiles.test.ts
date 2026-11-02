@@ -13,7 +13,7 @@ describe("profiles in the catalog", () => {
         expect(diagnostics.errors).toEqual([]);
         expect(Object.keys(catalog!.profiles).sort()).toEqual([
             "ai-factory", "cert-manager", "harvester-cloud-provider", "hauler", "hauler-chart", "k3s", "metallb", "mlm-client", "mlm-server",
-            "outrider", "rancher", "rke2", "sprouter", "traefik",
+            "outrider", "rancher", "rke2", "sprouter", "suse-observability-agent", "traefik",
         ]);
         expect(catalog!.profiles.rancher).toMatchObject({ requires: ["kubernetes", "ingress", "tls", "secret-propagation"], chart: "rancher" });
         expect(catalog!.profiles.k3s).toMatchObject({ distribution: "k3s" });

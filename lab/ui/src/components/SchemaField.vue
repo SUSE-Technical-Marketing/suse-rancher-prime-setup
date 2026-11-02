@@ -13,7 +13,8 @@ import YamlField from "./YamlField.vue";
 
 // One setting, its control chosen from its schema. Objects with properties nest; what has no
 // simple control (anyOf, chart values, lists of objects) is edited as YAML.
-const props = defineProps<{ schema: SettingSchema; modelValue?: unknown; label: string; required?: boolean }>();
+// `options`: the values it can take, when the caller knows them (the clusters an `observer` can name).
+const props = defineProps<{ schema: SettingSchema; modelValue?: unknown; label: string; required?: boolean; options?: string[] }>();
 const emit = defineEmits<{ "update:modelValue": [value: unknown] }>();
 
 const s = computed(() => props.schema);
@@ -21,6 +22,7 @@ const hint = computed(() => s.value.description);
 const placeholder = computed(() => (s.value.default !== undefined && typeof s.value.default !== "object" ? `default ${s.value.default}` : undefined));
 const kind = computed(() => {
   const x = s.value;
+  if (props.options) return "options";
   if (x.$ref === "secretOrString") return "secret";
   if (x.$ref === "credentials") return "credentials";
   if (x.$ref === "chartValues") return "yaml";
@@ -59,7 +61,8 @@ const boolOptions = computed(() => [
 </script>
 
 <template>
-  <SecretField v-if="kind === 'secret'" :label="label" :hint="hint" :required="required" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />
+  <SelectField v-if="kind === 'options'" :label="label" :hint="hint ?? (options!.length === 0 ? 'none in the lab yet' : undefined)" :required="required" :options="options!" :empty="required ? 'choose…' : 'none'" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />
+  <SecretField v-else-if="kind === 'secret'" :label="label" :hint="hint" :required="required" :default-value="s.default" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />
   <CredentialsField v-else-if="kind === 'credentials'" :label="label" :hint="hint" :required="required" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />
   <TextField v-else-if="kind === 'text'" :format="s.$ref === 'ipv4' ? 'ip' : undefined" :pattern="s.pattern" :label="label" :hint="hint" :required="required" :placeholder="placeholder" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />
   <TextField v-else-if="kind === 'number'" number :label="label" :hint="hint" :required="required" :placeholder="placeholder" :model-value="modelValue" @update:model-value="v => emit('update:modelValue', v)" />

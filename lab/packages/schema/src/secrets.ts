@@ -18,10 +18,10 @@ const CREDENTIAL_FIELDS = ["password", "username"];
 export const shapeFields = (shape: SecretShape): string[] =>
     shape === "string" ? [] : shape === "credentials" ? CREDENTIAL_FIELDS : shape.fields;
 
-/** A map shape with these fields: credentials when they're a username and a password. */
+/** A map shape with these fields: credentials when they're a username and a password (one alone is just a field). */
 export function mapShape(fields: Iterable<string>): SecretShape {
     const sorted = [...new Set(fields)].sort();
-    return sorted.every(f => CREDENTIAL_FIELDS.includes(f)) ? "credentials" : { fields: sorted };
+    return sorted.length === CREDENTIAL_FIELDS.length && sorted.every((f, i) => f === CREDENTIAL_FIELDS[i]) ? "credentials" : { fields: sorted };
 }
 
 /** Two uses of one secret together: undefined when one is a string and the other a map. */

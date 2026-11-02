@@ -40,7 +40,6 @@ spec:
         baseUrl: ${ if hasKey .ClusterAnnotations "hosted-domain" }https://observability.${ .ClusterName }.${ get .ClusterAnnotations "hosted-domain" }${ else}http://localhost${ end}
         sizing:
           profile: trial
-        adminPassword: '!nfiniteP0wer'
     
     ingress:
       enabled: ${if hasKey .ClusterAnnotations "hosted-domain"}true${else}false${end}
@@ -88,9 +87,11 @@ spec:
         key: "beTRIDqKh6xvXpCw6wkxIt9bvoyLwJGU"
       authentication:
         serviceToken:
+          # Its token comes from fleet-secrets (the suse-observability-token input). The engine uses
+          # it to register agents, for as long as the lab lives: not the chart's 24h.
           bootstrap:
-            token: 1234-abcd-5678-efgh
             roles: ["stackstate-k8s-troubleshooter", "stackstate-admin", "stackstate-k8s-admin"]
+            ttl: 87600h
       components:
         all:
           deploymentStrategy:

@@ -12,6 +12,12 @@ export interface FleetArgs {
     after?: pulumi.Resource[];
     /** Seconds to wait for Fleet's CRDs. */
     timeoutSeconds: number;
+    /**
+     * By HelmOp, a number that changes with the values its `valuesFrom` reads (`forceSyncGeneration`):
+     * Fleet reads them when it deploys, and doesn't watch them, so a new value (a license) would
+     * otherwise never reach the cluster.
+     */
+    valuesFingerprints?: Record<string, pulumi.Input<number>>;
 }
 
 /**
@@ -19,6 +25,9 @@ export interface FleetArgs {
  * by the resolver; the secrets the repos need are created as catalog objects on the Rancher cluster.
  */
 export class Fleet extends pulumi.ComponentResource {
+    /** Its HelmOps and GitRepos: what installs on the downstream clusters (SUSE Observability). */
+    readonly installs: pulumi.Resource[] = [];
+
     constructor(name: string, args: FleetArgs, opts?: pulumi.ComponentResourceOptions) {
         super("lab:rancher:Fleet", name, {}, opts);
         const { rancher } = args;
@@ -37,7 +46,7 @@ export class Fleet extends pulumi.ComponentResource {
         }, o));
 
         for (const repo of args.fleet.repos) {
-            new fleet.v1alpha1.GitRepo(`${name}/repo/${repo.name}`, {
+            this.installs.push(new fleet.v1alpha1.GitRepo(`${name}/repo/${repo.name}`, {
                 metadata: { name: repo.name, namespace: repo.namespace },
                 spec: {
                     repo: repo.url,
@@ -49,7 +58,7 @@ export class Fleet extends pulumi.ComponentResource {
                     pollingInterval: "60s",
                     targets: repo.target ? [{ clusterGroup: repo.target }] : [],
                 },
-            }, { ...o, dependsOn: [crds, ...groups, ...(args.after ?? [])], ignoreChanges: ["spec.pollingInterval"] });
+            }, { ...o, dependsOn: [crds, ...groups, ...(args.after ?? [])], ignoreChanges: ["spec.pollingInterval"] }));
         }
 
         // HelmOps: Fleet's agents pull the chart from its repo, so it never goes into the Bundle (etcd's limit).
@@ -61,7 +70,7 @@ export class Fleet extends pulumi.ComponentResource {
                 timeoutSeconds: args.timeoutSeconds,
             }, withCluster(rancher.cluster, this, { dependsOn: rancher.ready }));
             for (const op of args.fleet.helmOps) {
-                new fleet.v1alpha1.HelmOp(`${name}/helmop/${op.name}`, {
+                this.installs.push(new fleet.v1alpha1.HelmOp(`${name}/helmop/${op.name}`, {
                     metadata: { name: op.name, namespace: op.namespace },
                     spec: {
                         helm: {
@@ -78,8 +87,9 @@ export class Fleet extends pulumi.ComponentResource {
                         diff: op.diff as types.input.fleet.v1alpha1.HelmOpSpecDiff | undefined,
                         correctDrift: { enabled: false },
                         targets: op.target ? [{ clusterGroup: op.target }] : op.selector ? [{ clusterSelector: op.selector }] : [],
+                        ...(args.valuesFingerprints?.[op.name] !== undefined ? { forceSyncGeneration: args.valuesFingerprints[op.name] } : {}),
                     },
-                }, { ...o, dependsOn: [helmOpCrd, ...groups, ...(args.after ?? [])] });
+                }, { ...o, dependsOn: [helmOpCrd, ...groups, ...(args.after ?? [])] }));
             }
         }
         this.registerOutputs({});

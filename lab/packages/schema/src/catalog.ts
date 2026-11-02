@@ -338,6 +338,9 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
             });
             if (distribution !== undefined && components[distribution]?.value.kind !== "KubernetesDistribution") problems.push({ at: "spec.distribution", message: `no KubernetesDistribution "${distribution}"` });
             if (kind === "chart") {
+                if (profile.targets !== undefined) problems.push({ at: "spec.targets", message: "is for a Profile (one with code); a ChartProfile goes on hosts and clusters" });
+            }
+            if (kind === "chart") {
                 // Only charts and objects, installed the same way on a host or a downstream cluster.
                 for (const f of ["distribution", "fallback", "hostKinds", "osFamilies", "networkFeatures", "hostRefs"] as const) {
                     if (profile[f] !== undefined) problems.push({ at: `spec.${f}`, message: "is for a Profile (lab hosts only); a ChartProfile has charts and objects only" });

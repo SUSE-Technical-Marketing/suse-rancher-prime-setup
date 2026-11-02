@@ -79,6 +79,8 @@ export const HarvesterInput = z.strictObject({
      * (shown, and editable, under the Harvester's Add-ons). The engine sets the connection, the
      * login and the lab's domain; `values` are any other chart values (log level, resources).
      */
+    /** Profiles on the Harvester itself: those that target Harvesters (the SUSE Observability agent). */
+    profiles: z.record(z.string(), z.record(z.string(), z.unknown()).nullable().transform(v => v ?? {})).default({}),
     dns: z.strictObject({
         backend: z.enum(["routeros", "glinet"]),
         /** The router's address or name. */

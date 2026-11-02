@@ -23,7 +23,7 @@ spec:
   inputs:
     appco: "{{ secrets.appco }}"
     scc: "{{ secrets.scc }}"
-    suse-observability-license: "{{ secrets['suse-observability-license'] }}"
+    suse-observability-license: "{{ secrets.observability.license }}"
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: Harvester

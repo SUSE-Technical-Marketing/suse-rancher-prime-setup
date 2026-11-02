@@ -14,7 +14,8 @@ import type { TimeoutName } from "./primitives";
 /** cloud-config keys an existing machine (no user data) gets, over SSH instead (packages are always refreshed first). */
 export const MACHINE_CLOUD_INIT_KEYS = ["packages", "runcmd", "package_update"];
 import { Profiles } from "./profiles";
-import { activeRequirements, blocksMetalClusterNode, checkClusterProfiles, checkHostProfiles, clusterCapabilities, describeCapability, hostCapabilities, profileBuildOrder } from "./profiles/rules";
+import { activeRequirements, blocksMetalClusterNode, checkClusterProfiles, checkHarvesterProfiles, checkHostProfiles, clusterCapabilities, describeCapability, hostCapabilities, profileBuildOrder } from "./profiles/rules";
+import { profileTargets } from "./profiles/define";
 import {
     AWS_CREDENTIAL_FIELDS, AwsCredentials, Credentials, DownstreamInput, durationSeconds, HarvesterInput, ImageSource, LabFile, NODE_ROLES,
     PersonalConfig, VersionValue,
@@ -43,6 +44,8 @@ export interface ResolvedHarvester {
     clusterNetwork: string;
     storageClass: { name: string; replicas: number; parameters: Record<string, string> };
     dns?: HarvesterInput["dns"];
+    /** Profiles on the Harvester itself (those that target Harvesters), their settings checked. */
+    profiles: Record<string, Record<string, unknown>>;
     networks: ResolvedNetwork[];
     defaultNetwork: string;
     /** One image per OS used by hosts or downstream pools on this Harvester. */
@@ -163,8 +166,13 @@ export interface ResolvedClusterProfiles {
 
 export type ResolvedDownstream = {
     name: string;
-    /** Its ChartProfiles (`profiles`), checked and rendered: the engine installs them once the cluster is ready. */
+    /**
+     * Its `profiles`, checked and rendered: the engine installs them once the cluster is ready (a
+     * ChartProfile's charts and objects; a Profile with code, one that targets clusters, by its builder).
+     */
     chartProfiles?: ResolvedClusterProfiles;
+    /** What its Fleet profiles say Fleet installs, by capability (`suse-observability: { url }`), rendered. */
+    fleetOutputs?: Record<string, Record<string, string>>;
 } & (
     | Exclude<DownstreamInput, { type: "harvester" | "ec2" | "eks" }>
     | (Omit<EksDownstreamInput, "nodeGroups" | "version"> & { version: string; nodeGroups: ResolvedEksNodeGroup[] })
@@ -445,6 +453,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 parameters: { ...hvDefaults.storageClass.parameters, ...h.storageClass?.parameters },
             },
             dns: h.dns,
+            profiles: {}, // checked with the other profiles, below
             networks,
             defaultNetwork,
             images: [],
@@ -863,6 +872,20 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         const target = d as { labels?: Record<string, string>; annotations?: Record<string, string> };
         target.labels = Object.fromEntries(Object.entries(set.labels).map(([k, v]) => [k, v.value]));
         target.annotations = Object.fromEntries(Object.entries(set.annotations).map(([k, v]) => [k, v.value]));
+        // What they say Fleet installs, for the engine: by capability, rendered for this cluster.
+        const fleetOutputs: Record<string, Record<string, string>> = {};
+        for (const n of names.filter(n => known[n])) {
+            const { value: p, source } = known[n];
+            for (const [cap, fields] of Object.entries(p.outputs ?? {})) {
+                if (![n, ...(p.provides ?? [])].includes(cap)) {
+                    diags.error(source, docAt("FleetProfile", n, `spec.outputs.${cap}`), `isn't a capability of this Fleet profile; it provides ${[n, ...(p.provides ?? [])].join(", ")}`);
+                    continue;
+                }
+                fleetOutputs[cap] = Object.fromEntries(Object.entries(fields).map(([k, template]) => [k,
+                    String(renderTemplates(template, ctx, "", (_p, message) => diags.error(source, docAt("FleetProfile", n, `spec.outputs.${cap}.${k}`), `${message} (on cluster ${d.name})`)))]));
+            }
+        }
+        if (Object.keys(fleetOutputs).length > 0) d.fleetOutputs = fleetOutputs;
     }
 
     // --- Charts placed on hosts and downstream clusters (§17) ---------------------------------
@@ -900,20 +923,21 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         host.charts.push(...placeCharts(placements, at));
     }
 
-    // --- ChartProfiles on downstream clusters (§17) ---------------------------------------------
-    // Only ChartProfiles: a Profile has code for lab hosts; a Fleet profile goes under fleetProfiles.
+    // --- Profiles on downstream clusters (§17) --------------------------------------------------
+    // ChartProfiles, and Profiles with code that target clusters; a Fleet profile goes under fleetProfiles.
+    const forTarget = (t: "cluster" | "harvester") => Object.values(registry).filter(p => profileTargets(p).includes(t)).map(p => p.name).sort();
     for (const d of downstream) {
         const asked = Object.entries(d.profiles ?? {});
         if (asked.length === 0) continue;
         const at = `downstream.${d.name}`;
-        const chartProfiles = Object.values(registry).filter(p => p.kind === "chart").map(p => p.name).sort();
+        const clusterProfiles = forTarget("cluster");
         const own: Record<string, Record<string, unknown>> = {};
         for (const [n, settings] of asked) {
             const def = registry[n];
-            if (def?.kind === "chart") own[n] = settings;
-            else if (def) diags.error(L, `${at}.profiles.${n}`, `is a Profile for lab hosts (the engine has code for it); a downstream cluster takes ChartProfiles: ${chartProfiles.join(", ")}`);
+            if (def && profileTargets(def).includes("cluster")) own[n] = settings;
+            else if (def) diags.error(L, `${at}.profiles.${n}`, `is a Profile for lab hosts (the engine has code for it); a downstream cluster takes: ${clusterProfiles.join(", ")}`);
             else if (catalog.fleet.profiles[n]) diags.error(L, `${at}.profiles.${n}`, `is a Fleet profile: list it under fleetProfiles`);
-            else diags.error(L, `${at}.profiles.${n}`, `unknown ChartProfile "${n}"; known: ${chartProfiles.join(", ")}`);
+            else diags.error(L, `${at}.profiles.${n}`, `unknown profile "${n}"; a downstream cluster takes: ${clusterProfiles.join(", ")}`);
         }
         const profiles = parseProfiles(own, at);
         checkClusterProfiles({
@@ -941,6 +965,53 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         }
         d.chartProfiles = { profiles, order: diags.ok ? profileBuildOrder(registry, profiles) : Object.keys(profiles), chartValues };
     }
+
+    // --- Profiles on Harvesters themselves -------------------------------------------------------
+    for (const h of harvesters.values()) {
+        const asked = Object.entries(lab.harvesters[h.name]?.profiles ?? {});
+        if (asked.length === 0) continue;
+        const at = `harvesters.${h.name}`;
+        const own: Record<string, Record<string, unknown>> = {};
+        for (const [n, settings] of asked) {
+            const def = registry[n];
+            if (def && profileTargets(def).includes("harvester")) own[n] = settings;
+            else diags.error(L, `${at}.profiles.${n}`, `${def ? "doesn't go on a Harvester" : `unknown profile "${n}"`}; a Harvester takes: ${forTarget("harvester").join(", ") || "none"}`);
+        }
+        h.profiles = parseProfiles(own, at);
+        checkHarvesterProfiles({
+            registry,
+            harvester: { name: h.name, profiles: h.profiles },
+            error: (path, message) => diags.error(L, path, message),
+            secretField: (value, path, shape) => {
+                if (value === undefined) return;
+                if (shape === "credentials") useCredentials(value as Credentials, L, path);
+                else useSecretOrString(value as string, L, path);
+            },
+            secretTemplate: (template, path) => useTemplate(template, "string", L, path),
+        });
+    }
+
+    // --- Settings naming a downstream cluster (`clusterRefs`) -----------------------------------
+    // The cluster must be in the lab, and its Fleet profiles must provide what the setting needs.
+    const fleetCaps = (d: ResolvedDownstream) => Object.keys(d.fleetProfiles ?? {}).flatMap(n => [n, ...(catalog.fleet.profiles[n]?.value.provides ?? [])]);
+    const checkClusterRefs = (profiles: Record<string, Record<string, unknown>>, at: string) => {
+        for (const [n, settings] of Object.entries(profiles)) {
+            for (const ref of registry[n]?.clusterRefs ?? []) {
+                const name = ref.field.split(".").reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], settings);
+                if (typeof name !== "string") continue;
+                const path = `${at}.profiles.${n}.${ref.field}`;
+                const d = downstream.find(x => x.name === name);
+                if (!d) diags.error(L, path, `no downstream cluster "${name}" in the lab; clusters: ${downstream.map(x => x.name).join(", ") || "none"}`);
+                else if (!fleetCaps(d).includes(ref.provides)) {
+                    const providing = Object.entries(catalog.fleet.profiles).filter(([fp, { value }]) => [fp, ...(value.provides ?? [])].includes(ref.provides)).map(([fp]) => fp);
+                    diags.error(L, path, `cluster ${name} doesn't run ${ref.provides}: give it the Fleet profile ${providing.join(" or ") || `that provides ${ref.provides}`}`);
+                }
+            }
+        }
+    };
+    for (const host of hosts.values()) checkClusterRefs(host.profiles, `hosts.${host.name}`);
+    for (const d of downstream) checkClusterRefs(d.chartProfiles?.profiles ?? {}, `downstream.${d.name}`);
+    for (const h of harvesters.values()) checkClusterRefs(h.profiles, `harvesters.${h.name}`);
 
     // --- Objects placed on host and downstream clusters ----------------------------------------
     for (const host of hosts.values()) {

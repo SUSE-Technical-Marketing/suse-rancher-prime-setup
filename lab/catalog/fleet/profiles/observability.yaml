@@ -10,3 +10,9 @@ spec:
   annotations:
     hosted-domain: "{{ lab.domain }}"
   requires: [ storage ]
+  provides: [ suse-observability ]
+  # Where the HelmOp's ingress puts it (observability.<cluster>.<hosted-domain>): agents report to it,
+  # and the engine registers them through its API.
+  outputs:
+    suse-observability:
+      url: "https://observability.{{ cluster.name }}.{{ lab.domain }}"

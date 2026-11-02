@@ -1,7 +1,7 @@
 import { Credentials, OsFamily } from "../primitives";
 import { usesSecrets } from "../secrets";
 import { valuePaths } from "../catalog";
-import { ProfileDefinition, ProfileRegistry } from "./define";
+import { ProfileDefinition, profileTargets, ProfileRegistry } from "./define";
 import { capabilitiesOf, Profiles, providersOf } from "./index";
 
 /** Value at a dot path (`fleet.secrets.appco`), or undefined. */
@@ -82,6 +82,10 @@ export function checkHostProfiles(ctx: HostRulesContext): void {
         if (!def) continue; // reported by the resolver
         const settings = host.profiles[name];
         const at = `hosts.${host.name}.profiles.${name}`;
+        if (!profileTargets(def).includes("host")) {
+            ctx.error(at, `doesn't go on a lab host; it goes on ${profileTargets(def).map(t => `${t}s`).join(" and ")}`);
+            continue;
+        }
 
         for (const required of activeRequirements(def, settings)) {
             const providers = (caps.get(required) ?? []).filter(p => p !== name);
@@ -145,7 +149,24 @@ export function clusterCapabilities(registry: ProfileRegistry, profiles: Profile
     return caps;
 }
 
-/** Check the ChartProfiles on a downstream cluster against their rules: as on a host, `kubernetes` being the cluster's. */
+/**
+ * Check the profiles on a Harvester itself (those that target Harvesters): it is a Kubernetes
+ * cluster, and nothing else on it provides anything.
+ */
+export function checkHarvesterProfiles(ctx: Pick<HostRulesContext, "registry" | "error" | "secretField" | "secretTemplate"> & { harvester: { name: string; profiles: Profiles } }): void {
+    const { harvester, registry } = ctx;
+    for (const name of activeProfiles(harvester.profiles)) {
+        const def = registry[name];
+        if (!def) continue;
+        const at = `harvesters.${harvester.name}.profiles.${name}`;
+        for (const required of activeRequirements(def, harvester.profiles[name]).filter(c => c !== "kubernetes")) {
+            ctx.error(at, `needs ${describeCapability(registry, required)}, which a Harvester doesn't have`);
+        }
+        checkSettings(def, harvester.profiles[name], at, ctx);
+    }
+}
+
+/** Check the profiles on a downstream cluster against their rules: as on a host, `kubernetes` being the cluster's. */
 export function checkClusterProfiles(ctx: Pick<HostRulesContext, "registry" | "error" | "secretField" | "secretTemplate"> & { cluster: { name: string; profiles: Profiles } }): void {
     const { cluster, registry } = ctx;
     const caps = clusterCapabilities(registry, cluster.profiles);

@@ -9,6 +9,7 @@ import { Amazonec2Credential, Ec2Cluster, EksCluster, HarvesterCluster, Harveste
 import { machineSetup, renderCloudConfig } from "@lab/os";
 import { AWS_CREDENTIAL_FIELDS, cloudInitVars, usesSecrets, type CloudInitVars, type ResolvedLab, type ResolvedOs } from "@lab/schema";
 import { buildHostProfiles, installChartProfile, profileCloudInit, profileUninstall } from "./profiles";
+import { buildObservabilityAgents, type AgentTargets } from "./observability";
 import { credentials, objectValue, secretMap, secrets, secretString } from "./secrets";
 import { chart, chartInNamespace, distribution, harvesterChart, version } from "./catalog";
 
@@ -43,6 +44,14 @@ for (const h of lab.harvesters) {
         timeouts: lab.timeouts,
     }, { provider: providers[h.name] });
 }
+
+/** Where SUSE Observability agents go, and the clusters they report to: built last. */
+const agentTargets: AgentTargets = {
+    hosts: {},
+    downstream: {},
+    fleet: {},
+    harvesters: Object.fromEntries(lab.harvesters.map(h => [h.name, { provider: providers[h.name], ready: bases[h.name].ready }])),
+};
 
 // --- AWS sites: a VPC per lab -------------------------------------------------------------------------
 const awsProviders: Record<string, aws.Provider> = {};
@@ -155,6 +164,8 @@ for (const host of lab.hosts) {
     nodeAccess[host.name] = { access, ready: setUp, machine };
     if (host.profileOrder.length === 0) continue;
     const outputs = buildHostProfiles(lab, host, access, setUp, machine, harvester);
+    if (outputs.fleet) agentTargets.fleet[host.name] = outputs.fleet.ready;
+    if (outputs.kubernetes) agentTargets.hosts[host.name] = { ...outputs.kubernetes, ready: Object.values(outputs).flatMap(v => (v && "ready" in v ? v.ready : [])) };
     if (outputs.rancher) {
         rancherUrls[host.name] = outputs.rancher.url;
         rancherAccess[host.name] = outputs.rancher;
@@ -393,17 +404,22 @@ function placeObjects(name: string, cluster: { provider: k8s.Provider; cluster: 
     const placed = objects.length > 0 ? new ClusterObjects(`downstream/${name}/objects`, { objects, value: objectValue }, {
         provider: cluster.provider, deletedWith: cluster.cluster, dependsOn: [cluster.cluster],
     }).resources : [];
+    agentTargets.downstream[name] = { provider: cluster.provider, deletedWith: cluster.cluster, ready: [cluster.cluster, ...placed] };
     const cp = lab.downstream.find(d => d.name === name)?.chartProfiles;
     if (!cp) return;
     const target = { name: `downstream/${name}`, chartValues: cp.chartValues };
     const ready: Record<string, pulumi.Resource[]> = {};
     for (const profile of cp.order) {
         const p = lab.profileCharts[profile];
+        // A Profile with code (the SUSE Observability agent) is built by its own phase.
+        if (!p) continue;
         const after = [cluster.cluster, ...placed, ...p.waitFor.flatMap(c => ready[c] ?? [])];
         const done = installChartProfile(lab, target, profile, { provider: cluster.provider, deletedWith: cluster.cluster, kubeconfig: cluster.kubeconfig }, cp.profiles[profile] as { version?: string; values?: Record<string, unknown> }, after);
         for (const c of p.provides) ready[c] = done.slice(-1);
     }
 }
+
+buildObservabilityAgents(lab, agentTargets);
 
 export const name = lab.name;
 export const harvesters = lab.harvesters.map(h => h.name);

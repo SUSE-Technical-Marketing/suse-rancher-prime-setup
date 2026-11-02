@@ -19,7 +19,7 @@ const W = 184, H = 84, GAP_X = 52, GAP_Y = 30, PAD = 20, TOP = PAD + H + 32;
 /** Profile tokens: docked on a host box's bottom edge, half outside it. */
 const TOKEN = 26, TOKEN_GAP = 4;
 
-type EdgeKind = "runs" | "manages" | "node" | "inside";
+type EdgeKind = "runs" | "manages" | "node" | "inside" | "observes";
 interface Box { index: number; key: string; kind: string; category?: Category; icon?: string; label: string; title: string; sub: string; chips: string[]; profiles: string[]; fleet: string[]; col: number; x: number; y: number }
 
 const docs = computed(() => views.value.map((v, index) => ({ v, index })));
@@ -42,8 +42,8 @@ function describe(d: { v: any; index: number }): Pick<Box, "label" | "title" | "
   const host = d.v.kind === "HarvesterVM" || d.v.kind === "Machine";
   const cluster = d.v.kind === "DownstreamCluster";
   const fleet = cluster ? Object.keys(d.v.spec?.fleetProfiles ?? {}) : [];
-  // A host's profiles, or a cluster's ChartProfiles: round tokens; a cluster's Fleet profiles square ones after them.
-  const profiles = host || cluster ? Object.keys(d.v.spec?.profiles ?? {}) : [];
+  // A host's, cluster's or Harvester's profiles: round tokens; a cluster's Fleet profiles square ones after them.
+  const profiles = host || cluster || d.v.kind === "Harvester" ? Object.keys(d.v.spec?.profiles ?? {}) : [];
   return { ...base, chips: host || profiles.length || fleet.length ? [] : base.chips, profiles, fleet };
 }
 
@@ -161,6 +161,13 @@ const edges = computed(() => {
   for (const d of docs.value) {
     const s = d.v.spec ?? {};
     const add = (to: number | undefined, kind: EdgeKind) => { if (to !== undefined) out.push({ from: d.index, to, kind }); };
+    // A profile setting naming a cluster (an agent's observer): from what it's on to that cluster.
+    for (const [p, settings] of Object.entries((s.profiles ?? {}) as Record<string, Record<string, unknown> | null>)) {
+      for (const ref of catalog.value?.profiles.find(x => x.name === p)?.clusterRefs ?? []) {
+        const target = ref.field.split(".").reduce<unknown>((v, k) => (v as Record<string, unknown> | undefined)?.[k], settings ?? {});
+        if (typeof target === "string") add(find(["DownstreamCluster"], target), "observes");
+      }
+    }
     if (d.v.kind === "HarvesterVM") add(find(["Harvester"], s.harvester), "runs");
     if (d.v.kind !== "DownstreamCluster") continue;
     const t = typeOf(d);
@@ -182,7 +189,7 @@ const edges = computed(() => {
  * through another box, nor down past the boxes above the target.
  */
 /** How far above the boxes each kind of arrow runs when it goes over them: a lane each, so they don't overlap. */
-const LANE: Record<EdgeKind, number> = { runs: 8, manages: 18, node: 13, inside: 23 };
+const LANE: Record<EdgeKind, number> = { runs: 8, manages: 18, node: 13, inside: 23, observes: 28 };
 
 function path(a: Box, b: Box, kind: EdgeKind): string {
   if (Math.abs(b.x - a.x) > 1.5 * (W + GAP_X)) {
@@ -257,9 +264,11 @@ const over = ref<number | "canvas">();
 const accepts = (b: Box, p: Payload) => {
   if (p.type === "profile") {
     if (p.from === b.index || b.profiles.includes(p.name)) return false;
-    if (b.kind === "HarvesterVM" || b.kind === "Machine") return true;
-    // A downstream cluster takes ChartProfiles; a Profile (code in the engine) is for lab hosts.
-    return b.kind === "DownstreamCluster" && catalog.value?.profiles.find(x => x.name === p.name)?.kind === "chart";
+    // Where it goes: a profile's targets (lab hosts, downstream clusters, Harvesters themselves).
+    const targets = catalog.value?.profiles.find(x => x.name === p.name)?.targets ?? ["host"];
+    if (b.kind === "HarvesterVM" || b.kind === "Machine") return targets.includes("host");
+    if (b.kind === "Harvester") return targets.includes("harvester");
+    return b.kind === "DownstreamCluster" && targets.includes("cluster");
   }
   if (p.type === "fleet") return b.kind === "DownstreamCluster" && p.from !== b.index && !b.fleet.includes(p.name);
   if (p.type === "block") {
@@ -300,6 +309,7 @@ const fleetInfo = (name: string) => catalog.value?.fleetProfiles.find(p => p.nam
         <span><svg width="26" height="8"><path d="M0 4 H22" class="edge manages" marker-end="url(#g-arrow)" /></svg> manages</span>
         <span><svg width="26" height="8"><path d="M0 4 H22" class="edge node" marker-end="url(#g-arrow)" /></svg> node</span>
         <span><svg width="26" height="8"><path d="M0 4 H22" class="edge inside" marker-end="url(#g-arrow)" /></svg> inside</span>
+        <span><svg width="26" height="8"><path d="M0 4 H22" class="edge observes" marker-end="url(#g-arrow)" /></svg> reports to</span>
       </span>
       <span class="g-tools">
         <button type="button" class="icon-btn" title="Zoom out" aria-label="Zoom out" @click="zoomBy(1 / 1.2)">−</button>
@@ -379,6 +389,7 @@ const fleetInfo = (name: string) => catalog.value?.fleetProfiles.find(p => p.nam
 .edge.manages { stroke: #2f6fdb; stroke-dasharray: 6 4; }
 .edge.node { stroke: var(--accent); }
 .edge.inside { stroke: #8a5cd6; stroke-dasharray: 2 3; }
+.edge.observes { stroke: #d9822b; stroke-dasharray: 8 3 2 3; }
 .arrowhead { fill: var(--muted); }
 .gbox {
   position: absolute; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px;
@@ -409,4 +420,5 @@ const fleetInfo = (name: string) => catalog.value?.fleetProfiles.find(p => p.nam
 .hint { font-style: italic; }
 :root[data-theme="dark"] .edge.manages { stroke: #6f9eef; }
 :root[data-theme="dark"] .edge.inside { stroke: #b08cf0; }
+:root[data-theme="dark"] .edge.observes { stroke: #f0a35e; }
 </style>

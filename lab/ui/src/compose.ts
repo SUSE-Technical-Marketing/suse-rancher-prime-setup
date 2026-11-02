@@ -14,7 +14,25 @@ const firstOf = (kind: string) => views.value.find(v => v.kind === kind)?.metada
 const rancherHost = () => views.value.find(v => (v.kind === "HarvesterVM" || v.kind === "Machine") && v.spec?.profiles && "rancher" in v.spec.profiles)?.metadata?.name ?? "";
 
 /** A profile's settings when it's added: what it can't do without, where the personal config has it. */
-function profileDefaults(name: string): Record<string, unknown> {
+/** The lab's downstream clusters whose Fleet profiles provide a capability (SUSE Observability's observers). */
+export function clustersProviding(capability: string): string[] {
+    const fleet = catalog.value?.fleetProfiles ?? [];
+    return views.value.filter(v => v.kind === "DownstreamCluster" && v.metadata?.name
+        && Object.keys(v.spec?.fleetProfiles ?? {}).some(f => f === capability || fleet.find(p => p.name === f)?.provides.includes(capability)))
+        .map(v => String(v.metadata!.name));
+}
+
+export function profileDefaults(name: string): Record<string, unknown> {
+    // A setting naming a cluster (the agent's observer): the one cluster that qualifies, if there is one.
+    const refs = catalog.value?.profiles.find(p => p.name === name)?.clusterRefs ?? [];
+    const picked = Object.fromEntries(refs.flatMap(r => {
+        const options = clustersProviding(r.provides);
+        return options.length === 1 && !r.field.includes(".") ? [[r.field, options[0]]] : [];
+    }));
+    return { ...picked, ...ownDefaults(name) };
+}
+
+function ownDefaults(name: string): Record<string, unknown> {
     if (name === "rancher" && hasSecret("rancher-admin")) return { adminPassword: "{{ secrets['rancher-admin'] }}" };
     // SUSE AI Factory: the Application Collection, SCC (the SUSE registry) and NGC logins, where the personal config has them.
     if (name === "ai-factory") {

@@ -116,6 +116,18 @@ export type SprouterSettings = {
     values?: Record<string, unknown>;
 };
 
+/** Settings of the `suse-observability-agent` profile: SUSE Observability's agent, registered with the instance on another cluster of the lab */
+export type SuseObservabilityAgentSettings = {
+    /** the downstream cluster running SUSE Observability that this agent reports to */
+    observer: string;
+    /** the instance's bootstrap service token (not the admin password), to register the agent with */
+    adminToken: string;
+    /** its name in SUSE Observability; default: the host's, cluster's or Harvester's name */
+    clusterName?: string;
+    version?: string;
+    values?: Record<string, unknown>;
+};
+
 /** Settings of the `traefik` profile: Traefik ingress controller with the Gateway API CRDs and its Gateway provider */
 export type TraefikSettings = {
     version?: string;
@@ -141,5 +153,6 @@ export interface ProfileSettings {
     "rancher": RancherSettings;
     "rke2": Rke2Settings;
     "sprouter": SprouterSettings;
+    "suse-observability-agent": SuseObservabilityAgentSettings;
     "traefik": TraefikSettings;
 }

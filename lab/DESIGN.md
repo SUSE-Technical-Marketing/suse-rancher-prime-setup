@@ -311,7 +311,7 @@ profiles:
       secrets:
         appco: "{{ secrets.appco }}"
         scc: "{{ secrets.scc }}"
-        suse-observability-license: "{{ secrets['suse-observability-license'] }}"
+        suse-observability-license: "{{ secrets.observability.license }}"
 ```
 
 Rancher is served at `rancher.<host>.<domain>` (the `hostname` setting changes the first label).
@@ -781,6 +781,8 @@ Rules are expressed in **capabilities**. Every profile provides its own name, pl
 | `networkFeatures` | What the host's network must have on its Harvester (`dhcp`, `loadBalancer`) | resolver |
 | `osFamilies` | Allowed OS families for the host | resolver |
 | `hostRefs` | Settings fields naming another host, and the capability that host must provide | resolver |
+| `targets` | Where a Profile (with code) goes besides lab hosts: `cluster` (a downstream cluster's `profiles`) and `harvester` (a Harvester document's `profiles`, the HCI cluster itself). Default `[host]`; a ChartProfile goes on hosts and clusters | resolver, UI (where a profile can be dropped) |
+| `clusterRefs` | Settings fields naming a downstream cluster in the lab, and the capability its Fleet profiles must provide (`observer` → `suse-observability`) | resolver, UI (a select of the clusters that qualify, and a "reports to" arrow) |
 | `requiresWhen` | Like `requires`, but only when a settings field is set | resolver, build order |
 | `secretFields` | Settings fields holding secrets (dot paths), optionally with the shape `credentials` | resolver (shape, warnings) |
 | `charts` | What the profile installs, in order, each after the one before: entries with a `chart` (and `namespace`, `values`, `lockedValues`) or a `manifest` (and `vars` for its URL placeholders), each with an optional `when` and `version`. The first chart is the profile's own: the lab's `values` and the `version` setting go to it, and the leaves of its `lockedValues` are protected. Entries before it are installed before its builder runs, entries after it once the builder's work is ready | resolver (renders), program |
@@ -991,6 +993,39 @@ The subscriptions below are not available yet. They will be added as secrets (`m
 
 Because a lab is always rebuilt from scratch, the channel sync is paid on every `up` (tens of
 minutes to hours). Accepted for now; an external mirror can be added later.
+
+### 9.6 SUSE Observability agents
+
+SUSE Observability itself is a Fleet HelmOp, on the clusters with the `observability` Fleet profile
+(which provides `suse-observability` and outputs its URL). The `suse-observability-agent` Profile
+puts an agent on a lab host's cluster, a downstream cluster, or a Harvester itself (`targets`), and
+reports it to one of those clusters: `observer` (a `clusterRef`). In the UI an arrow runs from what
+it's on to its observer.
+
+- **Admin token.** The instance's bootstrap service token comes from `fleet-secrets` (the
+  `suse-observability-token` input, a secret) with a long `ttl` (the chart's default is 24h, after
+  which nothing could be registered or cleaned up). The agent's `adminToken` defaults to the same
+  secret. It's an API credential (the API, like `sts`, takes tokens, not a login), apart from the
+  `admin` user's UI password: the `suse-observability-password` input, `global.suseObservability.adminPassword`.
+  The instance's values file (`fleet-secrets`) needs the license, token and password inputs.
+- **Registration** (`ObservabilityRegistration`, a dynamic resource), the calls `sts` makes, through
+  the REST API with the admin token in `X-API-Key`: it waits until `/api` answers
+  (`timeouts.observabilityReady`: Fleet installs the instance in its own time; a rejected token fails
+  at once), then `PUT /api/security/subjects/agent-<name>`, `POST /api/security/permissions/agent-<name>`
+  (`update-metrics` on `system`), and `POST /api/security/tokens` (`agent-<name>`, role `agent-<name>`),
+  replacing a token of that name left by an earlier attempt (a token's value is only shown when it's
+  made). Then the cluster's instance of the `kubernetes-v2` StackPack (`sts stackpack install`):
+  `POST /api/stackpack/kubernetes-v2/provision?unlocked=fail` with `kubernetes_cluster_name` the
+  agent's cluster name, reusing an instance that has that name (`GET /api/stackpack`). Its delete
+  uninstalls that instance (`POST …/deprovision/{id}`) and removes the tokens and the subject; an
+  instance that's gone is skipped. A registration made before StackPacks gets its instance in place.
+- **Install**: the `suse-observability-agent` chart in namespace `suse-observability-agent`, its
+  service token in a Secret (`global.apiKey.fromSecret`), `stackstate.url` the observer's receiver
+  (`<url>/receiver/stsAgent`), `stackstate.cluster.name` the host's, cluster's or Harvester's name
+  (`clusterName`). On a Harvester it's a Harvester add-on, the Secret next to it. Images come from
+  registry.rancher.com, which allows anonymous pulls.
+- **Order**: agents are built last (`program/observability.ts`), after their observer cluster, so a
+  Rancher host or a Harvester can report to a cluster built after it.
 
 ---
 
@@ -1388,7 +1423,10 @@ lab/catalog/fleet/
 and `annotations` (templates over `lab` and `cluster`: `name`, `type`, `rancher`, the Rancher host's
 name), with `requires`, `provides` and `conflicts` among the Fleet profiles on one cluster; it installs
 nothing itself. The bundles and HelmOps whose targets select its labels install the app, reading its
-annotations. They're a kind of their own, apart from a host's `Profile` (whose charts and objects the
+annotations. A Fleet profile can also declare `outputs` by capability it provides, templates as its
+labels are, rendered per cluster for the engine: the `observability` profile's
+`suse-observability: { url: "https://observability.{{ cluster.name }}.{{ lab.domain }}" }` is where
+agents report and register (§9.6). They're a kind of their own, apart from a host's `Profile` (whose charts and objects the
 engine installs), and the UI keeps them apart: a separate list, square tokens on cluster boxes.
 
 ```yaml

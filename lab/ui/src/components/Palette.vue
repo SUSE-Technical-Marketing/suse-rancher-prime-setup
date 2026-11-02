@@ -50,7 +50,7 @@ const matching = computed(() => {
   const f = filter.value.trim().toLowerCase();
   return (catalog.value?.profiles ?? []).filter(p => !f || p.name.includes(f) || p.description.toLowerCase().includes(f));
 });
-/** Profiles with code in the engine: lab hosts only. */
+/** Profiles with code in the engine: lab hosts, and some also clusters and Harvesters (their `targets`). */
 const profiles = computed(() => matching.value.filter(p => p.kind === "custom"));
 /** ChartProfiles: charts and objects, on hosts and downstream clusters alike. */
 const chartProfiles = computed(() => matching.value.filter(p => p.kind === "chart"));
@@ -58,6 +58,9 @@ const fleetProfiles = computed(() => {
   const f = filter.value.trim().toLowerCase();
   return (catalog.value?.fleetProfiles ?? []).filter(p => !f || p.name.includes(f) || p.description.toLowerCase().includes(f));
 });
+/** For a profile that goes on more than lab hosts: where else. */
+const goesOn = (p: { targets: string[] }) => p.targets.length > 1 || p.targets[0] !== "host"
+  ? `\ndrop on: ${p.targets.map(t => ({ host: "a VM or Machine", cluster: "a downstream cluster", harvester: "a Harvester" })[t]).join(", ")}` : "";
 const fleetTitle = (p: { description: string; labels: Record<string, string>; requires: string[] }) =>
   `${p.description}\nlabels: ${Object.entries(p.labels).map(([k, v]) => `${k}=${v}`).join(", ") || "—"}\nneeds: ${p.requires.join(", ") || "—"}`;
 const over = ref(false);
@@ -86,7 +89,7 @@ const removing = computed(() => !!dragging.value && fromBoard(dragging.value));
     <input v-model="filter" class="filter" placeholder="filter profiles…" spellcheck="false" />
     <h4 title="Code in the engine (Kubernetes, Rancher, …): drop on a VM or Machine">Profiles <span class="where">on hosts</span></h4>
     <div
-      v-for="p in profiles" :key="p.name" class="pchip" draggable="true" :title="`${p.description}\nprovides: ${p.provides.join(', ') || '—'}\nneeds: ${p.requires.join(', ') || '—'}`"
+      v-for="p in profiles" :key="p.name" class="pchip" draggable="true" :title="`${p.description}\nprovides: ${p.provides.join(', ') || '—'}\nneeds: ${p.requires.join(', ') || '—'}${goesOn(p)}`"
       @dragstart="start($event, { type: 'profile', name: p.name })" @dragend="end"
     >
       <ProfileIcon :name="p.name" :size="22" class="pi" />

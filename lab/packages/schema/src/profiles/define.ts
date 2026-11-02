@@ -92,6 +92,17 @@ export const ProfileInput = z.strictObject({
     hostKinds: z.array(z.enum(["harvester", "ssh"])).optional(),
     /** Features the host's network must have configured on its Harvester. */
     networkFeatures: z.array(z.enum(["dhcp", "loadBalancer"])).optional(),
+    /**
+     * Where a Profile (one with code) can go besides lab hosts: downstream `cluster`s and
+     * `harvester`s (the HCI cluster itself). Default: hosts only; a ChartProfile goes on hosts and
+     * clusters.
+     */
+    targets: z.array(z.enum(["host", "cluster", "harvester"])).optional(),
+    /**
+     * Settings fields that name a downstream cluster in the lab, and what its Fleet profiles must
+     * provide (`observer`, naming a cluster with SUSE Observability).
+     */
+    clusterRefs: z.array(z.strictObject({ field: z.string().min(1), provides: z.string().min(1) })).optional(),
     /** Settings fields that name another host in the lab, and what that host must provide. */
     hostRefs: z.array(z.strictObject({ field: z.string().min(1), provides: z.string().min(1) })).optional(),
     /**
@@ -125,6 +136,10 @@ export interface ProfileDefinition extends Omit<ProfileInput, "settings"> {
     /** The file it comes from. */
     source: string;
 }
+
+/** Where a profile can go: a Profile's `targets` (default lab hosts), a ChartProfile hosts and clusters. */
+export const profileTargets = (def: Pick<ProfileDefinition, "kind" | "targets">): ("host" | "cluster" | "harvester")[] =>
+    def.targets ?? (def.kind === "chart" ? ["host", "cluster"] : ["host"]);
 
 /** All profiles, by name: built from the catalog, passed to the rule checks. */
 export type ProfileRegistry = Record<string, ProfileDefinition>;

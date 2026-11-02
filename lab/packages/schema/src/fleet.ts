@@ -91,6 +91,11 @@ export const FleetProfileInput = z.strictObject({
     provides: z.array(z.string().min(1)).optional(),
     /** Capabilities no other Fleet profile on the same cluster may provide. */
     conflicts: z.array(z.string().min(1)).optional(),
+    /**
+     * What the engine can read about what Fleet installs, by capability it provides (templates, as
+     * labels are): `suse-observability: { url: "https://observability.{{ cluster.name }}.{{ lab.domain }}" }`.
+     */
+    outputs: z.record(z.string().min(1), z.record(z.string(), z.string())).optional(),
 });
 export type FleetProfileInput = z.infer<typeof FleetProfileInput>;
 

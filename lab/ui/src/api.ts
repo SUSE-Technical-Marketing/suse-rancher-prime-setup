@@ -42,6 +42,10 @@ export interface CatalogProfile {
     fallback: string[];
     hostKinds?: ("harvester" | "ssh")[];
     osFamilies?: string[];
+    /** Where it goes: lab hosts, downstream clusters, Harvesters themselves. */
+    targets: ("host" | "cluster" | "harvester")[];
+    /** Settings naming a downstream cluster whose Fleet profiles provide something (the agent's `observer`). */
+    clusterRefs: { field: string; provides: string }[];
     settings: SettingSchema;
 }
 

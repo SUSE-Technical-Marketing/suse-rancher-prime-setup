@@ -545,7 +545,8 @@ hosts:
         ]);
         const ok = load(`${BASE}\ncatalog:\n  os:\n    mine: { extends: leap-16, cloudInit: { runcmd: [\"echo {{ secrets['reg-code'] }} {{ secrets.scc.password }}\"] } }\nhosts:\n  vm: { on: hv-north, os: mine, cpu: 2, memory: 4Gi, disk: 20Gi }\n`);
         expect(errors(ok)).toEqual([]);
-        expect(ok.lab!.secrets).toMatchObject({ "reg-code": "string", scc: "credentials" });
+        // Only its password is read: a map with that field, not full credentials.
+        expect(ok.lab!.secrets).toMatchObject({ "reg-code": "string", scc: { fields: ["password"] } });
     });
 
     it("leaves the login and the hostname to the engine", () => {
@@ -922,9 +923,9 @@ ${catalog}`;
 
     it("takes only ChartProfiles, with their rules, on a cluster", () => {
         expect(errors(load(lab("    profiles: { k3s: {}, storage: {}, nope: {}, ai-factory: { applicationCollection: \"{{ secrets.a }}\", suseRegistry: \"{{ secrets.s }}\" } }")))).toEqual([
-            expect.stringMatching(/^downstream\.apps\.profiles\.k3s: is a Profile for lab hosts .*a downstream cluster takes ChartProfiles: ai-factory, cert-manager, hauler-chart, metallb, outrider, sprouter, traefik$/),
+            expect.stringMatching(/^downstream\.apps\.profiles\.k3s: is a Profile for lab hosts .*a downstream cluster takes: ai-factory, cert-manager, hauler-chart, metallb, outrider, sprouter, suse-observability-agent, traefik$/),
             "downstream.apps.profiles.storage: is a Fleet profile: list it under fleetProfiles",
-            expect.stringMatching(/^downstream\.apps\.profiles\.nope: unknown ChartProfile "nope"/),
+            expect.stringMatching(/^downstream\.apps\.profiles\.nope: unknown profile "nope"/),
             expect.stringMatching(/^downstream\.apps\.profiles\.ai-factory: needs rancher .*on the same cluster$/),
         ]);
     });
@@ -986,6 +987,46 @@ describe("Harvester DNS", () => {
     });
 });
 
+describe("SUSE Observability agents", () => {
+    const POOL = "harvester: hv-north, pools: [{ name: a, quantity: 1, roles: [etcd, controlplane, worker], cpu: 2, memory: 4Gi, disk: 40Gi, os: leap-16 }]";
+    const lab = (opts: { host?: string; harvester?: string; obs?: string; apps?: string }) => load(`${BASE.replace("  hv-north: {}", `  hv-north: { profiles: { ${opts.harvester ?? ""} } }`)}
+hosts:
+  vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { ${RANCHER_STACK}${opts.host ?? ""} } }
+downstream:
+  obs: { type: harvester, rancher: vm, ${POOL}, fleetProfiles: { ${opts.obs ?? "storage: {}, observability: {}"} } }
+  apps: { type: harvester, rancher: vm, ${POOL}${opts.apps ? `, profiles: { ${opts.apps} }` : ""} }
+`);
+
+    it("go on a host, a downstream cluster and a Harvester, reporting to a cluster with SUSE Observability", () => {
+        const agent = "suse-observability-agent: { observer: obs }";
+        const { lab: resolved, diagnostics } = lab({ host: `, ${agent}`, harvester: agent, apps: agent });
+        expect(diagnostics.errors).toEqual([]);
+        expect(resolved!.downstream.find(d => d.name === "obs")!.fleetOutputs).toEqual({ "suse-observability": { url: "https://observability.obs.lab.geeko.me" } });
+        expect(resolved!.hosts[0].profiles["suse-observability-agent"]).toEqual({ observer: "obs", adminToken: "{{ secrets.observability.token }}" });
+        expect(resolved!.harvesters[0].profiles["suse-observability-agent"]).toMatchObject({ observer: "obs" });
+        expect(resolved!.downstream.find(d => d.name === "apps")!.chartProfiles!.profiles["suse-observability-agent"]).toMatchObject({ observer: "obs" });
+        expect(resolved!.secrets.observability).toEqual({ fields: ["token"] });
+    });
+
+    it("need an observer that runs SUSE Observability, in the lab", () => {
+        expect(errors(lab({ apps: "suse-observability-agent: { observer: nope }" }))).toEqual([
+            'downstream.apps.profiles.suse-observability-agent.observer: no downstream cluster "nope" in the lab; clusters: obs, apps',
+        ]);
+        expect(errors(lab({ obs: "storage: {}", apps: "suse-observability-agent: { observer: obs }" }))).toEqual([
+            "downstream.apps.profiles.suse-observability-agent.observer: cluster obs doesn't run suse-observability: give it the Fleet profile observability",
+        ]);
+        expect(errors(lab({ apps: "suse-observability-agent: {}" }))).toEqual([
+            'downstream.apps.profiles.suse-observability-agent.observer: required',
+        ]);
+    });
+
+    it("take only profiles that target Harvesters on a Harvester", () => {
+        expect(errors(lab({ harvester: "k3s: {}" }))).toEqual([
+            "harvesters.hv-north.profiles.k3s: doesn't go on a Harvester; a Harvester takes: suse-observability-agent",
+        ]);
+    });
+});
+
 describe("host profiles", () => {
     it("rejects unknown profiles and checks settings against the catalog", () => {
         const result = load(`${BASE}
@@ -993,7 +1034,7 @@ hosts:
   vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { nope: {}, k3s: { versoin: x }, hauler: { port: 70000 } } }
 `);
         expect(errors(result)).toEqual([
-            'hosts.vm.profiles: unknown profile "nope"; known: ai-factory, cert-manager, harvester-cloud-provider, hauler, hauler-chart, k3s, metallb, mlm-client, mlm-server, outrider, rancher, rke2, sprouter, traefik',
+            'hosts.vm.profiles: unknown profile "nope"; known: ai-factory, cert-manager, harvester-cloud-provider, hauler, hauler-chart, k3s, metallb, mlm-client, mlm-server, outrider, rancher, rke2, sprouter, suse-observability-agent, traefik',
             'hosts.vm.profiles.k3s.versoin: unknown field "versoin"',
             "hosts.vm.profiles.hauler.port: Too big: expected number to be <=65535",
         ]);
@@ -1101,7 +1142,7 @@ ${tail}`;
     });
 
     it("builds the repos' secrets from the lab's inputs, on the Rancher host", () => {
-        const result = load(rancher("", ", outrider: {}", "inputs: { appco: \"{{ secrets.appco }}\", suse-observability-license: \"{{ secrets.obs }}\" }\n"));
+        const result = load(rancher("", ", outrider: {}", "inputs: { appco: \"{{ secrets.appco }}\", suse-observability-license: \"{{ secrets.obs }}\", suse-observability-token: \"{{ secrets['obs-token'] }}\", suse-observability-password: \"{{ secrets['obs-password'] }}\" }\n"));
         expect(errors(result)).toEqual([]);
         expect(repoNames(result)).toContain("lab-setup-appco");
         expect(repoNames(result)).not.toContain("lab-setup-suse");
@@ -1278,7 +1319,7 @@ downstream:
         ]);
         expect(errors(load(lab("profiles: { k3s: {} }", "inputs: { appco: plain, other: x }\n")))).toEqual([
             "inputs.appco: must be credentials: \"{{ secrets.name }}\" or { username, password }",
-            'inputs.other: no catalog secret or configmap takes input "other"; known: appco, scc, suse-observability-license',
+            'inputs.other: no catalog secret or configmap takes input "other"; known: appco, scc, suse-observability-license, suse-observability-password, suse-observability-token',
         ]);
     });
 
@@ -1360,7 +1401,7 @@ describe("secret templates", () => {
             "harvesters.hv-north.credentials: credentials are one secret ({{ secrets.name }}) or { username, password }",
             "hosts.vm.profiles.rancher.values.y: secrets.ra: \"a b\" can't be a field of a secret",
             // Reported where it's used the second time.
-            "tls.cloudflare: secret \"cf\" is used both as credentials and as string",
+            "tls.cloudflare: secret \"cf\" is used both as a map with password and as string",
             "ssh.privateKey: secret \"ssh-key\" is used both as a map with token and as string",
         ]);
     });
@@ -1368,7 +1409,7 @@ describe("secret templates", () => {
     it("collects the fields of map secrets across their uses", () => {
         const result = load(`${BASE}hosts:\n  vm: { on: hv-north, os: leap-16, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.ra }}\", values: { a: \"{{ secrets.aws.accessKey }}\", b: \"{{ secrets.aws.secretKey | trim }}\", c: \"{{ secrets.reg.username }}\" } } } }\n`);
         expect(errors(result)).toEqual([]);
-        expect(result.lab!.secrets).toMatchObject({ aws: { fields: ["accessKey", "secretKey"] }, reg: "credentials" });
+        expect(result.lab!.secrets).toMatchObject({ aws: { fields: ["accessKey", "secretKey"] }, reg: { fields: ["username"] } });
     });
 
     it("follows paths into map secrets, for a field or a map inside one", () => {

@@ -9,7 +9,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { parseAllDocuments } from "yaml";
 import {
-    defaultPersonalConfigPath, Diagnostics, loadCatalog, loadLab, loadPersonal, renderLabSpec, withPersonalVars, type ResolvedCatalog,
+    defaultPersonalConfigPath, Diagnostics, loadCatalog, loadLab, loadPersonal, profileTargets, renderLabSpec, withPersonalVars, type ResolvedCatalog,
 } from "../../packages/schema/src/index.ts";
 import { renderPlan } from "../../cli/src/plan.ts";
 import { secretEnvName } from "../../cli/src/secrets.ts";
@@ -43,6 +43,8 @@ function catalogInfo(catalog: ResolvedCatalog) {
             conflicts: p.conflicts ?? [],
             fallback: p.fallback ?? [],
             hostKinds: p.hostKinds,
+            targets: profileTargets(p),
+            clusterRefs: p.clusterRefs ?? [],
             osFamilies: p.osFamilies,
             secretFields: p.secretFields ?? [],
             settings: p.settingsSchema,

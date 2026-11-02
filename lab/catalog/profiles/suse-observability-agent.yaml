@@ -1,0 +1,35 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: suse-observability-agent
+  description: SUSE Observability's agent, registered with the instance on another cluster of the lab
+spec:
+  icon: radar                # in the lab UI (lucide.dev/icons)
+  # On a lab host's cluster, a downstream cluster, or a Harvester itself (as an add-on).
+  targets: [ host, cluster, harvester ]
+  requires: [ kubernetes ]
+  # The observer: a downstream cluster that runs SUSE Observability (the observability Fleet profile).
+  clusterRefs:
+    - { field: observer, provides: suse-observability }
+  secretFields: [ adminToken ]
+  settings:
+    type: object
+    required: [ observer ]
+    properties:
+      # The downstream cluster whose SUSE Observability this agent reports to.
+      observer:
+        $ref: dnsLabel
+        description: the downstream cluster running SUSE Observability that this agent reports to
+      # A service token of the instance with admin rights: its bootstrap token (fleet-secrets'
+      # suse-observability-token input; give both the same secret). The engine creates the agent's
+      # own token with it.
+      adminToken:
+        $ref: secretOrString
+        default: "{{ secrets.observability.token }}"
+        description: the instance's bootstrap service token (not the admin password), to register the agent with
+      # Its name in SUSE Observability; default the host's, cluster's or Harvester's name.
+      clusterName:
+        $ref: dnsLabel
+        description: "its name in SUSE Observability; default: the host's, cluster's or Harvester's name"
+      version: { type: string }
+      values: { $ref: chartValues }

@@ -290,6 +290,33 @@ Without `fleet.repos` you get the default repos whose Helm secrets can be built 
 `inputs`; `repos: []` means none. `lab plan` lists what's created and what's skipped, with the
 input it waits for. To share a repo or secret with the team, add a file to `catalog/`.
 
+### SUSE Observability agents
+
+The `suse-observability-agent` profile reports a cluster to the SUSE Observability that Fleet runs
+on another cluster of the lab (one with the `observability` Fleet profile). It goes on a lab host,
+a downstream cluster, or a Harvester itself (its `profiles:`, installed as an add-on), and names
+that cluster as its `observer`; the composer draws an arrow to it. The engine registers each agent
+through the instance's API (a subject `agent-<name>` with `update-metrics`, a service token for
+it, and the cluster's instance of the `kubernetes-v2` StackPack) and removes all of it with the agent. It does that with the instance's bootstrap
+token, an API credential (not the admin user's password, which is the `suse-observability-password`
+input). Give the lab both inputs, as it gives `suse-observability-license`; the instance's values
+file is only written when all three are there. The agent's `adminToken` defaults to
+`{{ secrets.observability.token }}`; with the token in another secret, set it there too:
+
+```yaml
+spec:
+  inputs:
+    suse-observability-license: "{{ secrets.observability.license }}"
+    suse-observability-token: "{{ secrets.observability.token }}"         # any long random value
+    suse-observability-password: "{{ secrets.observability.password }}"   # the admin user's UI password
+---
+kind: DownstreamCluster
+metadata: { name: apps }
+spec:
+  profiles:
+    suse-observability-agent: { observer: heimdall }   # a cluster with fleetProfiles: { observability: {} }
+```
+
 ## State
 
 Lab state lives in `~/.local/share/lab/state` (`$LAB_STATE_URL` to override). Secrets in it are

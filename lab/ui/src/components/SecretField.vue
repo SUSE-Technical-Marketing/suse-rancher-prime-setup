@@ -8,7 +8,8 @@ import Field from "./Field.vue";
 // UI) or a field in one (`cloudflare.token`), a template with more in it ("Bearer {{ secrets.token }}"), or a value written in the lab file,
 // which `validate` warns about.
 // `fields`: a map secret with at least these fields (AWS keys), instead of a `shape`.
-const props = defineProps<{ modelValue?: unknown; label?: string; hint?: string; required?: boolean; shape?: "string" | "credentials"; fields?: string[]; allowPlain?: boolean; problem?: string }>();
+// `defaultValue`: what an unset field gives (a profile setting's default), shown instead of "none".
+const props = defineProps<{ modelValue?: unknown; label?: string; hint?: string; required?: boolean; shape?: "string" | "credentials"; fields?: string[]; allowPlain?: boolean; problem?: string; defaultValue?: unknown }>();
 const emit = defineEmits<{ "update:modelValue": [value: unknown] }>();
 
 /** The secret's path, dotted: `cloudflare.token`. */
@@ -63,7 +64,7 @@ const setText = (e: Event) => emit("update:modelValue", (e.target as HTMLInputEl
   <Field :label="label" :required="required" :hint="shownHint" :problem="problem">
     <span class="secret">
       <select :value="mode" @change="setMode(($event.target as HTMLSelectElement).value)">
-        <option value="none">{{ required ? "—" : "none" }}</option>
+        <option value="none">{{ required ? "—" : defaultValue === undefined ? "none" : `default: ${secretPath(defaultValue)?.join(".") ?? "set"}` }}</option>
         <option value="secret">secret</option>
         <option value="template">template</option>
         <option v-if="allowPlain !== false" value="plain">value</option>

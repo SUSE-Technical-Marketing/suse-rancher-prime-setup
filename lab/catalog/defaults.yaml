@@ -53,6 +53,7 @@ spec:
     downstreamDelete: 30m     # a downstream cluster removed
     helmJobWatch: 60m         # how long a new k3s / RKE2 server deletes helm-controller install Jobs stuck suspended
     haulerSync: 120m          # a Hauler store synced from its manifests (images and charts downloaded)
+    observabilityReady: 60m   # SUSE Observability's API answering (Fleet installs it), to register an agent
 
   # Images the engine runs itself. kubectl (with curl): a k3k cluster's import job on its parent.
   images:

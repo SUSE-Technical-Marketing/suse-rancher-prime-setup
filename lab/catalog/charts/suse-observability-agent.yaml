@@ -1,0 +1,10 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: suse-observability-agent
+  description: SUSE Observability's agent, reporting a cluster to a SUSE Observability instance
+spec:
+  repo: https://charts.rancher.com/server-charts/prime/suse-observability
+  chart: suse-observability-agent
+  version: 1.7.19
+  namespace: suse-observability-agent
