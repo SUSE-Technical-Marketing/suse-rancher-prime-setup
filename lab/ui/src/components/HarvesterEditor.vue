@@ -46,11 +46,19 @@ function addVlan() {
 
     <section>
       <h3>DNS</h3>
-      <p class="muted">Registers every VM's name with your DNS server.</p>
+      <p class="muted">Registers every VM's name with your router, through the harvester-dns-controller add-on (listed under the Harvester's Add-ons).</p>
       <div class="grid">
-        <SelectField label="backend" :options="['routeros']" empty="none" v-bind="bind('spec.dns.backend')" />
-        <TextField label="host" placeholder="10.0.0.1" format="ip" v-bind="bind('spec.dns.host')" />
-        <CredentialsField label="credentials" v-bind="bind('spec.dns.credentials')" />
+        <SelectField label="backend" :options="['routeros', 'glinet']" empty="none" v-bind="bind('spec.dns.backend')" />
+        <TextField label="host" placeholder="10.0.0.1 or router.example.com" hint="the router's address or name" v-bind="bind('spec.dns.host')" />
+        <CredentialsField label="credentials" hint="the router's login; GL.Inet only uses the password" v-bind="bind('spec.dns.credentials')" />
+        <TextField label="TTL" placeholder="default 15m" pattern="^\d+[smhdw]$" hint="of every record: 15m, 1h, 1d" v-bind="bind('spec.dns.ttl')" />
+        <SelectField label="HTTPS" :options="bools" empty="default (no)" hint="reach the router's API over HTTPS"
+          :model-value="v.spec?.dns?.useTls === undefined ? undefined : String(v.spec.dns.useTls)"
+          @update:model-value="x => set('spec.dns.useTls', x === undefined ? undefined : x === 'true')" />
+        <SelectField label="verify certificate" :options="bools" empty="default (no)" hint="check the router's certificate (off for a self-signed one)"
+          :model-value="v.spec?.dns?.tlsVerify === undefined ? undefined : String(v.spec.dns.tlsVerify)"
+          @update:model-value="x => set('spec.dns.tlsVerify', x === undefined ? undefined : x === 'true')" />
+        <YamlField label="other chart values" hint="e.g. { logLevel: debug, dns: { useGuestClusterLabel: false } }; the connection, login, domain and record comment are the engine's" v-bind="bind('spec.dns.values')" />
       </div>
     </section>
 

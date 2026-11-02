@@ -1,5 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
+import { stringify } from "yaml";
 import { harvesterhci, k8s as cni, loadbalancer, network } from "@lab/crds";
 import type { ResolvedHarvester, Timeouts } from "@lab/schema";
 import { HarvesterAddon } from "./addon";
@@ -170,29 +171,52 @@ export class HarvesterBase extends pulumi.ComponentResource {
         }
 
         // --- DNS controller --------------------------------------------------------------------
+        // A Harvester add-on, so it's listed (and its values shown) under the Harvester's Add-ons; the
+        // router's password stays in a Secret of its own, out of the values anyone can read there.
         if (h.dns && args.dnsCredentials) {
+            const dns = h.dns;
             const secret = new k8s.core.v1.Secret(child("dns-controller-secret"), {
                 metadata: { name: "lab-dns-controller", namespace: "harvester-system" },
                 stringData: { password: pulumi.secret(args.dnsCredentials.password) },
             }, o);
-            this.ready.push(new k8s.helm.v3.Release(child("dns-controller"), {
+            const own = dns.values ?? {};
+            const valuesContent = pulumi.all([args.dnsCredentials.username, ns]).apply(([username, namespace]) => stringify({
+                ...own,
+                dns: {
+                    ...(own.dns as Record<string, unknown> | undefined),
+                    backend: dns.backend,
+                    host: dns.host,
+                    username,
+                    existingSecret: "lab-dns-controller",
+                    useTls: dns.useTls ?? false,
+                    ...(dns.tlsVerify !== undefined ? { tlsVerify: dns.tlsVerify } : {}),
+                    domain: args.domain,
+                    ...(dns.ttl ? { ttl: dns.ttl } : {}),
+                    // Its records on the router, by this comment: one per Harvester, so controllers of
+                    // Harvesters sharing a router never clean up each other's (it takes over a record of
+                    // its name under another comment).
+                    commentTag: `managed-by=harvester-dns-controller/${h.name}`,
+                },
+                watchNamespaces: namespace,
+            }, { lineWidth: 0 }));
+            this.ready.push(new HarvesterAddon(child("dns-controller"), {
+                harvester: h.name,
                 name: "harvester-dns-controller",
                 namespace: "harvester-system",
+                labels: { "addon.harvesterhci.io/experimental": "true" },
+                // An oci:// chart has no repo: Harvester's helm-controller pulls it by its reference.
+                repo: args.charts.dnsController.repo ?? "",
                 chart: args.charts.dnsController.chart,
                 version: args.charts.dnsController.version,
-                ...(args.charts.dnsController.repo ? { repositoryOpts: { repo: args.charts.dnsController.repo } } : {}),
-                values: {
-                    dns: {
-                        backend: h.dns.backend,
-                        host: h.dns.host,
-                        username: args.dnsCredentials.username,
-                        existingSecret: "lab-dns-controller",
-                        useTls: false,
-                        domain: args.domain,
-                    },
-                    watchNamespaces: ns,
-                },
-            }, { ...o, dependsOn: [secret] }));
+                valuesContent,
+                timeoutSeconds: args.timeouts.harvesterAddon,
+            }, {
+                parent: this, dependsOn: [secret],
+                // It was a Helm release of the same name: that one is uninstalled first, so they never
+                // both run (or fight over the release name).
+                aliases: [{ type: "kubernetes:helm.sh/v3:Release" }],
+                deleteBeforeReplace: true,
+            }));
         }
 
         // --- SSH key pair and images --------------------------------------------------------------

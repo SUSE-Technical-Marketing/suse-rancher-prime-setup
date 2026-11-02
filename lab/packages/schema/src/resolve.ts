@@ -230,6 +230,17 @@ export interface ResolveResult {
     diagnostics: Diagnostics;
 }
 
+/** The DNS controller's `dns` values the engine sets, and where each comes from. */
+const DNS_FIELD: Record<string, string> = {
+    backend: "from dns.backend", host: "from dns.host", username: "from dns.credentials", password: "from dns.credentials",
+    existingSecret: "from dns.credentials", ttl: "from dns.ttl", useTls: "from dns.useTls", tlsVerify: "from dns.tlsVerify",
+    domain: "(the lab's domain)",
+    // Its records on the router, by comment: one tag per Harvester, so controllers sharing a router
+    // never clean up each other's.
+    commentTag: "(managed-by=harvester-dns-controller/<the Harvester's name>)",
+};
+const DNS_ENGINE_VALUES = Object.keys(DNS_FIELD);
+
 export function resolveLab(input: ResolveInput, diags = new Diagnostics()): ResolveResult {
     const { lab, labSource: L, personal, personalSource: P } = input;
     const secrets: Record<string, SecretShape> = {};
@@ -346,6 +357,16 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             useCredentials(credentials, h.credentials ? L : P, h.credentials ? `${at}.credentials` : `harvesters.${name}.credentials`);
         }
         if (h.dns?.credentials) useCredentials(h.dns.credentials, L, `${at}.dns.credentials`);
+        else if (h.dns) diags.error(L, `${at}.dns.credentials`, "required: the router's login (GL.Inet only uses the password)");
+        // What the engine sets on the DNS controller: its own fields and the lab's.
+        for (const [key, inner] of [["dns", DNS_ENGINE_VALUES], ["watchNamespaces", undefined]] as const) {
+            const given = h.dns?.values?.[key];
+            if (given === undefined) continue;
+            const taken = inner ? Object.keys(given as object).filter(k => inner.includes(k)) : [key];
+            for (const k of taken) diags.error(L, `${at}.dns.values.${inner ? `${key}.${k}` : k}`, inner
+                ? `is set by the lab engine ${DNS_FIELD[k]}; it can't be overridden`
+                : "is set by the lab engine (the lab's namespace); it can't be overridden");
+        }
 
         const withServer = (dhcp: typeof h.networks.untagged.dhcp, at: string) => {
             if (!dhcp) return undefined;

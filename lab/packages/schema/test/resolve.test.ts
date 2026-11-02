@@ -961,6 +961,31 @@ ${extra}`;
     });
 });
 
+describe("Harvester DNS", () => {
+    const lab = (dns: string) => load(BASE.replace("  hv-north: {}", `  hv-north:\n    dns: ${dns}`));
+
+    it("takes either backend, a TTL, TLS settings and other chart values", () => {
+        const { lab: resolved, diagnostics } = lab(`{ backend: glinet, host: router.lab.geeko.me, credentials: "{{ secrets.router }}", ttl: 1h, useTls: true, tlsVerify: false, values: { logLevel: debug, dns: { useGuestClusterLabel: false } } }`);
+        expect(diagnostics.errors).toEqual([]);
+        expect(resolved!.harvesters[0].dns).toMatchObject({ backend: "glinet", host: "router.lab.geeko.me", ttl: "1h", useTls: true, values: { logLevel: "debug" } });
+    });
+
+    it("needs the router's login, and won't let values override what the engine sets", () => {
+        expect(errors(lab("{ backend: routeros, host: 10.0.0.1 }"))).toEqual([
+            "harvesters.hv-north.dns.credentials: required: the router's login (GL.Inet only uses the password)",
+        ]);
+        expect(errors(lab(`{ backend: routeros, host: 10.0.0.1, credentials: "{{ secrets.router }}", ttl: 15 minutes, values: { watchNamespaces: x, dns: { host: y, domain: z, commentTag: ok } } }`))).toEqual([
+            "harvesters.hv-north.dns.ttl: must be a duration like 15m, 1h or 1d",
+        ]);
+        expect(errors(lab(`{ backend: routeros, host: 10.0.0.1, credentials: "{{ secrets.router }}", values: { watchNamespaces: x, dns: { host: y, domain: z, commentTag: mine, useGuestClusterLabel: false } } }`))).toEqual([
+            "harvesters.hv-north.dns.values.dns.host: is set by the lab engine from dns.host; it can't be overridden",
+            "harvesters.hv-north.dns.values.dns.domain: is set by the lab engine (the lab's domain); it can't be overridden",
+            "harvesters.hv-north.dns.values.dns.commentTag: is set by the lab engine (managed-by=harvester-dns-controller/<the Harvester's name>); it can't be overridden",
+            "harvesters.hv-north.dns.values.watchNamespaces: is set by the lab engine (the lab's namespace); it can't be overridden",
+        ]);
+    });
+});
+
 describe("host profiles", () => {
     it("rejects unknown profiles and checks settings against the catalog", () => {
         const result = load(`${BASE}

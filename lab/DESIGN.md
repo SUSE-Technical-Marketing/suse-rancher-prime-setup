@@ -198,10 +198,12 @@ harvesters:
       name: longhorn-single
       replicas: 1
       parameters: { staleReplicaTimeout: "30", migratable: "true" }   # Longhorn parameters
-    dns:                                    # harvester-dns-controller, always installed
-      backend: routeros
-      host: 10.29.100.1
-      credentials: "{{ secrets.routeros }}"
+    dns:                                    # the harvester-dns-controller add-on
+      backend: routeros                     # or glinet
+      host: 10.29.100.1                     # the router: an address or a name
+      credentials: "{{ secrets.routeros }}" # required; GL.Inet only uses the password
+      ttl: 15m                              # optional, as are useTls / tlsVerify
+      values: { logLevel: debug }           # any other chart values
     networks:
       default: vlan100                      # network used by hosts that don't name one
       untagged:                             # always present; dhcp optional (existing DHCP server)
@@ -850,8 +852,19 @@ program's main loop.
 
 ## 8. DNS and TLS
 
-- **DNS**: the harvester-dns-controller add-on (RouterOS backend) is installed as part of each
-  Harvester base and gives every Harvester VM a record under `domain`. Physical (SSH) machines
+- **DNS**: the harvester-dns-controller is installed as a Harvester add-on (`Addon` in
+  `harvester-system`, labelled experimental, from its `oci://` chart with an empty repo, which
+  Harvester's helm-controller pulls by reference) as part of each Harvester base, and gives every
+  Harvester VM a record under `domain`. Configured from the Harvester's `dns`: `backend` (`routeros`
+  or `glinet`), `host`, `credentials`, `ttl`, `useTls`, `tlsVerify`, and `values` for any other chart
+  value; the connection, the login, the lab's domain and namespace, and the comment its records
+  carry on the router are the engine's and `values` can't override them. That comment is
+  `managed-by=harvester-dns-controller/<harvester>`: the controller lists, and at startup cleans
+  up, the router's records by exact comment, so controllers of Harvesters that share a router never
+  remove each other's records. It takes over a record of a name it manages that carries another
+  comment, so changing the comment re-tags the live records. The add-on's values are visible (and editable) under the Harvester's
+  Add-ons, so the router's password is a Secret of its own (`existingSecret`). It used to be a Helm
+  release of the same name; the add-on replaces it, the release removed first. Physical (SSH) machines
   already have DNS records; the lab doesn't manage them.
 - **TLS**: ACME with Let's Encrypt and Cloudflare DNS-01. This works for internal-only names
   because only the `_acme-challenge` TXT record is public.

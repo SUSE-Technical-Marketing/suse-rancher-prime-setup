@@ -26,6 +26,8 @@ function candidates(lab: ResolvedLab, session: HarvesterSession): { what: string
         { what: "DHCP controller pods", path: "/api/v1/namespaces/harvester-system/pods?labelSelector=app.kubernetes.io%2Fname%3Dharvester-vm-dhcp-controller", list: true },
         { what: "DNS controller pods", path: "/api/v1/namespaces/harvester-system/pods?labelSelector=app.kubernetes.io%2Fname%3Dharvester-dns-controller", list: true },
         { what: "DNS controller secret", path: "/api/v1/namespaces/harvester-system/secrets/lab-dns-controller" },
+        { what: "DNS controller add-on", path: "/apis/harvesterhci.io/v1beta1/namespaces/harvester-system/addons/harvester-dns-controller" },
+        { what: "DNS controller chart (uninstall not finished)", path: "/apis/helm.cattle.io/v1/namespaces/harvester-system/helmcharts/harvester-dns-controller" },
         { what: "DNS controller release", path: "/api/v1/namespaces/harvester-system/secrets?labelSelector=owner%3Dhelm%2Cname%3Dharvester-dns-controller", list: true },
         { what: "ownership claim", path: "/api/v1/namespaces/default/configmaps/lab-owner" },
         // Harvester binds the service accounts it makes kubeconfigs for (the cloud provider's) cluster-wide.
