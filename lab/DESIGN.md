@@ -1019,6 +1019,11 @@ it's on to its observer.
   agent's cluster name, reusing an instance that has that name (`GET /api/stackpack`). Its delete
   uninstalls that instance (`POST …/deprovision/{id}`) and removes the tokens and the subject; an
   instance that's gone is skipped. A registration made before StackPacks gets its instance in place.
+  An agent on a Harvester also makes sure the `suse-virtualization` StackPack has its one instance
+  (no parameters; reused when it's there, and left when an agent goes, since it serves every
+  Harvester), and its add-on gets `otel: { enabled: true, integrations: { suseVirtualization: true,
+  rancherAgent } }`, `rancherAgent` true when the Harvester is imported into a Rancher of the lab (a
+  Harvester downstream cluster runs on it).
 - **Install**: the `suse-observability-agent` chart in namespace `suse-observability-agent`, its
   service token in a Secret (`global.apiKey.fromSecret`), `stackstate.url` the observer's receiver
   (`<url>/receiver/stsAgent`), `stackstate.cluster.name` the host's, cluster's or Harvester's name

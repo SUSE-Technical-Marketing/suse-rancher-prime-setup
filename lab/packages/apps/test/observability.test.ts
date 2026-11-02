@@ -12,6 +12,7 @@ let calls: string[] = [];
 let tokens: { id: number; name: string; roles: string[] }[] = [];
 let subjects: string[] = [];
 let instances: { id: number; config: Record<string, string> }[] = [];
+let virtualization: { id: number; config: Record<string, string> }[] = [];
 let unauthorized = false;
 let expired = false;
 
@@ -34,7 +35,11 @@ beforeAll(async () => {
                 return send(200, { name, token: `token-of-${name}` });
             }
             if (req.method === "DELETE" && path.startsWith("/security/tokens/")) { tokens = tokens.filter(t => t.id !== Number(path.split("/").pop())); return send(204); }
-            if (req.method === "GET" && path === "/stackpack") return send(200, [{ name: "other", configurations: [] }, { name: "kubernetes-v2", configurations: instances }]);
+            if (req.method === "GET" && path === "/stackpack") return send(200, [{ name: "other", configurations: [] }, { name: "kubernetes-v2", configurations: instances }, { name: "suse-virtualization", configurations: virtualization }]);
+            if (req.method === "POST" && path.startsWith("/stackpack/suse-virtualization/provision")) {
+                virtualization.push({ id: 900, config: JSON.parse(body) });
+                return send(200, { id: 900, status: "INSTALLED", config: JSON.parse(body) });
+            }
             if (req.method === "POST" && path.startsWith("/stackpack/kubernetes-v2/provision")) {
                 const id = 100 + instances.length;
                 instances.push({ id, config: JSON.parse(body) });
@@ -49,7 +54,7 @@ beforeAll(async () => {
     url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 afterAll(() => server.close());
-beforeEach(() => { calls = []; tokens = []; subjects = []; instances = []; unauthorized = false; expired = false; });
+beforeEach(() => { calls = []; tokens = []; subjects = []; instances = []; virtualization = []; unauthorized = false; expired = false; });
 
 const inputs = () => ({ url, adminToken: ADMIN, subject: "agent-apps", clusterName: "apps", insecure: false, timeoutSeconds: 5 });
 
@@ -66,6 +71,26 @@ describe("ObservabilityRegistration", () => {
             "GET /stackpack",
             'POST /stackpack/kubernetes-v2/provision?unlocked=fail {"kubernetes_cluster_name":"apps"}',
         ]);
+    });
+
+    it("installs the one suse-virtualization instance for a Harvester, without parameters, and reuses it", async () => {
+        const harvester = { ...inputs(), subject: "agent-asgard", clusterName: "asgard", virtualization: true };
+        const { outs } = await registrationProvider.create!(harvester);
+        expect(outs).toMatchObject({ stackPackInstance: 100, virtualizationInstance: 900 });
+        expect(calls).toContain("POST /stackpack/suse-virtualization/provision?unlocked=fail {}");
+        calls = [];
+        const other = await registrationProvider.create!({ ...harvester, subject: "agent-other", clusterName: "other" });
+        expect(other.outs.virtualizationInstance).toBe(900);
+        expect(calls.some(c => c.includes("suse-virtualization/provision"))).toBe(false);
+        // Removing one Harvester's agent leaves the shared instance.
+        await registrationProvider.delete!("id", outs);
+        expect(virtualization).toHaveLength(1);
+    });
+
+    it("adds suse-virtualization in place to a Harvester's registration from before", async () => {
+        const { outs } = await registrationProvider.create!(inputs());
+        expect(await registrationProvider.diff!("id", outs, { ...inputs(), virtualization: true })).toMatchObject({ changes: true, replaces: [] });
+        expect((await registrationProvider.update!("id", outs, { ...inputs(), virtualization: true })).outs).toMatchObject({ token: "token-of-agent-apps", virtualizationInstance: 900 });
     });
 
     it("reuses the cluster's StackPack instance when it has one", async () => {

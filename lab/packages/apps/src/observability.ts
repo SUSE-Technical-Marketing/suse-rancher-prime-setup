@@ -10,6 +10,8 @@ import { helmApp, type ClusterAccess } from "@lab/kubernetes";
 
 /** The StackPack every agent's cluster gets an instance of. */
 const STACKPACK = "kubernetes-v2";
+/** The StackPack for Harvesters: one instance for all of them, without parameters. */
+const VIRTUALIZATION = "suse-virtualization";
 
 export interface ObservabilityRegistrationArgs {
     /** The instance: `https://observability.<cluster>.<domain>`. */
@@ -20,6 +22,8 @@ export interface ObservabilityRegistrationArgs {
     subject: string;
     /** The cluster's name as the agent reports it: its kubernetes-v2 StackPack instance (`kubernetes_cluster_name`). */
     clusterName: string;
+    /** A Harvester: the suse-virtualization StackPack too (one instance, shared by all Harvesters). */
+    virtualization?: boolean;
     /** Let's Encrypt staging: don't check the instance's certificate. */
     insecure: boolean;
     /** How long to wait for the instance's API to answer (Fleet installs it in its own time). */
@@ -31,6 +35,7 @@ interface Inputs {
     adminToken: string;
     subject: string;
     clusterName: string;
+    virtualization?: boolean;
     insecure: boolean;
     timeoutSeconds: number;
 }
@@ -40,6 +45,8 @@ interface Outputs extends Inputs {
     token: string;
     /** Its kubernetes-v2 StackPack instance. */
     stackPackInstance?: number;
+    /** The suse-virtualization StackPack instance (a Harvester's), when it's ensured. */
+    virtualizationInstance?: number;
 }
 
 const describe = (res: { status: number; body: any }) => {
@@ -107,6 +114,22 @@ async function ensureStackPack(i: Inputs): Promise<number> {
     return res.body.id;
 }
 
+/**
+ * The suse-virtualization StackPack's instance: the one there is, or a new one (it has no parameters,
+ * and one serves every Harvester).
+ */
+async function ensureVirtualization(i: Inputs): Promise<number> {
+    const res = await observabilityRequest(i, i.adminToken, "GET", "/stackpack");
+    if (res.status !== 200) throw new Error(`listing StackPacks failed: ${describe(res)}`);
+    const pack = (res.body as { name: string; configurations?: { id?: number }[] }[]).find(p => p.name === VIRTUALIZATION);
+    if (!pack) throw new Error(`SUSE Observability at ${i.url} has no ${VIRTUALIZATION} StackPack`);
+    const existing = pack.configurations?.find(c => c.id !== undefined)?.id;
+    if (existing !== undefined) return existing;
+    const installed = await observabilityRequest(i, i.adminToken, "POST", `/stackpack/${VIRTUALIZATION}/provision?unlocked=fail`, {});
+    if (installed.status >= 300 || installed.body?.id === undefined) throw new Error(`installing the ${VIRTUALIZATION} StackPack failed: ${describe(installed)}`);
+    return installed.body.id;
+}
+
 /** The ids of the service tokens named after the agent's subject. */
 async function tokensOf(i: Inputs): Promise<number[]> {
     const res = await observabilityRequest(i, i.adminToken, "GET", "/security/tokens");
@@ -130,7 +153,10 @@ export const registrationProvider: pulumi.dynamic.ResourceProvider = {
         // sts service-token create --name agent-<name> --roles agent-<name>
         const token = await observabilityRequest(inputs, inputs.adminToken, "POST", "/security/tokens", { name: inputs.subject, roles: [inputs.subject] });
         if (token.status >= 300 || !token.body?.token) throw new Error(`creating service token ${inputs.subject} failed: ${describe(token)}`);
-        const outs: Outputs = { ...inputs, token: token.body.token, stackPackInstance: await ensureStackPack(inputs) };
+        const outs: Outputs = {
+            ...inputs, token: token.body.token, stackPackInstance: await ensureStackPack(inputs),
+            ...(inputs.virtualization ? { virtualizationInstance: await ensureVirtualization(inputs) } : {}),
+        };
         return { id: `${inputs.url}/${inputs.subject}`, outs };
     },
 
@@ -138,18 +164,24 @@ export const registrationProvider: pulumi.dynamic.ResourceProvider = {
         // Another instance or name is another registration; a new admin token or timeout isn't.
         // One registered before agents got a StackPack instance gets one in place.
         const replaces = (["url", "subject", "clusterName"] as const).filter(k => olds[k] !== news[k] && !(k === "clusterName" && olds[k] === undefined));
-        const changes = replaces.length > 0 || olds.stackPackInstance === undefined
+        const changes = replaces.length > 0 || olds.stackPackInstance === undefined || !!olds.virtualization !== !!news.virtualization
             || olds.adminToken !== news.adminToken || olds.insecure !== news.insecure || olds.timeoutSeconds !== news.timeoutSeconds;
         return { changes, replaces, deleteBeforeReplace: true };
     },
 
     async update(_id: string, olds: Outputs, news: Inputs) {
-        if (olds.stackPackInstance === undefined) await waitForApi(news);
-        return { outs: { ...news, token: olds.token, stackPackInstance: olds.stackPackInstance ?? await ensureStackPack(news) } };
+        const virtualization = news.virtualization && olds.virtualizationInstance === undefined;
+        if (olds.stackPackInstance === undefined || virtualization) await waitForApi(news);
+        // Turned off, the shared suse-virtualization instance stays: other Harvesters may report through it.
+        return { outs: {
+            ...news, token: olds.token, stackPackInstance: olds.stackPackInstance ?? await ensureStackPack(news),
+            ...(news.virtualization ? { virtualizationInstance: olds.virtualizationInstance ?? await ensureVirtualization(news) } : {}),
+        } };
     },
 
     /**
-     * Uninstall its StackPack instance, delete its service tokens and its subject. An instance that's
+     * Uninstall its kubernetes-v2 StackPack instance, delete its service tokens and its subject. The
+     * shared suse-virtualization instance stays (other Harvesters may report through it). An instance that's
      * gone or doesn't answer (the lab is being destroyed, its cluster with it) has nothing left to
      * clean up: that's skipped.
      */
@@ -191,11 +223,16 @@ export class ObservabilityRegistration extends pulumi.dynamic.Resource {
 /** The Secret the agent reads its token from (`global.apiKey.fromSecret`), and the chart's values. */
 export const AGENT_SECRET = "suse-observability-agent-key";
 
-/** The agent chart's values: where to report, as which cluster, its token from AGENT_SECRET. */
-export function agentValues(url: string, clusterName: string): Record<string, unknown> {
+/**
+ * The agent chart's values: where to report, as which cluster, its token from AGENT_SECRET. On a
+ * Harvester, its OpenTelemetry integrations too: SUSE Virtualization, and Rancher's agent when it's
+ * imported into a Rancher.
+ */
+export function agentValues(url: string, clusterName: string, harvester?: { rancherAgent: boolean }): Record<string, unknown> {
     return {
         stackstate: { url: `${url.replace(/\/+$/, "")}/receiver/stsAgent`, cluster: { name: clusterName } },
         global: { apiKey: { fromSecret: AGENT_SECRET } },
+        ...(harvester ? { otel: { enabled: true, integrations: { suseVirtualization: true, rancherAgent: harvester.rancherAgent } } } : {}),
     };
 }
 

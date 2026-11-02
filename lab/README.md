@@ -297,7 +297,9 @@ on another cluster of the lab (one with the `observability` Fleet profile). It g
 a downstream cluster, or a Harvester itself (its `profiles:`, installed as an add-on), and names
 that cluster as its `observer`; the composer draws an arrow to it. The engine registers each agent
 through the instance's API (a subject `agent-<name>` with `update-metrics`, a service token for
-it, and the cluster's instance of the `kubernetes-v2` StackPack) and removes all of it with the agent. It does that with the instance's bootstrap
+it, and the cluster's instance of the `kubernetes-v2` StackPack) and removes all of it with the agent.
+On a Harvester it also installs the `suse-virtualization` StackPack (one instance for all Harvesters)
+and turns on the agent's OpenTelemetry integrations for SUSE Virtualization and Rancher's agent. It does that with the instance's bootstrap
 token, an API credential (not the admin user's password, which is the `suse-observability-password`
 input). Give the lab both inputs, as it gives `suse-observability-license`; the instance's values
 file is only written when all three are there. The agent's `adminToken` defaults to

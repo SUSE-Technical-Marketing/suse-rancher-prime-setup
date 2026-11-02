@@ -32,7 +32,7 @@ export interface AgentTargets {
 
 /** Register and install every agent the lab has. */
 export function buildObservabilityAgents(lab: ResolvedLab, targets: AgentTargets): void {
-    const register = (prefix: string, s: AgentSettings, clusterName: string) => {
+    const register = (prefix: string, s: AgentSettings, clusterName: string, virtualization = false) => {
         // The resolver checked the observer is a downstream cluster whose Fleet profiles provide it.
         const observer = lab.downstream.find(d => d.name === s.observer)!;
         const url = observer.fleetOutputs!["suse-observability"].url;
@@ -41,6 +41,7 @@ export function buildObservabilityAgents(lab: ResolvedLab, targets: AgentTargets
             adminToken: secretString(s.adminToken),
             subject: `agent-${clusterName}`,
             clusterName,
+            ...(virtualization ? { virtualization } : {}),
             insecure: !!lab.acme?.ca,
             timeoutSeconds: lab.timeouts.observabilityReady,
             // After its cluster, and after its Rancher's Fleet HelmOps: a new admin token reaches the
@@ -76,7 +77,9 @@ export function buildObservabilityAgents(lab: ResolvedLab, targets: AgentTargets
         const s = h.profiles[AGENT] as AgentSettings | undefined;
         if (!s) continue;
         const clusterName = s.clusterName ?? h.name;
-        const { url, registration } = register(h.name, s, clusterName);
+        const { url, registration } = register(h.name, s, clusterName, true);
+        // Imported into a Rancher of the lab: a Harvester downstream cluster runs on it.
+        const imported = lab.downstream.some(d => d.type === "harvester" && d.harvester === h.name);
         const c = agentChart(lab, s);
         const namespace = c.namespace;
         if (!c.repo) throw new Error(`catalog.components.${AGENT} needs a repo: it's a Harvester add-on on ${h.name}`);
@@ -88,7 +91,7 @@ export function buildObservabilityAgents(lab: ResolvedLab, targets: AgentTargets
         }, { provider });
         // The lab's values under the engine's; JSON is YAML too.
         const valuesContent = pulumi.output(chartValuesWithSecrets(s.values) ?? {}).apply(own =>
-            JSON.stringify(merge(own as Record<string, unknown>, agentValues(url, clusterName)), null, 2));
+            JSON.stringify(merge(own as Record<string, unknown>, agentValues(url, clusterName, { rancherAgent: imported })), null, 2));
         new HarvesterAddon(`${h.name}/${AGENT}`, {
             harvester: h.name,
             name: AGENT,
