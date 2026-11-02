@@ -45,6 +45,9 @@ for (const h of lab.harvesters) {
     }, { provider: providers[h.name] });
 }
 
+/** Each provisioned cluster's kubeconfig (JSON), by name: host clusters and downstream clusters. */
+const clusterKubeconfigs: Record<string, pulumi.Output<string>> = {};
+
 /** Where SUSE Observability agents go, and the clusters they report to: built last. */
 const agentTargets: AgentTargets = {
     hosts: {},
@@ -165,6 +168,7 @@ for (const host of lab.hosts) {
     if (host.profileOrder.length === 0) continue;
     const outputs = buildHostProfiles(lab, host, access, setUp, machine, harvester);
     if (outputs.fleet) agentTargets.fleet[host.name] = outputs.fleet.ready;
+    if (outputs.kubernetes) clusterKubeconfigs[host.name] = outputs.kubernetes.kubeconfig;
     if (outputs.kubernetes) agentTargets.hosts[host.name] = { ...outputs.kubernetes, ready: Object.values(outputs).flatMap(v => (v && "ready" in v ? v.ready : [])) };
     if (outputs.rancher) {
         rancherUrls[host.name] = outputs.rancher.url;
@@ -405,6 +409,7 @@ function placeObjects(name: string, cluster: { provider: k8s.Provider; cluster: 
         provider: cluster.provider, deletedWith: cluster.cluster, dependsOn: [cluster.cluster],
     }).resources : [];
     agentTargets.downstream[name] = { provider: cluster.provider, deletedWith: cluster.cluster, ready: [cluster.cluster, ...placed] };
+    if (cluster.kubeconfig) clusterKubeconfigs[name] = cluster.kubeconfig;
     const cp = lab.downstream.find(d => d.name === name)?.chartProfiles;
     if (!cp) return;
     const target = { name: `downstream/${name}`, chartValues: cp.chartValues };
@@ -427,3 +432,5 @@ export const awsSites = lab.awsSites.length > 0 ? Object.fromEntries(lab.awsSite
 export const hosts = hostOutputs;
 export const rancher = rancherUrls;
 export const downstream = downstreamNames;
+/** Each provisioned cluster's kubeconfig, by name: the CLI merges them into one file after `up`. */
+export const kubeconfigs = pulumi.secret(pulumi.all(clusterKubeconfigs));

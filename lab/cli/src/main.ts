@@ -1,3 +1,4 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
@@ -6,6 +7,7 @@ import { awsKeys, findAwsLeftovers } from "./aws";
 import {
     checkOwnership, claimHarvesters, closeSessions, currentUser, HarvesterSession, openSessions, releaseHarvesters, writeRunFiles,
 } from "./harvesters";
+import { kubeconfigPath, mergeKubeconfigs, writeKubeconfig } from "./kubeconfig";
 import { findLeftovers } from "./leftovers";
 import { log } from "./log";
 import { renderCatalog, renderPlan, renderProfiles } from "./plan";
@@ -23,6 +25,7 @@ Commands
   up         Create or update the lab
   destroy    Remove everything the lab created and release its Harvesters
   outputs    Show the lab's outputs (URLs, addresses)
+  kubeconfig Write the lab's kubeconfig again (as "up" does): one context per cluster, next to the lab file
   release    Remove this lab's claim on its Harvesters without destroying anything
   profiles   List the host profiles and their rules (no lab file needed)
   catalog    Show the effective catalog (components, plugins, Fleet, OS profiles) and where
@@ -36,6 +39,20 @@ Options
   --force               Release a claim owned by another lab or user (release)
   --check               List what the lab left on its Harvesters; destroys nothing (destroy)
 `;
+
+/**
+ * Write the lab's kubeconfig from its outputs: every cluster it provisioned, one context each, the
+ * Rancher host's current. Next to the lab file; where it goes from there is the user's choice.
+ */
+async function writeLabKubeconfig(stack: { outputs(): Promise<Record<string, { value: unknown }>> }, labFile: string, lab: string): Promise<void> {
+    const outputs = await stack.outputs();
+    const configs = (outputs.kubeconfigs?.value ?? {}) as Record<string, string>;
+    if (Object.keys(configs).length === 0) return;
+    const rancher = Object.keys((outputs.rancher?.value ?? {}) as Record<string, string>)[0];
+    const file = kubeconfigPath(labFile, lab);
+    writeKubeconfig(file, mergeKubeconfigs(configs, rancher));
+    log.ok(`kubeconfig with ${Object.keys(configs).sort().join(", ")}: ${path.relative(process.cwd(), file) || file} (export KUBECONFIG=${file})`);
+}
 
 class UsageError extends Error {}
 
@@ -196,6 +213,7 @@ async function main(argv: string[]): Promise<void> {
                 }
                 log.step(`Updating lab ${ctx.lab.name}`);
                 await stack.up(pulumiOutput);
+                await writeLabKubeconfig(stack, labFile, ctx.lab.name);
                 log.ok(`Lab ${ctx.lab.name} is up. Run "lab outputs ${labFile}" to see its addresses.`);
             });
             return;
@@ -229,6 +247,8 @@ async function main(argv: string[]): Promise<void> {
                     log.step(`Destroying lab ${ctx.lab.name}`);
                     await stack.destroy(pulumiOutput);
                     await stack.workspace.removeStack(ctx.lab.name);
+                    // Its clusters are gone, and their credentials with them.
+                    fs.rmSync(kubeconfigPath(labFile, ctx.lab.name), { force: true });
                 }
                 if (sessions.length > 0) {
                     log.step("Releasing Harvesters");
@@ -236,6 +256,14 @@ async function main(argv: string[]): Promise<void> {
                 }
                 log.ok(`Lab ${ctx.lab.name} is gone.`);
             });
+            return;
+        }
+
+        case "kubeconfig": {
+            const ctx = load(labFile, configPath);
+            const stack = await selectStack(ctx.lab.name, workspaceSettings());
+            if (!stack) throw new Error(`lab ${ctx.lab.name} doesn't exist; run "lab up ${labFile}" first`);
+            await writeLabKubeconfig(stack, labFile, ctx.lab.name);
             return;
         }
 

@@ -28,6 +28,10 @@ that helper isn't on your `PATH`, `up` fails with `exec: "docker-credential-<nam
 file not found in $PATH`. Put it on the `PATH` of the shell you run `lab` from (Rancher Desktop
 installs them in `~/.rd/bin`), or remove `credsStore` if you don't need it.
 
+After `up`, the lab's kubeconfig is next to its lab file as `<lab>.kubeconfig` (mode 0600, ignored
+by git): one context per cluster the lab provisioned, named after it, the Rancher host's current.
+Move it where you like; `lab kubeconfig <lab.yaml>` writes it again, and `destroy` removes it.
+
 ## Files are documents
 
 Lab files, the personal config and the catalog are Kubernetes-style documents: `apiVersion:

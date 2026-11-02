@@ -1047,6 +1047,14 @@ with dynamic providers). For every command it:
 5. writes the resolved lab (non-secret) and the secret values (as Pulumi secrets) into stack config,
 6. runs the requested operation and streams output.
 
+**The lab's kubeconfig.** The program exports each cluster it provisioned's kubeconfig as one
+secret output, `kubeconfigs`: its hosts' k3s / RKE2 (the admin kubeconfig from the host, pointed at
+its address) and its downstream clusters (through Rancher's proxy, with the token Rancher keeps for
+the cluster). After `up` the CLI merges them into `<lab>.kubeconfig` next to the lab file (mode
+0600, git-ignored): one context per cluster, named after it, the Rancher host's current. Where it
+goes from there is the user's choice; `lab kubeconfig` writes it again, `destroy` removes it.
+Harvesters aren't in it: the lab doesn't provision them.
+
 **Personal config** `~/.config/lab/config.yaml` (path overridable with `LAB_CONFIG`) holds
 everything that is per person rather than per lab:
 
