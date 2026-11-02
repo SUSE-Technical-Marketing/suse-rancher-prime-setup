@@ -28,7 +28,10 @@ spec:
   # volumes, cryptsetup for encrypted ones.
   kubernetes:
     cloudInit:
-      packages: [ k3s-selinux, open-iscsi, nfs-client, cryptsetup ]
+      # iptables-backend-nft: SUSE 16 ships nftables only, but the CNI's portmap plugin (RKE2's Calico)
+      # runs the iptables command for pods with host ports (RKE2's own Traefik). The nft backend, so its
+      # rules land in nftables (on 16 that's the iptables package itself, by this capability).
+      packages: [ k3s-selinux, open-iscsi, nfs-client, cryptsetup, iptables-backend-nft ]
       runcmd:
         # Minimal images (Leap 16 Minimal-VM) ship kernel-default-base, which has no iscsi_tcp: swap it
         # for the kernel-default of the same version, so the running kernel finds the module without a

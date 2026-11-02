@@ -9,6 +9,10 @@ helm:
       enabled: true
     dns01RecursiveNameserversOnly: true
     dns01RecursiveNameservers: "8.8.8.8:53,1.1.1.1:53"
+    # Its post-install hook (and the ServiceAccount it runs as) doesn't survive Fleet upgrading the
+    # release right after installing it: the check then fails, or hangs without a token.
+    startupapicheck:
+      enabled: false
 labels:
   provides: cert-manager
 diff:

@@ -529,7 +529,7 @@ hosts:
         expect((dev.cloudInit.runcmd as string[]).at(0)).toBe("systemctl enable --now firewalld");
         // The Harvester and Kubernetes parts are inherited, and extended the same way.
         expect(dev.harvester.packages).toEqual(["qemu-guest-agent"]);
-        expect(dev.kubernetes.packages).toEqual(["k3s-selinux", "open-iscsi", "nfs-client", "cryptsetup", "helm"]);
+        expect(dev.kubernetes.packages).toEqual(["k3s-selinux", "open-iscsi", "nfs-client", "cryptsetup", "iptables-backend-nft", "helm"]);
         expect((dev.cloudInit.runcmd as string[]).at(-1)).toBe("make install");
         expect(dev.cloudInit).toMatchObject({ package_update: true, timezone: "UTC" });
         // Both boot leap-16's image: one download.
