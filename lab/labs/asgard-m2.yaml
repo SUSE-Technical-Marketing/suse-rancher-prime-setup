@@ -29,10 +29,11 @@ kind: Harvester
 metadata:
   name: asgard
 spec:
-  dns:
-    backend: routeros
-    host: 10.29.20.1
-    credentials: "{{ secrets.routeros }}"
+  profiles:
+    harvester-dns-controller:
+      backend: routeros
+      host: 10.29.20.1
+      credentials: "{{ secrets.routeros }}"
   networks:
     default: vlan20
     vlans:

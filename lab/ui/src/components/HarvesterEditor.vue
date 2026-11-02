@@ -21,16 +21,21 @@ const vlanNames = computed(() => vlans.value.map(n => `vlan${n.id}`));
 const defaultNetwork = computed(() => (v.value.spec?.networks?.default === "untagged" ? undefined : v.value.spec?.networks?.default));
 const bools = [{ value: "true", label: "true" }, { value: "false", label: "false" }];
 
+/** The untagged network, always there, then the VLANs: the same fields, but for a VLAN's id. */
+const networks = computed(() => [
+  { key: "untagged", title: "untagged", path: ["spec", "networks", "untagged"] as (string | number)[], net: v.value.spec?.networks?.untagged ?? {}, vlan: undefined as number | undefined },
+  ...vlans.value.map((net, i) => ({ key: `vlan-${i}`, title: `vlan${net.id}`, path: ["spec", "networks", "vlans", i] as (string | number)[], net, vlan: i as number | undefined })),
+]);
+
 const ADDRESSING = [{ value: "dhcp", label: "lab DHCP" }, { value: "none", label: "no lab DHCP" }];
-/** Switch a VLAN between lab DHCP and none, carrying its subnet, gateway and DNS servers across. */
-function setAddressing(i: number, dhcp: boolean) {
-  const vlan = { ...vlans.value[i] };
-  if (dhcp && !vlan.dhcp) {
-    const { cidr, gateway, dns, ...rest } = vlan;
-    set(["spec", "networks", "vlans", i], { ...rest, dhcp: { ...(cidr ? { cidr } : {}), ...(gateway ? { gateway } : {}), ...(dns ? { dns } : {}) } });
-  } else if (!dhcp && vlan.dhcp) {
-    const { dhcp: d, ...rest } = vlan;
-    set(["spec", "networks", "vlans", i], { ...rest, ...(d.cidr ? { cidr: d.cidr } : {}), ...(d.gateway ? { gateway: d.gateway } : {}), ...(d.dns ? { dns: d.dns } : {}) });
+/** Switch a network between lab DHCP and none, carrying its subnet, gateway and DNS servers across. */
+function setAddressing(path: (string | number)[], net: any, dhcp: boolean) {
+  if (dhcp && !net.dhcp) {
+    const { cidr, gateway, dns, ...rest } = net;
+    set(path, { ...rest, dhcp: { ...(cidr ? { cidr } : {}), ...(gateway ? { gateway } : {}), ...(dns ? { dns } : {}) } });
+  } else if (!dhcp && net.dhcp) {
+    const { dhcp: d, ...rest } = net;
+    set(path, { ...rest, ...(d.cidr ? { cidr: d.cidr } : {}), ...(d.gateway ? { gateway: d.gateway } : {}), ...(d.dns ? { dns: d.dns } : {}) });
   }
 }
 
@@ -59,51 +64,34 @@ function addVlan() {
     </section>
 
     <section>
-      <h3>DNS</h3>
-      <p class="muted">Registers every VM's name with your router, through the harvester-dns-controller add-on (listed under the Harvester's Add-ons).</p>
-      <div class="grid">
-        <SelectField label="backend" :options="['routeros', 'glinet']" empty="none" v-bind="bind('spec.dns.backend')" />
-        <TextField label="host" placeholder="10.0.0.1 or router.example.com" hint="the router's address or name" v-bind="bind('spec.dns.host')" />
-        <CredentialsField label="credentials" hint="the router's login; GL.Inet only uses the password" v-bind="bind('spec.dns.credentials')" />
-        <TextField label="TTL" placeholder="default 15m" pattern="^\d+[smhdw]$" hint="of every record: 15m, 1h, 1d" v-bind="bind('spec.dns.ttl')" />
-        <SelectField label="HTTPS" :options="bools" empty="default (no)" hint="reach the router's API over HTTPS"
-          :model-value="v.spec?.dns?.useTls === undefined ? undefined : String(v.spec.dns.useTls)"
-          @update:model-value="x => set('spec.dns.useTls', x === undefined ? undefined : x === 'true')" />
-        <SelectField label="verify certificate" :options="bools" empty="default (no)" hint="check the router's certificate (off for a self-signed one)"
-          :model-value="v.spec?.dns?.tlsVerify === undefined ? undefined : String(v.spec.dns.tlsVerify)"
-          @update:model-value="x => set('spec.dns.tlsVerify', x === undefined ? undefined : x === 'true')" />
-        <YamlField label="other chart values" hint="e.g. { logLevel: debug, dns: { useGuestClusterLabel: false } }; the connection, login, domain and record comment are the engine's" v-bind="bind('spec.dns.values')" />
-      </div>
-    </section>
-
-    <section>
       <h3>Networks</h3>
       <div class="grid">
         <SelectField label="default" :options="vlanNames" empty="untagged" hint="where hosts and pools go unless they say"
           :model-value="defaultNetwork" :problem="bind('spec.networks.default').problem" @update:model-value="x => set('spec.networks.default', x)" />
       </div>
-      <div v-for="(vlan, i) in vlans" :key="i" class="card">
+      <div v-for="{ key, title, path, net, vlan } in networks" :key="key" class="card">
         <header>
-          <strong>vlan{{ vlan.id }}</strong>
-          <button type="button" class="icon" title="Remove VLAN" @click="remove(index, ['spec', 'networks', 'vlans', i])">×</button>
+          <strong>{{ title }}</strong>
+          <button v-if="vlan !== undefined" type="button" class="icon" title="Remove VLAN" @click="remove(index, path)">×</button>
         </header>
         <div class="grid">
-          <TextField label="VLAN id" number required v-bind="bind(['spec', 'networks', 'vlans', i, 'id'])" />
-          <SelectField label="addresses" :options="ADDRESSING" :model-value="vlan.dhcp ? 'dhcp' : 'none'" hint="lab DHCP, or none: fixed addresses (or the LAN's DHCP)"
-            @update:model-value="x => setAddressing(i, x === 'dhcp')" />
-          <template v-if="vlan.dhcp">
-            <TextField label="DHCP CIDR" required placeholder="10.0.20.0/24" format="cidr" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'cidr'])" />
-            <TextField label="gateway" required placeholder="10.0.20.1" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'gateway'])" />
-            <RangeField label="DHCP range" required hint="fixed addresses go outside it" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'range'])" />
-            <TextField label="DHCP server" placeholder="default: the second address" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'server'])" />
-            <ListField label="DNS servers" placeholder="default: the gateway" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'dhcp', 'dns'])" />
+          <TextField v-if="vlan !== undefined" label="VLAN id" number required v-bind="bind([...path, 'id'])" />
+          <SelectField label="addresses" :options="ADDRESSING" :model-value="net.dhcp ? 'dhcp' : 'none'"
+            :hint="vlan === undefined ? 'no lab DHCP when the LAN has a DHCP server (a home router), or for fixed addresses' : 'lab DHCP, or none: fixed addresses (or the LAN\'s DHCP)'"
+            @update:model-value="x => setAddressing(path, net, x === 'dhcp')" />
+          <template v-if="net.dhcp">
+            <TextField label="DHCP CIDR" required placeholder="10.0.20.0/24" format="cidr" v-bind="bind([...path, 'dhcp', 'cidr'])" />
+            <TextField label="gateway" required placeholder="10.0.20.1" format="ip" v-bind="bind([...path, 'dhcp', 'gateway'])" />
+            <RangeField label="DHCP range" required hint="fixed addresses go outside it" v-bind="bind([...path, 'dhcp', 'range'])" />
+            <TextField label="DHCP server" placeholder="default: the second address" format="ip" v-bind="bind([...path, 'dhcp', 'server'])" />
+            <ListField label="DNS servers" placeholder="default: the gateway" format="ip" v-bind="bind([...path, 'dhcp', 'dns'])" />
           </template>
           <template v-else>
-            <TextField label="CIDR" placeholder="203.0.113.0/24" format="cidr" hint="for its VMs' fixed addresses" v-bind="bind(['spec', 'networks', 'vlans', i, 'cidr'])" />
-            <TextField label="gateway" placeholder="203.0.113.1" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'gateway'])" />
-            <ListField label="DNS servers" placeholder="default: the gateway" format="ip" v-bind="bind(['spec', 'networks', 'vlans', i, 'dns'])" />
+            <TextField label="CIDR" placeholder="203.0.113.0/24" format="cidr" hint="for its VMs' fixed addresses" v-bind="bind([...path, 'cidr'])" />
+            <TextField label="gateway" placeholder="203.0.113.1" format="ip" v-bind="bind([...path, 'gateway'])" />
+            <ListField label="DNS servers" placeholder="default: the gateway" format="ip" v-bind="bind([...path, 'dns'])" />
           </template>
-          <RangeField label="load-balancer range" hint="a Harvester LB pool for guest clusters (harvester-cloud-provider)" v-bind="bind(['spec', 'networks', 'vlans', i, 'loadBalancer', 'range'])" />
+          <RangeField label="load-balancer range" hint="a Harvester LB pool for guest clusters (harvester-cloud-provider)" v-bind="bind([...path, 'loadBalancer', 'range'])" />
         </div>
       </div>
       <button type="button" class="link" @click="addVlan">+ add a VLAN</button>
@@ -112,7 +100,6 @@ function addVlan() {
     <details class="advanced">
       <summary>More</summary>
       <div class="grid">
-        <YamlField label="untagged network" hint="{ dhcp, loadBalancer } on the untagged network, or { cidr, gateway, dns } for fixed addresses without lab DHCP" v-bind="bind('spec.networks.untagged')" />
         <TextField label="cluster network" placeholder="default mgmt" v-bind="bind('spec.clusterNetwork')" />
         <YamlField label="storage class" hint="{ name, replicas, parameters }, merged over the defaults" v-bind="bind('spec.storageClass')" />
       </div>

@@ -50,7 +50,7 @@ const hasSettings = (p?: CatalogProfile) => !!p && Object.keys(p.settings.proper
   <section class="profiles">
     <h3>Profiles</h3>
     <p v-if="enabled.length === 0" class="muted">{{ target === "cluster" ? "No profiles: the engine installs nothing on the cluster itself."
-      : target === "hci" ? "No profiles: the engine only installs its own add-ons (DHCP, DNS) on the Harvester."
+      : target === "hci" ? "No profiles: the engine only installs its DHCP add-on on the Harvester (when a network has lab DHCP). Add harvester-dns-controller for DNS records on your router."
       : "No profiles: a bare VM or machine (a metal-cluster node, for example)." }}</p>
     <div v-for="name in enabled" :key="name" class="profile">
       <header>

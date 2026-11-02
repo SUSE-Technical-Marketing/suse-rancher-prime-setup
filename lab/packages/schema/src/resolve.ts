@@ -45,7 +45,8 @@ export interface ResolvedHarvester {
     insecure: boolean;
     clusterNetwork: string;
     storageClass: { name: string; replicas: number; parameters: Record<string, string> };
-    dns?: HarvesterInput["dns"];
+    /** The harvester-dns-controller profile's settings: the add-on is installed with the Harvester's base. */
+    dns?: HarvesterDns;
     /** Profiles on the Harvester itself (those that target Harvesters), their settings checked. */
     profiles: Record<string, Record<string, unknown>>;
     networks: ResolvedNetwork[];
@@ -247,10 +248,21 @@ export interface ResolveResult {
     diagnostics: Diagnostics;
 }
 
-/** The DNS controller's `dns` values the engine sets, and where each comes from. */
+/** The harvester-dns-controller profile's settings. */
+export interface HarvesterDns {
+    backend: "routeros" | "glinet";
+    host: string;
+    credentials: Credentials;
+    ttl?: string;
+    useTls?: boolean;
+    tlsVerify?: boolean;
+    values?: Record<string, unknown>;
+}
+
+/** The DNS controller's `dns` values the engine sets, and where each comes from (the profile's settings). */
 const DNS_FIELD: Record<string, string> = {
-    backend: "from dns.backend", host: "from dns.host", username: "from dns.credentials", password: "from dns.credentials",
-    existingSecret: "from dns.credentials", ttl: "from dns.ttl", useTls: "from dns.useTls", tlsVerify: "from dns.tlsVerify",
+    backend: "from backend", host: "from host", username: "from credentials", password: "from credentials",
+    existingSecret: "from credentials", ttl: "from ttl", useTls: "from useTls", tlsVerify: "from tlsVerify",
     domain: "(the lab's domain)",
     // Its records on the router, by comment: one tag per Harvester, so controllers sharing a router
     // never clean up each other's.
@@ -373,17 +385,6 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         } else {
             useCredentials(credentials, h.credentials ? L : P, h.credentials ? `${at}.credentials` : `harvesters.${name}.credentials`);
         }
-        if (h.dns?.credentials) useCredentials(h.dns.credentials, L, `${at}.dns.credentials`);
-        else if (h.dns) diags.error(L, `${at}.dns.credentials`, "required: the router's login (GL.Inet only uses the password)");
-        // What the engine sets on the DNS controller: its own fields and the lab's.
-        for (const [key, inner] of [["dns", DNS_ENGINE_VALUES], ["watchNamespaces", undefined]] as const) {
-            const given = h.dns?.values?.[key];
-            if (given === undefined) continue;
-            const taken = inner ? Object.keys(given as object).filter(k => inner.includes(k)) : [key];
-            for (const k of taken) diags.error(L, `${at}.dns.values.${inner ? `${key}.${k}` : k}`, inner
-                ? `is set by the lab engine ${DNS_FIELD[k]}; it can't be overridden`
-                : "is set by the lab engine (the lab's namespace); it can't be overridden");
-        }
 
         const withServer = (dhcp: typeof h.networks.untagged.dhcp, at: string) => {
             if (!dhcp) return undefined;
@@ -479,7 +480,6 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 replicas: h.storageClass?.replicas ?? hvDefaults.storageClass.replicas,
                 parameters: { ...hvDefaults.storageClass.parameters, ...h.storageClass?.parameters },
             },
-            dns: h.dns,
             profiles: {}, // checked with the other profiles, below
             networks,
             defaultNetwork,
@@ -1068,6 +1068,19 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             else diags.error(L, `${at}.profiles.${n}`, `${def ? "doesn't go on a Harvester" : `unknown profile "${n}"`}; a Harvester takes: ${forTarget("harvester").join(", ") || "none"}`);
         }
         h.profiles = parseProfiles(own, at);
+        const dns = h.profiles["harvester-dns-controller"] as unknown as HarvesterDns | undefined;
+        if (dns) {
+            h.dns = dns;
+            // What the engine sets on the DNS controller: its own fields and the lab's.
+            for (const [key, inner] of [["dns", DNS_ENGINE_VALUES], ["watchNamespaces", undefined]] as const) {
+                const given = dns.values?.[key];
+                if (given === undefined) continue;
+                const taken = inner ? Object.keys(given as object).filter(k => inner.includes(k)) : [key];
+                for (const k of taken) diags.error(L, `${at}.profiles.harvester-dns-controller.values.${inner ? `${key}.${k}` : k}`, inner
+                    ? `is set by the lab engine ${DNS_FIELD[k]}; it can't be overridden`
+                    : "is set by the lab engine (the lab's namespace); it can't be overridden");
+            }
+        }
         checkHarvesterProfiles({
             registry,
             harvester: { name: h.name, profiles: h.profiles },

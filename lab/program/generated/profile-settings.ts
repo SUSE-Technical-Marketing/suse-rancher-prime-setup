@@ -26,6 +26,23 @@ export type HarvesterCloudProviderSettings = {
     values?: Record<string, unknown>;
 };
 
+/** Settings of the `harvester-dns-controller` profile: DNS records for the lab's VMs and load balancers on your router (RouterOS or GL.Inet), by the harvester-dns-controller add-on */
+export type HarvesterDnsControllerSettings = {
+    /** the router's kind */
+    backend: "routeros" | "glinet";
+    /** the router's address or name */
+    host: string;
+    /** the router's login (GL.Inet only uses the password) */
+    credentials: Credentials;
+    /** TTL of every record: 15m, 1h, 1d (default the chart's, 15m) */
+    ttl?: string;
+    /** reach the router's API over HTTPS (default plain HTTP) */
+    useTls?: boolean;
+    /** check the router's certificate (off for a self-signed one) */
+    tlsVerify?: boolean;
+    values?: Record<string, unknown>;
+};
+
 /** Settings of the `hauler` profile: Hauler registry as systemd services, its store synced from HaulManifests; TLS from lego (DNS-01) */
 export type HaulerSettings = {
     version?: string;
@@ -146,6 +163,7 @@ export interface ProfileSettings {
     "ai-factory": AiFactorySettings;
     "cert-manager": CertManagerSettings;
     "harvester-cloud-provider": HarvesterCloudProviderSettings;
+    "harvester-dns-controller": HarvesterDnsControllerSettings;
     "hauler": HaulerSettings;
     "hauler-chart": HaulerChartSettings;
     "k3s": K3sSettings;

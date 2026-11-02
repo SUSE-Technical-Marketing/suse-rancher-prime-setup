@@ -31,10 +31,6 @@ kind: Harvester
 metadata:
   name: asgard
 spec:
-  dns:
-    backend: routeros
-    host: 10.29.20.1
-    credentials: "{{ secrets.routeros }}"
   networks:
     default: vlan20
     vlans:
@@ -42,6 +38,10 @@ spec:
         dhcp: { cidr: 10.29.20.0/24, gateway: 10.29.20.1, range: [ 10.29.20.100, 10.29.20.150 ] }
         loadBalancer: { range: [ 10.29.20.200, 10.29.20.220 ] } # Harvester LB pool for odin's load balancers
   profiles:
+    harvester-dns-controller:
+      backend: routeros
+      host: 10.29.20.1
+      credentials: "{{ secrets.routeros }}"
     suse-observability-agent:
       observer: heimdall
 ---

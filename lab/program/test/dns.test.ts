@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { runProgram } from "./run-program";
 
 // The whole program under Pulumi's mocks, for a Harvester with DNS: the controller as a Harvester
-// add-on, its values from the Harvester's `dns`, the router's password in a Secret of its own.
+// add-on, its values from the Harvester's harvester-dns-controller profile, the router's password in
+// a Secret of its own.
 
 const LAB = `apiVersion: lab.geeko.me/v1alpha1
 kind: Lab
@@ -17,12 +18,13 @@ metadata: { name: hv }
 spec:
   url: https://hv.example.com
   credentials: "{{ secrets.hv }}"
-  dns:
-    backend: routeros
-    host: 10.0.0.1
-    credentials: "{{ secrets.router }}"
-    ttl: 1h
-    values: { logLevel: debug, dns: { useGuestClusterLabel: false } }
+  profiles:
+    harvester-dns-controller:
+      backend: routeros
+      host: 10.0.0.1
+      credentials: "{{ secrets.router }}"
+      ttl: 1h
+      values: { logLevel: debug, dns: { useGuestClusterLabel: false } }
 ---
 kind: HarvesterVM
 metadata: { name: vm }
@@ -30,7 +32,7 @@ spec: { harvester: hv, os: leap-16 }
 `;
 
 describe("Harvester DNS", () => {
-    it("installs the controller as a Harvester add-on, configured from the Harvester's dns", async () => {
+    it("installs the controller as a Harvester add-on, configured from the Harvester's profile", async () => {
         const registered = await runProgram(LAB, {
             secrets: { "ssh-key": "k", hv: { username: "u", password: "p" }, router: { username: "admin", password: "router-pw" } },
         });

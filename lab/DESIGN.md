@@ -197,12 +197,13 @@ harvesters:
       name: longhorn-single
       replicas: 1
       parameters: { staleReplicaTimeout: "30", migratable: "true" }   # Longhorn parameters
-    dns:                                    # the harvester-dns-controller add-on
-      backend: routeros                     # or glinet
-      host: 10.29.100.1                     # the router: an address or a name
-      credentials: "{{ secrets.routeros }}" # required; GL.Inet only uses the password
-      ttl: 15m                              # optional, as are useTls / tlsVerify
-      values: { logLevel: debug }           # any other chart values
+    profiles:                               # profiles on the Harvester itself
+      harvester-dns-controller:             # DNS records on your router (§8)
+        backend: routeros                   # or glinet
+        host: 10.29.100.1                   # the router: an address or a name
+        credentials: "{{ secrets.routeros }}" # required; GL.Inet only uses the password
+        ttl: 15m                            # optional, as are useTls / tlsVerify
+        values: { logLevel: debug }         # any other chart values
     networks:
       default: vlan100                      # network used by hosts that don't name one
       untagged:                             # always present; dhcp optional (existing DHCP server)
@@ -232,7 +233,7 @@ Everything here used to be hard-coded in `pulumi/setups/sample-setup/harvester-b
   attaches it to that NetworkAttachmentDefinition. The lab doesn't create, change or delete it, and
   knows nothing of its addressing.
 - **DNS records come from the harvester-dns-controller**, installed only when the Harvester has
-  `dns:`. It registers `<host>.<domain>` for the VMs it can see an address for: those on a network
+  the `harvester-dns-controller` profile. It registers `<host>.<domain>` for the VMs it can see an address for: those on a network
   with lab DHCP. A VM with a fixed address or on a network with someone else's DHCP gets no record
   from it; give it an `fqdn` that resolves elsewhere, or add the record yourself.
 - **Load-balancer pools** (`loadBalancer:` on a network) become a Harvester load-balancer IPPool,
@@ -327,6 +328,7 @@ profile. `lab profiles` prints the current list with all rules.
 | `mlm-client` | `server` must name a host running `mlm-server` | `server`, `activationKey` | — |
 | `ai-factory` | requires `rancher`; secrets `applicationCollection`, `suseRegistry`, `nvidia` (credentials) | `version`, `applicationCollection` (required), `suseRegistry` (required; SCC), `nvidia` (the NGC login: user `$oauthtoken`, the API key as password), `values` | SUSE AI Factory on Rancher's cluster: the `aif-operator` chart, which installs the `aif-ui` extension and gets the registry logins as values, so its Settings need no Test and Apply |
 | `landlock` | a Profile for hosts and clusters (`targets`); not on k3k clusters (put it on the parent) or EKS; the OS profile needs `landlock.enable` | — | Landlock active on every node, which OpenShell's agent sandboxes need: turned on at first boot (VMs, a cluster's machines) or over SSH (machines), with one reboot, only where it isn't already; checked before `up` goes on (§9.7) |
+| `harvester-dns-controller` | a Profile for Harvesters only (`targets: [harvester]`); secret `credentials` | `backend` (`routeros`, `glinet`), `host`, `credentials` (all required), `ttl`, `useTls`, `tlsVerify`, `values` | The harvester-dns-controller add-on with the Harvester's base: a record on the router for every VM (§8). It used to be the Harvester's `dns:` |
 
 The apps a cluster needs are separate profiles, so they compose: a host can run Traefik without
 Rancher, or cert-manager for its own workloads. A Rancher host lists them all:
@@ -903,12 +905,12 @@ program's main loop.
 
 ## 8. DNS and TLS
 
-- **DNS**: the harvester-dns-controller is installed as a Harvester add-on (`Addon` in
-  `harvester-system`, labelled experimental, from its `oci://` chart with an empty repo, which
-  Harvester's helm-controller pulls by reference) as part of each Harvester base, and gives every
-  Harvester VM a record under `domain`. Configured from the Harvester's `dns`: `backend` (`routeros`
-  or `glinet`), `host`, `credentials`, `ttl`, `useTls`, `tlsVerify`, and `values` for any other chart
-  value; the connection, the login, the lab's domain and namespace, and the comment its records
+- **DNS**: the `harvester-dns-controller` profile on a Harvester (its `profiles:`) installs the
+  harvester-dns-controller as a Harvester add-on (`Addon` in `harvester-system`, labelled
+  experimental, from its `oci://` chart with an empty repo, which Harvester's helm-controller pulls
+  by reference) as part of the Harvester's base, so VMs come after it and go before it, and gives
+  every Harvester VM a record under `domain`. Its settings: `backend` (`routeros` or `glinet`),
+  `host`, `credentials`, `ttl`, `useTls`, `tlsVerify`, and `values` for any other chart value; the connection, the login, the lab's domain and namespace, and the comment its records
   carry on the router are the engine's and `values` can't override them. That comment is
   `managed-by=harvester-dns-controller/<harvester>`: the controller lists, and at startup cleans
   up, the router's records by exact comment, so controllers of Harvesters that share a router never

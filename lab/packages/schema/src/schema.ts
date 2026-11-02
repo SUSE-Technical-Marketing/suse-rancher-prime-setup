@@ -92,26 +92,8 @@ export const HarvesterInput = z.strictObject({
         replicas: z.int().min(1).max(3).optional(),
         parameters: z.record(z.string(), z.string()).optional(),
     }).optional(),
-    /**
-     * DNS records for the lab's VMs and load balancers, by the harvester-dns-controller add-on
-     * (shown, and editable, under the Harvester's Add-ons). The engine sets the connection, the
-     * login and the lab's domain; `values` are any other chart values (log level, resources).
-     */
-    /** Profiles on the Harvester itself: those that target Harvesters (the SUSE Observability agent). */
+    /** Profiles on the Harvester itself: those that target Harvesters (the SUSE Observability agent, the DNS controller). */
     profiles: z.record(z.string(), z.record(z.string(), z.unknown()).nullable().transform(v => v ?? {})).default({}),
-    dns: z.strictObject({
-        backend: z.enum(["routeros", "glinet"]),
-        /** The router's address or name. */
-        host: z.union([ipv4, dnsName]),
-        /** The router's login (GL.Inet only uses the password). */
-        credentials: Credentials.optional(),
-        /** TTL of every record, in RouterOS format (`15m`, `1h`, `1d`); default the chart's (15m). */
-        ttl: z.string().regex(/^\d+[smhdw]$/, "must be a duration like 15m, 1h or 1d").optional(),
-        /** Reach the router's API over HTTPS, and whether to check its certificate; default plain HTTP. */
-        useTls: z.boolean().optional(),
-        tlsVerify: z.boolean().optional(),
-        values: z.record(z.string(), z.unknown()).optional(),
-    }).optional(),
     networks: z.strictObject({
         default: z.string().optional(),
         untagged: z.strictObject({ dhcp: Dhcp.optional(), loadBalancer: LoadBalancerPool.optional(), ...Subnet }).default({}),

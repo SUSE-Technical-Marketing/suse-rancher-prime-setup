@@ -1,0 +1,38 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: harvester-dns-controller
+  description: "DNS records for the lab's VMs and load balancers on your router (RouterOS or GL.Inet), by the harvester-dns-controller add-on"
+spec:
+  icon: globe                # in the lab UI (lucide.dev/icons)
+  # On the Harvester itself: the add-on (shown, and editable, under the Harvester's Add-ons), built
+  # with the Harvester's base resources, so VMs come after it and go before it. The engine sets the
+  # connection, the login, the lab's domain and the records' comment; `values` are any other chart
+  # values (log level, resources).
+  targets: [ harvester ]
+  secretFields:
+    - { field: credentials, shape: credentials }
+  settings:
+    type: object
+    required: [ backend, host, credentials ]
+    properties:
+      backend:
+        enum: [ routeros, glinet ]
+        description: the router's kind
+      host:
+        $ref: address
+        description: the router's address or name
+      credentials:
+        $ref: credentials
+        description: the router's login (GL.Inet only uses the password)
+      ttl:
+        type: string
+        pattern: "^\\d+[smhdw]$"
+        description: "TTL of every record: 15m, 1h, 1d (default the chart's, 15m)"
+      useTls:
+        type: boolean
+        description: reach the router's API over HTTPS (default plain HTTP)
+      tlsVerify:
+        type: boolean
+        description: check the router's certificate (off for a self-signed one)
+      values: { $ref: chartValues }

@@ -12,7 +12,7 @@ describe("profiles in the catalog", () => {
         const { catalog, diagnostics } = loadCatalog({ personalConfig: noPersonal });
         expect(diagnostics.errors).toEqual([]);
         expect(Object.keys(catalog!.profiles).sort()).toEqual([
-            "ai-factory", "cert-manager", "harvester-cloud-provider", "hauler", "hauler-chart", "k3s", "landlock", "metallb", "mlm-client", "mlm-server",
+            "ai-factory", "cert-manager", "harvester-cloud-provider", "harvester-dns-controller", "hauler", "hauler-chart", "k3s", "landlock", "metallb", "mlm-client", "mlm-server",
             "outrider", "rancher", "rke2", "sprouter", "suse-observability-agent", "traefik",
         ]);
         expect(catalog!.profiles.rancher).toMatchObject({ requires: ["kubernetes", "ingress", "tls", "secret-propagation"], chart: "rancher" });
@@ -78,7 +78,7 @@ describe("profiles in the catalog", () => {
         ].join("\n"));
         const { diagnostics } = loadCatalog({ personalConfig: noPersonal, catalogDir: dir });
         expect(diagnostics.errors.map(d => `${d.path}: ${d.message}`)).toEqual([
-            'Profile/broken.spec.settings.properties.a.$ref: unknown type "nope"; one of dnsLabel, dnsName, quantity, ipv4, url, secretOrString, credentials, chartValues, haulManifest',
+            'Profile/broken.spec.settings.properties.a.$ref: unknown type "nope"; one of dnsLabel, dnsName, quantity, ipv4, address, url, secretOrString, credentials, chartValues, haulManifest',
             'Profile/broken.spec.settings.properties.b.format: unsupported keyword "format"',
             'Profile/broken.spec.settings.required: "missing" isn\'t one of the settings',
             'Profile/broken.spec.charts[0].chart: no HelmChart "nope"',

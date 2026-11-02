@@ -23,10 +23,11 @@ metadata:
   description: url and credentials from the personal config
 spec:
   # url and credentials from the personal config
-  dns:
-    backend: routeros
-    host: 10.29.100.1
-    credentials: "{{ secrets.routeros }}"
+  profiles:
+    harvester-dns-controller:
+      backend: routeros
+      host: 10.29.100.1
+      credentials: "{{ secrets.routeros }}"
   networks:
     default: vlan100
     vlans:

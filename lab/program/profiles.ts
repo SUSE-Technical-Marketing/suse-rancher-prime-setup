@@ -251,6 +251,9 @@ export const BUILDERS: { [N in ProfileName]?: ProfileBuilder<N> } = {
     // Nothing to build once the host is up: it turned Landlock on before its setup and was checked
     // (program/landlock.ts); what runs on it waits for that.
     landlock: { build() {} },
+
+    // On a Harvester, not a host: the add-on goes with the Harvester's base (HarvesterBase), before its VMs.
+    "harvester-dns-controller": { build() {} },
 };
 
 type AnyBuilder = ProfileBuilder<ProfileName>;

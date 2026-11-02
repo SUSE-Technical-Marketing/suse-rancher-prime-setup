@@ -52,7 +52,7 @@ function describeBox(d: { v: any; index: number }): Pick<Box, "label" | "title" 
   const title = name(d) || "(no name)";
   switch (d.v.kind) {
     case "Lab": return { label: "Lab", title, sub: `${s.domain ?? "no domain"} · TLS ${s.tls?.acme ?? "letsencrypt"}`, chips: [] };
-    case "Harvester": return { label: "Harvester", title, sub: [`${(s.networks?.vlans ?? []).length} VLAN(s)`, s.dns?.host ? `DNS ${s.dns.host}` : ""].filter(Boolean).join(" · "), chips: [] };
+    case "Harvester": return { label: "Harvester", title, sub: [`${(s.networks?.vlans ?? []).length} VLAN(s)`, s.profiles?.["harvester-dns-controller"]?.host ? `DNS ${s.profiles["harvester-dns-controller"].host}` : ""].filter(Boolean).join(" · "), chips: [] };
     case "HarvesterVM": return {
       label: "VM", title, chips: Object.keys(s.profiles ?? {}),
       sub: `${s.os ?? "no OS"} · ${s.cpu ?? defaults.value?.cpu} CPU · ${s.memory ?? defaults.value?.memory} · ${s.network ?? defaultNetwork(s.harvester)}`,

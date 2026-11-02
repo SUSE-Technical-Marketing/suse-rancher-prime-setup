@@ -33,6 +33,8 @@ const REFS: Record<string, { zod: z.ZodType; ts: string }> = {
     dnsName: { zod: dnsName, ts: "string" },
     quantity: { zod: quantity, ts: "string" },
     ipv4: { zod: ipv4, ts: "string" },
+    /** A machine's address or DNS name (a router's). */
+    address: { zod: z.union([ipv4, dnsName]), ts: "string" },
     url: { zod: z.url(), ts: "string" },
     secretOrString: { zod: secretOrString, ts: "string" },
     credentials: { zod: Credentials, ts: "Credentials" },

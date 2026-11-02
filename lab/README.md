@@ -52,7 +52,7 @@ spec:
 ---
 kind: Harvester                            # url and credentials can stay in your personal config
 metadata: { name: asgard }
-spec: { networks: { ... } }
+spec: { networks: { ... }, profiles: { harvester-dns-controller: { ... } } }   # DNS records on your router
 ---
 kind: HarvesterVM                          # a VM the lab creates on a Harvester
 metadata: { name: rancher }
@@ -104,7 +104,8 @@ spec:
 ```
 
 A network without lab DHCP (no `dhcp:`, only `cidr`, `gateway` and optionally `dns`) suits VMs
-with fixed addresses, or a LAN that has its own DHCP server. The DNS controller only registers VMs
+with fixed addresses, or a LAN that has its own DHCP server. The DNS controller (the Harvester's
+`harvester-dns-controller` profile: `backend`, `host` and `credentials` of your router) only registers VMs
 on networks with lab DHCP; records for the others are up to you. See DESIGN.md §5.2 and §5.3.
 
 Each lab document name may be used once (HarvesterVMs and Machines share names, as hosts).
