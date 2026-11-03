@@ -26,6 +26,14 @@ env.addFilter("field", (value: unknown, field: string) => {
     throw new Error(`field('${field}'): expects a secret or a map`);
 });
 
+/**
+ * `optional`: a value that may be unset (`{{ settings.ttl | optional }}`), as a whole value: unset
+ * (or null), its key is left out of the map, or its item out of the list. Without it an unset value
+ * is an error, which catches a misspelt setting.
+ */
+const OMIT = "\u0000lab:omit";
+env.addFilter("optional", (value: unknown) => (value === undefined || value === null ? OMIT : value));
+
 /** `hash`: a short digest of a value (a string, or anything as JSON), to name or annotate what has to change with it. */
 env.addFilter("hash", (value: unknown) => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value) ?? "").digest("hex").slice(0, 12));
 
@@ -39,10 +47,11 @@ export interface TemplateContext {
     /** The lab host it's on (a Profile's, or a ChartProfile's on a host); none on a downstream cluster. */
     host?: { name: string; fqdn: string };
     /**
-     * Where it's installed, host or downstream cluster: a ChartProfile's templates use this. A
-     * cluster's `fqdn` is `<cluster>.<domain>`, as the Fleet apps name things there.
+     * Where it's installed, host, downstream cluster or Harvester: a ChartProfile's templates use
+     * this. A cluster's `fqdn` is `<cluster>.<domain>`, as the Fleet apps name things there; a
+     * Harvester's is its URL's host.
      */
-    target: { kind: "host" | "cluster"; name: string; fqdn: string };
+    target: { kind: "host" | "cluster" | "harvester"; name: string; fqdn: string };
     /** `tls.privateCA`: the ACME server's CA isn't trusted by default (Let's Encrypt staging). */
     /** `tls.url`: the ACME server's directory; `tls.cloudflare`: the DNS-01 token, a secret template. */
     lab: { name: string; domain: string; vars: Record<string, unknown>; tls: { acme: string; privateCA: boolean; url?: string; email?: string; cloudflare?: string } };
@@ -88,9 +97,9 @@ export function renderTemplates(value: unknown, ctx: object, at: string, error: 
             return value;
         }
     }
-    if (Array.isArray(value)) return value.map((v, i) => renderTemplates(v, ctx, `${at}[${i}]`, error));
+    if (Array.isArray(value)) return value.map((v, i) => renderTemplates(v, ctx, `${at}[${i}]`, error)).filter(v => v !== OMIT);
     if (typeof value === "object" && value !== null) {
-        return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, renderTemplates(v, ctx, at ? `${at}.${k}` : k, error)]));
+        return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, renderTemplates(v, ctx, at ? `${at}.${k}` : k, error)]).filter(([, v]) => v !== OMIT));
     }
     return value;
 }

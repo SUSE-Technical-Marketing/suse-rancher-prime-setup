@@ -48,6 +48,8 @@ export interface ResolvedHarvester {
     storageClass: { name: string; replicas: number; parameters: Record<string, string> };
     /** Profiles on the Harvester itself (those that target Harvesters), their settings checked. */
     profiles: Record<string, Record<string, unknown>>;
+    /** By ChartProfile on it (an add-on): its chart's values and its objects, templates rendered. */
+    chartValues: Record<string, RenderedProfile>;
     networks: ResolvedNetwork[];
     defaultNetwork: string;
     /** One image per OS used by hosts or downstream pools on this Harvester. */
@@ -83,19 +85,33 @@ export interface RenderedObject {
     object: Record<string, unknown>;
     /** Wait for the API server to admit it first (a webhook). */
     admitted?: boolean;
+    /** Its names in the lab's state before: kept, not replaced. */
+    aliases?: string[];
     wait?: { condition: string; timeout: TimeoutName };
+}
+
+/** How the program wires a profile in (any profile, chart or code): what it provides and waits for. */
+export interface ProfileWiring {
+    /** Its capabilities (its own name and `provides`): the build loop reports what it made under each it provides on a host. */
+    provides: string[];
+    /** Capabilities whose providers it's built after (`requires`, `uses`, `requiresWhen`). */
+    waitFor: string[];
+    /** The KubernetesDistribution it installs (`k3s`, `rke2`): it gets the Kubernetes builder. */
+    distribution?: string;
+}
+
+/** A profile's charts and objects on one host, cluster or Harvester, templates rendered (§17). */
+export interface RenderedProfile {
+    entries: RenderedChartEntry[];
+    objects: RenderedObject[];
+    /** What its own chart's resource was created as before (`aliases`): kept, not replaced. */
+    aliases: { type?: string; name?: string }[];
 }
 
 /** How a profile installs its chart: the HelmChart and namespace (its values are per host: `chartValues`). */
 export interface ProfileChart {
     /** What it installs, in order; `main` marks its own chart (the lab's `values`, the `version` setting). */
     entries: ({ kind: "chart"; chart: string; namespace: string; main: boolean } | { kind: "manifest"; manifest: string })[];
-    /** Its capabilities (its own name and `provides`): a chart-only profile reports its release under each. */
-    provides: string[];
-    /** Capabilities whose providers it installs after (`requires`, `uses`, `requiresWhen`). */
-    waitFor: string[];
-    /** Component types its resources were created under before: kept, not replaced. */
-    aliases?: string[];
 }
 
 export interface ResolvedChartPlacement {
@@ -121,7 +137,7 @@ interface ResolvedHostBase {
     /** Catalog HelmCharts installed on the host's cluster after its profiles (§17). */
     charts: ResolvedChartPlacement[];
     /** By chart profile on this host: its Profile's `values` and `lockedValues`, templates rendered. */
-    chartValues: Record<string, { entries: RenderedChartEntry[]; objects: RenderedObject[] }>;
+    chartValues: Record<string, RenderedProfile>;
     /** By capability: what the profile providing it on this host declares under `outputs`. */
     outputs: Record<string, Record<string, unknown>>;
     /** DNS name the host is reached at. */
@@ -159,7 +175,7 @@ export interface ResolvedClusterProfiles {
     /** Build order: each after the profiles it requires. */
     order: string[];
     /** By profile: its charts' values and its objects, templates rendered. */
-    chartValues: Record<string, { entries: RenderedChartEntry[]; objects: RenderedObject[] }>;
+    chartValues: Record<string, RenderedProfile>;
 }
 
 export type ResolvedDownstream = {
@@ -186,6 +202,8 @@ export interface ResolvedLab {
     components: Record<string, ResolvedComponent>;
     /** For each profile with a chart: which chart, its namespace, default and locked values (§17). */
     profileCharts: Record<string, ProfileChart>;
+    /** Every profile in the catalog: what it provides and waits for, and its distribution (§7.6). */
+    profiles: Record<string, ProfileWiring>;
     /** The UI plugin repository and default plugin set, from the catalog. */
     plugins: ResolvedPlugins;
     harvesters: ResolvedHarvester[];
@@ -272,9 +290,11 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
                 entries: (p.charts ?? []).map((e, i) => e.chart !== undefined
                     ? { kind: "chart" as const, chart: e.chart, namespace: e.namespace!, main: i === p.charts!.findIndex(x => x.chart !== undefined) }
                     : { kind: "manifest" as const, manifest: e.manifest! }),
+            }])),
+            profiles: Object.fromEntries(Object.values(catalog.profiles).map(p => [p.name, {
                 provides: [p.name, ...(p.provides ?? [])],
-                ...(p.aliases ? { aliases: p.aliases } : {}),
-                waitFor: [...(p.requires ?? []), ...(p.uses ?? []), ...(p.requiresWhen ?? []).map(r => r.capability)],
+                waitFor: [...new Set([...(p.requires ?? []), ...(p.uses ?? []), ...(p.requiresWhen ?? []).map(r => r.capability)])],
+                ...(p.distribution ? { distribution: p.distribution } : {}),
             }])),
             plugins: catalog.plugins.value,
             harvesters: [...harvesters.values()],

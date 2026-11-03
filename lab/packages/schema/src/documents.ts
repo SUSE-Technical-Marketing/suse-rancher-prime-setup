@@ -10,6 +10,7 @@ import { HostRecipeInput } from "./recipes";
 import { awsZone, cidr, dnsLabel, duration, osName, quantity, TIMEOUTS } from "./primitives";
 import { ProfileInput } from "./profiles";
 import { AwsSiteInput, DownstreamInput, HarvesterInput, HarvesterVMSpec, LabSpec, MachineSpec, OsProfileInput, VersionValue } from "./schema";
+import { formSchema } from "./clusters";
 
 // Catalog, lab and personal config files are Kubernetes-style documents (DESIGN.md §17):
 // `apiVersion`, `kind`, `metadata`, `spec`. A file can hold several, separated by `---`.
@@ -88,6 +89,11 @@ export const CATALOG_KINDS = {
             }).optional(),
             /** Downstream clusters' default CNI. */
             cni: z.string().min(1).optional(),
+            /**
+             * Cloud providers it bundles, which Rancher turns on in a downstream cluster it provisions:
+             * `harvester` (RKE2's harvester-cloud-provider chart, with its config from the engine).
+             */
+            cloudProviders: z.array(z.enum(["harvester"])).optional(),
         }),
     },
     AcmeServer: {
@@ -165,6 +171,17 @@ export const LAB_KINDS = {
     DownstreamCluster: { name: dnsLabel, spec: DownstreamInput },
 } as const;
 export type LabKind = keyof typeof LAB_KINDS;
+
+/** The lab documents' specs as form schemas (but clusters: one per type, `clusterFormSchemas`): what the lab UI builds their forms from. */
+export function documentFormSchemas(): Record<Exclude<LabKind, "DownstreamCluster"> | "Lab", unknown> {
+    return {
+        Lab: formSchema(LabSpec),
+        Harvester: formSchema(HarvesterInput),
+        AwsSite: formSchema(AwsSiteInput),
+        HarvesterVM: formSchema(HarvesterVMSpec),
+        Machine: formSchema(MachineSpec),
+    };
+}
 
 export interface LabDocument {
     kind: LabKind;

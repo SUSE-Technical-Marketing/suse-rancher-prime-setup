@@ -1,8 +1,6 @@
 import type { ResolvedDistribution } from "@lab/schema";
 import { stringify } from "yaml";
 
-export type Distro = "k3s" | "rke2";
-
 export interface DistroInstall {
     /** cloud-init `runcmd` lines that install and start the distribution. */
     runcmd: string[];

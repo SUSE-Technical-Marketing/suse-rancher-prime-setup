@@ -13,8 +13,6 @@ import { need } from "./util";
 export const rancher: ProfileBuilder<"rancher"> = {
     host(ctx, settings) {
         const { lab, host } = ctx;
-        const tls = need(ctx, "tls");
-        const ingress = need(ctx, "ingress");
         const name = `${host.name}/rancher`;
         const server = new RancherServer(name, {
             cluster: need(ctx, "kubernetes"),
@@ -29,7 +27,7 @@ export const rancher: ProfileBuilder<"rancher"> = {
             settings: settings.settings ?? {},
             features: settings.features,
             timeoutSeconds: lab.timeouts.rancherReady,
-        }, { dependsOn: [...tls.ready, ...ingress.ready, ...(ctx.outputs["gateway-api"]?.ready ?? []), ...need(ctx, "secret-propagation").ready] });
+        }, { dependsOn: ctx.after });
         const rancher = server.access;
 
         const plugins = settings.plugins ?? lab.plugins.default;
@@ -42,8 +40,9 @@ export const rancher: ProfileBuilder<"rancher"> = {
             timeoutSeconds: lab.timeouts.uiPlugin,
         });
 
-        // The repos' secrets live on this cluster too (in Rancher's namespaces): after Rancher.
-        const objects = ctx.hostObjects(rancher.cluster, [...rancher.ready, ...(ctx.outputs["downstream-secrets"]?.ready ?? [])]);
+        // The repos' secrets live on this cluster too (in Rancher's namespaces): after Rancher (and
+        // Outrider, which its Profile uses, for SecretTemplates).
+        const objects = ctx.hostObjects(rancher.cluster, [...rancher.ready, ...ctx.after]);
         const fleet = new Fleet(`${name}/fleet`, {
             rancher,
             fleet: lab.fleet[host.name],
@@ -51,7 +50,7 @@ export const rancher: ProfileBuilder<"rancher"> = {
             timeoutSeconds: lab.timeouts.resourceReady,
             valuesFingerprints: valuesFingerprints(lab, host.name),
         });
-        return { rancher, fleet: { ready: fleet.installs } };
+        return { rancher, fleet: fleet.installs, ready: rancher.ready };
     },
 };
 

@@ -1,43 +1,51 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
+import { stringify } from "yaml";
 import { ChartProfile } from "@lab/apps";
-import type { HarvesterBase } from "@lab/harvester";
-import { ClusterAccess, ClusterObjects, helmApp, HostAccess, KubeAdmitted, type ProfileChartSpec, type RenderedProfileChart } from "@lab/kubernetes";
+import { ClusterAccess, ClusterObjects, helmApp, HostAccess, KubeAdmitted, mergeValues, type ProfileChartSpec, type RenderedProfileChart } from "@lab/kubernetes";
+import { HarvesterAddon, type HarvesterBase } from "@lab/harvester";
 import type { RancherAccess } from "@lab/rancher";
 import type { RenderedObject, ResolvedDownstream, ResolvedHarvester, ResolvedHost, ResolvedLab, ResolvedOs } from "@lab/schema";
 import type { ProfileSettings } from "./generated/profile-settings";
 import { chartValuesWithSecrets, objectValue } from "./secrets";
 import { chart, manifest, profileChart, version } from "./catalog";
 import { harvesterCloudProvider } from "./builders/harvester-cloud-provider";
-import { dnsController } from "./builders/harvester-dns-controller";
 import { hauler } from "./builders/hauler";
-import { k3s, rke2 } from "./builders/kubernetes";
+import { kubernetesBuilder } from "./builders/kubernetes";
 import { landlock } from "./builders/landlock";
 import { rancher } from "./builders/rancher";
 import { observabilityAgent } from "./builders/suse-observability-agent";
 import { need } from "./builders/util";
 
-/** What a consumer of a capability has to wait for. */
-interface Ready { ready: pulumi.Resource[] }
-
-/**
- * What a host offers to the profiles built after it, keyed by capability (DESIGN.md §7.6): when
- * each is ready, plus access to the cluster and to Rancher. Data a profile offers (a secret name,
- * an ingress class) is declared in its Profile's `outputs` and read by templates (`host.outputs`).
- */
-export interface HostOutputs {
+/** What a host's profiles hand on in code: access to its cluster and to Rancher, and Rancher's Fleet. */
+interface HostAccessOutputs {
     kubernetes?: ClusterAccess;
-    "load-balancer"?: Ready;
-    "cloud-provider"?: Ready;
-    tls?: Ready;
-    ingress?: Ready;
-    "gateway-api"?: Ready;
-    "secret-propagation"?: Ready;
-    "downstream-secrets"?: Ready;
-    registry?: Ready;
     rancher?: RancherAccess;
     /** The Rancher's Fleet HelmOps and GitRepos: what SUSE Observability agents wait for (their observer's install). */
-    fleet?: Ready;
+    fleet?: pulumi.Resource[];
+}
+
+/**
+ * What a host offers to the profiles built after it (DESIGN.md §7.6): access, and by capability
+ * when it's ready. The build loop fills `ready` from each profile's `provides` (its Profile
+ * document), so no builder names another profile's capabilities. Data a profile offers (a secret
+ * name, an ingress class) is declared in its Profile's `outputs` and read by templates (`host.outputs`).
+ */
+export interface HostOutputs extends HostAccessOutputs {
+    ready: Record<string, pulumi.Resource[]>;
+}
+
+/** Everything a host's profiles made is ready: each capability, and Rancher's Fleet installs. */
+export const hostReady = (outputs: HostOutputs): pulumi.Resource[] => [...Object.values(outputs.ready).flat(), ...(outputs.fleet ?? [])];
+
+/**
+ * What a profile's `host` step made: access it hands on, and when it's ready. The build loop
+ * reports `ready` under each capability the profile provides on the host, unless `capabilities`
+ * has its own for it (k3s's fallbacks: its ServiceLB, Traefik and Gateway API, each ready apart).
+ */
+export interface HostBuilt extends HostAccessOutputs {
+    ready?: pulumi.Resource[];
+    capabilities?: Record<string, pulumi.Resource[]>;
 }
 
 export interface CloudInitContext {
@@ -53,6 +61,8 @@ export interface ProfileContext extends CloudInitContext {
     harvester?: { name: string; ready: pulumi.Resource[] };
     /** The host is up and cloud-init has finished. */
     ready: pulumi.Resource[];
+    /** What the profile's Profile says it waits for (`requires`, `uses`, `requiresWhen`), ready. */
+    after: pulumi.Resource[];
     /** The profile's `charts` entries before its own chart, already installed: its chart waits for them. */
     before: pulumi.Resource[];
     /** Outputs of the profiles already built on this host, in `profileOrder`. */
@@ -155,7 +165,7 @@ export interface ProfileBuilder<N extends ProfileName> {
     boot?(ctx: BootContext, settings: ProfileSettings[N]): string[];
     setup?(ctx: SetupContext, settings: ProfileSettings[N]): pulumi.Resource[];
     cloudInit?(ctx: CloudInitContext, settings: ProfileSettings[N]): { runcmd: string[]; uninstall?: string[] };
-    host?(ctx: ProfileContext, settings: ProfileSettings[N]): HostOutputs | void;
+    host?(ctx: ProfileContext, settings: ProfileSettings[N]): HostBuilt | void;
     cluster?(ctx: ClusterProfileContext, settings: ProfileSettings[N]): pulumi.Resource[];
     harvester?(ctx: HarvesterProfileContext, settings: ProfileSettings[N]): pulumi.Resource[];
     last?(ctx: LastContext, settings: ProfileSettings[N]): void;
@@ -166,17 +176,15 @@ export interface ProfileBuilder<N extends ProfileName> {
  * A profile that only installs its chart has none; `chartProfileBuilder` installs it. Settings are
  * typed by `ProfileSettings`, generated from the Profile documents (`mise run profile-types`), so a
  * builder reading a setting its profile doesn't declare is a compile error; a test checks that
- * every profile has a builder or a chart. Each builder with code of its own is in builders/.
+ * every profile has a builder or a chart. Each builder with code of its own is in builders/. A
+ * profile with a `distribution` (k3s, rke2) has the Kubernetes builder for it; none is listed here.
  */
 export const BUILDERS: { [N in ProfileName]?: ProfileBuilder<N> } = {
-    k3s,
-    rke2,
     "harvester-cloud-provider": harvesterCloudProvider,
     rancher,
     hauler,
     "suse-observability-agent": observabilityAgent,
     landlock,
-    "harvester-dns-controller": dnsController,
 };
 
 type AnyBuilder = ProfileBuilder<ProfileName>;
@@ -208,7 +216,7 @@ export function installChartProfile(
         chart: withSecrets(profileChart(name, target, lab, settings.version)),
         values: chartValuesWithSecrets(settings.values),
         after: before.length ? before.slice(-1) : after,
-    }, { aliases: (p.aliases ?? []).map(type => ({ type })) });
+    }, { aliases: target.chartValues[name]?.aliases ?? [] });
     const done = [...before, component.release];
     done.push(...installEntries(lab, target, name, cluster, range(main + 1, p.entries.length), [component.release]));
     // Its objects after its charts; it's ready once the last one is.
@@ -222,15 +230,14 @@ function chartProfileBuilder(name: string): AnyBuilder {
         host(ctx, settings) {
             const { lab, host } = ctx;
             const p = lab.profileCharts[name];
-            const outputs = ctx.outputs as Record<string, { ready?: pulumi.Resource[] } | undefined>;
-            const after = [...p.waitFor.flatMap(c => outputs[c]?.ready ?? []), ...ctx.before];
+            const after = [...ctx.after, ...ctx.before];
             const s = settings as { version?: string; values?: Record<string, unknown> };
             // On a host, the build loop installs the entries before its own chart (ctx.before) and
             // after it: here its chart and its objects.
             const main = p.entries.findIndex(e => e.kind === "chart" && e.main);
             if (main < 0) {
                 const done = installEntries(lab, host, name, need(ctx, "kubernetes"), p.entries.map((_, i) => i), after);
-                return Object.fromEntries(p.provides.map(c => [c, { ready: done.slice(-1) }])) as HostOutputs;
+                return { ready: done.slice(-1) };
             }
             const cluster = need(ctx, "kubernetes");
             const component = new ChartProfile(`${host.name}/${name}`, {
@@ -238,17 +245,48 @@ function chartProfileBuilder(name: string): AnyBuilder {
                 chart: withSecrets(profileChart(name, host, lab, s.version)),
                 values: chartValuesWithSecrets(s.values),
                 after,
-            }, { aliases: (p.aliases ?? []).map(type => ({ type })) });
+            }, { aliases: host.chartValues[name]?.aliases ?? [] });
             const done: pulumi.Resource[] = [component.release];
             const objects = host.chartValues[name]?.objects ?? [];
             if (objects.length > 0) done.push(...applyObjects(lab, `${host.name}/${name}`, cluster, objects, component, done.slice(-1)));
-            return Object.fromEntries(p.provides.map(c => [c, { ready: done.slice(-1) }])) as HostOutputs;
+            return { ready: done.slice(-1) };
         },
         cluster(ctx, settings) {
             const target = { name: ctx.prefix, chartValues: ctx.cluster.chartProfiles?.chartValues ?? {} };
             return installChartProfile(ctx.lab, target, name, ctx.access, settings as { version?: string; values?: Record<string, unknown> }, ctx.after);
         },
+        harvester: (ctx, settings) => installHarvesterAddon(ctx, name, settings as { version?: string; values?: Record<string, unknown> }),
     };
+}
+
+/**
+ * A ChartProfile on a Harvester itself (DESIGN.md §17): its chart as a Harvester add-on (listed, and
+ * its values shown, under the Harvester's Add-ons), after its objects (what the add-on reads, a
+ * Secret with a password). All of it goes with the Harvester's base (its children), so VMs come
+ * after it and go before it. Add-ons the lab installs are marked experimental, as Harvester marks
+ * those it doesn't ship.
+ */
+function installHarvesterAddon({ lab, harvester: h, provider, base }: HarvesterProfileContext, name: string, settings: { version?: string; values?: Record<string, unknown> }): pulumi.Resource[] {
+    const rendered = h.chartValues[name];
+    const entry = lab.profileCharts[name].entries[0];
+    if (entry.kind !== "chart") throw new Error(`profile ${name}: an add-on is a chart`);
+    const objects = applyObjects(lab, `${h.name}/${name}`, { provider }, rendered.objects, base, []);
+    const c = chart(entry.chart, lab, settings.version || rendered.entries[0].version);
+    const { values, lockedValues } = rendered.entries[0];
+    const valuesContent = pulumi.output(chartValuesWithSecrets(mergeValues(values, settings.values ?? {}, lockedValues)) ?? {})
+        .apply(v => stringify(v, { lineWidth: 0 }));
+    return [...objects, new HarvesterAddon(`${h.name}/${name}`, {
+        harvester: h.name,
+        name: entry.chart,
+        namespace: entry.namespace,
+        labels: { "addon.harvesterhci.io/experimental": "true" },
+        // An oci:// chart has no repo: Harvester's helm-controller pulls it by its reference.
+        repo: c.repo ?? "",
+        chart: c.chart,
+        version: c.version,
+        valuesContent,
+        timeoutSeconds: lab.timeouts.harvesterAddon,
+    }, { parent: base, dependsOn: objects, aliases: rendered.aliases, deleteBeforeReplace: true })];
 }
 
 /**
@@ -296,7 +334,7 @@ function installEntries(lab: ResolvedLab, host: ChartTarget, profile: string, cl
  */
 function applyObjects(lab: ResolvedLab, prefix: string, cluster: ChartCluster, objects: RenderedObject[], parent: pulumi.Resource, after: pulumi.Resource[]): pulumi.Resource[] {
     const made: pulumi.Resource[] = [];
-    for (const { name, object, admitted, wait } of objects) {
+    for (const { name, object, admitted, wait, aliases } of objects) {
         const { apiVersion, kind, metadata, ...rest } = object as { apiVersion: string; kind: string; metadata?: { annotations?: Record<string, string>; namespace?: string } & Record<string, unknown> };
         // A webhook to answer first: a dry run of it until the API server admits it (as rendered,
         // secret templates unfilled: a dry run for a webhook, not the object).
@@ -318,7 +356,7 @@ function applyObjects(lab: ResolvedLab, prefix: string, cluster: ChartCluster, o
         // Each top-level field on its own, so a secret one (a Secret's stringData) is the only secret output.
         const fields = Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, typeof v === "object" && v !== null ? chartValuesWithSecrets(v as Record<string, unknown>) ?? v : v]));
         const args = { metadata: { ...metadata, ...(annotations ? { annotations } : {}) }, ...fields };
-        const opts: pulumi.CustomResourceOptions = { parent, provider: cluster.provider, deletedWith: cluster.deletedWith, dependsOn: before };
+        const opts: pulumi.CustomResourceOptions = { parent, provider: cluster.provider, deletedWith: cluster.deletedWith, dependsOn: before, ...(aliases ? { aliases: aliases.map(a => ({ name: a })) } : {}) };
         // Core kinds (apiVersion v1, no group) have classes of their own (k8s.core.v1.Secret); the rest are custom resources.
         const Core = apiVersion === "v1" ? (k8s.core.v1 as unknown as Record<string, new (n: string, a: object, o: pulumi.CustomResourceOptions) => pulumi.CustomResource>)[kind] : undefined;
         if (apiVersion === "v1" && !Core) throw new Error(`${prefix}/${name}: no core kind ${kind}`);
@@ -327,12 +365,14 @@ function applyObjects(lab: ResolvedLab, prefix: string, cluster: ChartCluster, o
     return made;
 }
 
-/** A profile's builder: its own, or the generic one for a chart-only profile. */
+/** A profile's builder: its own, the Kubernetes one for its distribution, or the generic one for a chart-only profile. */
 export function builderOf(lab: ResolvedLab, name: string): AnyBuilder {
     const builder = BUILDERS[name as ProfileName] as unknown as AnyBuilder | undefined;
     if (builder) return builder;
+    const dist = lab.profiles[name]?.distribution;
+    if (dist) return kubernetesBuilder(name, dist);
     if (lab.profileCharts[name]) return chartProfileBuilder(name);
-    throw new Error(`profile ${name} has neither a builder in program/profiles.ts nor a chart`);
+    throw new Error(`profile ${name} has neither a builder in program/profiles.ts, a distribution, nor a chart`);
 }
 const settingsOf = (host: ResolvedHost, name: string) => host.profiles[name] as unknown as ProfileSettings[ProfileName];
 
@@ -358,7 +398,7 @@ export function buildHostProfiles(
     machine?: pulumi.Resource,
     harvester?: ProfileContext["harvester"],
 ): HostOutputs {
-    const outputs: HostOutputs = {};
+    const outputs: HostOutputs = { ready: {} };
     let objects: ClusterObjects | undefined;
     const hostObjects = (cluster: ClusterAccess, after: pulumi.Resource[]) => {
         const list = lab.objects.filter(o => "host" in o.target && o.target.host === host.name);
@@ -375,19 +415,22 @@ export function buildHostProfiles(
         const main = entries.findIndex(e => e.kind === "chart" && e.main);
         const cluster = outputs.kubernetes;
         const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, k) => from + k);
-        const waitFor = (lab.profileCharts[name]?.waitFor ?? []).flatMap(c => (outputs as Record<string, { ready?: pulumi.Resource[] } | undefined>)[c]?.ready ?? []);
-        const before = cluster && main > 0 ? installEntries(lab, host, name, cluster, range(0, main), waitFor) : [];
-        const built = builderOf(lab, name).host?.({ lab, host, access, ready, machine, harvester, outputs, hostObjects, before }, settingsOf(host, name)) ?? {};
-        Object.assign(outputs, built);
+        const after = lab.profiles[name].waitFor.flatMap(c => outputs.ready[c] ?? []);
+        const before = cluster && main > 0 ? installEntries(lab, host, name, cluster, range(0, main), after) : [];
+        const { ready: own = [], capabilities = {}, ...handed } = builderOf(lab, name).host?.({ lab, host, access, ready, machine, harvester, outputs, hostObjects, after, before }, settingsOf(host, name)) ?? {};
+        Object.assign(outputs, handed);
+        // Each capability it provides here (a fallback only when no other profile does), ready when it says.
+        for (const c of lab.profiles[name].provides.concat(Object.keys(capabilities))) {
+            if (host.providers[c]?.includes(name)) outputs.ready[c] = capabilities[c] ?? own;
+        }
         if (cluster && main >= 0 && main < entries.length - 1) {
-            const builtReady = Object.values(built).flatMap(v => (v && "ready" in v ? (v.ready as pulumi.Resource[]) : []));
-            installEntries(lab, host, name, cluster, range(main + 1, entries.length), builtReady);
+            installEntries(lab, host, name, cluster, range(main + 1, entries.length), [...own, ...Object.values(capabilities).flat()]);
         }
     }
     // Not asked for by a profile: after everything the host's profiles made.
     if (outputs.kubernetes) {
         const cluster = outputs.kubernetes;
-        const allReady = Object.values(outputs).flatMap(v => (v && "ready" in v ? v.ready : []));
+        const allReady = hostReady(outputs);
         const objectsDone = hostObjects(cluster, allReady)?.resources ?? [];
         // Catalog charts placed on the host (`charts:`), after its profiles and objects (DESIGN.md §17).
         for (const c of host.charts) {
@@ -415,10 +458,10 @@ export function buildClusterProfiles(lab: ResolvedLab, cluster: ResolvedDownstre
     for (const name of cp.order) {
         const builder = builderOf(lab, name);
         if (!builder.cluster) continue;
-        const p = lab.profileCharts[name];
-        const waitFor = (p?.waitFor ?? []).flatMap(c => ready[c] ?? []);
+        const p = lab.profiles[name];
+        const waitFor = p.waitFor.flatMap(c => ready[c] ?? []);
         const done = builder.cluster({ lab, cluster, prefix: `downstream/${cluster.name}`, access, after: [...after, ...waitFor] }, cp.profiles[name] as never);
-        for (const c of p?.provides ?? [name]) ready[c] = done.slice(-1);
+        for (const c of p.provides) ready[c] = done.slice(-1);
     }
     return ready;
 }

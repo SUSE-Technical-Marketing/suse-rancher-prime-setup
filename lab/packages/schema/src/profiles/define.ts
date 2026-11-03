@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { OS_FAMILIES, TIMEOUTS } from "../primitives";
+import { CLUSTER_TYPE_NAMES } from "../clusters/names";
+import { LAB_FEATURES, OS_FAMILIES, OS_FEATURES, TIMEOUTS } from "../primitives";
 import { SettingSchema } from "../settings-schema";
 
 /**
@@ -48,6 +49,11 @@ export const ProfileObjectEntry = z.strictObject({
      * can report Ready before the API server reaches it, and the create would fail.
      */
     admitted: z.boolean().optional(),
+    /**
+     * Its names in the lab's state before, whole (templates: `{{ target.name }}/dns-controller-secret`,
+     * from when the profile had code): a running lab keeps the object instead of replacing it.
+     */
+    aliases: z.array(z.string().min(1)).optional(),
     /** Wait until the object has this condition True (`Ready`), up to one of the lab's timeouts. */
     wait: z.strictObject({ condition: z.string().min(1), timeout: z.enum(TIMEOUTS).default("resourceReady") }).optional(),
 });
@@ -69,10 +75,11 @@ export const ProfileInput = z.strictObject({
     /** Objects it creates after its charts (an issuer, a certificate, an address pool). */
     objects: z.array(ProfileObjectEntry).optional(),
     /**
-     * Component types its resources were created under before (`lab:apps:CertManager`, from when it
-     * had code of its own): a running lab keeps them instead of replacing them.
+     * What its own chart's resource was created as before, from when the profile had code of its own:
+     * a component type (`lab:apps:CertManager`), or a type and a whole name (a template:
+     * `{{ target.name }}/dns-controller`). A running lab keeps it instead of replacing it.
      */
-    aliases: z.array(z.string().min(1)).optional(),
+    aliases: z.array(z.union([z.string().min(1), z.strictObject({ type: z.string().min(1).optional(), name: z.string().min(1).optional() })])).optional(),
     /** The KubernetesDistribution it installs (k3s, RKE2). */
     distribution: z.string().min(1).optional(),
     /** Extra capabilities this profile gives its host. */
@@ -93,14 +100,22 @@ export const ProfileInput = z.strictObject({
     conflicts: z.array(z.string().min(1)).optional(),
     /** The host's OS must belong to one of these families. */
     osFamilies: z.array(z.enum(OS_FAMILIES)).optional(),
+    /** What it needs of the lab itself: `acme`, an ACME server to issue certificates from. */
+    labRequires: z.array(z.enum(LAB_FEATURES)).optional(),
+    /**
+     * Sections every node it's on needs in its OS profile: `landlock` (how the OS turns Landlock on).
+     * On a host, the host's OS; on a cluster, its machines' or nodes' OS.
+     */
+    osFeatures: z.array(z.enum(OS_FEATURES)).optional(),
+    /** Downstream cluster types it can't go on, and why (a k3k cluster runs on its parent's nodes). */
+    notOnClusterTypes: z.partialRecord(z.enum(CLUSTER_TYPE_NAMES), z.string().min(1)).optional(),
     /** Kinds of host the profile can run on (`harvester` VMs, existing `ssh` machines). */
     hostKinds: z.array(z.enum(["harvester", "ssh"])).optional(),
     /** Features the host's network must have configured on its Harvester. */
     networkFeatures: z.array(z.enum(["dhcp", "loadBalancer"])).optional(),
     /**
-     * Where a Profile (one with code) can go besides lab hosts: downstream `cluster`s and
-     * `harvester`s (the HCI cluster itself). Default: hosts only; a ChartProfile goes on hosts and
-     * clusters.
+     * Where it goes: lab `host`s, downstream `cluster`s and `harvester`s (the HCI cluster itself, a
+     * ChartProfile as an add-on). Default: a Profile hosts only, a ChartProfile hosts and clusters.
      */
     targets: z.array(z.enum(["host", "cluster", "harvester"])).optional(),
     /**
@@ -111,16 +126,15 @@ export const ProfileInput = z.strictObject({
     /** Settings fields that name another host in the lab, and what that host must provide. */
     hostRefs: z.array(z.strictObject({ field: z.string().min(1), provides: z.string().min(1) })).optional(),
     /**
-     * Settings fields (dot paths) holding secrets. Written as plain text in a lab file, they cause a
-     * warning. A field holding a username + password says `shape: credentials`.
-     */
-    secretFields: z.array(z.union([z.string().min(1), z.strictObject({ field: z.string().min(1), shape: z.enum(["string", "credentials"]) })])).optional(),
-    /**
      * What other profiles on the host can use in their templates, by capability this profile
      * provides: `outputs: { tls: { secretName: wildcard-cert } }` is `{{ outputs.tls.secretName }}`.
      */
     outputs: z.record(z.string().min(1), z.record(z.string(), z.unknown())).optional(),
-    /** The settings under `profiles.<name>`: a JSON Schema object (subset, see settings-schema.ts). */
+    /**
+     * The settings under `profiles.<name>`: a JSON Schema object (subset, with the lab's types: see
+     * settings-schema.ts). Settings typed `secret` or `credentials` hold secrets: written as plain
+     * text in a lab file they cause a warning.
+     */
     settings: z.custom<SettingSchema>(v => typeof v === "object" && v !== null && !Array.isArray(v), "must be a JSON Schema object").optional(),
 });
 export type ProfileInput = z.infer<typeof ProfileInput>;

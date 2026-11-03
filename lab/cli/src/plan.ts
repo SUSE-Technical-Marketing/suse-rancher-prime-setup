@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { awsFootprint, BUILTIN_CATALOG_DIR, describeCapability, planCluster, ProfileRegistry, ResolvedCatalog, ResolvedLab, VersionValue } from "@lab/schema";
+import { awsFootprint, BUILTIN_CATALOG_DIR, describeCapability, planCluster, ProfileRegistry, ResolvedCatalog, ResolvedLab, secretSettings, VersionValue } from "@lab/schema";
 
 /** Human-readable summary of what a lab will build, for `lab plan`. */
 export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): string {
@@ -128,7 +128,8 @@ export function renderProfiles(registry: ProfileRegistry): string {
         if (p.osFamilies) rules.push(`OS family: ${p.osFamilies.join(" or ")}`);
         if (p.hostKinds) rules.push(`runs on: ${p.hostKinds.join(" or ")} hosts`);
         if (p.hostRefs) rules.push(...p.hostRefs.map(r => `${r.field}: a host running ${describe(r.provides)}`));
-        if (p.secretFields) rules.push(`secrets: ${p.secretFields.map(f => (typeof f === "string" ? f : f.field)).join(", ")}`);
+        const secrets = secretSettings(p.settingsSchema);
+        if (secrets.length > 0) rules.push(`secrets: ${secrets.map(f => f.field).join(", ")}`);
         const settings = Object.keys(p.settingsSchema.properties ?? {});
         if (settings.length > 0) rules.push(`settings: ${settings.join(", ")}`);
         for (const r of rules) out.push(`  - ${r}`);

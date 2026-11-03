@@ -1,7 +1,7 @@
 // Downstream clusters: what every cluster shares (its Rancher) here, the rest by its type's module
 // (clusters/); then the ChartProfiles and Profiles on them.
 
-import { reachesRancherOverInternet, resolveCluster, type ClusterContext } from "../clusters";
+import { rancherNeeds, resolveCluster, type ClusterContext } from "../clusters";
 import { blocksMetalClusterNode, checkClusterProfiles, clusterCapabilities, hostCapabilities, profileBuildOrder } from "../profiles/rules";
 import { profileTargets } from "../profiles/define";
 import type { ResolvedClusterProfiles } from "../resolve";
@@ -10,13 +10,14 @@ import type { Resolution } from "./context";
 
 /** The lab's downstream clusters, each by its type. */
 export function resolveDownstream(r: Resolution): void {
-    const { lab, L, diags, registry, hosts, harvesters, awsSites, downstream, vmDefaults, awsDefaults, useOs, needImage, checkNetwork, describe } = r;
+    const { lab, L, diags, catalog, registry, hosts, harvesters, awsSites, downstream, vmDefaults, awsDefaults, useOs, needImage, checkNetwork, describe } = r;
     const clusterContext: ClusterContext = {
         error: (path, message) => diags.error(L, path, message),
         inputs: lab.downstream,
         hosts,
         harvesters,
         awsSites,
+        distributions: Object.entries(catalog.components).filter(([, c]) => c.value.kind === "KubernetesDistribution").map(([n]) => n).sort(),
         defaults: { vm: vmDefaults, aws: awsDefaults },
         useOs,
         needImage,
@@ -28,12 +29,12 @@ export function resolveDownstream(r: Resolution): void {
         const at = `downstream.${name}`;
         const rancher = hosts.get(d.rancher);
         const rancherCaps = rancher ? hostCapabilities(registry, rancher.profiles) : undefined;
-        const overInternet = reachesRancherOverInternet(d.type);
+        const needs = rancherNeeds(d.type);
         if (!rancher) diags.error(L, `${at}.rancher`, `unknown host "${d.rancher}"`);
         else if (!rancherCaps!.has("rancher")) diags.error(L, `${at}.rancher`, `host "${d.rancher}" doesn't run rancher`);
-        // Machines on AWS register with Rancher over the internet.
-        else if (overInternet && !rancherCaps!.has("public-ingress")) {
-            diags.error(L, `${at}.rancher`, `${overInternet} Rancher over the internet, and the Rancher on ${d.rancher} isn't public: its host needs ${describe("public-ingress")}`);
+        // What its type needs of Rancher (machines on AWS register with it over the internet).
+        else if (needs && !rancherCaps!.has(needs.capability)) {
+            diags.error(L, `${at}.rancher`, `${needs.because}, so the Rancher on ${d.rancher} needs ${describe(needs.capability)} on its host`);
         }
         downstream.push(resolveCluster(clusterContext, name, d, at));
     }

@@ -90,9 +90,9 @@ function loadConfigFile<T>(
 }
 
 /** The personal config (a missing file is an empty one), with its catalog documents. */
-export function loadPersonal(source: string, diags: Diagnostics): ConfigFile<PersonalConfig> | undefined {
-    if (!fs.existsSync(source)) return { value: PersonalConfig.parse({}), layers: [], labDocuments: [] };
-    const file = loadConfigFile<PersonalConfig>(source, fs.readFileSync(source, "utf8"), "PersonalConfig", diags, ({ spec }) => {
+export function loadPersonal(source: string, diags: Diagnostics, text?: string): ConfigFile<PersonalConfig> | undefined {
+    if (text === undefined && !fs.existsSync(source)) return { value: PersonalConfig.parse({}), layers: [], labDocuments: [] };
+    const file = loadConfigFile<PersonalConfig>(source, text ?? fs.readFileSync(source, "utf8"), "PersonalConfig", diags, ({ spec }) => {
         const parsed = PersonalConfig.safeParse(spec ?? {});
         if (!parsed.success) {
             diags.addZodError(source, parsed.error, ["spec"]);
@@ -177,9 +177,14 @@ function prefixSpecPaths(diags: Diagnostics, sources: string[]): void {
 }
 
 export interface LoadOptions {
+    /** The lab file's path: where its relative paths start, and the name messages give it. */
     labFile: string;
+    /** The lab file's text, when it isn't read from `labFile` (the UI's unsaved lab, tests). */
+    labText?: string;
     /** Personal config path; a missing file is fine and means "empty". */
     personalConfig?: string;
+    /** The personal config's text, when it isn't read from `personalConfig`. */
+    personalText?: string;
     catalogDir?: string;
     env?: NodeJS.ProcessEnv;
 }
@@ -197,10 +202,10 @@ export function loadCatalog(opts: Omit<LoadOptions, "labFile"> & { labFile?: str
     const diags = new Diagnostics();
     const personalSource = opts.personalConfig ?? defaultPersonalConfigPath(opts.env);
     const layers = [loadBuiltinCatalog(opts.catalogDir ?? BUILTIN_CATALOG_DIR, diags)];
-    const personal = opts.withoutPersonal ? undefined : loadPersonal(personalSource, diags);
+    const personal = opts.withoutPersonal ? undefined : loadPersonal(personalSource, diags, opts.personalText);
     if (personal) layers.push(...personal.layers);
     if (opts.labFile) {
-        const lab = loadLabFile(opts.labFile, fs.readFileSync(opts.labFile, "utf8"), diags, personal && { vars: personal.value.vars, source: personalSource });
+        const lab = loadLabFile(opts.labFile, opts.labText ?? fs.readFileSync(opts.labFile, "utf8"), diags, personal && { vars: personal.value.vars, source: personalSource });
         if (lab) layers.push(...lab.layers);
     }
     if (!diags.ok) return { diagnostics: diags };
@@ -221,14 +226,16 @@ export function loadLab(opts: LoadOptions): LoadResult {
     const labSource = opts.labFile;
     const personalSource = opts.personalConfig ?? defaultPersonalConfigPath(opts.env);
 
-    let labText: string | undefined;
-    try {
-        labText = fs.readFileSync(labSource, "utf8");
-    } catch (e) {
-        diags.error(labSource, "", `can't read lab file: ${(e as Error).message}`);
+    let labText = opts.labText;
+    if (labText === undefined) {
+        try {
+            labText = fs.readFileSync(labSource, "utf8");
+        } catch (e) {
+            diags.error(labSource, "", `can't read lab file: ${(e as Error).message}`);
+        }
     }
     // The personal config first: its vars are defaults for the lab's.
-    const personal = loadPersonal(personalSource, diags);
+    const personal = loadPersonal(personalSource, diags, opts.personalText);
     const lab = labText === undefined ? undefined : loadLabFile(labSource, labText, diags, personal && { vars: personal.value.vars, source: personalSource });
     const builtin = loadBuiltinCatalog(opts.catalogDir ?? BUILTIN_CATALOG_DIR, diags);
 

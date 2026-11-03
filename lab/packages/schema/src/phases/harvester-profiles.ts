@@ -7,7 +7,7 @@ import type { Resolution } from "./context";
 
 /** Harvesters' own profiles: those that go on a Harvester, checked. */
 export function resolveHarvesterProfiles(r: Resolution): void {
-    const { lab, L, diags, registry, harvesters, forTarget, parseProfiles, useCredentials, useSecretOrString, useTemplate } = r;
+    const { lab, L, diags, registry, harvesters, forTarget, parseProfiles, renderProfile, useCredentials, useSecretOrString, useTemplate } = r;
     for (const h of harvesters.values()) {
         const asked = Object.entries(lab.harvesters[h.name]?.profiles ?? {});
         if (asked.length === 0) continue;
@@ -30,5 +30,11 @@ export function resolveHarvesterProfiles(r: Resolution): void {
             },
             secretTemplate: (template, path) => useTemplate(template, "string", L, path),
         });
+        // A ChartProfile on a Harvester is an add-on: its chart's values and its objects, rendered here.
+        const target = { kind: "harvester" as const, name: h.name, fqdn: new URL(h.url).hostname };
+        for (const n of Object.keys(h.profiles)) {
+            const rendered = renderProfile(n, h.profiles, {}, { target }, `Harvester ${h.name}`);
+            if (rendered) h.chartValues[n] = rendered;
+        }
     }
 }

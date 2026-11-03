@@ -42,16 +42,12 @@ afterAll(() => {
 });
 
 function load(labYaml: string, personal = personalConfig): LoadResult {
-    const file = path.join(tmp, `lab-${Math.random().toString(36).slice(2)}.yaml`);
-    fs.writeFileSync(file, labDocument(labYaml));
-    return loadLab({ labFile: file, personalConfig: personal });
+    return loadLab({ labFile: path.join(tmp, "lab.yaml"), labText: labDocument(labYaml), personalConfig: personal });
 }
 
 /** Load a lab file written as documents, as is. */
 function loadDocs(text: string, personal = personalConfig): LoadResult {
-    const file = path.join(tmp, `lab-${Math.random().toString(36).slice(2)}.yaml`);
-    fs.writeFileSync(file, text);
-    return loadLab({ labFile: file, personalConfig: personal });
+    return loadLab({ labFile: path.join(tmp, "lab.yaml"), labText: text, personalConfig: personal });
 }
 
 /** Write a compact personal config as a PersonalConfig document. */
@@ -317,7 +313,7 @@ downstream:
 describe("TLS", () => {
     it("needs an ACME server for cert-manager", () => {
         const result = load(`${BASE.replace("acme: letsencrypt-staging", "acme: none")}hosts:\n  r: { on: hv-north, os: leap-16, profiles: { ${RANCHER_STACK} } }\n`);
-        expect(errors(result)).toContain("hosts.r.profiles.cert-manager: issues certificates from the lab's ACME server; set tls.acme (and tls.email, tls.cloudflare), not none");
+        expect(errors(result)).toContain("hosts.r.profiles.cert-manager: needs the lab's ACME server; set tls.acme (and tls.email, tls.cloudflare), not none");
     });
 
     it("needs it for cert-manager on a downstream cluster too", () => {
@@ -326,7 +322,7 @@ describe("TLS", () => {
 downstream:
   apps: { type: harvester, rancher: r, harvester: hv-north, pools: [{ name: a, quantity: 1, roles: [etcd, controlplane, worker], os: leap-16 }], profiles: { cert-manager: {} } }
 `);
-        expect(errors(result)).toContain("downstream.apps.profiles.cert-manager: issues certificates from the lab's ACME server; set tls.acme (and tls.email, tls.cloudflare), not none");
+        expect(errors(result)).toContain("downstream.apps.profiles.cert-manager: needs the lab's ACME server; set tls.acme (and tls.email, tls.cloudflare), not none");
     });
 });
 
@@ -410,7 +406,7 @@ downstream:
 
     it("needs a public Rancher, a known site, a zone of the site, an OS with an AMI and every role", () => {
         expect(errors(loadPublic(lab("{ region: eu-west-1, credentials: \"{{ secrets.aws }}\" }", `{ type: ec2, rancher: vm, site: eu, pools: [ ${POOL} ] }`, false)))).toEqual([
-            "downstream.cloud.rancher: EC2 machines reach Rancher over the internet, and the Rancher on vm isn't public: its host needs public-ingress",
+            "downstream.cloud.rancher: EC2 machines reach Rancher over the internet, so the Rancher on vm needs public-ingress on its host",
         ]);
         expect(errors(loadPublic(lab(
             "{ region: eu-west-1, credentials: \"{{ secrets.aws }}\" }",
@@ -454,7 +450,7 @@ downstream:
 
     it("needs a public Rancher, two zones, zones of the site and sizes in range for EKS", () => {
         expect(errors(loadPublic(lab("{ region: eu-west-1, credentials: \"{{ secrets.aws }}\" }", "{ type: eks, rancher: vm, site: eu, nodeGroups: [ { name: g, quantity: 1 } ] }", false)))).toEqual([
-            "downstream.cloud.rancher: An EKS cluster's agent reaches Rancher over the internet, and the Rancher on vm isn't public: its host needs public-ingress",
+            "downstream.cloud.rancher: An EKS cluster's agent reaches Rancher over the internet, so the Rancher on vm needs public-ingress on its host",
         ]);
         expect(errors(loadPublic(lab(
             "{ region: eu-west-1, credentials: \"{{ secrets.aws }}\", zones: [a] }",
@@ -480,7 +476,23 @@ describe("Harvester load balancer", () => {
     it("needs a load-balancer pool on the host's network", () => {
         expect(errors(load(VLAN("") + vm("{ k3s: {}, harvester-cloud-provider: {} }")))).toEqual([
             "hosts.vm.profiles.harvester-cloud-provider: needs the host's network to have a loadBalancer section on its Harvester",
+            // On the network too, where the pool goes: any feature a profile's networkFeatures names.
+            "harvesters.hv-north.networks.vlans[0].loadBalancer: required: vm's harvester-cloud-provider profile needs it on this network",
         ]);
+        const untagged = BASE.replace("hv-north: {}", "hv-north: { networks: { untagged: { dhcp: { cidr: 10.29.20.0/24, gateway: 10.29.20.1, range: [10.29.20.100, 10.29.20.150] } } } }");
+        expect(errors(load(untagged + vm("{ k3s: {}, harvester-cloud-provider: {} }")))).toContain(
+            "harvesters.hv-north.networks.untagged.loadBalancer: required: vm's harvester-cloud-provider profile needs it on this network");
+    });
+
+    it("takes a pool's cidr and gateway from a network without lab DHCP, its own", () => {
+        const fixed = (pool: string) => BASE.replace("hv-north: {}", `hv-north: { networks: { default: vlan20, vlans: [{ id: 20, cidr: 10.29.20.0/24, gateway: 10.29.20.1, loadBalancer: { range: [${pool}] } }] } }`);
+        const { lab, diagnostics } = load(fixed("10.29.20.200, 10.29.20.220") + vm("{ k3s: {}, harvester-cloud-provider: {} }"));
+        expect(diagnostics.errors).toEqual([]);
+        expect(lab!.harvesters[0].networks[1].loadBalancer).toEqual({ cidr: "10.29.20.0/24", gateway: "10.29.20.1", range: ["10.29.20.200", "10.29.20.220"] });
+        expect(errors(load(fixed("10.29.30.200, 10.29.30.220")))).toContain("harvesters.hv-north.networks.vlans[0].loadBalancer.range[0]: 10.29.30.200 is outside 10.29.20.0/24");
+        // Neither lab DHCP nor a subnet of its own: the pool has to say.
+        const bare = BASE.replace("hv-north: {}", "hv-north: { networks: { vlans: [{ id: 20, loadBalancer: { range: [10.29.20.200, 10.29.20.220] } }] } }");
+        expect(errors(load(bare))).toEqual(["harvesters.hv-north.networks.vlans[0].loadBalancer: needs cidr and gateway: the network has neither lab DHCP nor a cidr and gateway of its own"]);
     });
 
     it("resolves the pool from the network's DHCP settings and builds the provider before Traefik", () => {
@@ -969,10 +981,26 @@ ${extra}`;
             "downstream.apps.chartValues.harvester-cloud-provider: is set by the lab engine; it can't be overridden",
         ]);
     });
+    it("takes a distribution from the catalog, rke2 by default", () => {
+        expect(load(lab("")).lab!.downstream[0]).toMatchObject({ distro: "rke2" });
+        expect(errors(load(lab("    distro: k3s\n")))).toEqual([]);
+        expect(errors(load(lab("    distro: k0s\n")))).toEqual(['downstream.apps.distro: no KubernetesDistribution "k0s"; known: k3s, rke2']);
+    });
 });
 
 describe("Harvester DNS (the harvester-dns-controller profile)", () => {
     const lab = (dns: string) => load(BASE.replace("  hv-north: {}", `  hv-north:\n    profiles: { harvester-dns-controller: ${dns} }`));
+
+    it("renders its add-on's values and Secret, and keeps a running lab's add-on", () => {
+        const h = lab(`{ backend: routeros, host: 10.0.0.1, credentials: "{{ secrets.router }}", ttl: 1h }`).lab!.harvesters[0];
+        const rendered = h.chartValues["harvester-dns-controller"];
+        expect(rendered.entries[0].lockedValues).toEqual({
+            dns: { backend: "routeros", host: "10.0.0.1", username: "{{ secrets.router.username }}", existingSecret: "lab-dns-controller", useTls: false, domain: "lab.geeko.me", ttl: "1h", commentTag: "managed-by=harvester-dns-controller/hv-north" },
+            watchNamespaces: expect.any(String),
+        });
+        expect(rendered.objects).toEqual([expect.objectContaining({ name: "secret", aliases: ["hv-north/dns-controller-secret"], object: expect.objectContaining({ stringData: { password: "{{ secrets.router.password }}" } }) })]);
+        expect(rendered.aliases).toEqual([{ name: "hv-north/dns-controller" }, { type: "kubernetes:helm.sh/v3:Release", name: "hv-north/dns-controller" }]);
+    });
 
     it("takes either backend, a TTL, TLS settings and other chart values", () => {
         const { lab: resolved, diagnostics } = lab(`{ backend: glinet, host: router.lab.geeko.me, credentials: "{{ secrets.router }}", ttl: 1h, useTls: true, tlsVerify: false, values: { logLevel: debug, dns: { useGuestClusterLabel: false } } }`);
@@ -988,10 +1016,10 @@ describe("Harvester DNS (the harvester-dns-controller profile)", () => {
             expect.stringMatching(/^harvesters\.hv-north\.profiles\.harvester-dns-controller\.ttl: /),
         ]);
         expect(errors(lab(`{ backend: routeros, host: 10.0.0.1, credentials: "{{ secrets.router }}", values: { watchNamespaces: x, dns: { host: y, domain: z, commentTag: mine, useGuestClusterLabel: false } } }`))).toEqual([
-            "harvesters.hv-north.profiles.harvester-dns-controller.values.dns.host: is set by the lab engine from host; it can't be overridden",
-            "harvesters.hv-north.profiles.harvester-dns-controller.values.dns.domain: is set by the lab engine (the lab's domain); it can't be overridden",
-            "harvesters.hv-north.profiles.harvester-dns-controller.values.dns.commentTag: is set by the lab engine (managed-by=harvester-dns-controller/<the Harvester's name>); it can't be overridden",
-            "harvesters.hv-north.profiles.harvester-dns-controller.values.watchNamespaces: is set by the lab engine (the lab's namespace); it can't be overridden",
+            "harvesters.hv-north.profiles.harvester-dns-controller.values.watchNamespaces: is set by the lab engine (watchNamespaces); it can't be overridden",
+            "harvesters.hv-north.profiles.harvester-dns-controller.values.dns.host: is set by the lab engine (dns.host); it can't be overridden",
+            "harvesters.hv-north.profiles.harvester-dns-controller.values.dns.domain: is set by the lab engine (dns.domain); it can't be overridden",
+            "harvesters.hv-north.profiles.harvester-dns-controller.values.dns.commentTag: is set by the lab engine (dns.commentTag); it can't be overridden",
         ]);
     });
 });
@@ -1548,7 +1576,7 @@ ${downstream ? `downstream:\n${downstream}` : ""}`);
         const result = lab("  bare-node: { on: hv-north, os: bare }",
             "  edge: { type: metal, rancher: r, nodes: [{ host: bare-node, roles: [etcd, controlplane, worker] }], profiles: { landlock: {} } }",
             "catalog:\n  os:\n    bare: { family: suse, image: { url: https://example.com/bare.qcow2 } }\n");
-        expect(errors(result)).toEqual(["downstream.edge.profiles.landlock (node bare-node): OS profile bare doesn't say how to turn Landlock on: it has no landlock.enable"]);
+        expect(errors(result)).toEqual(["downstream.edge.profiles.landlock (node bare-node): OS profile bare has no landlock section, which the landlock profile needs"]);
     });
 
     it("isn't for k3k clusters (their parent's nodes), and needs the OS to say how", () => {
@@ -1561,9 +1589,9 @@ ${downstream ? `downstream:\n${downstream}` : ""}`);
             "catalog:\n  os:\n    bare: { family: suse, image: { url: https://example.com/bare.qcow2 } }\n",
         );
         expect(errors(result)).toEqual([
-            "hosts.bare-vm.profiles.landlock: OS profile bare doesn't say how to turn Landlock on: it has no landlock.enable",
-            "downstream.apps.pools[0].os: OS profile bare doesn't say how to turn Landlock on: it has no landlock.enable",
-            "downstream.team.profiles.landlock: a k3k cluster runs on its parent's nodes: put landlock on apps",
+            "hosts.bare-vm.profiles.landlock: OS profile bare has no landlock section, which the landlock profile needs",
+            "downstream.apps.pools[0].os: OS profile bare has no landlock section, which the landlock profile needs",
+            "downstream.team.profiles.landlock: can't go on a k3k cluster: it runs on its parent's nodes; put landlock on the parent",
         ]);
     });
 });

@@ -43,6 +43,7 @@ const DISTRO: ResolvedDistribution = {
     dataDir: "/var/lib/rancher/x",
     uninstall: [],
     cni: "flannel",
+    cloudProviders: [],
 };
 
 /** The config.yaml the runcmd writes. */

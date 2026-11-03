@@ -36,7 +36,7 @@ describe("Harvester DNS", () => {
         const registered = await runProgram(LAB, {
             secrets: { "ssh-key": "k", hv: { username: "u", password: "p" }, router: { username: "admin", password: "router-pw" } },
         });
-        const addon = registered.find(r => r.name === "hv/dns-controller");
+        const addon = registered.find(r => r.name === "hv/harvester-dns-controller");
         expect(addon, registered.filter(r => r.name.startsWith("hv/")).map(r => `${r.type} ${r.name}`).join(", ")).toBeDefined();
         expect(addon!.type).toBe("pulumi-nodejs:dynamic/lab:HarvesterAddon");
         expect(addon!.inputs).toMatchObject({
@@ -44,7 +44,9 @@ describe("Harvester DNS", () => {
             chart: "oci://ghcr.io/hierynomus/harvester-dns-controller/charts/harvester-dns-controller", version: "0.3.0",
             labels: { "addon.harvesterhci.io/experimental": "true" },
         });
-        expect(addon!.inputs.valuesContent).toBe([
+        // Secret, as the username comes from a secret: the mocks show it wrapped.
+        const valuesContent = addon!.inputs.valuesContent.value;
+        expect(valuesContent).toBe([
             "logLevel: debug",
             "dns:",
             "  useGuestClusterLabel: false",
@@ -60,7 +62,7 @@ describe("Harvester DNS", () => {
             "",
         ].join("\n"));
         // The password only in the Secret.
-        expect(addon!.inputs.valuesContent).not.toContain("router-pw");
-        expect(registered.find(r => r.name === "hv/dns-controller-secret")?.inputs.stringData).toBeDefined();
+        expect(valuesContent).not.toContain("router-pw");
+        expect(registered.find(r => r.name === "hv/harvester-dns-controller/secret")?.inputs.stringData).toBeDefined();
     }, 30000);
 });

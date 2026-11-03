@@ -1,6 +1,3 @@
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
 import * as pulumi from "@pulumi/pulumi";
 import { expect } from "vitest";
 import { loadLab, type ResolvedLab } from "@lab/schema";
@@ -43,10 +40,11 @@ export interface RunOptions {
 }
 
 export async function runProgram(LAB: string, opts: RunOptions): Promise<Registered[]> {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lab-k3k-"));
-    fs.writeFileSync(path.join(dir, "lab.yaml"), LAB);
-    fs.writeFileSync(path.join(dir, "config.yaml"), "apiVersion: lab.geeko.me/v1alpha1\nkind: PersonalConfig\nmetadata: { name: test }\nspec: {}\n");
-    const { lab, diagnostics } = loadLab({ labFile: path.join(dir, "lab.yaml"), personalConfig: path.join(dir, "config.yaml"), catalogDir: opts.catalogDir });
+    const { lab, diagnostics } = loadLab({
+        labFile: "/test/lab.yaml", labText: LAB,
+        personalConfig: "/test/config.yaml", personalText: "apiVersion: lab.geeko.me/v1alpha1\nkind: PersonalConfig\nmetadata: { name: test }\nspec: {}\n",
+        catalogDir: opts.catalogDir,
+    });
     expect(diagnostics.errors).toEqual([]);
     opts.tweak?.(lab!);
 

@@ -9,8 +9,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { parseAllDocuments } from "yaml";
 import {
-    capabilityReport, defaultPersonalConfigPath, Diagnostics, loadCatalog, loadLab, loadPersonal, profileTargets, renderLabSpec, withPersonalVars, type ResolvedCatalog,
+    capabilityReport, defaultPersonalConfigPath, Diagnostics, documentFormSchemas, loadCatalog, loadLab, loadPersonal, profileTargets, renderLabSpec, withPersonalVars, type ResolvedCatalog,
 } from "../../packages/schema/src/index.ts";
+import { DEFAULT_DISTRO } from "../../packages/schema/src/clusters/common.ts";
+import { CLUSTER_TYPES, clusterFormSchemas } from "../../packages/schema/src/clusters/index.ts";
 import type {
     CapabilityReport, Catalog, CatalogProfile, CheckResult, FleetProfileInfo, HostRecipe, LabFileEntry, LabFileText, PersonalSecret, SecretShape,
 } from "../src/api-types.ts";
@@ -55,6 +57,11 @@ function catalogInfo(catalog: ResolvedCatalog): Omit<Catalog, "personal"> {
             settings: p.settingsSchema,
         })),
         acme: Object.keys(catalog.acme).sort(),
+        clusterForms: clusterFormSchemas() as Catalog["clusterForms"],
+        documentForms: documentFormSchemas() as Catalog["documentForms"],
+        rancherNeeds: Object.fromEntries(Object.entries(CLUSTER_TYPES).flatMap(([type, t]) => (t.rancherNeeds ? [[type, t.rancherNeeds]] : []))),
+        distributions: Object.entries(catalog.components).sort(([a], [b]) => a.localeCompare(b)).flatMap(([name, { value }]) =>
+            value.kind === "KubernetesDistribution" ? [{ name, description: value.description, cni: value.cni, default: name === DEFAULT_DISTRO }] : []),
         // The palette's standard hosts, in name order.
         recipes: Object.entries(catalog.recipes).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]): HostRecipe => ({
             name, label: value.label ?? name, description: value.description ?? "", icon: value.icon, kind: value.kind, hostName: value.name ?? name, host: value.host,
@@ -126,7 +133,7 @@ const TARGETS: Record<string, "host" | "cluster" | "harvester"> = { HarvesterVM:
  * checks), from the text as it is: also while the lab has errors, when the composer needs them most.
  */
 function capabilities(text: string, labFile: string): Record<string, CapabilityReport> {
-    const catalog = loadCatalog({ labFile, personalConfig }).catalog ?? loadCatalog({ personalConfig }).catalog;
+    const catalog = loadCatalog({ labFile, labText: text, personalConfig }).catalog ?? loadCatalog({ personalConfig }).catalog;
     if (!catalog) return {};
     const fleetKnown = Object.fromEntries(Object.entries(catalog.fleet.profiles).map(([n, { value }]) => [n, value]));
     const out: Record<string, CapabilityReport> = {};
@@ -149,28 +156,24 @@ function capabilities(text: string, labFile: string): Record<string, CapabilityR
 }
 
 function check(text: string, name: string): CheckResult {
-    const tmp = path.join(LABS_DIR, `.ui-check-${process.pid}-${Math.random().toString(36).slice(2)}.yaml`);
-    fs.writeFileSync(tmp, text);
-    try {
-        const result = loadLab({ labFile: tmp, personalConfig });
-        const shown = name || "lab.yaml";
-        const diagnostics = result.diagnostics.items.map(d => ({ ...d, source: d.source === tmp ? shown : d.source }));
-        const lab = labValues(text);
-        const caps = capabilities(text, tmp);
-        if (!result.lab || !result.personal) return { ok: false, diagnostics, missingSecrets: [], plan: undefined, lab, capabilities: caps };
-        const set = new Set(Object.keys(result.personal.secrets));
-        const missing = Object.keys(result.lab.secrets).filter(s => !set.has(s) && process.env[secretEnvName(s)] === undefined);
-        return {
-            ok: result.diagnostics.errors.length === 0,
-            diagnostics,
-            missingSecrets: missing,
-            plan: renderPlan(result.lab, new Set(missing)).replaceAll(tmp, shown),
-            lab,
-            capabilities: caps,
-        };
-    } finally {
-        fs.rmSync(tmp, { force: true });
-    }
+    // As if saved in the labs directory: its relative paths (local images) start there.
+    const shown = name || "lab.yaml";
+    const labFile = path.join(LABS_DIR, shown);
+    const result = loadLab({ labFile, labText: text, personalConfig });
+    const diagnostics = result.diagnostics.items.map(d => ({ ...d, source: d.source === labFile ? shown : d.source }));
+    const lab = labValues(text);
+    const caps = capabilities(text, labFile);
+    if (!result.lab || !result.personal) return { ok: false, diagnostics, missingSecrets: [], plan: undefined, lab, capabilities: caps };
+    const set = new Set(Object.keys(result.personal.secrets));
+    const missing = Object.keys(result.lab.secrets).filter(s => !set.has(s) && process.env[secretEnvName(s)] === undefined);
+    return {
+        ok: result.diagnostics.errors.length === 0,
+        diagnostics,
+        missingSecrets: missing,
+        plan: renderPlan(result.lab, new Set(missing)).replaceAll(labFile, shown),
+        lab,
+        capabilities: caps,
+    };
 }
 
 async function api(req: Request, url: URL): Promise<Response> {

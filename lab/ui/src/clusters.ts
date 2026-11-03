@@ -23,12 +23,15 @@ export interface NewCluster {
     /** The default OS, and the first with an AMI (for EC2). */
     os?: string;
     ec2Os?: string;
+    /** The catalog's default distribution. */
+    distro: string;
 }
 
 /** The catalog's defaults a board tile shows where the cluster doesn't say. */
 export interface TileDefaults {
     vm?: { cpu: number; memory: string };
     aws?: { instanceType: string; eksVersion: string };
+    distro?: string;
 }
 
 export interface ClusterUi {
@@ -55,12 +58,9 @@ export interface ClusterUi {
     tile(s: Spec, title: string, d: TileDefaults): { label: string; sub: string };
     /** Its arrows to what it runs on or in: the box kinds to look in, the name, and the arrow's kind. */
     edges(s: Spec): { to: BoxKind[]; name: string | undefined; kind: "runs" | "inside" | "node" }[];
-    /** The fields the engine's schema has for it: switching type drops the others. */
-    fields: string[];
 }
 
 const ALL_ROLES = ["etcd", "controlplane", "worker"];
-const PASSTHROUGH = ["cni", "machineGlobalConfig", "chartValues", "secrets", "configmaps"];
 
 export const CLUSTER_UI: { [T in ClusterTypeName]: ClusterUi } = {
     harvester: {
@@ -71,17 +71,16 @@ export const CLUSTER_UI: { [T in ClusterTypeName]: ClusterUi } = {
         category: "cluster", icon: "ship-wheel", column: 2,
         newName: "cluster",
         create: c => ({
-            type: "harvester", rancher: c.rancher, harvester: c.on, distro: "rke2",
+            type: "harvester", rancher: c.rancher, harvester: c.on, distro: c.distro,
             pools: [{ name: "all", quantity: 1, roles: ALL_ROLES, os: c.os, ...c.network }],
         }),
         dropOn: ["Harvester"],
         holdsNested: true,
         tile: (s, _t, d) => ({
-            label: `harvester · ${s.distro ?? "rke2"}`,
+            label: `harvester · ${s.distro ?? d.distro}`,
             sub: ((s.pools ?? []) as Spec[]).map(p => `${p.quantity ?? 1}× ${p.cpu ?? d.vm?.cpu} CPU · ${p.memory ?? d.vm?.memory}`).join(", ") || "no pools",
         }),
         edges: s => [{ to: ["Harvester"], name: s.harvester, kind: "runs" }],
-        fields: ["rancher", "harvester", "distro", "version", "labels", "annotations", ...PASSTHROUGH, "pools"],
     },
     ec2: {
         block: "Ec2Cluster",
@@ -91,17 +90,16 @@ export const CLUSTER_UI: { [T in ClusterTypeName]: ClusterUi } = {
         category: "cluster", icon: "ship-wheel", column: 2,
         newName: "cloud",
         create: c => ({
-            type: "ec2", rancher: c.rancher, site: c.on, distro: "rke2",
+            type: "ec2", rancher: c.rancher, site: c.on, distro: c.distro,
             pools: [{ name: "all", quantity: 1, roles: ALL_ROLES, os: c.ec2Os }],
         }),
         dropOn: ["AwsSite"],
         holdsNested: true,
         tile: (s, _t, d) => ({
-            label: `ec2 · ${s.distro ?? "rke2"}`,
+            label: `ec2 · ${s.distro ?? d.distro}`,
             sub: ((s.pools ?? []) as Spec[]).map(p => `${p.quantity ?? 1}× ${p.instanceType ?? d.aws?.instanceType}`).join(", ") || "no pools",
         }),
         edges: s => [{ to: ["AwsSite"], name: s.site, kind: "runs" }],
-        fields: ["rancher", "site", "distro", "version", "labels", "annotations", ...PASSTHROUGH, "pools"],
     },
     eks: {
         block: "EksCluster",
@@ -118,7 +116,6 @@ export const CLUSTER_UI: { [T in ClusterTypeName]: ClusterUi } = {
             sub: ((s.nodeGroups ?? []) as Spec[]).map(g => `${g.quantity ?? 1}× ${g.instanceType ?? d.aws?.instanceType}`).join(", ") || "no node groups",
         }),
         edges: s => [{ to: ["AwsSite"], name: s.site, kind: "runs" }],
-        fields: ["rancher", "site", "version", "labels", "annotations", "publicAccessSources", "logging", "secrets", "configmaps", "nodeGroups"],
     },
     metal: {
         block: "MetalCluster",
@@ -128,13 +125,12 @@ export const CLUSTER_UI: { [T in ClusterTypeName]: ClusterUi } = {
         category: "cluster", icon: "ship-wheel", column: 2,
         newName: "metal",
         // Its first node: the host it was dropped on.
-        create: c => ({ type: "metal", rancher: c.rancher, distro: "rke2", nodes: c.on ? [{ host: c.on, roles: ALL_ROLES }] : [] }),
+        create: c => ({ type: "metal", rancher: c.rancher, distro: c.distro, nodes: c.on ? [{ host: c.on, roles: ALL_ROLES }] : [] }),
         dropOn: ["HarvesterVM", "Machine"],
         holdsNested: true,
         takesNodes: true,
-        tile: s => ({ label: `metal · ${s.distro ?? "rke2"}`, sub: `${(s.nodes ?? []).length} node(s)` }),
+        tile: (s, _t, d) => ({ label: `metal · ${s.distro ?? d.distro}`, sub: `${(s.nodes ?? []).length} node(s)` }),
         edges: s => ((s.nodes ?? []) as { host?: string }[]).map(n => ({ to: ["HarvesterVM", "Machine"], name: n.host, kind: "node" })),
-        fields: ["rancher", "distro", "version", "labels", "annotations", ...PASSTHROUGH, "nodes"],
     },
     k3k: {
         block: "K3kCluster",
@@ -148,7 +144,6 @@ export const CLUSTER_UI: { [T in ClusterTypeName]: ClusterUi } = {
         dropOn: ["DownstreamCluster"],
         tile: (s, title) => ({ label: `k3k · ${s.mode ?? "shared"}`, sub: `${s.servers ?? 1} server · ${s.agents ?? 0} agents · ${s.namespace ?? `k3k-${title}`}` }),
         edges: s => [{ to: ["DownstreamCluster"], name: s.parent, kind: "inside" }],
-        fields: ["rancher", "parent", "mode", "servers", "agents", "version", "namespace", "persistence", "labels", "annotations", "secrets", "configmaps"],
     },
 };
 

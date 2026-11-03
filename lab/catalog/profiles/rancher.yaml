@@ -38,17 +38,16 @@ spec:
   uses: [ downstream-secrets, gateway-api ]
   requiresWhen:
     - { field: exposure, equals: gateway, capability: gateway-api }
-  secretFields: [ adminPassword ]
   settings:
     type: object
     required: [ adminPassword ]
     properties:
       version: { type: string }
       hostname:
-        $ref: dnsLabel
+        type: dnsLabel
         default: rancher
         description: "First label of Rancher's name: <hostname>.<host>.<domain>"
-      adminPassword: { $ref: secretOrString }
+      adminPassword: { type: secret, suggest: "{{ secrets['rancher-admin'] }}" }   # the lab UI fills it in from the personal config
       exposure:
         enum: [ auto, gateway, ingress ]
         default: auto
@@ -64,7 +63,7 @@ spec:
         type: boolean
         description: Install Liz, Rancher's AI assistant
       values:
-        $ref: chartValues
+        type: chartValues
         description: Extra Helm values, merged over the engine's
       settings:
         type: object
@@ -83,9 +82,9 @@ spec:
         properties:
           repos:
             type: array
-            items: { $ref: dnsLabel }
+            items: { type: dnsLabel }
             description: "GitRepos by catalog name; default the repos with default: true"
           helmOps:
             type: array
-            items: { $ref: dnsLabel }
+            items: { type: dnsLabel }
             description: "HelmOps by catalog name; default the HelmOps with default: true"

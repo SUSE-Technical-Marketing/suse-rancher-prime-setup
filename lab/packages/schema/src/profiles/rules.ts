@@ -2,6 +2,7 @@ import { Credentials, OsFamily } from "../primitives";
 import { usesSecrets } from "../secrets";
 import { valuePaths } from "../catalog";
 import { ProfileDefinition, profileTargets, ProfileRegistry } from "./define";
+import { secretSettings } from "../settings-schema";
 import { capabilitiesOf, Profiles, providersOf } from "./index";
 
 /** Value at a dot path (`fleet.secrets.appco`), or undefined. */
@@ -25,8 +26,6 @@ export function activeRequirements(def: ProfileDefinition, settings: unknown): s
     ];
 }
 
-const secretFieldsOf = (def: ProfileDefinition) =>
-    (def.secretFields ?? []).map(f => (typeof f === "string" ? { field: f, shape: "string" as const } : f));
 
 /** The profiles set on a host, in a stable order. */
 export function activeProfiles(profiles: Profiles): string[] {
@@ -61,10 +60,15 @@ export interface HostRulesContext {
     osFamily: OsFamily | undefined;
     /** What the host's network has configured on its Harvester; empty for ssh hosts. */
     networkFeatures: ("dhcp" | "loadBalancer")[];
+    /**
+     * Where the host's network is declared (`harvesters.asgard.networks.vlans[0]`), when the lab
+     * declares it: a feature a profile needs and it lacks is reported there too, where it's added.
+     */
+    networkAt?: string;
     /** Other hosts' profiles, for `hostRefs`. */
     profilesOf(host: string): Profiles | undefined;
     error(path: string, message: string): void;
-    /** A field listed in `secretFields`: registers the secret(s) or warns about plain values. */
+    /** A setting typed `secret` or `credentials`: registers the secret(s) or warns about plain values. */
     secretField(value: string | Credentials | undefined, path: string, shape: "string" | "credentials"): void;
     /** Any other string in a profile's settings that uses `secrets` (chart values, say). */
     secretTemplate(template: string, path: string): void;
@@ -107,6 +111,7 @@ export function checkHostProfiles(ctx: HostRulesContext): void {
         for (const feature of def.networkFeatures ?? []) {
             if (host.kind === "harvester" && !ctx.networkFeatures.includes(feature)) {
                 ctx.error(at, `needs the host's network to have a ${feature} section on its Harvester`);
+                if (ctx.networkAt) ctx.error(`${ctx.networkAt}.${feature}`, `required: ${host.name}'s ${name} profile needs it on this network`);
             }
         }
 
@@ -134,7 +139,7 @@ function checkSettings(def: ProfileDefinition, settings: Record<string, unknown>
         const owned = (def.protectedValues ?? []).find(p => leaf === p || leaf.startsWith(`${p}.`) || p.startsWith(`${leaf}.`));
         if (owned) ctx.error(`${at}.values.${leaf}`, `is set by the lab engine (${owned}); it can't be overridden`);
     }
-    const declared = secretFieldsOf(def);
+    const declared = secretSettings(def.settingsSchema);
     for (const { field, shape } of declared) {
         ctx.secretField(getPath(settings, field) as string | Credentials | undefined, `${at}.${field}`, shape);
     }

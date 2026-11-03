@@ -17,4 +17,4 @@ spec:
     type: object
     properties:
       version: { type: string }
-      values: { $ref: chartValues }
+      values: { type: chartValues }

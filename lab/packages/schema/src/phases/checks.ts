@@ -2,13 +2,14 @@
 // their settings name, the images each Harvester needs, and the lab's top-level fields.
 
 import { awsFootprint } from "../clusters";
-import { PROFILE_HOOKS, type HookContext, type ProfileHooks } from "../profiles/hooks";
+import { clusterNodeOs } from "../clusters";
+import type { LabFeature } from "../primitives";
 import type { ResolvedDownstream, ResolvedLab } from "../resolve";
 import type { ImageSource } from "../schema";
 import { usesSecrets } from "../secrets";
 import type { Resolution } from "./context";
 
-/** Profiles' own checks (profiles/hooks.ts), and the downstream clusters their settings name. */
+/** What profiles declare they need (of the lab, of their nodes' OS, of a cluster's type), and the downstream clusters their settings name. */
 export function checkProfiles(r: Resolution): void {
     const { lab, L, diags, catalog, registry, allOs, hosts, downstream, harvesters } = r;
     const fleetCaps = (d: ResolvedDownstream) => Object.keys(d.fleetProfiles ?? {}).flatMap(n => [n, ...(catalog.fleet.profiles[n]?.value.provides ?? [])]);
@@ -27,22 +28,36 @@ export function checkProfiles(r: Resolution): void {
             }
         }
     };
-    // --- Profiles' own checks (profiles/hooks.ts), on each host, cluster and Harvester they're on ---
-    const hookContext: HookContext = {
-        error: (path, message) => diags.error(L, path, message),
-        os: name => allOs[name],
-        hostOs: name => hosts.get(name)?.os,
-        acme: lab.tls.acme,
+    // --- What profiles declare they need of the lab and of their nodes' OS (§7.6) -------------------
+    const LAB_NEEDS: Record<LabFeature, { missing: () => boolean; message: string }> = {
+        acme: { missing: () => lab.tls.acme === "none", message: "needs the lab's ACME server; set tls.acme (and tls.email, tls.cloudflare), not none" },
     };
-    const runHooks = (profiles: Record<string, Record<string, unknown>>, at: string, run: (hooks: ProfileHooks, settings: Record<string, unknown>, at: string) => void) => {
-        for (const [name, settings] of Object.entries(profiles)) {
-            const hooks = PROFILE_HOOKS[name];
-            if (hooks) run(hooks, settings, `${at}.profiles.${name}`);
+    const needsOs = (name: string, os: string, at: string) => {
+        for (const feature of registry[name]?.osFeatures ?? []) {
+            if (allOs[os] && allOs[os][feature] === undefined) diags.error(L, at, `OS profile ${os} has no ${feature} section, which the ${name} profile needs`);
         }
     };
-    for (const host of hosts.values()) runHooks(host.profiles, `hosts.${host.name}`, (hooks, s, at) => hooks.host?.(hookContext, host, s, at));
-    for (const d of downstream) runHooks(d.chartProfiles?.profiles ?? {}, `downstream.${d.name}`, (hooks, s, at) => hooks.cluster?.(hookContext, d, s, at));
-    for (const h of harvesters.values()) runHooks(h.profiles, `harvesters.${h.name}`, (hooks, s, at) => hooks.harvester?.(hookContext, h, s, at));
+    const needsLab = (name: string, at: string) => {
+        for (const feature of registry[name]?.labRequires ?? []) if (LAB_NEEDS[feature].missing()) diags.error(L, at, LAB_NEEDS[feature].message);
+    };
+    for (const host of hosts.values()) {
+        for (const name of Object.keys(host.profiles)) {
+            const at = `hosts.${host.name}.profiles.${name}`;
+            needsLab(name, at);
+            needsOs(name, host.os, at);
+        }
+    }
+    for (const d of downstream) {
+        for (const name of Object.keys(d.chartProfiles?.profiles ?? {})) {
+            const at = `downstream.${d.name}.profiles.${name}`;
+            const notOn = registry[name]?.notOnClusterTypes?.[d.type];
+            if (notOn) diags.error(L, at, `can't go on a ${d.type} cluster: ${notOn}`);
+            needsLab(name, at);
+            // Every node: a cluster's machines', or a metal cluster's hosts'.
+            for (const node of clusterNodeOs(d, host => hosts.get(host)?.os, at)) needsOs(name, node.os, node.at);
+        }
+    }
+    for (const h of harvesters.values()) for (const name of Object.keys(h.profiles)) needsLab(name, `harvesters.${h.name}.profiles.${name}`);
 
     for (const host of hosts.values()) checkClusterRefs(host.profiles, `hosts.${host.name}`);
     for (const d of downstream) checkClusterRefs(d.chartProfiles?.profiles ?? {}, `downstream.${d.name}`);

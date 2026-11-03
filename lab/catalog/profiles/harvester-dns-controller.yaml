@@ -1,17 +1,47 @@
 apiVersion: lab.geeko.me/v1alpha1
-kind: Profile
+kind: ChartProfile
 metadata:
   name: harvester-dns-controller
   description: "DNS records for the lab's VMs and load balancers on your router (RouterOS or GL.Inet), by the harvester-dns-controller add-on"
 spec:
   icon: globe                # in the lab UI (lucide.dev/icons)
-  # On the Harvester itself: the add-on (shown, and editable, under the Harvester's Add-ons), built
-  # with the Harvester's base resources, so VMs come after it and go before it. The engine sets the
-  # connection, the login, the lab's domain and the records' comment; `values` are any other chart
-  # values (log level, resources).
+  # On the Harvester itself: an add-on (shown, and editable, under the Harvester's Add-ons), built
+  # with the Harvester's base resources, so VMs come after it and go before it. `values` are any
+  # other chart values (log level, resources).
   targets: [ harvester ]
-  secretFields:
-    - { field: credentials, shape: credentials }
+  # It was a builder of its own, and before that a Helm release: a running lab keeps its add-on.
+  aliases:
+    - { name: "{{ target.name }}/dns-controller" }
+    - { type: "kubernetes:helm.sh/v3:Release", name: "{{ target.name }}/dns-controller" }
+  charts:
+    - chart: harvester-dns-controller
+      namespace: harvester-system
+      # The connection, the lab's domain and the records' comment: `values` can't override them.
+      # The comment is one per Harvester, so controllers of Harvesters sharing a router never clean
+      # up each other's records (it takes over a record of its name under another comment).
+      lockedValues:
+        dns:
+          backend: "{{ settings.backend }}"
+          host: "{{ settings.host }}"
+          username: "{{ settings.credentials | field('username') }}"
+          # The router's password stays in a Secret of its own (below), out of the values anyone
+          # can read under Add-ons.
+          existingSecret: lab-dns-controller
+          useTls: "{{ settings.useTls | default(false) }}"
+          tlsVerify: "{{ settings.tlsVerify | optional }}"
+          domain: "{{ lab.domain }}"
+          ttl: "{{ settings.ttl | optional }}"
+          commentTag: "managed-by=harvester-dns-controller/{{ target.name }}"
+        watchNamespaces: "{{ lab.name }}"
+  objects:
+    - name: secret
+      aliases: [ "{{ target.name }}/dns-controller-secret" ]
+      object:
+        apiVersion: v1
+        kind: Secret
+        metadata: { name: lab-dns-controller, namespace: harvester-system }
+        stringData:
+          password: "{{ settings.credentials | field('password') }}"
   settings:
     type: object
     required: [ backend, host, credentials ]
@@ -20,10 +50,10 @@ spec:
         enum: [ routeros, glinet ]
         description: the router's kind
       host:
-        $ref: address
+        type: address
         description: the router's address or name
       credentials:
-        $ref: credentials
+        type: credentials
         description: the router's login (GL.Inet only uses the password)
       ttl:
         type: string
@@ -35,4 +65,4 @@ spec:
       tlsVerify:
         type: boolean
         description: check the router's certificate (off for a self-signed one)
-      values: { $ref: chartValues }
+      values: { type: chartValues }

@@ -1,20 +1,28 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, provide } from "vue";
+import type { SettingSchema } from "../api";
 import { useDoc } from "../doc";
+import { FORM_CONTEXT } from "../form";
 import { catalog } from "../store";
 import CredentialsField from "./CredentialsField.vue";
 import DocHeader from "./DocHeader.vue";
-import ListField from "./ListField.vue";
+import SchemaForm from "./SchemaForm.vue";
 import SecretField from "./SecretField.vue";
-import SelectField from "./SelectField.vue";
 import TextField from "./TextField.vue";
-import YamlField from "./YamlField.vue";
 
+// The Lab document: its fields from its schema (SchemaForm); the inputs, which the catalog's
+// secrets and configmaps name, and the SSH key, a text or a file, are this editor's own.
 const props = defineProps<{ index: number }>();
 const { v, bind, set, get } = useDoc(() => props.index);
-const acme = computed(() => [...(catalog.value?.acme ?? []), "none"]);
+const schema = computed<SettingSchema>(() => catalog.value?.documentForms.Lab ?? {});
+const part = (key: string) => schema.value.properties?.[key] ?? {};
 const inputs = computed(() => Object.entries(catalog.value?.inputs ?? {}));
 const keyIsFile = computed(() => typeof get("spec.ssh.publicKey") !== "string");
+
+provide(FORM_CONTEXT, () => ({
+  options: { acme: [...(catalog.value?.acme ?? []), "none"] },
+  vars: { defaults: catalog.value?.defaults },
+}));
 </script>
 
 <template>
@@ -23,28 +31,22 @@ const keyIsFile = computed(() => typeof get("spec.ssh.publicKey") !== "string");
 
     <section>
       <h3>Lab</h3>
-      <div class="grid">
-        <TextField label="domain" required hint="hosts are <name>.<domain>" v-bind="bind('spec.domain')" />
-      </div>
+      <SchemaForm :index="index" :schema="schema" />
     </section>
 
     <section>
       <h3>TLS</h3>
-      <div class="grid">
-        <SelectField label="ACME server" :options="acme" empty="default (letsencrypt)" hint="staging while iterating: Let's Encrypt allows 5 certificates a week per name" v-bind="bind('spec.tls.acme')" />
-        <TextField label="email" v-bind="bind('spec.tls.email')" />
-        <SecretField label="Cloudflare token" shape="string" :allow-plain="false" hint="DNS-01 challenges" v-bind="bind('spec.tls.cloudflare')" />
-      </div>
+      <SchemaForm :index="index" :schema="part('tls')" :at="['spec', 'tls']" />
     </section>
 
     <section>
       <h3>SSH</h3>
-      <div class="grid">
-        <TextField label="user" :placeholder="`default ${catalog?.defaults.ssh.user ?? 'lab'}`" hint="the login cloud-init creates on every VM" v-bind="bind('spec.ssh.user')" />
-        <TextField v-if="keyIsFile" label="public key file" placeholder="~/.ssh/id_ed25519.pub" v-bind="bind('spec.ssh.publicKey.file')" />
-        <TextField v-else label="public key" v-bind="bind('spec.ssh.publicKey')" />
-        <SecretField label="private key" shape="string" :allow-plain="false" required v-bind="bind('spec.ssh.privateKey')" />
-      </div>
+      <SchemaForm :index="index" :schema="part('ssh')" :at="['spec', 'ssh']">
+        <template #publicKey="field">
+          <TextField v-if="keyIsFile" label="public key file" placeholder="~/.ssh/id_ed25519.pub" v-bind="bind('spec.ssh.publicKey.file')" />
+          <TextField v-else label="public key" v-bind="field" />
+        </template>
+      </SchemaForm>
     </section>
 
     <section>
@@ -61,17 +63,12 @@ const keyIsFile = computed(() => typeof get("spec.ssh.publicKey") !== "string");
     <section>
       <h3>Vars</h3>
       <p class="muted">Your own values, any keys: the lab's documents, profiles and cloud-init refer to them as <code v-pre>{{ lab.vars.team }}</code>.</p>
-      <div class="grid">
-        <YamlField label="vars" hint="e.g. team: tmm, or nested maps and lists; values may use {{ lab.domain }} and secrets" v-bind="bind('spec.vars')" />
-      </div>
+      <SchemaForm :index="index" :schema="schema" section="vars" />
     </section>
 
     <details class="advanced">
       <summary>More</summary>
-      <div class="grid">
-        <ListField label="include" hint="more files or directories of documents, relative to this file" v-bind="bind('spec.include')" />
-        <YamlField label="images" hint="OS image sources by profile name: { url } or { file }" v-bind="bind('spec.images')" />
-      </div>
+      <SchemaForm :index="index" :schema="schema" section="advanced" />
     </details>
   </div>
 </template>

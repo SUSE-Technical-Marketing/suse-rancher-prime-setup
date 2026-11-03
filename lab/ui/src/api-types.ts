@@ -1,11 +1,19 @@
 // The lab UI server's API (server/index.ts): its requests' and answers' types, and nothing else, so
 // the server can import them too. The server declares its answers with them, so the two can't drift.
 
+import type { FormMeta } from "../../packages/schema/src/form";
+
 /** A profile's settings: the subset of JSON Schema the catalog uses (packages/schema/src/settings-schema.ts). */
 export interface SettingSchema {
-    type?: "string" | "integer" | "number" | "boolean" | "object" | "array";
+    /** JSON Schema's types, or the lab's own: `secret`, `credentials`, `dnsLabel`, `ipv4`, `chartValues`, … */
+    type?: string;
     description?: string;
-    $ref?: string;
+    /** On a `secret` or `credentials` setting: the secret template the composer fills it with, when the personal config has that secret. */
+    suggest?: string;
+    prefixItems?: SettingSchema[];
+    /** How a generated form shows it (a document's schema, packages/schema/src/form.ts). */
+    form?: FormMeta;
+    const?: string | number | boolean;
     enum?: (string | number | boolean)[];
     pattern?: string;
     anyOf?: SettingSchema[];
@@ -82,6 +90,14 @@ export interface Catalog {
     profiles: CatalogProfile[];
     fleetProfiles: FleetProfileInfo[];
     acme: string[];
+    /** By document kind (Lab, Harvester, AwsSite, HarvesterVM, Machine): its spec's schema, with how its form shows each field. */
+    documentForms: Record<string, SettingSchema>;
+    /** By downstream cluster type: its schema, with how its form shows each field. */
+    clusterForms: Record<string, SettingSchema>;
+    /** By downstream cluster type: the capability its Rancher's host must have, and why (`public-ingress` on AWS). */
+    rancherNeeds: Record<string, { capability: string; because: string }>;
+    /** KubernetesDistributions, for a downstream cluster's `distro`; `default` is the one a cluster gets without one. */
+    distributions: { name: string; description?: string; cni: string; default: boolean }[];
     /** Standard hosts for the palette (HostRecipe documents): what dropping one adds. */
     recipes: HostRecipe[];
     /** HaulManifests, for the hauler profiles' `manifests`. */

@@ -240,8 +240,9 @@ Everything here used to be hard-coded in `pulumi/setups/sample-setup/harvester-b
   limited to the lab's namespace. Guest clusters on that network with the
   `harvester-cloud-provider` profile take their LoadBalancer addresses from it instead of using
   ServiceLB; the DNS controller points `*.<host>.<domain>` at the load balancer. `cidr` and
-  `gateway` default to the network's DHCP settings; the range must lie inside the network and
-  outside the DHCP range.
+  `gateway` default to the network's subnet: its DHCP settings, or on a network without lab DHCP
+  its own `cidr` and `gateway` (a network with neither needs them on the pool); the range must
+  lie inside the network and outside the DHCP range.
 - **Supported Harvester versions: 1.8 and newer** (1.9 is current). The engine reads the version
   when it connects and fails on older versions. Add-on versions are chosen per Harvester minor
   version in `versions.ts`.
@@ -328,7 +329,7 @@ profile. `lab profiles` prints the current list with all rules.
 | `mlm-client` | `server` must name a host running `mlm-server` | `server`, `activationKey` | — |
 | `ai-factory` | requires `rancher`; secrets `applicationCollection`, `suseRegistry`, `nvidia` (credentials) | `version`, `applicationCollection` (required), `suseRegistry` (required; SCC), `nvidia` (the NGC login: user `$oauthtoken`, the API key as password), `values` | SUSE AI Factory on Rancher's cluster: the `aif-operator` chart, which installs the `aif-ui` extension and gets the registry logins as values, so its Settings need no Test and Apply |
 | `landlock` | a Profile for hosts and clusters (`targets`); not on k3k clusters (put it on the parent) or EKS; the OS profile needs `landlock.enable` | — | Landlock active on every node, which OpenShell's agent sandboxes need: turned on at first boot (VMs, a cluster's machines) or over SSH (machines), with one reboot, only where it isn't already; checked before `up` goes on (§9.7) |
-| `harvester-dns-controller` | a Profile for Harvesters only (`targets: [harvester]`); secret `credentials` | `backend` (`routeros`, `glinet`), `host`, `credentials` (all required), `ttl`, `useTls`, `tlsVerify`, `values` | The harvester-dns-controller add-on with the Harvester's base: a record on the router for every VM (§8). It used to be the Harvester's `dns:` |
+| `harvester-dns-controller` | a ChartProfile for Harvesters only (`targets: [harvester]`, an add-on); secret `credentials` | `backend` (`routeros`, `glinet`), `host`, `credentials` (all required), `ttl`, `useTls`, `tlsVerify`, `values` | The harvester-dns-controller add-on with the Harvester's base: a record on the router for every VM (§8). It used to be the Harvester's `dns:` |
 
 The apps a cluster needs are separate profiles, so they compose: a host can run Traefik without
 Rancher, or cert-manager for its own workloads. A Rancher host lists them all:
@@ -482,7 +483,9 @@ cluster's labels reach its Fleet cluster (`fleet.groups` selectors), how long th
 needs a default StorageClass set on EKS (EKS marks none default), and the update path.
 
 **Reachability.** EC2 machines and EKS clusters reach Rancher over the internet, so `validate`
-rejects an `ec2` or `eks` cluster whose Rancher host doesn't provide `public-ingress`. No profile
+rejects an `ec2` or `eks` cluster whose Rancher host doesn't provide `public-ingress`: their cluster
+types' `rancherNeeds` (a capability and why), which the resolver checks and the UI's cluster form
+says. No profile
 does yet: that's the Cloudflare tunnel operator's `public-ingress` profile, still to come. Until
 then they can be validated and previewed only with a stub profile (the tests do this).
 
@@ -544,14 +547,31 @@ registered in a table keyed by the type, so a type missing from a table fails to
 
 | Layer | Module | What it holds |
 |---|---|---|
-| Schema | `packages/schema/src/clusters/<type>.ts` | its zod schema (a member of `DownstreamInput`), its resolve step (defaults, checks against the lab around it, through a `ClusterContext`), its `lab plan` lines, whether its machines reach Rancher over the internet, and on AWS its footprint (`aws`: its site, the machines and control planes billed there, what `destroy --check` looks for) |
+| Schema | `packages/schema/src/clusters/<type>.ts` | its zod schema (a member of `DownstreamInput`), its resolve step (defaults, checks against the lab around it, through a `ClusterContext`), its `lab plan` lines, its form (each field's `.meta(form({ … }))`: label, hint, which of the lab's lists it picks from, a placeholder template, its section, lists of objects as cards; `packages/schema/src/form.ts`), `rancherNeeds` (a capability its Rancher's host must have, and why: `public-ingress` for machines that reach it over the internet), and on AWS its footprint (`aws`: its site, the machines and control planes billed there, what `destroy --check` looks for) |
 | Program | `program/clusters/<type>.ts` | its Pulumi build, through a `ClusterBuildContext` (its Rancher, one credential per Rancher and Harvester or site, the site's network, pool user data), and whether it runs inside another (built after the others) |
-| UI | `ui/src/clusters.ts` | its palette block, icon and board column, how a new one is made and where it can be dropped, its board tile and arrows, its form's fields |
+| UI | `ui/src/clusters.ts` | its palette block, icon and board column, how a new one is made and where it can be dropped, its board tile and arrows |
 
-The resolver only checks what all clusters share (their Rancher, and a public one for clusters
-that reach it over the internet). The UI can't build the schema's modules, so it keys its table by
+The resolver only checks what all clusters share (their Rancher, with what their type's
+`rancherNeeds` names). The UI can't build the schema's modules, so it keys its table by
 `packages/schema/src/clusters/names.ts`, a file without imports; the schema checks those names
 are its own. Adding a cluster type is three modules and three table entries, plus the name.
+
+Every document's form is generated from its schema: the Lab, Harvester, AwsSite, HarvesterVM
+and Machine specs (`documentFormSchemas`) and each cluster type (`clusterFormSchemas`). The server
+serves them as JSON Schema (zod's `toJSONSchema`), with each field's form metadata
+(`.meta(form({ … }))`, `packages/schema/src/form.ts`): label, hint, which of the lab's lists it
+picks from or suggests, a placeholder template (`default {defaults.vm.cpu}`), an address format,
+its section, a widget (secret, credentials, range, roles), lists of objects as cards, objects
+whose fields sit inline, and when it shows (`unless`, `when`). The UI's `SchemaForm` renders a
+section of a schema, or a part of the document (`spec.tls`, one network), with `SchemaField`, the
+control the profile settings use too. An editor only provides the lab's lists and the values
+placeholders name, and keeps what isn't a field: the cluster type switch and Rancher notice, a
+Harvester's DHCP switch between its network's fields, the SSH key as text or a file, the inputs
+the catalog names, Fleet profiles, ChartProfiles and the personal-config notices. A slot named
+after a field replaces its control. An error the engine reports on an object below `spec` (a
+network's missing load-balancer pool) shows on that object's required fields, which are then
+required even while the object isn't there yet. A new field shows in its form without UI code; switching a
+cluster's type drops the fields the new type's schema hasn't.
 
 ### 5.6 AWS sites
 
@@ -840,13 +860,12 @@ spec:
       when: "{{ settings.liz | default(false) }}"
   requires: [kubernetes, ingress, tls, secret-propagation]   # another profile on the host provides each
   uses: [downstream-secrets]
-  secretFields: [adminPassword]                             # plain text in a lab file -> warning
-  settings:                                                 # JSON Schema; $ref names a lab type
+  settings:                                                 # JSON Schema's shape, with the lab's types
     type: object
     required: [adminPassword]
     properties:
-      hostname: { $ref: dnsLabel, default: rancher }
-      adminPassword: { $ref: secretOrString }
+      hostname: { type: dnsLabel, default: rancher }
+      adminPassword: { type: secret, suggest: "{{ secrets['rancher-admin'] }}" }  # plain text -> warning
 ```
 
 Rules are expressed in **capabilities**. Every profile provides its own name, plus anything in
@@ -860,16 +879,18 @@ Rules are expressed in **capabilities**. Every profile provides its own name, pl
 | `uses` | Capabilities used when present, not required; their providers are built first | build order |
 | `conflicts` | Capabilities no other profile on the same host may provide (listing its own capability makes it "one per host") | resolver |
 | `hostKinds` | Kinds of host allowed (`harvester`, `ssh`) | resolver |
-| `networkFeatures` | What the host's network must have on its Harvester (`dhcp`, `loadBalancer`) | resolver |
+| `networkFeatures` | What the host's network must have on its Harvester (`dhcp`, `loadBalancer`). One it lacks is reported on the profile and on the network itself (`Harvester/<name>.spec.networks.vlans[i].loadBalancer`), where the lab UI shows it on the section's required fields | resolver, UI |
 | `osFamilies` | Allowed OS families for the host | resolver |
+| `osFeatures` | Sections every node it's on needs in its OS profile (`landlock`: how the OS turns Landlock on). On a host its OS; on a cluster its machines' or nodes' OS | resolver |
+| `labRequires` | What it needs of the lab itself (`acme`: an ACME server, so `tls.acme` isn't `none`) | resolver |
+| `notOnClusterTypes` | Downstream cluster types it can't go on, each with the reason the error gives (Landlock: `k3k` runs on its parent's nodes, `eks` nodes are images the lab doesn't make) | resolver |
 | `hostRefs` | Settings fields naming another host, and the capability that host must provide | resolver |
-| `targets` | Where a Profile (with code) goes besides lab hosts: `cluster` (a downstream cluster's `profiles`) and `harvester` (a Harvester document's `profiles`, the HCI cluster itself). Default `[host]`; a ChartProfile goes on hosts and clusters | resolver, UI (where a profile can be dropped) |
+| `targets` | Where it goes: `host`, `cluster` (a downstream cluster's `profiles`) and `harvester` (a Harvester document's `profiles`, the HCI cluster itself). Default `[host]` for a Profile, `[host, cluster]` for a ChartProfile. A ChartProfile on a Harvester is an add-on: one chart (no manifests), its objects made before it, none with `admitted` or `wait` | resolver, UI (where a profile can be dropped) |
 | `clusterRefs` | Settings fields naming a downstream cluster in the lab, and the capability its Fleet profiles must provide (`observer` → `suse-observability`) | resolver, UI (a select of the clusters that qualify, and a "reports to" arrow) |
 | `requiresWhen` | Like `requires`, but only when a settings field is set | resolver, build order |
-| `secretFields` | Settings fields holding secrets (dot paths), optionally with the shape `credentials` | resolver (shape, warnings) |
 | `charts` | What the profile installs, in order, each after the one before: entries with a `chart` (and `namespace`, `values`, `lockedValues`) or a `manifest` (and `vars` for its URL placeholders), each with an optional `when` and `version`. The first chart is the profile's own: the lab's `values` and the `version` setting go to it, and the leaves of its `lockedValues` are protected. Entries before it are installed before its builder runs, entries after it once the builder's work is ready | resolver (renders), program |
-| `objects` | Kubernetes objects it creates after its charts, in order, each after the one before: entries with a `name` (its name in the lab's state, under the profile; a template), the `object` (strings are templates, as chart values; secret templates filled in when the lab is built, kept secret), an optional `when`, `admitted: true` (wait until the API server admits it: a webhook), and `wait: { condition, timeout }` (a condition to wait for, up to one of the lab's timeouts). The profile's capabilities are ready once the last is: cert-manager's ACME issuer and wildcard certificate are such objects | resolver (renders), program |
-| `aliases` | Component types its resources were created under before (`lab:apps:CertManager`, from when the profile was code): a running lab keeps them rather than replacing them | program |
+| `objects` | Kubernetes objects it creates after its charts, in order, each after the one before: entries with a `name` (its name in the lab's state, under the profile; a template), the `object` (strings are templates, as chart values; secret templates filled in when the lab is built, kept secret), an optional `when`, `aliases` (its whole names in the state before, templates), `admitted: true` (wait until the API server admits it: a webhook), and `wait: { condition, timeout }` (a condition to wait for, up to one of the lab's timeouts). The profile's capabilities are ready once the last is: cert-manager's ACME issuer and wildcard certificate are such objects | resolver (renders), program |
+| `aliases` | What its own chart's resource was created as before, from when the profile was code: a component type (`lab:apps:CertManager`), or `{ type, name }` with a whole name, a template (`"{{ target.name }}/dns-controller"`). A running lab keeps it rather than replacing it | resolver (renders), program |
 | `outputs` | Data other profiles on the host can use in their templates, by capability this profile provides (`tls: { secretName: wildcard-cert }`); only from the profile actually providing it on the host | resolver |
 | `settings` | The settings under `profiles.<name>`: a JSON Schema object (subset; `required` inside it) | resolver |
 | `status` | `planned`: in the catalog with its rules and settings, but not built yet (MLM). A lab using it validates with a warning (a design for later); `preview` and `up` refuse it; the composer doesn't offer it | resolver, CLI, UI |
@@ -885,15 +906,22 @@ hosts carry their capabilities, so the program never needs the registry.
 The **builders** live in `program/profiles.ts`, typed against `ProfileSettings`, which is generated
 from the catalog (`program/generated/profile-settings.ts`, `mise run profile-types`): a builder
 reading a setting its profile doesn't declare is a compile error, and a test fails when the
-generated file is out of date. Only profiles that need code have a builder, for real wiring: k3s,
-RKE2, Rancher (bootstrap, plugins, Fleet, staging CA), cert-manager (issuers, certificate), Traefik
-(Gateway API CRDs), the cloud provider (its kubeconfig secret). No builder sets chart values. A profile that only installs
+generated file is out of date. Only profiles that need code have a builder, for real wiring:
+Rancher (bootstrap, plugins, Fleet, staging CA), the cloud provider (its kubeconfig secret), Hauler,
+Landlock, the Observability agent. A profile with a `distribution` (k3s, RKE2)
+gets the one Kubernetes builder, for its KubernetesDistribution document: a new distribution is a
+KubernetesDistribution and a Profile naming it, no code. No builder sets chart values. A profile that only installs
 its chart (Sprouter, Outrider) has none: the generic chart builder installs it once the profiles it
 requires or uses are ready, with its Profile document's namespace and values, and reports the
 release as the `ready` of each of its capabilities. A test checks that every profile has a builder
 or a chart. The program builds each host's profiles in
-`profileOrder` (from the resolver) and passes the outputs of earlier profiles to later ones, keyed
-by capability.
+`profileOrder` (from the resolver), and the build loop does all the capability wiring from the
+Profile documents (`lab.profiles`: each one's `provides` and what it waits for): a builder gets
+`after`, what its `requires`, `uses` and `requiresWhen` name, ready, and returns its own `ready`,
+which the loop reports under every capability the profile provides on the host. Only k3s and RKE2
+report their fallbacks apart (ServiceLB, Traefik and the Gateway API are ready at different
+moments). What a builder hands on in code is access only: the host's cluster (`kubernetes`),
+Rancher (`rancher`) and Rancher's Fleet installs. No builder names another profile's capabilities.
 
 A builder (`ProfileBuilder`) has a step for each place and moment it acts, and the program runs
 every profile through the same loops; none is wired by name:
@@ -905,21 +933,23 @@ every profile through the same loops; none is wired by name:
 | `cloudInit` | the host's `runcmd` (over SSH on a machine), and its uninstall | k3s, RKE2 |
 | `host` | on a lab host once it's up, in `profileOrder` | Rancher, Hauler, ChartProfiles |
 | `cluster` | on a downstream cluster once it's Ready, in its build order | ChartProfiles, the Landlock DaemonSet |
-| `harvester` | on a Harvester with its base, before its VMs (children of the base) | the DNS controller |
+| `harvester` | on a Harvester with its base, before its VMs (children of the base) | ChartProfiles as add-ons (the DNS controller) |
 | `last` | once every cluster exists, on each target the profile is on | SUSE Observability agents |
 
 A test checks that every target a profile declares has a step that runs there. Builders with
 more than a few lines live in `program/builders/<profile>.ts`.
 
-A profile's checks that only code can make (beyond its declared rules) are its **hooks**
-(`packages/schema/src/profiles/hooks.ts`), run by the resolver on each host, cluster and Harvester
-the profile is on: Landlock needs an OS profile with `landlock.enable` and rejects k3k and EKS,
-cert-manager needs an ACME server, the DNS controller's `values` can't override the engine's.
+Profiles' checks are all declarations (`phases/checks.ts` runs them on each host, cluster and
+Harvester a profile is on): no profile has resolver code of its own. Landlock declares
+`osFeatures: [landlock]` and `notOnClusterTypes` (k3k, EKS), cert-manager `labRequires: [acme]`.
+What the engine sets in a chart's values is `lockedValues`, templates included: the DNS
+controller's connection, the lab's domain and its records' comment.
 
 **Adding a profile**: a `Profile` document in `lab/catalog/profiles/` and `mise run profile-types`.
 A profile that only installs charts or manifests needs nothing else (its HelmChart documents and
 its Profile's `charts` say it all, Kubewarden's three charts included); one with real wiring also gets
-a builder (plus its components in a package), and a hook if it has checks of its own. No changes to
+a builder (plus its components in a package). A check no declaration covers is a new declaration,
+not code for one profile. No changes to
 the resolver's or the program's main loops, or the CLI.
 
 ---
@@ -958,13 +988,13 @@ the resolver's or the program's main loops, or the CLI.
 
 ## 8. DNS and TLS
 
-- **DNS**: the `harvester-dns-controller` profile on a Harvester (its `profiles:`) installs the
-  harvester-dns-controller as a Harvester add-on (`Addon` in `harvester-system`, labelled
+- **DNS**: the `harvester-dns-controller` ChartProfile on a Harvester (its `profiles:`) installs the
+  harvester-dns-controller as a Harvester add-on (the generic add-on install: no code of its own) (`Addon` in `harvester-system`, labelled
   experimental, from its `oci://` chart with an empty repo, which Harvester's helm-controller pulls
   by reference) as part of the Harvester's base, so VMs come after it and go before it, and gives
   every Harvester VM a record under `domain`. Its settings: `backend` (`routeros` or `glinet`),
   `host`, `credentials`, `ttl`, `useTls`, `tlsVerify`, and `values` for any other chart value; the connection, the login, the lab's domain and namespace, and the comment its records
-  carry on the router are the engine's and `values` can't override them. That comment is
+  carry on the router are its `lockedValues` (templates) and `values` can't override them. That comment is
   `managed-by=harvester-dns-controller/<harvester>`: the controller lists, and at startup cleans
   up, the router's records by exact comment, so controllers of Harvesters that share a router never
   remove each other's records. It takes over a record of a name it manages that carries another
@@ -1056,7 +1086,7 @@ What a store holds is a `HaulManifest` document (§17), by name: `images` (`name
 `name`), rendered into Hauler's own content documents (`content.hauler.cattle.io/v1` Images,
 Charts, Files). The built-in ones are in `catalog/hauler/` (`rancher-2.15`, a starter set); a lab
 or the personal config can add its own. A profile's `manifests` setting is typed
-`$ref: haulManifest`, so the resolver checks each name, and the lab carries only the ones it uses.
+`type: haulManifest`, so the resolver checks each name, and the lab carries only the ones it uses.
 Hauler copies its store into what it serves when it starts, so each sync is followed by a restart.
 Content a dropped manifest brought stays in the store.
 
@@ -1438,7 +1468,7 @@ install, before the VM exists) and `build` (resources after it is up).
    Since replaced by the Fleet catalog (§16.3).
 8. **Versions** of everything in `program/versions.ts`, overridable per lab. Since moved to the
    catalog (§16.2).
-9. **Profile rules**: `requiresWhen` and shaped `secretFields` (credentials), with tests.
+9. **Profile rules**: `requiresWhen` and secret settings of the shape `credentials`, with tests.
 
 **Done when**
 
@@ -1682,7 +1712,9 @@ branch) and single versions; `default` is replaced whole.
 
 ### 16.5 Downstream clusters
 
-`downstream.<name>` gets `cni` (default `calico` for RKE2, `flannel` for k3s), and two
+`downstream.<name>` (harvester, ec2, metal) gets `distro`, a KubernetesDistribution in the catalog
+(default `rke2`; an unknown one is a validation error), `cni` (default the distribution's `cni`:
+`calico` for RKE2, `flannel` for k3s), and two
 passthroughs for anything else Rancher supports: `machineGlobalConfig` and `chartValues`, merged
 over the engine's. `machineGlobalConfig.cni` (use `cni`) and `chartValues.harvester-cloud-provider`
 stay engine-owned: setting them is a validation error, like 16.2's protected values.
@@ -1809,12 +1841,20 @@ Each step keeps `asgard-m2*` and `asgard-m3` working and ends with typecheck, te
 A host profile's contract is the `profile:` section of its component file (§7.6 lists the rules);
 what it does stays a builder in `program/profiles.ts`.
 
-- **Settings** are a JSON Schema subset: `type`, `enum`, `const`, `anyOf`/`oneOf`, `default`,
+- **Settings** have JSON Schema's shape: `type`, `enum`, `const`, `anyOf`/`oneOf`, `default`,
   `minimum`/`maximum`, `minLength`, `pattern`, `items`, `properties`, `required`,
-  `additionalProperties`, `description`. `$ref` names a lab type (`dnsLabel`, `dnsName`,
-  `quantity`, `ipv4`, `url`, `secretOrString`, `credentials`, `chartValues`), so its checks and
-  messages are the lab's own. Objects reject unknown fields unless `additionalProperties` allows
-  them. An unsupported keyword or unknown `$ref` is an error in the catalog file.
+  `additionalProperties`, `description`. Besides JSON Schema's types, `type` can be one of the
+  lab's own (`dnsLabel`, `dnsName`, `quantity`, `ipv4`, `address`, `url`, `secret`, `credentials`,
+  `chartValues`, `haulManifest`), so its checks and messages are the lab's own. Not JSON Schema
+  proper (that would be a `$ref` to a definition): nothing outside the lab reads these.
+  Settings typed `secret` (a secret template, or plain text) or `credentials` (a secret template,
+  or `{ username, password }`) hold secrets: plain text in a lab file causes a warning, and
+  `lab profiles` lists them. Such a setting can `suggest` a secret template, which the lab UI
+  fills in when the profile is added and the personal config has that secret (`"{{ secrets.appco
+  }}"` for AI Factory's `applicationCollection`); it's written into the lab file as it is, so a lab never depends on what the
+  personal config happens to call its secrets. Objects reject unknown fields unless
+  `additionalProperties` allows them. An unsupported keyword or unknown type is an error in the
+  catalog file.
 - The resolver checks each `profiles.<name>` on a host against its schema and applies defaults;
   an unknown profile name is an error that lists the known ones.
 - **Generated types**: `mise run profile-types` writes `program/generated/profile-settings.ts`, one
@@ -1848,7 +1888,7 @@ document is.
 
 | Kind | `spec` | Catalog section it fills |
 |---|---|---|
-| `KubernetesDistribution` | `version`; `install` (a template with `version`, run as root); `configFile` and `config` (written before installing, with the host's FQDN as a `tls-san`); `withCapability.<capability>` (merged into `config`, lists joined, when another profile on the host provides that capability: `ingress` turns the distribution's own Traefik off, `load-balancer` its ServiceLB, `cloud-provider` sets up an external cloud controller); `kubeconfig`, `kubectl`, `dataDir`; `uninstall` (scripts for metal-cluster machines); `cni` (downstream default); `ingress` (its own Traefik when no profile replaces it: the HelmChart it deploys, `values` set on it with a HelmChartConfig, the Gateway provider, and `manifests` applied first, the Gateway API CRDs where it doesn't ship them, k3s). An override's `config` and `withCapability` merge key by key (lists replaced) | components (k3s, RKE2) |
+| `KubernetesDistribution` | `version`; `install` (a template with `version`, run as root); `configFile` and `config` (written before installing, with the host's FQDN as a `tls-san`); `withCapability.<capability>` (merged into `config`, lists joined, when another profile on the host provides that capability: `ingress` turns the distribution's own Traefik off, `load-balancer` its ServiceLB, `cloud-provider` sets up an external cloud controller); `kubeconfig`, `kubectl`, `dataDir`; `uninstall` (scripts for metal-cluster machines); `cni` (downstream default); `cloudProviders` (the ones it bundles, which Rancher turns on in a cluster it provisions: `harvester` on RKE2, so a Harvester cluster gets the cloud provider's config); `ingress` (its own Traefik when no profile replaces it: the HelmChart it deploys, `values` set on it with a HelmChartConfig, the Gateway provider, and `manifests` applied first, the Gateway API CRDs where it doesn't ship them, k3s). An override's `config` and `withCapability` merge key by key (lists replaced) | components (k3s, RKE2) |
 | `AcmeServer` | `url` (the ACME directory), `ca` (PEM roots, for a CA nothing trusts) | ACME servers (`tls.acme`) |
 | `Defaults` | one, named `default`: `ssh.user` (a lab's `ssh.user`, and a Machine's `user`, default to it), `vm` (`cpu`, `memory`, `disk` of a HarvesterVM or downstream pool that doesn't give them), `harvester.clusterNetwork`, `harvester.storageClass` (`name`, `replicas`, `parameters`), `timeouts.<step>` (durations like `15m`: `harvesterAddon`, `image`, `vmStart`, `vmAddress`, `cloudInit`, `loadBalancerCleanup`, `kubernetesApi`, `resourceReady`, `certificate`, `rancherReady`, `uiPlugin`, `harvesterImport`, `clusterRegistration`, `downstreamReady`, `downstreamDelete`, `helmJobWatch`, `haulerSync`), `aws` (`vpcCidr`, `zones` and `instanceType` of an AwsSite, EC2 pool or EKS node group that doesn't give them; `eksVersion` of an EKS cluster), `images.kubectl` (an image with kubectl and curl for jobs the engine runs on a cluster: a k3k cluster's import). Later layers override single fields, so a personal config can make one wait longer | what the engine uses where a lab doesn't say (`catalog/defaults.yaml`) |
 | `HelmChart` | `repo`, `chart`, `version`, `namespace` (default for host placements) | components |
@@ -1899,7 +1939,7 @@ be read as a document at all.
 
 | Kind | Document | Where | Who installs it |
 |---|---|---|---|
-| Profile | `Profile`, with a builder in the engine (k3s, RKE2, Rancher, the Harvester cloud provider) | lab hosts only | the engine, with code |
+| Profile | `Profile`, with a builder in the engine (Rancher, the Harvester cloud provider; k3s and RKE2 share the Kubernetes one) | lab hosts only | the engine, with code |
 | ChartProfile | `ChartProfile`: `charts` and `objects`, templates, rules; no code (cert-manager, Traefik, MetalLB, Sprouter, Outrider, AI Factory) | lab hosts and downstream clusters | the engine: a Helm install, its manifests and objects, its waits |
 | Fleet profile | `FleetProfile`: labels and annotations (§16.3) | downstream clusters only | Fleet, from the repos and HelmOps that select them |
 
@@ -1941,13 +1981,16 @@ in strict mode (an undefined variable is an error at the value's path, naming th
 |---|---|
 | `settings` | the profile's settings on this host, defaults applied |
 | `host` | `name`, `fqdn` |
+| `target` | where it's installed: `kind` (`host`, `cluster`, `harvester`), `name`, `fqdn` (a cluster's `<cluster>.<domain>`, a Harvester's URL host) |
 | `lab` | `name`, `domain`, `vars` (the Lab document's own values, §5.1), `tls.acme`, `tls.url` (its ACME directory), `tls.privateCA` (the AcmeServer has a `ca`: Let's Encrypt staging), `tls.email`, `tls.cloudflare` (the DNS-01 token, a secret template) |
 | `outputs` | by capability: the `outputs` the profile on this host providing it declares; only for capabilities this profile `requires`, `uses` or `requiresWhen`, so it can't read a profile built after it |
 
 A secret setting reaches a chart through the `field` filter: `"{{ settings.applicationCollection |
 field('username') }}"` gives `"{{ secrets.appco.username }}"` for `applicationCollection:
 "{{ secrets.appco }}"` (or the `username` of a `{ username, password }` map, and `""` for an unset
-setting). The program renders such secret templates in a chart-only profile's values when it
+setting). A setting that may be unset takes `optional` as a whole value (`"{{ settings.ttl |
+optional }}"`): unset, its key is left out of the values. Without it an unset value is an error,
+which catches a misspelt setting. The program renders such secret templates in a chart-only profile's values when it
 builds the lab, as a secret output, so the values stay encrypted in the state.
 
 A profile whose requirements aren't met on a host isn't rendered there (the rules report that). The

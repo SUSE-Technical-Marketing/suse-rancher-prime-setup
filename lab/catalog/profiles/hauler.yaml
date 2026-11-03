@@ -16,7 +16,7 @@ spec:
       # HaulManifests (catalog/hauler/, or a lab's own) the store syncs.
       manifests:
         type: array
-        items: { $ref: haulManifest }
+        items: { type: haulManifest }
         default: []
       port: { type: integer, minimum: 1, maximum: 65535, default: 5000 }
       # Serve the store's files too, on this port.

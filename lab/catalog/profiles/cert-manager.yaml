@@ -52,6 +52,8 @@ spec:
       wait: { condition: Ready, timeout: certificate }
   aliases: [ lab:apps:CertManager ]
   requires: [ kubernetes ]
+  # It issues the lab's certificates from its ACME server: without one it has nothing to do.
+  labRequires: [ acme ]
   provides: [ tls ]
   outputs:
     # The host's wildcard certificate, labelled for Sprouter so it lands in every namespace.
@@ -60,4 +62,4 @@ spec:
     type: object
     properties:
       version: { type: string }
-      values: { $ref: chartValues }
+      values: { type: chartValues }

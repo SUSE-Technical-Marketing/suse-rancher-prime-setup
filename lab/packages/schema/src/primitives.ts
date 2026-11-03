@@ -70,6 +70,11 @@ export type ImageSource = z.infer<typeof ImageSource>;
 
 
 export const OS_FAMILIES = ["suse", "rhel", "debian"] as const;
+/** OS profile sections a profile can need on every node it's on (`landlock`: how the OS turns it on). */
+export const OS_FEATURES = ["landlock"] as const;
+/** What a profile can need of the lab itself: `acme`, an ACME server (`tls.acme` not none). */
+export const LAB_FEATURES = ["acme"] as const;
+export type LabFeature = (typeof LAB_FEATURES)[number];
 export type OsFamily = (typeof OS_FAMILIES)[number];
 
 /** Extra Helm values for a chart profile, merged over the engine's (DESIGN.md §16.2). */

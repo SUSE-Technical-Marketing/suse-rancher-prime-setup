@@ -4,13 +4,14 @@
 import { CLUSTER_UI, clusterOfBlock, clusterType } from "./clusters";
 import type { ClusterTypeName } from "../../packages/schema/src/clusters/names";
 import type { Block } from "./dnd";
-import { secretTemplate } from "./secrets";
+import { secretPath, secretTemplate } from "./secrets";
 import { addDoc, append, catalog, freeName, reportOf, set, views } from "./store";
 
 /** The OS new hosts and pools get; the engine adds what Harvester and Kubernetes need to it. */
 const defaultOs = () => catalog.value?.os[0]?.name ?? "";
 /** An OS that boots on EC2 (has an AMI). */
 const ec2Os = () => catalog.value?.os.find(o => o.ami)?.name ?? "";
+export const defaultDistro = () => catalog.value?.distributions.find(d => d.default)?.name ?? "";
 const hasSecret = (name: string) => !!catalog.value?.personal.secrets.some(s => s.name === name);
 const firstOf = (kind: string) => views.value.find(v => v.kind === kind)?.metadata?.name ?? "";
 const rancherHost = () => views.value.find(v => (v.kind === "HarvesterVM" || v.kind === "Machine") && v.spec?.profiles && "rancher" in v.spec.profiles)?.metadata?.name ?? "";
@@ -23,25 +24,18 @@ export function clustersProviding(capability: string): string[] {
 
 export function profileDefaults(name: string): Record<string, unknown> {
     // A setting naming a cluster (the agent's observer): the one cluster that qualifies, if there is one.
-    const refs = catalog.value?.profiles.find(p => p.name === name)?.clusterRefs ?? [];
+    const profile = catalog.value?.profiles.find(p => p.name === name);
+    const refs = profile?.clusterRefs ?? [];
     const picked = Object.fromEntries(refs.flatMap(r => {
         const options = clustersProviding(r.provides);
         return options.length === 1 && !r.field.includes(".") ? [[r.field, options[0]]] : [];
     }));
-    return { ...picked, ...ownDefaults(name) };
-}
-
-function ownDefaults(name: string): Record<string, unknown> {
-    if (name === "rancher" && hasSecret("rancher-admin")) return { adminPassword: "{{ secrets['rancher-admin'] }}" };
-    // SUSE AI Factory: the Application Collection, SCC (the SUSE registry) and NGC logins, where the personal config has them.
-    if (name === "ai-factory") {
-        return {
-            ...(hasSecret("appco") ? { applicationCollection: "{{ secrets.appco }}" } : {}),
-            ...(hasSecret("scc") ? { suseRegistry: "{{ secrets.scc }}" } : {}),
-            ...(hasSecret("nvidia") ? { nvidia: "{{ secrets.nvidia }}" } : {}),
-        };
-    }
-    return {};
+    // Settings that suggest a secret template (Rancher's admin password), where the personal config has the secret.
+    const suggested = Object.entries(profile?.settings.properties ?? {}).flatMap(([field, s]) => {
+        const path = secretPath(s.suggest);
+        return path && hasSecret(path.join(".")) ? [[field, s.suggest]] : [];
+    });
+    return { ...picked, ...Object.fromEntries(suggested) };
 }
 
 /** A Harvester's default network: where hosts and pools without a `network` go. */
@@ -114,6 +108,7 @@ export function addCluster(type: ClusterTypeName, on?: string, network?: string)
         network: type === "harvester" ? networkOn(target, network) : {},
         os: defaultOs(),
         ec2Os: ec2Os(),
+        distro: defaultDistro(),
     }));
 }
 

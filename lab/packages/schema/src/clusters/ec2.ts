@@ -1,6 +1,10 @@
 import { z } from "zod";
+import { form } from "../form";
 import { awsZone, dnsLabel, quantity } from "../primitives";
-import { annotations, checkPassthrough, checkRoles, ClusterPassthrough, distro, fleetProfiles, labels, profiles, roles } from "./common";
+import { annotations, checkDistro, checkPassthrough, checkRoles, ClusterPassthrough, distro, fleetProfiles, kubernetesVersion, labels, profiles, rancher, roles } from "./common";
+
+/** Common sizes for lab nodes, suggested in the lab UI; any instance type works. */
+export const EC2_TYPES = ["t3.medium", "t3.large", "t3.xlarge", "t3.2xlarge", "m6i.large", "m6i.xlarge", "m6i.2xlarge", "c6i.xlarge", "r6i.xlarge"];
 import type { ClusterType } from "./types";
 
 // Machines Rancher creates on EC2 with its node driver, in an AWS site's VPC.
@@ -9,29 +13,29 @@ const Ec2Pool = z.strictObject({
     name: dnsLabel,
     quantity: z.int().min(1),
     roles,
+    os: z.string().min(1).meta(form({ label: "OS", options: "amiOs", hint: "OS profiles with an AMI" })),
     /** Default: the catalog's Defaults (`aws.instanceType`). */
-    instanceType: z.string().min(1).optional(),
+    instanceType: z.string().min(1).optional().meta(form({ label: "instance type", suggestions: EC2_TYPES, placeholder: "default {defaults.aws.instanceType}" })),
     /** Root volume; default the catalog's Defaults (`vm.disk`). */
-    disk: quantity.optional(),
-    os: z.string().min(1),
+    disk: quantity.optional().meta(form({ hint: "root volume, gp3", placeholder: "default {defaults.vm.disk}" })),
     /** Its availability zone, by letter; default the site's first. */
-    zone: awsZone.optional(),
+    zone: awsZone.optional().meta(form({ options: "zones", placeholder: "the site's first ({zones.0})" })),
 });
 
 export const Ec2ClusterInput = z.strictObject({
     /** Machines Rancher creates on EC2 with its node driver, in the site's VPC (§5.5). */
-    type: z.literal("ec2"),
-    rancher: z.string(),
+    type: z.literal("ec2").meta(form({ section: "hidden" })),
+    rancher,
     /** The AwsSite its machines go in. */
-    site: z.string(),
+    site: z.string().meta(form({ label: "AWS site", options: "sites", hint: "the machines go in the lab's VPC there" })),
     distro,
-    version: z.string().optional(),
+    version: kubernetesVersion,
     labels,
     annotations,
     fleetProfiles,
     profiles,
     ...ClusterPassthrough,
-    pools: z.array(Ec2Pool).min(1),
+    pools: z.array(Ec2Pool).min(1).meta(form({ label: "Machine pools", cards: { add: "a pool", title: "name" } })),
 });
 type Input = z.infer<typeof Ec2ClusterInput>;
 
@@ -40,9 +44,10 @@ export type ResolvedEc2Pool = Input["pools"][number] & { instanceType: string; d
 export type ResolvedEc2Cluster = Omit<Input, "pools"> & { name: string; pools: ResolvedEc2Pool[] };
 
 export const ec2Cluster: ClusterType<Input, ResolvedEc2Cluster> = {
-    reachesRancherOverInternet: "EC2 machines reach",
+    rancherNeeds: { capability: "public-ingress", because: "EC2 machines reach Rancher over the internet" },
     resolve(ctx, name, d, at) {
         checkPassthrough(ctx, d, at);
+        checkDistro(ctx, d.distro, at);
         const site = ctx.awsSites.get(d.site);
         if (!site) ctx.error(`${at}.site`, `unknown AwsSite "${d.site}"; known: ${[...ctx.awsSites.keys()].sort().join(", ") || "none (add an AwsSite document)"}`);
         const poolNames = new Set<string>();
@@ -68,6 +73,7 @@ export const ec2Cluster: ClusterType<Input, ResolvedEc2Cluster> = {
         keyPairPrefixes: [`${d.name}-`],
         eksClusters: [],
     }),
+    nodeOs: d => d.pools.map((p, i) => ({ os: p.os, at: `downstream.${d.name}.pools[${i}].os` })),
     plan: (d, meta) => [
         `  ${d.name}  ${d.distro} on EC2 (${d.site}), managed by Rancher on ${d.rancher}${meta}`,
         ...d.pools.map(p => `    pool ${p.name}: ${p.quantity} × ${p.instanceType} / ${p.disk}, ${p.os}, zone ${p.zone} [${p.roles.join(", ")}]`),

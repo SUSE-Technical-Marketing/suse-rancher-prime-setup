@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { form } from "../form";
 import { dnsLabel, quantity } from "../primitives";
-import { annotations, checkPassthrough, checkRoles, ClusterPassthrough, distro, fleetProfiles, labels, profiles, roles } from "./common";
+import { annotations, checkDistro, checkPassthrough, checkRoles, ClusterPassthrough, distro, fleetProfiles, kubernetesVersion, labels, profiles, rancher, roles } from "./common";
 import type { ClusterType } from "./types";
 
 // A cluster Rancher creates from VMs on one of the lab's Harvesters, with its Harvester node driver.
@@ -9,26 +10,26 @@ const HarvesterPool = z.strictObject({
     name: dnsLabel,
     quantity: z.int().min(1),
     roles,
+    os: z.string().min(1).meta(form({ label: "OS", options: "osProfiles" })),
     /** Default: the catalog's Defaults (`vm`). */
-    cpu: z.int().min(1).optional(),
-    memory: quantity.optional(),
-    disk: quantity.optional(),
-    os: z.string().min(1),
-    network: z.string().optional(),
+    cpu: z.int().min(1).optional().meta(form({ label: "CPUs", placeholder: "default {defaults.vm.cpu}" })),
+    memory: quantity.optional().meta(form({ placeholder: "default {defaults.vm.memory}" })),
+    disk: quantity.optional().meta(form({ placeholder: "default {defaults.vm.disk}" })),
+    network: z.string().optional().meta(form({ options: "networks", placeholder: "the Harvester's default" })),
 });
 
 export const HarvesterClusterInput = z.strictObject({
-    type: z.literal("harvester"),
-    rancher: z.string(),
-    harvester: z.string(),
+    type: z.literal("harvester").meta(form({ section: "hidden" })),
+    rancher,
+    harvester: z.string().meta(form({ label: "Harvester", options: "harvesters" })),
     distro,
-    version: z.string().optional(),
+    version: kubernetesVersion,
     labels,
     annotations,
     fleetProfiles,
     profiles,
     ...ClusterPassthrough,
-    pools: z.array(HarvesterPool).min(1),
+    pools: z.array(HarvesterPool).min(1).meta(form({ label: "Machine pools", cards: { add: "a pool", title: "name" } })),
 });
 type Input = z.infer<typeof HarvesterClusterInput>;
 
@@ -38,6 +39,7 @@ export type ResolvedHarvesterCluster = Omit<Input, "pools"> & { name: string; po
 export const harvesterCluster: ClusterType<Input, ResolvedHarvesterCluster> = {
     resolve(ctx, name, d, at) {
         checkPassthrough(ctx, d, at);
+        checkDistro(ctx, d.distro, at);
         // The engine sets the Harvester cloud provider's chart values.
         if (d.chartValues && "harvester-cloud-provider" in d.chartValues) {
             ctx.error(`${at}.chartValues.harvester-cloud-provider`, "is set by the lab engine; it can't be overridden");
@@ -58,6 +60,7 @@ export const harvesterCluster: ClusterType<Input, ResolvedHarvesterCluster> = {
         checkRoles(ctx, d.pools, at);
         return { ...d, name, pools };
     },
+    nodeOs: d => d.pools.map((p, i) => ({ os: p.os, at: `downstream.${d.name}.pools[${i}].os` })),
     plan: (d, meta) => [
         `  ${d.name}  ${d.distro} on ${d.harvester}, managed by Rancher on ${d.rancher}${meta}`,
         ...d.pools.map(p => `    pool ${p.name}: ${p.quantity} × ${p.cpu} CPU / ${p.memory} / ${p.disk}, ${p.os}, network ${p.network} [${p.roles.join(", ")}]`),

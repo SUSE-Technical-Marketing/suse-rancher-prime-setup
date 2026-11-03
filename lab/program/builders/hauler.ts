@@ -25,6 +25,6 @@ export const hauler: ProfileBuilder<"hauler"> = {
             after: ctx.ready,
             timeoutSeconds: lab.timeouts.haulerSync,
         }, { deletedWith: ctx.machine });
-        return { registry: { ready: [registry.setup] } };
+        return { ready: [registry.setup] };
     },
 };

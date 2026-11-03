@@ -1,16 +1,21 @@
 import { z } from "zod";
 import { haulManifestName } from "./hauler";
 import { chartValues, Credentials, dnsLabel, dnsName, ipv4, quantity, secretOrString } from "./primitives";
+import { secretPath } from "./secrets";
 
 /**
- * A profile's settings as written in its catalog file (DESIGN.md §16.10): a subset of JSON Schema.
- * `$ref` names one of the lab's own types (below), so their checks and messages are the same as
- * everywhere else. Objects reject unknown fields unless `additionalProperties` says otherwise.
+ * A profile's settings as written in its catalog file (DESIGN.md §16.10): JSON Schema's shape, with
+ * the lab's own types (below) as `type`s besides JSON Schema's, so their checks and messages are
+ * the same as everywhere else. Objects reject unknown fields unless `additionalProperties` says otherwise.
  */
 export interface SettingSchema {
-    type?: "string" | "integer" | "number" | "boolean" | "object" | "array";
+    type?: JsonType | LabType;
     description?: string;
-    $ref?: string;
+    /**
+     * On a `secret` or `credentials` setting: the secret template the lab UI fills it with when the
+     * profile is added and the personal config has that secret (`"{{ secrets.appco }}"`).
+     */
+    suggest?: string;
     enum?: (string | number | boolean)[];
     const?: string | number | boolean;
     anyOf?: SettingSchema[];
@@ -27,8 +32,11 @@ export interface SettingSchema {
     additionalProperties?: boolean | SettingSchema;
 }
 
-/** The lab types a setting can `$ref`, with their TypeScript type for the generated settings. */
-const REFS: Record<string, { zod: z.ZodType; ts: string }> = {
+type JsonType = "string" | "integer" | "number" | "boolean" | "object" | "array";
+const JSON_TYPES: JsonType[] = ["string", "integer", "number", "boolean", "object", "array"];
+
+/** The lab's own types a setting can have, with their TypeScript type for the generated settings. */
+const LAB_TYPES = {
     dnsLabel: { zod: dnsLabel, ts: "string" },
     dnsName: { zod: dnsName, ts: "string" },
     quantity: { zod: quantity, ts: "string" },
@@ -36,20 +44,29 @@ const REFS: Record<string, { zod: z.ZodType; ts: string }> = {
     /** A machine's address or DNS name (a router's). */
     address: { zod: z.union([ipv4, dnsName]), ts: "string" },
     url: { zod: z.url(), ts: "string" },
-    secretOrString: { zod: secretOrString, ts: "string" },
+    /** A secret template (`"{{ secrets.name }}"`), or plain text (with a warning). */
+    secret: { zod: secretOrString, ts: "string" },
+    /** A secret template, or `{ username, password }` (plain, with a warning). */
     credentials: { zod: Credentials, ts: "Credentials" },
     chartValues: { zod: chartValues.unwrap(), ts: "Record<string, unknown>" },
     /** A HaulManifest's name: the resolver checks the catalog has it (`refsIn`). */
     haulManifest: { zod: haulManifestName, ts: "string" },
-};
-export const SETTING_REFS = Object.keys(REFS);
+} satisfies Record<string, { zod: z.ZodType; ts: string }>;
+export type LabType = keyof typeof LAB_TYPES;
+const labType = (s: SettingSchema) => (s.type !== undefined && s.type in LAB_TYPES ? LAB_TYPES[s.type as LabType] : undefined);
+/** The settings that hold secrets: the lab types `secret` and `credentials`, with that shape. */
+const SECRET_TYPES: Partial<Record<LabType, "string" | "credentials">> = { secret: "string", credentials: "credentials" };
 
-const KEYWORDS = new Set(["type", "description", "$ref", "enum", "const", "anyOf", "oneOf", "default", "minimum", "maximum", "minLength", "pattern", "items", "properties", "required", "additionalProperties"]);
+const KEYWORDS = new Set(["type", "description", "suggest", "enum", "const", "anyOf", "oneOf", "default", "minimum", "maximum", "minLength", "pattern", "items", "properties", "required", "additionalProperties"]);
 
-/** Problems in a settings schema itself (an unknown keyword or `$ref`), as dot paths. */
+/** Problems in a settings schema itself (an unknown keyword or type), as dot paths. */
 export function checkSettingSchema(s: SettingSchema, at: string, problems: { at: string; message: string }[]): void {
     for (const key of Object.keys(s)) if (!KEYWORDS.has(key)) problems.push({ at: `${at}.${key}`, message: `unsupported keyword "${key}"` });
-    if (s.$ref !== undefined && !REFS[s.$ref]) problems.push({ at: `${at}.$ref`, message: `unknown type "${s.$ref}"; one of ${SETTING_REFS.join(", ")}` });
+    if (s.type !== undefined && !JSON_TYPES.includes(s.type as JsonType) && !labType(s)) {
+        problems.push({ at: `${at}.type`, message: `unknown type "${s.type}"; one of ${[...JSON_TYPES, ...Object.keys(LAB_TYPES)].join(", ")}` });
+    }
+    if (s.suggest !== undefined && !SECRET_TYPES[s.type as LabType]) problems.push({ at: `${at}.suggest`, message: "is for a secret or credentials setting" });
+    else if (s.suggest !== undefined && !secretPath(s.suggest)) problems.push({ at: `${at}.suggest`, message: 'must be a secret template, e.g. "{{ secrets.appco }}"' });
     for (const [k, v] of Object.entries(s.properties ?? {})) checkSettingSchema(v, `${at}.properties.${k}`, problems);
     if (s.items) checkSettingSchema(s.items, `${at}.items`, problems);
     if (typeof s.additionalProperties === "object") checkSettingSchema(s.additionalProperties, `${at}.additionalProperties`, problems);
@@ -60,7 +77,8 @@ export function checkSettingSchema(s: SettingSchema, at: string, problems: { at:
 export function settingZod(s: SettingSchema): z.ZodType {
     let t: z.ZodType;
     const alts = s.anyOf ?? s.oneOf;
-    if (s.$ref) t = REFS[s.$ref].zod;
+    const lab = labType(s);
+    if (lab) t = lab.zod;
     else if (alts) t = z.union(alts.map(settingZod) as [z.ZodType, z.ZodType, ...z.ZodType[]]);
     else if (s.const !== undefined) t = z.literal(s.const);
     else if (s.enum) t = s.enum.every(v => typeof v === "string") ? z.enum(s.enum as [string, ...string[]]) : z.union(s.enum.map(v => z.literal(v)) as unknown as [z.ZodType, z.ZodType]);
@@ -98,7 +116,8 @@ export function settingZod(s: SettingSchema): z.ZodType {
 /** The TypeScript type of a settings value after parsing (defaults applied), for generated code. */
 export function settingTs(s: SettingSchema, indent = ""): string {
     const alts = s.anyOf ?? s.oneOf;
-    if (s.$ref) return REFS[s.$ref].ts;
+    const lab = labType(s);
+    if (lab) return lab.ts;
     if (alts) return alts.map(a => settingTs(a, indent)).join(" | ");
     if (s.const !== undefined) return JSON.stringify(s.const);
     if (s.enum) return s.enum.map(v => JSON.stringify(v)).join(" | ");
@@ -150,17 +169,27 @@ export function generateProfileSettingsTs(profiles: Record<string, { settingsSch
 }
 
 /**
- * The values in parsed settings that a schema types as `$ref: <ref>`, with their dot paths: for
+ * The values in parsed settings that a schema types as a lab type, with their dot paths: for
  * checks against the catalog (a HaulManifest's name). Unions are skipped; nothing uses one for these.
  */
-export function refsIn(s: SettingSchema, value: unknown, ref: string, at = ""): { at: string; value: unknown }[] {
+export function valuesOfType(s: SettingSchema, value: unknown, type: LabType, at = ""): { at: string; value: unknown }[] {
     if (value === undefined || value === null) return [];
-    if (s.$ref === ref) return [{ at, value }];
-    if (s.type === "array" && s.items && Array.isArray(value)) return value.flatMap((v, i) => refsIn(s.items!, v, ref, `${at}[${i}]`));
+    if (s.type === type) return [{ at, value }];
+    if (s.type === "array" && s.items && Array.isArray(value)) return value.flatMap((v, i) => valuesOfType(s.items!, v, type, `${at}[${i}]`));
     if (typeof value !== "object" || Array.isArray(value)) return [];
     const record = value as Record<string, unknown>;
     const join = (k: string) => (at ? `${at}.${k}` : k);
-    if (s.properties) return Object.entries(s.properties).flatMap(([k, sub]) => refsIn(sub, record[k], ref, join(k)));
-    if (typeof s.additionalProperties === "object") return Object.entries(record).flatMap(([k, v]) => refsIn(s.additionalProperties as SettingSchema, v, ref, join(k)));
+    if (s.properties) return Object.entries(s.properties).flatMap(([k, sub]) => valuesOfType(sub, record[k], type, join(k)));
+    if (typeof s.additionalProperties === "object") return Object.entries(record).flatMap(([k, v]) => valuesOfType(s.additionalProperties as SettingSchema, v, type, join(k)));
     return [];
+}
+
+/**
+ * A settings schema's secret settings (typed `secret` or `credentials`), by dot path, with their
+ * shape and the personal-config secret they suggest: in objects' `properties`, not in lists or maps.
+ */
+export function secretSettings(s: SettingSchema, at = ""): { field: string; shape: "string" | "credentials"; suggest?: string }[] {
+    const shape = SECRET_TYPES[s.type as LabType];
+    if (shape) return [{ field: at, shape, ...(s.suggest ? { suggest: s.suggest } : {}) }];
+    return Object.entries(s.properties ?? {}).flatMap(([k, sub]) => secretSettings(sub, at ? `${at}.${k}` : k));
 }

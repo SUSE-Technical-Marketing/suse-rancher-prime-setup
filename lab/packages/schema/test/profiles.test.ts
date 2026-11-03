@@ -2,8 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { PROFILE_HOOKS } from "../src/profiles/hooks";
-import { activeRequirements, BUILTIN_CATALOG_DIR, capabilityReport, generateProfileSettingsTs, loadCatalog, loadLab, profileTargets } from "../src";
+import { activeRequirements, BUILTIN_CATALOG_DIR, capabilityReport, generateProfileSettingsTs, loadCatalog, loadLab } from "../src";
 
 const GENERATED = path.resolve(__dirname, "..", "..", "..", "program", "generated", "profile-settings.ts");
 const noPersonal = path.join(os.tmpdir(), "lab-no-such-config.yaml");
@@ -34,14 +33,14 @@ describe("profiles in the catalog", () => {
         ]);
         expect(catalog!.profiles.rancher).toMatchObject({
             chart: "rancher",
-            protectedValues: [
-                "replicas", "hostname", "networkExposure.type", "gateway.gatewayClass.name", "gateway.gatewayClass.tls.source", "gateway.gatewayClass.tls.secretName",
-                "ingress.ingressClassName", "ingress.tls.source", "ingress.tls.secretName", "privateCA", "agentTLSMode",
-            ],
         });
+        expect(catalog!.profiles.rancher.protectedValues).toEqual([
+            "replicas", "hostname", "networkExposure.type", "gateway.gatewayClass.name", "gateway.gatewayClass.tls.source", "gateway.gatewayClass.tls.secretName",
+            "ingress.ingressClassName", "ingress.tls.source", "ingress.tls.secretName", "privateCA", "agentTLSMode",
+        ]);
         expect(catalog!.profiles.rancher.outputs).toBeUndefined();
+        expect(catalog!.profiles.traefik.protectedValues).toEqual(["providers.kubernetesGateway.enabled", "service.annotations"]);
         expect(catalog!.profiles.traefik).toMatchObject({
-            protectedValues: ["providers.kubernetesGateway.enabled", "service.annotations"],
             provides: ["ingress", "gateway-api"],
             outputs: { ingress: { ingressClassName: "traefik" }, "gateway-api": { gatewayClassName: "traefik" } },
         });
@@ -75,12 +74,15 @@ describe("profiles in the catalog", () => {
         fs.cpSync(BUILTIN_CATALOG_DIR, dir, { recursive: true });
         fs.writeFileSync(path.join(dir, "profiles", "broken.yaml"), [
             "apiVersion: lab.geeko.me/v1alpha1", "kind: Profile", "metadata: { name: broken }", "spec:", "  charts: [ { chart: nope, namespace: x } ]",
-            "  settings:", "    type: object", "    required: [missing]", "    properties:", "      a: { $ref: nope }", "      b: { type: string, format: email }", "",
+            "  settings:", "    type: object", "    required: [missing]", "    properties:", "      a: { type: nope }", "      b: { type: string, format: email }",
+            "      c: { type: secret, suggest: appco }", "      d: { type: string, suggest: \"{{ secrets.appco }}\" }", "",
         ].join("\n"));
         const { diagnostics } = loadCatalog({ personalConfig: noPersonal, catalogDir: dir });
         expect(diagnostics.errors.map(d => `${d.path}: ${d.message}`)).toEqual([
-            'Profile/broken.spec.settings.properties.a.$ref: unknown type "nope"; one of dnsLabel, dnsName, quantity, ipv4, address, url, secretOrString, credentials, chartValues, haulManifest',
+            'Profile/broken.spec.settings.properties.a.type: unknown type "nope"; one of string, integer, number, boolean, object, array, dnsLabel, dnsName, quantity, ipv4, address, url, secret, credentials, chartValues, haulManifest',
             'Profile/broken.spec.settings.properties.b.format: unsupported keyword "format"',
+            'Profile/broken.spec.settings.properties.c.suggest: must be a secret template, e.g. "{{ secrets.appco }}"',
+            'Profile/broken.spec.settings.properties.d.suggest: is for a secret or credentials setting',
             'Profile/broken.spec.settings.required: "missing" isn\'t one of the settings',
             'Profile/broken.spec.charts[0].chart: no HelmChart "nope"',
         ]);
@@ -125,17 +127,6 @@ describe("requiresWhen", () => {
     });
 });
 
-describe("profile hooks", () => {
-    it("are for profiles in the catalog, on targets those profiles go on", () => {
-        const { catalog } = loadCatalog({ personalConfig: "/nonexistent/lab-config.yaml" });
-        const wrong = Object.entries(PROFILE_HOOKS).flatMap(([name, hooks]) => {
-            const def = catalog!.profiles[name];
-            if (!def) return [`${name}: not in the catalog`];
-            return (["host", "cluster", "harvester"] as const).filter(t => hooks[t] && !profileTargets(def).includes(t)).map(t => `${name}: ${t} hook, but it doesn't go on a ${t}`);
-        });
-        expect(wrong).toEqual([]);
-    });
-});
 
 describe("capability reports", () => {
     const { catalog } = loadCatalog({ personalConfig: "/nonexistent/lab-config.yaml" });

@@ -9,13 +9,12 @@ spec:
   # mgradm runs the server with podman on SL Micro; no Kubernetes or MLM client next to it.
   osFamilies: [ suse ]
   conflicts: [ kubernetes, mlm-client ]
-  secretFields: [ adminPassword ]
   settings:
     type: object
     required: [ adminPassword ]
     properties:
       version: { type: string }
-      adminPassword: { $ref: secretOrString }
+      adminPassword: { type: secret }
       products:
         anyOf:
           - { const: auto }

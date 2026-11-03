@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { addBlock, addFleetProfile, addNode, addProfile, addRecipe, canBeNode, removeFleetProfile, defaultNetwork, removeProfile, runsKubernetes } from "../compose";
+import { addBlock, addFleetProfile, addNode, addProfile, addRecipe, canBeNode, defaultDistro, removeFleetProfile, defaultNetwork, removeProfile, runsKubernetes } from "../compose";
 import { CLUSTER_UI, clusterOfBlock, clusterType } from "../clusters";
 import type { ClusterTypeName } from "../../../packages/schema/src/clusters/names";
 import { dragging, end, start, target, type Payload } from "../dnd";
@@ -69,7 +69,7 @@ function describeBox(d: { v: any; index: number }): Pick<Box, "label" | "title" 
       };
     }
     case "DownstreamCluster": {
-      const tile = CLUSTER_UI[clusterType(s)].tile(s, title, { vm: defaults.value, aws: catalog.value?.defaults.aws });
+      const tile = CLUSTER_UI[clusterType(s)].tile(s, title, { vm: defaults.value, aws: catalog.value?.defaults.aws, distro: defaultDistro() });
       return { ...tile, title, chips: Object.entries(s.labels ?? {}).map(([k, v]) => `${k}=${v}`) };
     }
     default: return { label: d.v.kind ?? "?", title, sub: "catalog override", chips: [] };

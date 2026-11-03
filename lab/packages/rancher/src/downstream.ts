@@ -15,19 +15,18 @@ export interface HarvesterMachinePool extends NodePool {
 }
 
 export interface HarvesterClusterArgs extends NodeDriverClusterArgs {
-    distro: "rke2" | "k3s";
     /** Namespace on the Harvester the VMs go in. */
     vmNamespace: pulumi.Input<string>;
     /** Login rancher-machine uses on the VMs; the pools' user data has to create it. */
     sshUser: string;
-    /** Kubeconfig for the Harvester cloud provider in the new cluster (RKE2 only). */
+    /** Kubeconfig for the Harvester cloud provider in the new cluster (a distribution that bundles it: RKE2). */
     cloudProviderConfig?: pulumi.Input<string>;
     pools: HarvesterMachinePool[];
 }
 
 /**
  * A cluster Rancher provisions on an imported Harvester: one `HarvesterConfig` per machine pool,
- * and with RKE2 the Harvester cloud provider (its kubeconfig in a secret Rancher hands the cluster).
+ * and with `cloudProviderConfig` the Harvester cloud provider (its kubeconfig in a secret Rancher hands the cluster).
  */
 export class HarvesterCluster extends pulumi.ComponentResource {
     readonly cluster: provisioning.v1.Cluster;
@@ -42,7 +41,7 @@ export class HarvesterCluster extends pulumi.ComponentResource {
         super("lab:rancher:HarvesterCluster", name, {}, opts);
         const built = nodeDriverCluster(this, name, args, args.pools, (o, clusterName) => {
             // Rancher hands a secret to a cluster only when the secret names it.
-            const cloudConfig = args.distro === "rke2" && args.cloudProviderConfig ? new k8s.core.v1.Secret(`${name}/cloud-provider-config`, {
+            const cloudConfig = args.cloudProviderConfig ? new k8s.core.v1.Secret(`${name}/cloud-provider-config`, {
                 metadata: {
                     name: `${clusterName}-cloud-provider-config`,
                     namespace: NS,

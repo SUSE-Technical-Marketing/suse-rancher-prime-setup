@@ -114,6 +114,12 @@ export function resolveHosts(r: Resolution): void {
     // --- Profile rules (declared by each profile, see profiles/) -------------------------------
     for (const host of hosts.values()) {
         const network = host.kind === "harvester" ? harvesters.get(host.harvester)?.networks.find(n => n.name === host.network) : undefined;
+        // Where the lab declares that network: its Harvester's untagged network or one of its VLANs.
+        const vlanIndex = host.kind === "harvester" && network?.vlanId !== undefined
+            ? (lab.harvesters[host.harvester]?.networks.vlans ?? []).findIndex(v => v.id === network.vlanId) : -1;
+        const networkAt = host.kind !== "harvester" || !network ? undefined
+            : network.name === "untagged" ? `harvesters.${host.harvester}.networks.untagged`
+            : vlanIndex >= 0 ? `harvesters.${host.harvester}.networks.vlans[${vlanIndex}]` : undefined;
         const caps = hostCapabilities(registry, host.profiles);
         host.capabilities = [...caps.keys()].sort();
         host.providers = Object.fromEntries([...caps].sort(([a], [b]) => a.localeCompare(b)));
@@ -122,6 +128,7 @@ export function resolveHosts(r: Resolution): void {
             host,
             osFamily: allOs[host.os]?.family,
             networkFeatures: [...(network?.dhcp ? ["dhcp" as const] : []), ...(network?.loadBalancer ? ["loadBalancer" as const] : [])],
+            networkAt,
             profilesOf: name => hosts.get(name)?.profiles,
             error: (at, message) => diags.error(L, at, message),
             secretField: (value, at, shape) => {

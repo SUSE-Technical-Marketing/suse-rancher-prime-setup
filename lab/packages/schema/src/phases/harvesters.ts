@@ -43,12 +43,13 @@ export function resolveHarvesters(r: Resolution): void {
             return { ...dhcp, server };
         };
         type PoolInput = NonNullable<typeof h.networks.untagged.loadBalancer>;
-        const withPool = (pool: PoolInput | undefined, dhcp: ResolvedNetwork["dhcp"], poolAt: string): ResolvedNetwork["loadBalancer"] => {
+        /** A network's load-balancer pool: its cidr and gateway default to the network's subnet (its DHCP's, or its own). */
+        const withPool = (pool: PoolInput | undefined, dhcp: ResolvedNetwork["dhcp"], subnet: ResolvedNetwork["subnet"], poolAt: string): ResolvedNetwork["loadBalancer"] => {
             if (!pool) return undefined;
-            const cidr = pool.cidr ?? dhcp?.cidr;
-            const gateway = pool.gateway ?? dhcp?.gateway;
+            const cidr = pool.cidr ?? subnet?.cidr;
+            const gateway = pool.gateway ?? subnet?.gateway;
             if (!cidr || !gateway) {
-                diags.error(L, poolAt, "needs cidr and gateway on a network without lab DHCP");
+                diags.error(L, poolAt, "needs cidr and gateway: the network has neither lab DHCP nor a cidr and gateway of its own");
                 return undefined;
             }
             pool.range.forEach((ip, i) => {
@@ -81,20 +82,22 @@ export function resolveHarvesters(r: Resolution): void {
             return { cidr: net.cidr, gateway: net.gateway, dns: net.dns ?? [net.gateway] };
         };
         const untaggedDhcp = withServer(h.networks.untagged.dhcp, `${at}.networks.untagged.dhcp`);
+        const untaggedSubnet = subnetOf(h.networks.untagged, untaggedDhcp, `${at}.networks.untagged`);
         const networks: ResolvedNetwork[] = [{
             name: "untagged",
             dhcp: untaggedDhcp,
-            subnet: subnetOf(h.networks.untagged, untaggedDhcp, `${at}.networks.untagged`),
-            loadBalancer: withPool(h.networks.untagged.loadBalancer, untaggedDhcp, `${at}.networks.untagged.loadBalancer`),
+            subnet: untaggedSubnet,
+            loadBalancer: withPool(h.networks.untagged.loadBalancer, untaggedDhcp, untaggedSubnet, `${at}.networks.untagged.loadBalancer`),
         }];
         const seenVlans = new Set<number>();
         h.networks.vlans.forEach((vlan, i) => {
             if (seenVlans.has(vlan.id)) diags.error(L, `${at}.networks.vlans[${i}].id`, `VLAN ${vlan.id} is defined twice`);
             seenVlans.add(vlan.id);
             const dhcp = withServer(vlan.dhcp, `${at}.networks.vlans[${i}].dhcp`);
+            const subnet = subnetOf(vlan, dhcp, `${at}.networks.vlans[${i}]`);
             networks.push({
-                name: `vlan${vlan.id}`, vlanId: vlan.id, dhcp, subnet: subnetOf(vlan, dhcp, `${at}.networks.vlans[${i}]`),
-                loadBalancer: withPool(vlan.loadBalancer, dhcp, `${at}.networks.vlans[${i}].loadBalancer`),
+                name: `vlan${vlan.id}`, vlanId: vlan.id, dhcp, subnet,
+                loadBalancer: withPool(vlan.loadBalancer, dhcp, subnet, `${at}.networks.vlans[${i}].loadBalancer`),
             });
         });
         const defaultNetwork = h.networks.default ?? "untagged";
@@ -114,6 +117,7 @@ export function resolveHarvesters(r: Resolution): void {
                 parameters: { ...hvDefaults.storageClass.parameters, ...h.storageClass?.parameters },
             },
             profiles: {}, // checked with the other profiles, below
+            chartValues: {},
             networks,
             defaultNetwork,
             images: [],

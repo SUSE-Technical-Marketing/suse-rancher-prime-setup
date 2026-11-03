@@ -24,6 +24,8 @@ export interface DistributionSpec {
     dataDir: string;
     uninstall: string[];
     cni: string;
+    /** Cloud providers it bundles, which Rancher turns on in a downstream cluster (`harvester` on RKE2). */
+    cloudProviders: string[];
     /** Its own ingress controller's HelmChart, values set on it with a HelmChartConfig, and Manifests applied first. */
     ingress?: { chart: string; values?: Record<string, unknown>; manifests?: string[] };
 }
@@ -284,6 +286,7 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
                         config: d.config ?? {},
                         withCapability: d.withCapability ?? {},
                         uninstall: d.uninstall ?? [],
+                        cloudProviders: d.cloudProviders ?? [],
                         ...(d.ingress ? { ingress: d.ingress } : {}),
                     },
                     source,
@@ -337,8 +340,11 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
                 }
             });
             if (distribution !== undefined && components[distribution]?.value.kind !== "KubernetesDistribution") problems.push({ at: "spec.distribution", message: `no KubernetesDistribution "${distribution}"` });
-            if (kind === "chart") {
-                if (profile.targets !== undefined) problems.push({ at: "spec.targets", message: "is for a Profile (one with code); a ChartProfile goes on hosts and clusters" });
+            // On a Harvester, a chart is an add-on: one chart of its own, its objects (made first), nothing else.
+            if (kind === "chart" && profile.targets?.includes("harvester")) {
+                const entries = rules.charts ?? [];
+                if (entries.length !== 1 || entries[0].chart === undefined) problems.push({ at: "spec.charts", message: "on a Harvester it's an add-on: one chart, no manifests" });
+                (rules.objects ?? []).forEach((o, i) => { if (o.admitted || o.wait) problems.push({ at: `spec.objects[${i}]`, message: "admitted and wait are for hosts and clusters; on a Harvester an add-on's objects are made before it" }); });
             }
             if (kind === "chart") {
                 // Only charts and objects, installed the same way on a host or a downstream cluster.
@@ -357,6 +363,7 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
             const main = (rules.charts ?? []).find(e => e.chart !== undefined);
             profiles[name] = {
                 ...rules, name, description, source, kind,
+                // Its first chart's locked values.
                 protectedValues: valuePaths(main?.lockedValues ?? {}),
                 settingsSchema: schema,
                 settings: settingZod(schema),

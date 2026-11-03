@@ -40,3 +40,6 @@ spec:
       providers: { kubernetesGateway: { enabled: true } }
   # Downstream clusters' default CNI.
   cni: calico
+  # Its bundled harvester-cloud-provider chart: on a cluster Rancher makes on a Harvester, the engine
+  # gives it its config (a service account on the Harvester), and Rancher turns it on.
+  cloudProviders: [ harvester ]

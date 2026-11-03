@@ -10,6 +10,11 @@ spec:
   # Each node turns it on (the OS profile's `landlock.enable`) and reboots once, at its first boot,
   # only when it isn't active yet; `up` fails when a node still doesn't have it.
   targets: [ host, cluster ]
+  # Each node's OS profile says how it turns Landlock on (its `landlock.enable`).
+  osFeatures: [ landlock ]
+  notOnClusterTypes:
+    k3k: it runs on its parent's nodes; put landlock on the parent
+    eks: the lab doesn't make an EKS cluster's node images
   settings:
     type: object
     properties: {}

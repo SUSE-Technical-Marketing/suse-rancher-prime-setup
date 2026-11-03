@@ -22,6 +22,8 @@ export function useDoc(index: () => number) {
     };
     return {
         v,
+        /** The engine's error for exactly this path (an object: a network's missing load-balancer pool). */
+        issue: (path: Path | string) => errors.value.find(e => e.field === dotted(at(path)))?.message,
         get: (path: Path | string) => get(v.value, at(path)),
         set: (path: Path | string, value: unknown) => set(index(), at(path), value),
         bind: (path: Path | string) => ({

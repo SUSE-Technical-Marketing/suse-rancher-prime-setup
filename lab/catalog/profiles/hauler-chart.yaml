@@ -107,10 +107,10 @@ spec:
       # HaulManifests (catalog/hauler/, or a lab's own) the store syncs.
       manifests:
         type: array
-        items: { $ref: haulManifest }
+        items: { type: haulManifest }
         default: []
       # The store's volume: about three times what it holds.
-      storage: { $ref: quantity, default: 50Gi }
+      storage: { type: quantity, default: 50Gi }
       # Serve the store's files too, at files.<target>.
       fileserver: { type: boolean, default: false }
-      values: { $ref: chartValues }
+      values: { type: chartValues }

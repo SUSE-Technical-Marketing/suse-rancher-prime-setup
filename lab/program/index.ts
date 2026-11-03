@@ -10,7 +10,7 @@ import { Amazonec2Credential, HarvesterCredential, HarvesterImport, RancherAcces
 import { machineSetup, renderCloudConfig, renderNetworkConfig } from "@lab/os";
 import { AWS_CREDENTIAL_FIELDS, cloudInitVars, usesSecrets, type CloudInitVars, type ResolvedDownstream, type ResolvedLab, type ResolvedOs } from "@lab/schema";
 import {
-    buildClusterProfiles, buildHarvesterProfiles, buildHostProfiles, buildLastProfiles, clusterProfiles, nodeProfiles, profileBootcmd, profileCloudInit, profileSetup,
+    buildClusterProfiles, buildHarvesterProfiles, buildHostProfiles, buildLastProfiles, clusterProfiles, hostReady, nodeProfiles, profileBootcmd, profileCloudInit, profileSetup,
     profileUninstall, type LabClusters,
 } from "./profiles";
 import { objectValue, secretMap, secrets, secretString } from "./secrets";
@@ -189,9 +189,9 @@ for (const host of lab.hosts) {
     nodeAccess[host.name] = { access, ready: setUp, machine };
     if (host.profileOrder.length === 0) continue;
     const outputs = buildHostProfiles(lab, host, access, setUp, machine, harvester);
-    if (outputs.fleet) clusters.fleet[host.name] = outputs.fleet.ready;
+    if (outputs.fleet) clusters.fleet[host.name] = outputs.fleet;
     if (outputs.kubernetes) clusterKubeconfigs[host.name] = outputs.kubernetes.kubeconfig;
-    if (outputs.kubernetes) clusters.hosts[host.name] = { ...outputs.kubernetes, ready: Object.values(outputs).flatMap(v => (v && "ready" in v ? v.ready : [])) };
+    if (outputs.kubernetes) clusters.hosts[host.name] = { ...outputs.kubernetes, ready: hostReady(outputs) };
     if (outputs.rancher) {
         rancherUrls[host.name] = outputs.rancher.url;
         rancherAccess[host.name] = outputs.rancher;

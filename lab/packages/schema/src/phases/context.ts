@@ -12,10 +12,10 @@ import type { ResolvedOs } from "../os";
 import type { Profiles } from "../profiles";
 import { activeRequirements, describeCapability, hostCapabilities } from "../profiles/rules";
 import { profileTargets } from "../profiles/define";
-import type { RenderedChartEntry, RenderedObject, ResolvedAwsSite, ResolvedDownstream, ResolvedHarvester, ResolvedHost, ResolveInput } from "../resolve";
+import type { RenderedProfile, ResolvedAwsSite, ResolvedDownstream, ResolvedHarvester, ResolvedHost, ResolveInput } from "../resolve";
 import { AWS_CREDENTIAL_FIELDS, type AwsCredentials, type Credentials } from "../schema";
 import { checkSecretTemplate, describeShape, mapShape, mergeShapes, type SecretShape, usesSecrets } from "../secrets";
-import { refsIn } from "../settings-schema";
+import { valuesOfType } from "../settings-schema";
 import { isTemplate, renderTemplates, type TemplateContext } from "../templates";
 
 export type Resolution = ReturnType<typeof createResolution>;
@@ -170,7 +170,7 @@ export function createResolution(input: ResolveInput, diags: Diagnostics) {
                 diags.warning(L, `${at}.profiles.${name}`, "isn't built yet (status: planned): the lab validates with it, but `lab up` refuses it");
             }
             // Settings naming a HaulManifest: the catalog must have it; the lab gets it rendered.
-            for (const ref of refsIn(def.settingsSchema, parsed.data, "haulManifest")) {
+            for (const ref of valuesOfType(def.settingsSchema, parsed.data, "haulManifest")) {
                 const manifest = String(ref.value);
                 if (catalog.haulManifests[manifest]) usedHaulManifests.add(manifest);
                 else diags.error(L, `${at}.profiles.${name}.${ref.at}`, `no HaulManifest "${manifest}"; known: ${Object.keys(catalog.haulManifests).sort().join(", ") || "none"}`);
@@ -188,12 +188,12 @@ export function createResolution(input: ResolveInput, diags: Diagnostics) {
     const renderProfile = (
         name: string, profiles: Profiles, outputs: Record<string, Record<string, unknown>>,
         where: Pick<TemplateContext, "host" | "target">, on: string,
-    ): { entries: RenderedChartEntry[]; objects: RenderedObject[] } | undefined => {
+    ): RenderedProfile | undefined => {
         const def = registry[name];
         if (!def?.charts?.length && !def?.objects?.length) return undefined;
         // Missing requirements are reported by the profile rules; its templates would only add noise.
         const caps = hostCapabilities(registry, profiles);
-        if (where.target.kind === "cluster") caps.set("kubernetes", ["the cluster"]);
+        if (where.target.kind !== "host") caps.set("kubernetes", [`the ${where.target.kind}`]);
         if (activeRequirements(def, profiles[name]).some(c => !caps.has(c))) return undefined;
         // Only what the profile waits for: a template can't read a profile built after it.
         const waitFor = new Set([...(def.requires ?? []), ...(def.uses ?? []), ...(def.requiresWhen ?? []).map(r => r.capability)]);
@@ -235,7 +235,15 @@ export function createResolution(input: ResolveInput, diags: Diagnostics) {
                 if (typeof create !== "boolean") error("when")("", `must render to true or false, not ${JSON.stringify(create)}`);
                 if (create !== true) return [];
                 const object = renderTemplates(e.object, ctx, "", error("object")) as Record<string, unknown>;
-                return [{ name: String(renderTemplates(e.name, ctx, "", error("name"))), object, ...(e.admitted ? { admitted: true } : {}), ...(e.wait ? { wait: e.wait } : {}) }];
+                const aliases = (e.aliases ?? []).map((a, j) => String(renderTemplates(a, ctx, "", error(`aliases[${j}]`))));
+                return [{
+                    name: String(renderTemplates(e.name, ctx, "", error("name"))), object,
+                    ...(e.admitted ? { admitted: true } : {}), ...(e.wait ? { wait: e.wait } : {}), ...(aliases.length ? { aliases } : {}),
+                }];
+            }),
+            aliases: (def.aliases ?? []).map((a, i) => typeof a === "string" ? { type: a } : {
+                ...(a.type ? { type: a.type } : {}),
+                ...(a.name ? { name: String(renderTemplates(a.name, ctx, "", errorAt(`aliases[${i}].name`))) } : {}),
             }),
         };
     };

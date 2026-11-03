@@ -5,15 +5,19 @@ import { BUILDERS, builderOf } from "../profiles";
 describe("profile builders", () => {
     const { catalog } = loadCatalog({ personalConfig: "/nonexistent/lab-config.yaml" });
 
-    it("cover every profile: its own builder, or the generic one for a chart-only profile", () => {
+    it("cover every profile: its own builder, the Kubernetes one for a distribution, or the generic one for a chart-only profile", () => {
         // Planned profiles aren't built yet: `lab up` refuses labs that use them.
-        const missing = Object.values(catalog!.profiles).filter(p => p.status !== "planned" && !BUILDERS[p.name as keyof typeof BUILDERS] && !p.chart).map(p => p.name);
+        const missing = Object.values(catalog!.profiles).filter(p => p.status !== "planned" && !BUILDERS[p.name as keyof typeof BUILDERS] && !p.distribution && !p.chart).map(p => p.name);
         expect(missing).toEqual([]);
     });
 
     it("have a step for every target a profile declares", () => {
         // A ChartProfile's generic builder covers hosts and clusters; builderOf needs its chart entry.
-        const lab = { profileCharts: Object.fromEntries(Object.values(catalog!.profiles).filter(p => p.chart).map(p => [p.name, {}])) } as never;
+        const profiles = Object.values(catalog!.profiles);
+        const lab = {
+            profileCharts: Object.fromEntries(profiles.filter(p => p.chart).map(p => [p.name, {}])),
+            profiles: Object.fromEntries(profiles.map(p => [p.name, { provides: [], waitFor: [], distribution: p.distribution }])),
+        } as never;
         const steps = { host: ["host", "setup", "boot", "cloudInit", "last"], cluster: ["cluster", "last"], harvester: ["harvester", "last"] } as const;
         const missing = Object.values(catalog!.profiles).filter(p => p.status !== "planned").flatMap(p => {
             const builder = builderOf(lab, p.name) as Record<string, unknown>;
@@ -28,6 +32,6 @@ describe("profile builders", () => {
 
     it("leave the chart-only profiles to the generic builder", () => {
         const generic = Object.values(catalog!.profiles).filter(p => p.chart && !BUILDERS[p.name as keyof typeof BUILDERS]).map(p => p.name).sort();
-        expect(generic).toEqual(["ai-factory", "cert-manager", "hauler-chart", "metallb", "outrider", "sprouter", "traefik"]);
+        expect(generic).toEqual(["ai-factory", "cert-manager", "harvester-dns-controller", "hauler-chart", "metallb", "outrider", "sprouter", "traefik"]);
     });
 });

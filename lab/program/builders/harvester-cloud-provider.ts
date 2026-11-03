@@ -25,6 +25,6 @@ export const harvesterCloudProvider: ProfileBuilder<"harvester-cloud-provider"> 
             values: chartValuesWithSecrets(settings.values),
             cloudConfig: cloudConfig.kubeconfig,
         });
-        return { "load-balancer": { ready: [ccm.release] }, "cloud-provider": { ready: [ccm.release] } };
+        return { ready: [ccm.release] };
     },
 };

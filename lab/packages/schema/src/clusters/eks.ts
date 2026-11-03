@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { Placement } from "../objects";
+import { form } from "../form";
 import { awsZone, cidr, dnsLabel, quantity } from "../primitives";
-import { annotations, fleetProfiles, labels, profiles } from "./common";
+import { annotations, fleetProfiles, labels, placements, profiles, rancher } from "./common";
+import { EC2_TYPES } from "./ec2";
 import type { ClusterType } from "./types";
 
 // An EKS cluster Rancher creates and manages (hosted), in an AWS site's VPC.
@@ -9,38 +10,47 @@ import type { ClusterType } from "./types";
 const EksNodeGroup = z.strictObject({
     name: dnsLabel,
     /** Nodes it starts with; it scales between min and max (default both this). */
-    quantity: z.int().min(1),
-    min: z.int().min(0).optional(),
-    max: z.int().min(1).optional(),
+    quantity: z.int().min(1).meta(form({ hint: "nodes it starts with" })),
+    min: z.int().min(0).optional().meta(form({ placeholder: "default {item.quantity}" })),
+    max: z.int().min(1).optional().meta(form({ placeholder: "default {item.quantity}" })),
     /** Default: the catalog's Defaults (`aws.instanceType`). */
-    instanceType: z.string().min(1).optional(),
+    instanceType: z.string().min(1).optional().meta(form({
+        label: "instance type", suggestions: EC2_TYPES, hint: "Graviton types (m7g, t4g) get the arm64 image", placeholder: "default {defaults.aws.instanceType}",
+    })),
     /** Each node's volume; default the catalog's Defaults (`vm.disk`). */
-    disk: quantity.optional(),
+    disk: quantity.optional().meta(form({ placeholder: "default {defaults.vm.disk}" })),
     /** Its availability zones, by letter; default all of the site's. */
-    zones: z.array(awsZone).min(1).optional(),
+    zones: z.array(awsZone).min(1).optional().meta(form({ hint: "by letter", placeholder: "default all: {zones}" })),
     /** Kubernetes labels on its nodes. */
-    labels: z.record(z.string(), z.string()).optional(),
+    labels: z.record(z.string(), z.string()).optional().meta(form({ label: "node labels" })),
 });
 
 export const EksClusterInput = z.strictObject({
     /** An EKS cluster Rancher creates and manages (hosted), in the site's VPC (§5.5). */
-    type: z.literal("eks"),
-    rancher: z.string(),
+    type: z.literal("eks").meta(form({ section: "hidden" })),
+    rancher,
     /** The AwsSite whose VPC it runs in; it needs two zones at least. */
-    site: z.string(),
+    site: z.string().meta(form({ label: "AWS site", options: "sites", hint: "it runs in the lab's VPC there, over two zones at least" })),
     /** EKS Kubernetes minor (1.34); default the catalog's Defaults (`aws.eksVersion`). */
-    version: z.string().regex(/^1\.\d+$/, "an EKS minor such as 1.34").optional(),
+    version: z.string().regex(/^1\.\d+$/, "an EKS minor such as 1.34").optional()
+        .meta(form({ label: "Kubernetes version", hint: "an EKS minor, e.g. 1.34", placeholder: "default {defaults.aws.eksVersion}" })),
     labels,
     annotations,
     fleetProfiles,
     profiles,
     /** Who may reach its API endpoint besides Rancher's proxy; default anyone. */
-    publicAccessSources: z.array(cidr).optional(),
+    publicAccessSources: z.array(cidr).optional().meta(form({
+        section: "advanced", label: "API access from", placeholder: "default anywhere (0.0.0.0/0)",
+        hint: "CIDRs that may reach the EKS API endpoint directly; Rancher's proxy works regardless",
+    })),
     /** Control plane logs sent to CloudWatch: api, audit, authenticator, controllerManager, scheduler. */
-    logging: z.array(z.enum(["api", "audit", "authenticator", "controllerManager", "scheduler"])).optional(),
-    secrets: z.array(Placement).optional(),
-    configmaps: z.array(Placement).optional(),
-    nodeGroups: z.array(EksNodeGroup).min(1),
+    logging: z.array(z.enum(["api", "audit", "authenticator", "controllerManager", "scheduler"])).optional()
+        .meta(form({ section: "advanced", label: "control plane logs", placeholder: "none", hint: "to CloudWatch: api, audit, authenticator, controllerManager, scheduler" })),
+    ...placements,
+    nodeGroups: z.array(EksNodeGroup).min(1).meta(form({
+        label: "Node groups", cards: { add: "a node group", title: "name" },
+        hint: "EKS managed node groups. Rancher creates the IAM roles for the cluster and its nodes; the nodes get no lab login.",
+    })),
 });
 type Input = z.infer<typeof EksClusterInput>;
 
@@ -49,7 +59,7 @@ export type ResolvedEksNodeGroup = Input["nodeGroups"][number] & { min: number; 
 export type ResolvedEksCluster = Omit<Input, "nodeGroups" | "version"> & { name: string; version: string; nodeGroups: ResolvedEksNodeGroup[] };
 
 export const eksCluster: ClusterType<Input, ResolvedEksCluster> = {
-    reachesRancherOverInternet: "An EKS cluster's agent reaches",
+    rancherNeeds: { capability: "public-ingress", because: "An EKS cluster's agent reaches Rancher over the internet" },
     resolve(ctx, name, d, at) {
         const site = ctx.awsSites.get(d.site);
         if (!site) ctx.error(`${at}.site`, `unknown AwsSite "${d.site}"; known: ${[...ctx.awsSites.keys()].sort().join(", ") || "none (add an AwsSite document)"}`);

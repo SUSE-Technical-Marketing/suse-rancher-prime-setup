@@ -40,4 +40,4 @@ spec:
         description: Ranges or CIDRs it hands out, on the host's network and outside its DHCP range, e.g. 10.29.20.221-10.29.20.230
         items: { type: string, pattern: '^\d+\.\d+\.\d+\.\d+(/\d+|-\d+\.\d+\.\d+\.\d+)$' }
       version: { type: string }
-      values: { $ref: chartValues }
+      values: { type: chartValues }

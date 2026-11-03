@@ -3,6 +3,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { BUILTIN_CATALOG_DIR, loadCatalog, loadLab, LoadResult } from "../src";
+import { CLUSTER_TYPE_NAMES, clusterFormSchemas } from "../src/clusters";
+import { documentFormSchemas } from "../src/documents";
 
 let tmp: string;
 const noPersonal = () => path.join(tmp, "no-config.yaml");
@@ -452,5 +454,27 @@ spec: { address: box.example.com, os: leap-16 }
         expect(errors(loadLab({ labFile: write("inline.yaml", `${LAB}  hosts: {}\n`), personalConfig: noPersonal() }))).toEqual([
             'spec.hosts: unknown field "hosts"',
         ]);
+    });
+});
+
+describe("cluster forms", () => {
+    it("come from every cluster type's schema, with its fields' form metadata", () => {
+        const forms = clusterFormSchemas() as Record<string, { properties: Record<string, { form?: { options?: string; section?: string }; const?: string }> }>;
+        expect(Object.keys(forms).sort()).toEqual([...CLUSTER_TYPE_NAMES].sort());
+        for (const [type, f] of Object.entries(forms)) {
+            expect(f.properties.type.const).toBe(type);
+            expect(f.properties.rancher.form?.options).toBe("ranchers");
+            expect(f.properties.profiles.form?.section).toBe("hidden");
+        }
+    });
+
+    it("come from every other document's spec, its own controls hidden", () => {
+        const forms = documentFormSchemas() as Record<string, { properties: Record<string, { form?: { section?: string; widget?: string } }> }>;
+        expect(Object.keys(forms).sort()).toEqual(["AwsSite", "Harvester", "HarvesterVM", "Lab", "Machine"]);
+        expect(forms.Harvester.properties.networks.form?.section).toBe("hidden");
+        expect(forms.Lab.properties.tls.form?.section).toBe("hidden");
+        expect(forms.AwsSite.properties.credentials.form?.widget).toBe("awsCredentials");
+        expect(Object.keys(forms.HarvesterVM.properties)[0]).toBe("harvester");
+        expect(Object.keys(forms.Machine.properties).slice(0, 3)).toEqual(["address", "user", "os"]);
     });
 });
