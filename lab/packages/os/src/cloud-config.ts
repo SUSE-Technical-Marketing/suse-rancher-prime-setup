@@ -28,15 +28,20 @@ export interface CloudConfigInput {
 
 const quote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
-/** How one OS family installs packages: for existing machines, which get no user data. */
+/**
+ * How one OS family installs packages: for existing machines, which get no user data. A repository
+ * that fails to refresh (a third-party one mid-update: NVIDIA's CUDA repo) only warns: the install
+ * still fails if a package it needs isn't there. zypper's 106 is such a skipped repository, the
+ * packages installed.
+ */
 const INSTALL: Record<OsFamily, (packages: string[]) => string[]> = {
     suse: packages => [
-        "zypper --non-interactive --gpg-auto-import-keys refresh",
-        `zypper --non-interactive install --no-recommends ${packages.map(quote).join(" ")}`,
+        `zypper --non-interactive --gpg-auto-import-keys refresh || echo "lab: zypper refresh failed (exit $?): some repositories keep their old metadata" >&2`,
+        `zypper --non-interactive install --no-recommends ${packages.map(quote).join(" ")} || { rc=$?; [ "$rc" -eq 106 ] && echo "lab: zypper skipped a repository that failed to refresh" >&2 || (exit "$rc"); }`,
     ],
     rhel: packages => [`dnf -y install ${packages.map(quote).join(" ")}`],
     debian: packages => [
-        "apt-get update",
+        `apt-get update || echo "lab: apt-get update failed (exit $?): some repositories keep their old lists" >&2`,
         `DEBIAN_FRONTEND=noninteractive apt-get install -y ${packages.map(quote).join(" ")}`,
     ],
 };

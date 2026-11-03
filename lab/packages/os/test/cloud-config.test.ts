@@ -1,3 +1,7 @@
+import { spawnSync } from "node:child_process";
+import * as fs from "node:fs";
+import { tmpdir } from "node:os";
+import * as path from "node:path";
 import type { ResolvedOs } from "@lab/schema";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
@@ -67,14 +71,14 @@ describe("renderCloudConfig", () => {
 describe("machineSetup", () => {
     it("installs the profile's Kubernetes packages with the family's package manager, then runs its runcmd", () => {
         const os = { ...base, kubernetes: { packages: ["vim", "it's"], runcmd: ["systemctl enable --now iscsid", ["echo", "a b"]], write_files: [] } };
-        expect(machineSetup(os, vars, true)).toEqual([
-            "zypper --non-interactive --gpg-auto-import-keys refresh",
-            `zypper --non-interactive install --no-recommends 'vim' 'it'\\''s'`,
-            "systemctl enable --now iscsid",
-            "'echo' 'a b'",
-        ]);
+        const steps = machineSetup(os, vars, true);
+        expect(steps[0]).toMatch(/^zypper --non-interactive --gpg-auto-import-keys refresh \|\| /);
+        expect(steps[1]).toMatch(/^zypper --non-interactive install --no-recommends 'vim' 'it'\\''s' \|\| /);
+        expect(steps.slice(2)).toEqual(["systemctl enable --now iscsid", "'echo' 'a b'"]);
         expect(machineSetup({ ...os, family: "rhel" }, vars, true)[0]).toBe(`dnf -y install 'vim' 'it'\\''s'`);
-        expect(machineSetup({ ...os, family: "debian" }, vars, true).slice(0, 2)).toEqual(["apt-get update", `DEBIAN_FRONTEND=noninteractive apt-get install -y 'vim' 'it'\\''s'`]);
+        const debian = machineSetup({ ...os, family: "debian" }, vars, true);
+        expect(debian[0]).toMatch(/^apt-get update \|\| /);
+        expect(debian[1]).toBe(`DEBIAN_FRONTEND=noninteractive apt-get install -y 'vim' 'it'\\''s'`);
         expect(machineSetup(base, vars, true)).toEqual([]);
         expect(machineSetup({ ...base, kubernetes: { runcmd: ["echo {{ secrets['scc-regcode'] }}"] } }, vars, true)).toEqual(["echo REG-123"]);
     });
@@ -82,6 +86,23 @@ describe("machineSetup", () => {
     it("leaves an existing machine as it is: no base or Harvester part, and nothing without Kubernetes", () => {
         const os = { ...base, cloudInit: { packages: ["vim", "firewalld"] }, harvester: { packages: ["qemu-guest-agent"] }, kubernetes: { packages: ["open-iscsi"] } };
         expect(machineSetup(os, vars, false)).toEqual([]);
-        expect(machineSetup(os, vars, true)).toEqual(["zypper --non-interactive --gpg-auto-import-keys refresh", "zypper --non-interactive install --no-recommends 'open-iscsi'"]);
+        expect(machineSetup(os, vars, true)).toEqual([expect.stringMatching(/ refresh \|\| /), expect.stringMatching(/install --no-recommends 'open-iscsi' \|\| /)]);
+    });
+
+    it("goes on when a repository fails to refresh, and fails when the install does", () => {
+        // A zypper that exits as told: refresh with $REFRESH, install with $INSTALL.
+        const dir = fs.mkdtempSync(path.join(tmpdir(), "zypper-"));
+        fs.writeFileSync(path.join(dir, "zypper"), '#!/bin/sh\ncase "$*" in *refresh*) exit "$REFRESH";; *install*) exit "$INSTALL";; esac\n', { mode: 0o755 });
+        const [refresh, install] = machineSetup({ ...base, kubernetes: { packages: ["open-iscsi"] } }, vars, true);
+        const run = (cmd: string, env: Record<string, string>) =>
+            spawnSync("sh", ["-c", cmd], { env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, REFRESH: "0", INSTALL: "0", ...env }, encoding: "utf8" });
+        // A third-party repository mid-update: refresh exits 4, the rest goes on.
+        expect(run(refresh, { REFRESH: "4" })).toMatchObject({ status: 0, stderr: expect.stringContaining("zypper refresh failed (exit 4)") });
+        // zypper skipped that repository while installing: 106, the packages are installed.
+        expect(run(install, { INSTALL: "106" })).toMatchObject({ status: 0, stderr: expect.stringContaining("skipped a repository") });
+        // A package that isn't there (104): the step fails with zypper's code.
+        expect(run(install, { INSTALL: "104" }).status).toBe(104);
+        expect(run(install, {}).status).toBe(0);
+        fs.rmSync(dir, { recursive: true, force: true });
     });
 });
