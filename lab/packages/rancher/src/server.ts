@@ -1,6 +1,6 @@
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { ClusterAccess, KubePatch, KubeWait, onCluster, ProfileChartSpec, profileHelmApp, withCluster } from "@lab/kubernetes";
+import { ClusterAccess, KubeAdmitted, KubePatch, KubeWait, onCluster, ProfileChartSpec, profileHelmApp, withCluster } from "@lab/kubernetes";
 import { RancherBootstrap } from "./bootstrap";
 
 /** How to talk to a running Rancher. */
@@ -86,14 +86,36 @@ export class RancherServer extends pulumi.ComponentResource {
             }, after)),
         ];
 
-        // Rancher (and rancher-webhook) are fully up once the `local` cluster is Ready; creating
-        // namespaces earlier races the webhook ("no endpoints available for service rancher-webhook").
+        // Rancher is up once its `local` cluster is Ready.
         const local = new KubeWait(`${name}/local-ready`, {
             kubeconfig,
             path: "/apis/fleet.cattle.io/v1alpha1/namespaces/fleet-local/clusters/local",
             condition: "Ready",
             timeoutSeconds,
         }, after);
+
+        // Its webhook comes after that: Rancher installs rancher-webhook once `local` is Ready, and
+        // rolls it out again a minute later. It validates every Secret and fails closed, so until it
+        // answers, any chart installed after Rancher fails to create its Secrets ("no endpoints
+        // available for service rancher-webhook"). Ready: it's registered, its Deployment has rolled
+        // out (no pod coming or going), then it admits a Secret (a dry run, through the API server).
+        const webhook = new KubeWait(`${name}/webhook`, {
+            kubeconfig,
+            path: "/apis/admissionregistration.k8s.io/v1/validatingwebhookconfigurations/rancher.cattle.io",
+            timeoutSeconds,
+        }, withCluster(args.cluster, this, { dependsOn: [local] }));
+        const webhookRollout = new KubeWait(`${name}/webhook-rollout`, {
+            kubeconfig,
+            path: "/apis/apps/v1/namespaces/cattle-system/deployments/rancher-webhook",
+            rollout: true,
+            timeoutSeconds,
+        }, withCluster(args.cluster, this, { dependsOn: [webhook] }));
+        const webhookAdmits = new KubeAdmitted(`${name}/webhook-admits`, {
+            kubeconfig,
+            path: "/api/v1/namespaces/default/secrets",
+            object: { apiVersion: "v1", kind: "Secret", metadata: { name: "lab-webhook-probe", namespace: "default" } },
+            timeoutSeconds,
+        }, withCluster(args.cluster, this, { dependsOn: [webhookRollout] }));
 
         const bootstrap = new RancherBootstrap(`${name}/admin-password`, {
             kubeconfig,
@@ -112,7 +134,7 @@ export class RancherServer extends pulumi.ComponentResource {
             insecure: args.insecure,
             cluster: args.cluster,
             provider,
-            ready: [local, bootstrap, ...settings],
+            ready: [local, webhookAdmits, bootstrap, ...settings],
         };
         this.registerOutputs({ url });
     }

@@ -10,7 +10,24 @@ interface WaitInputs {
     path: string;
     /** Condition type that must be "True"; without one, the object only has to exist. */
     condition?: string;
+    /** A Deployment whose rollout is complete (`rolloutProblem`). */
+    rollout?: boolean;
     timeoutSeconds: number;
+}
+
+/**
+ * What a Deployment's rollout still waits for, as `kubectl rollout status` judges it; undefined once
+ * it's complete: its controller has seen its latest spec, and all its replicas are updated and
+ * available, with none of the old ones left.
+ */
+export function rolloutProblem(d: { metadata?: { generation?: number }; spec?: { replicas?: number }; status?: Record<string, number | undefined> }): string | undefined {
+    const s = d.status ?? {};
+    const want = d.spec?.replicas ?? 1;
+    if ((s.observedGeneration ?? 0) < (d.metadata?.generation ?? 0)) return "its latest spec isn't seen yet";
+    if ((s.updatedReplicas ?? 0) < want) return `${s.updatedReplicas ?? 0} of ${want} replicas updated`;
+    if ((s.replicas ?? 0) > (s.updatedReplicas ?? 0)) return `${(s.replicas ?? 0) - (s.updatedReplicas ?? 0)} old replicas still running`;
+    if ((s.availableReplicas ?? 0) < (s.updatedReplicas ?? 0)) return `${s.availableReplicas ?? 0} of ${s.updatedReplicas} updated replicas available`;
+    return undefined;
 }
 
 async function waitFor(inputs: WaitInputs): Promise<any> {
@@ -20,12 +37,19 @@ async function waitFor(inputs: WaitInputs): Promise<any> {
             seen(res.status === 404 ? "not found" : `HTTP ${res.status}`);
             return undefined;
         }
+        if (inputs.rollout) {
+            const problem = rolloutProblem(res.body ?? {});
+            if (problem) {
+                seen(`rollout: ${problem}`);
+                return undefined;
+            }
+        }
         if (!inputs.condition) return res.body;
         const cond = (res.body?.status?.conditions ?? []).find((c: any) => c.type === inputs.condition);
         if (cond?.status === "True") return res.body;
         seen(cond ? `${inputs.condition}=${cond.status}${cond.message ? ` (${cond.message})` : ""}` : `no ${inputs.condition} condition yet`);
         return undefined;
-    }, { timeoutSeconds: inputs.timeoutSeconds, failure: last => `timed out waiting for ${inputs.path}${inputs.condition ? ` to be ${inputs.condition}` : ""}: ${last}` });
+    }, { timeoutSeconds: inputs.timeoutSeconds, failure: last => `timed out waiting for ${inputs.path}${inputs.condition ? ` to be ${inputs.condition}` : ""}${inputs.rollout ? " to roll out" : ""}: ${last}` });
 }
 
 const waitProvider: pulumi.dynamic.ResourceProvider = {
@@ -34,7 +58,7 @@ const waitProvider: pulumi.dynamic.ResourceProvider = {
         return { id: inputs.path, outs: inputs };
     },
     async diff(_id: string, olds: WaitInputs, news: WaitInputs) {
-        const changes = olds.path !== news.path || olds.condition !== news.condition;
+        const changes = olds.path !== news.path || olds.condition !== news.condition || !!olds.rollout !== !!news.rollout;
         return { changes, replaces: changes ? ["path"] : [] };
     },
     async delete() {
@@ -48,6 +72,8 @@ export interface KubeWaitArgs {
     /** API path, e.g. `/apis/fleet.cattle.io/v1alpha1/namespaces/fleet-local/clusters/local`. */
     path: pulumi.Input<string>;
     condition?: string;
+    /** A Deployment at `path`: wait until its rollout is complete, as `kubectl rollout status`. */
+    rollout?: boolean;
     timeoutSeconds: number;
 }
 
