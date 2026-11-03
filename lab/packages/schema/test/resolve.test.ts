@@ -546,7 +546,7 @@ hosts:
         expect(diagnostics.errors).toEqual([]);
         const dev = lab!.os["leap-16-dev"];
         expect(dev.family).toBe("suse");
-        expect(dev.cloudInit.packages).toEqual(["curl", "git-core", "bash-completion", "vim", "wget", "tree", "firewalld", "make"]);
+        expect(dev.cloudInit.packages).toEqual(["curl", "git-core", "bash-completion", "vim", "wget", "tree", "firewalld", "k9s", "sofka", "make"]);
         expect((dev.cloudInit.runcmd as string[]).at(0)).toBe("systemctl enable --now firewalld");
         // The Harvester and Kubernetes parts are inherited, and extended the same way.
         expect(dev.harvester.packages).toEqual(["qemu-guest-agent"]);

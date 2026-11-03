@@ -13,8 +13,31 @@ spec:
     # system can't. cloud-init-per once: on the first boot only.
     bootcmd:
       - cloud-init-per once register suseconnect --regcode '{{ secrets["scc-regcode-sles"] }}'
+      - cloud-init-per once repo-keys rpm --import https://download.opensuse.org/repositories/devel:/kubic/16.0/repodata/repomd.xml.key https://download.opensuse.org/repositories/home:/hierynomus/openSUSE_Leap_16.0/repodata/repomd.xml.key
+    # Extra repositories, as zypper's own repo files: devel:kubic (k9s) and home:hierynomus (sofka).
+    # Their keys are imported in bootcmd, before cloud-init refreshes its repositories: zypper
+    # --non-interactive rejects an unknown key, and the refresh, and with it every package, would fail.
+    write_files:
+      - path: /etc/zypp/repos.d/devel_kubic.repo
+        content: |
+          [devel_kubic]
+          name=devel:kubic (16.0)
+          type=rpm-md
+          baseurl=https://download.opensuse.org/repositories/devel:/kubic/16.0/
+          gpgcheck=1
+          gpgkey=https://download.opensuse.org/repositories/devel:/kubic/16.0/repodata/repomd.xml.key
+          enabled=1
+      - path: /etc/zypp/repos.d/home_hierynomus.repo
+        content: |
+          [home_hierynomus]
+          name=home:hierynomus (openSUSE_Leap_16.0)
+          type=rpm-md
+          baseurl=https://download.opensuse.org/repositories/home:/hierynomus/openSUSE_Leap_16.0/
+          gpgcheck=1
+          gpgkey=https://download.opensuse.org/repositories/home:/hierynomus/openSUSE_Leap_16.0/repodata/repomd.xml.key
+          enabled=1
     package_update: true
-    packages: [ curl, git-core, bash-completion, vim, wget, firewalld ]
+    packages: [ curl, git-core, bash-completion, vim, wget, firewalld, k9s, sofka ]
     runcmd:
       # Running from the first boot, not only after a reboot.
       - systemctl enable --now firewalld
