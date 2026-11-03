@@ -11,6 +11,10 @@ export interface HarvesterMachinePool extends NodePool {
     image: pulumi.Input<string>;
     /** VM network, `namespace/name`. */
     network: pulumi.Input<string>;
+    /** Its machine's MAC, for a one-machine pool with a fixed address (or a DHCP reservation). */
+    macAddress?: string;
+    /** cloud-init network config: a one-machine pool's fixed address. */
+    networkData?: string;
     userData: pulumi.Input<string>;
 }
 
@@ -55,10 +59,10 @@ export class HarvesterCluster extends pulumi.ComponentResource {
                 cpuCount: String(pool.cpu),
                 memorySize: String(toGiB(pool.memory)),
                 diskInfo: pulumi.output(pool.image).apply(imageName => JSON.stringify({ disks: [{ imageName, size: toGiB(pool.disk), bootOrder: 1 }] })),
-                networkInfo: pulumi.output(pool.network).apply(networkName => JSON.stringify({ interfaces: [{ networkName }] })),
+                networkInfo: pulumi.output(pool.network).apply(networkName => JSON.stringify({ interfaces: [{ networkName, ...(pool.macAddress ? { macAddress: pool.macAddress } : {}) }] })),
                 sshUser: args.sshUser,
                 userData: pool.userData,
-                networkData: "",
+                networkData: pool.networkData ?? "",
                 vmNamespace: args.vmNamespace,
             }, o));
 

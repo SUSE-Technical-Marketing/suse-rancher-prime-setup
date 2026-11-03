@@ -1,10 +1,8 @@
 // Lab hosts: VMs on a Harvester and existing machines, their fixed addresses, their profiles' rules
 // and build order, and their profiles' chart values rendered.
 
-import type { ResolvedHarvester, ResolvedHarvesterHost } from "../resolve";
 import { checkHostProfiles, hostCapabilities, profileBuildOrder } from "../profiles/rules";
 import type { Credentials } from "../schema";
-import { inCidr, nthAddress, toInt } from "../net";
 import type { Resolution } from "./context";
 
 /** cloud-config keys an existing machine (no user data) gets, over SSH instead (packages are always refreshed first). */
@@ -12,63 +10,7 @@ export const MACHINE_CLOUD_INIT_KEYS = ["packages", "runcmd", "package_update"];
 
 /** The lab's hosts, their profiles checked and ordered, and their charts' values. */
 export function resolveHosts(r: Resolution): void {
-    const { lab, L, diags, useOs, allOs, catalog, registry, harvesters, hosts, vmDefaults, needImage, checkNetwork, parseProfiles, useCredentials, useSecretOrString, useTemplate, renderProfile } = r;
-    /**
-     * A VM's fixed address (`ip`), set in the VM itself, on a lab network (its subnet from the network)
-     * or one already on the Harvester (with its prefix and gateway): inside the subnet, outside its
-     * DHCP range and load-balancer pool, not one of its own addresses, and unique in the lab. A VM
-     * without one gets its address from DHCP: the lab's, or one already on the network (the LAN's).
-     */
-    const fixedTaken = new Map<string, string>();
-    const fixedAddress = (harvester: ResolvedHarvester, network: string, h: { ip?: string; gateway?: string; dns?: string[] }, at: string): { ip?: ResolvedHarvesterHost["ip"] } => {
-        const net = harvester.networks.find(n => n.name === network);
-        const existing = network.includes("/");
-        if (!h.ip) {
-            for (const f of ["gateway", "dns"] as const) if (h[f] !== undefined) diags.error(L, `${at}.${f}`, "only goes with ip");
-            return {};
-        }
-        const [address, prefixText] = h.ip.split("/");
-        if (address.split(".").some(o => Number(o) > 255)) {
-            diags.error(L, `${at}.ip`, `${address} isn't an IPv4 address`);
-            return {};
-        }
-        let subnet: { cidr: string; gateway: string; dns: string[] };
-        if (existing) {
-            // The lab doesn't know this network: the VM says what it looks like.
-            if (!prefixText) diags.error(L, `${at}.ip`, `needs its prefix (${address}/24) on ${network}, a network the lab doesn't declare`);
-            if (!h.gateway) diags.error(L, `${at}.gateway`, `required with ip on ${network}, a network the lab doesn't declare`);
-            if (!prefixText || !h.gateway) return {};
-            subnet = { cidr: `${nthAddress(`${address}/${prefixText}`, 0)}/${prefixText}`, gateway: h.gateway, dns: h.dns ?? [h.gateway] };
-        } else {
-            for (const f of ["gateway", "dns"] as const) if (h[f] !== undefined) diags.error(L, `${at}.${f}`, `comes from the network ${network}; set it there`);
-            if (!net) return {}; // reported by checkNetwork
-            if (!net.subnet) {
-                diags.error(L, `${at}.ip`, `${network} has neither lab DHCP nor a cidr: give the network cidr and gateway`);
-                return {};
-            }
-            subnet = net.subnet;
-            const bits = subnet.cidr.split("/")[1];
-            if (prefixText !== undefined && prefixText !== bits) diags.error(L, `${at}.ip`, `/${prefixText} doesn't match ${network}'s ${subnet.cidr}; leave the prefix out`);
-        }
-        const prefix = Number(subnet.cidr.split("/")[1]);
-        const problem = !inCidr(address, subnet.cidr) ? `${address} is outside ${network}'s ${subnet.cidr}`
-            : address === nthAddress(subnet.cidr, 0) ? `${address} is the network's own address`
-            : address === nthAddress(subnet.cidr, 2 ** (32 - prefix) - 1) ? `${address} is the network's broadcast address`
-            : address === subnet.gateway ? `${address} is the gateway`
-            : address === net?.dhcp?.server ? `${address} is the DHCP server`
-            : net?.dhcp && toInt(address) >= toInt(net.dhcp.range[0]) && toInt(address) <= toInt(net.dhcp.range[1]) ? `${address} is in the DHCP range ${net.dhcp.range[0]}-${net.dhcp.range[1]}; a fixed address goes outside it`
-            : net?.loadBalancer && toInt(address) >= toInt(net.loadBalancer.range[0]) && toInt(address) <= toInt(net.loadBalancer.range[1]) ? `${address} is in the load-balancer pool ${net.loadBalancer.range[0]}-${net.loadBalancer.range[1]}`
-            : undefined;
-        if (problem) {
-            diags.error(L, `${at}.ip`, problem);
-            return {};
-        }
-        const key = `${harvester.name}/${network}/${address}`;
-        const other = fixedTaken.get(key);
-        if (other) diags.error(L, `${at}.ip`, `${address} is ${other}'s fixed address too`);
-        fixedTaken.set(key, at.replace(/^hosts\./, ""));
-        return { ip: { address, prefix, gateway: subnet.gateway, dns: subnet.dns } };
-    };
+    const { lab, L, diags, useOs, allOs, catalog, registry, harvesters, hosts, vmDefaults, needImage, checkNetwork, fixedAddress, parseProfiles, useCredentials, useSecretOrString, useTemplate, renderProfile } = r;
 
     // Kubernetes on a host: its own distribution, or Rancher's as a metal cluster's node.
     const metalNodes = new Set(Object.values(lab.downstream).flatMap(d => (d.type === "metal" ? d.nodes.map(n => n.host) : [])));

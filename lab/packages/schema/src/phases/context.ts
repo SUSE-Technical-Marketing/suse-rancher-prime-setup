@@ -12,11 +12,12 @@ import type { ResolvedOs } from "../os";
 import type { Profiles } from "../profiles";
 import { activeRequirements, describeCapability, hostCapabilities } from "../profiles/rules";
 import { profileTargets } from "../profiles/define";
-import type { RenderedProfile, ResolvedAwsSite, ResolvedDownstream, ResolvedHarvester, ResolvedHost, ResolveInput } from "../resolve";
+import type { FixedAddress, RenderedProfile, ResolvedAwsSite, ResolvedDownstream, ResolvedHarvester, ResolvedHost, ResolveInput } from "../resolve";
 import { AWS_CREDENTIAL_FIELDS, type AwsCredentials, type Credentials } from "../schema";
 import { checkSecretTemplate, describeShape, mapShape, mergeShapes, type SecretShape, usesSecrets } from "../secrets";
 import { valuesOfType } from "../settings-schema";
 import { isTemplate, renderTemplates, type TemplateContext } from "../templates";
+import { inCidr, nthAddress, toInt } from "../net";
 
 export type Resolution = ReturnType<typeof createResolution>;
 
@@ -247,6 +248,62 @@ export function createResolution(input: ResolveInput, diags: Diagnostics) {
             }),
         };
     };
+    /**
+     * A VM's or a one-machine pool's fixed address (`ip`), set in the VM itself, on a lab network (its subnet from the network)
+     * or one already on the Harvester (with its prefix and gateway): inside the subnet, outside its
+     * DHCP range and load-balancer pool, not one of its own addresses, and unique in the lab. A VM
+     * without one gets its address from DHCP: the lab's, or one already on the network (the LAN's).
+     */
+    const fixedTaken = new Map<string, string>();
+    const fixedAddress = (harvester: ResolvedHarvester, network: string, h: { ip?: string; gateway?: string; dns?: string[] }, at: string): { ip?: FixedAddress } => {
+        const net = harvester.networks.find(n => n.name === network);
+        const existing = network.includes("/");
+        if (!h.ip) {
+            for (const f of ["gateway", "dns"] as const) if (h[f] !== undefined) diags.error(L, `${at}.${f}`, "only goes with ip");
+            return {};
+        }
+        const [address, prefixText] = h.ip.split("/");
+        if (address.split(".").some(o => Number(o) > 255)) {
+            diags.error(L, `${at}.ip`, `${address} isn't an IPv4 address`);
+            return {};
+        }
+        let subnet: { cidr: string; gateway: string; dns: string[] };
+        if (existing) {
+            // The lab doesn't know this network: the VM says what it looks like.
+            if (!prefixText) diags.error(L, `${at}.ip`, `needs its prefix (${address}/24) on ${network}, a network the lab doesn't declare`);
+            if (!h.gateway) diags.error(L, `${at}.gateway`, `required with ip on ${network}, a network the lab doesn't declare`);
+            if (!prefixText || !h.gateway) return {};
+            subnet = { cidr: `${nthAddress(`${address}/${prefixText}`, 0)}/${prefixText}`, gateway: h.gateway, dns: h.dns ?? [h.gateway] };
+        } else {
+            for (const f of ["gateway", "dns"] as const) if (h[f] !== undefined) diags.error(L, `${at}.${f}`, `comes from the network ${network}; set it there`);
+            if (!net) return {}; // reported by checkNetwork
+            if (!net.subnet) {
+                diags.error(L, `${at}.ip`, `${network} has neither lab DHCP nor a cidr: give the network cidr and gateway`);
+                return {};
+            }
+            subnet = net.subnet;
+            const bits = subnet.cidr.split("/")[1];
+            if (prefixText !== undefined && prefixText !== bits) diags.error(L, `${at}.ip`, `/${prefixText} doesn't match ${network}'s ${subnet.cidr}; leave the prefix out`);
+        }
+        const prefix = Number(subnet.cidr.split("/")[1]);
+        const problem = !inCidr(address, subnet.cidr) ? `${address} is outside ${network}'s ${subnet.cidr}`
+            : address === nthAddress(subnet.cidr, 0) ? `${address} is the network's own address`
+            : address === nthAddress(subnet.cidr, 2 ** (32 - prefix) - 1) ? `${address} is the network's broadcast address`
+            : address === subnet.gateway ? `${address} is the gateway`
+            : address === net?.dhcp?.server ? `${address} is the DHCP server`
+            : net?.dhcp && toInt(address) >= toInt(net.dhcp.range[0]) && toInt(address) <= toInt(net.dhcp.range[1]) ? `${address} is in the DHCP range ${net.dhcp.range[0]}-${net.dhcp.range[1]}; a fixed address goes outside it`
+            : net?.loadBalancer && toInt(address) >= toInt(net.loadBalancer.range[0]) && toInt(address) <= toInt(net.loadBalancer.range[1]) ? `${address} is in the load-balancer pool ${net.loadBalancer.range[0]}-${net.loadBalancer.range[1]}`
+            : undefined;
+        if (problem) {
+            diags.error(L, `${at}.ip`, problem);
+            return {};
+        }
+        const key = `${harvester.name}/${network}/${address}`;
+        const other = fixedTaken.get(key);
+        if (other) diags.error(L, `${at}.ip`, `${address} is ${other}'s fixed address too`);
+        fixedTaken.set(key, at.replace(/^hosts\./, "").replace(/^downstream\./, "cluster "));
+        return { ip: { address, prefix, gateway: subnet.gateway, dns: subnet.dns } };
+    };
     const describe = (capability: string) => describeCapability(registry, capability);
     // Profiles that go on downstream clusters, or Harvesters (for the errors listing them).
     const forTarget = (t: "cluster" | "harvester") => Object.values(registry).filter(p => profileTargets(p).includes(t)).map(p => p.name).sort();
@@ -258,7 +315,7 @@ export function createResolution(input: ResolveInput, diags: Diagnostics) {
         secrets, secretSites, expand, needSecret, useTemplate, useSecretOrString, useCredentials, useAwsCredentials, walkRefs,
         catalog, registry, allOs, acme, usedOs, useOs, hvDefaults, vmDefaults, awsDefaults,
         harvesters, awsSites, hosts, downstream, fleet,
-        checkNetwork, imagesNeeded, needImage, usedHaulManifests, plannedProfiles, parseProfiles, renderedHaul, renderProfile, describe, forTarget,
+        checkNetwork, fixedAddress, imagesNeeded, needImage, usedHaulManifests, plannedProfiles, parseProfiles, renderedHaul, renderProfile, describe, forTarget,
         /** The lab's secrets and configmaps: created by the objects phase, placed by later ones. */
         objects: undefined as unknown as ReturnType<typeof createObjects>,
     };

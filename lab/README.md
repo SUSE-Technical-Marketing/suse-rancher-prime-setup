@@ -109,6 +109,10 @@ with fixed addresses, or a LAN that has its own DHCP server. The DNS controller 
 `harvester-dns-controller` profile: `backend`, `host` and `credentials` of your router) only registers VMs
 on networks with lab DHCP; records for the others are up to you. See DESIGN.md §5.2 and §5.3.
 
+A pool of a Harvester downstream cluster takes `ip` (and `macAddress`) the same way, for a pool of
+one machine (`quantity: 1`): Rancher gives every machine in a pool the same network settings. A
+cluster of several machines on a network without DHCP is several such pools.
+
 Each lab document name may be used once (HarvesterVMs and Machines share names, as hosts).
 Errors point at the document: `HarvesterVM/rancher.spec.cpu`, `HelmChart/rancher.spec.version`, or
 `spec.tls.email` for the Lab's own fields.

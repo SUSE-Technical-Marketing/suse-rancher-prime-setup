@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { osCloudInit, renderTemplates, type CloudInitVars, type OsFamily, type ResolvedOs } from "@lab/schema";
 import { stringify } from "yaml";
 
@@ -107,6 +108,12 @@ export interface FixedAddress {
  * address, a default route through the gateway and the DNS servers, and no DHCP. cloud-init writes
  * it in the OS's own form (NetworkManager, netplan, wicked).
  */
+/** A MAC of a machine's own, the same on every run: locally administered (52:54:00, as QEMU's), from the lab's and the machine's names. */
+export function stableMac(labName: string, machine: string): string {
+    const h = createHash("sha256").update(`${labName}/${machine}`).digest();
+    return ["52", "54", "00", ...[h[0], h[1], h[2]].map(b => b.toString(16).padStart(2, "0"))].join(":");
+}
+
 export function renderNetworkConfig(f: FixedAddress): string {
     return stringify({
         version: 2,

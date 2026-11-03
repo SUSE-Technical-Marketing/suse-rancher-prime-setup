@@ -298,6 +298,14 @@ hosts:
   network already on the Harvester the host gives them (`ip: 10.29.40.200/24`, `gateway`, and
   optionally `dns`, default the gateway). A VM on a network without lab DHCP needs no `ip`: the
   network's own DHCP may serve it.
+- **A Harvester cluster's pool** takes the same `ip` (with `gateway` and `dns` on a network the lab
+  doesn't declare) and `macAddress`, with the same checks (an address is unique across VMs and
+  pools), but only with `quantity: 1`: Rancher gives every machine in a pool one machine config,
+  so the same network settings. A cluster of several machines without DHCP is several one-machine
+  pools; pools without them take any quantity. The engine sets them through the Harvester node
+  driver (`networkData`: the same network config a VM gets, on an interface with its MAC in
+  `networkInfo`, one of its own unless given), and Rancher removes such a machine before creating
+  its replacement (`rollingUpdate: { maxSurge: 0 }`), so two machines never hold its address.
 - **A running VM keeps its first setup.** Its cloud-init (user data and network config) is only
   read on first boot, so a change to it (a profile added, a new `ip`, `dns` or `fqdn`) doesn't
   reach the VM, and the engine doesn't recreate the VM for it. `preview` and `up` warn about each

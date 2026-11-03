@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { addressFields } from "./addressing";
 import { DownstreamInput } from "./clusters";
 import { form } from "./form";
 import { Inputs, Placement } from "./objects";
 import {
-    AwsCredentials, awsRegion, awsZone, CIDR, cidr, Credentials, dnsLabel, dnsName, duration, FileRef, ImageSource, ipv4, MAC,
+    AwsCredentials, awsRegion, awsZone, CIDR, cidr, Credentials, dnsLabel, dnsName, duration, FileRef, ImageSource, ipv4,
     OS_FAMILIES, osName, quantity, secretOrString,
 } from "./primitives";
 
@@ -163,18 +164,7 @@ export const HostInput = z.strictObject({
     network: z.string().optional().meta(form({
         suggestionsFrom: "networks", placeholder: "the Harvester's default", hint: "a network of the Harvester document, or one already on the Harvester: namespace/name",
     })),
-    macAddress: z.string().regex(MAC, "must be a MAC address like 52:54:00:aa:bb:01").optional()
-        .meta(form({ label: "MAC address", placeholder: "default: one of its own with a fixed address" })),
-    /**
-     * A fixed address, set in the VM itself (cloud-init's network config), no DHCP involved: in the
-     * network's subnet, outside its DHCP range. On a network already on the Harvester, with its
-     * prefix (`10.29.40.200/24`) and `gateway`, since the lab doesn't know that network.
-     */
-    ip: z.string().regex(/^(\d{1,3}\.){3}\d{1,3}(\/([0-9]|[12][0-9]|3[0-2]))?$/, "must be an IPv4 address, with /prefix on a network the lab doesn't declare").optional()
-        .meta(form({ label: "fixed address", format: "ip-or-cidr", placeholder: "{ipPlaceholder}", hint: "{ipHint}" })),
-    /** For `ip` on a network already on the Harvester: its gateway and (default the gateway) DNS servers. */
-    gateway: ipv4.optional().meta(form({ format: "ip", when: { field: "network", matches: "/" } })),
-    dns: z.array(ipv4).optional().meta(form({ label: "DNS servers", format: "ip", placeholder: "default: the gateway", when: { field: "network", matches: "/" } })),
+    ...addressFields,
     /** Its name, when it has one outside the lab (`gitlab.example.com`): instead of `<name>.<domain>`, everywhere. */
     fqdn: dnsName.optional().meta(form({ label: "DNS name", placeholder: "default: <name>.<domain>", hint: "its name outside the lab (its DNS record is yours); used everywhere instead" })),
     address: z.string().optional().meta(form({ hint: "its DNS name or IP" })),

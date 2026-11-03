@@ -11,6 +11,11 @@ export interface NodePool {
     name: string;
     quantity: number;
     roles: ("etcd" | "controlplane" | "worker")[];
+    /**
+     * Its machine has an address of its own (a fixed IP, a MAC): Rancher removes it before creating
+     * its replacement, so two never hold it at once.
+     */
+    replaceFirst?: boolean;
 }
 
 /** What every cluster Rancher creates machines for takes. */
@@ -90,6 +95,7 @@ export function nodeDriverCluster(
                     controlPlaneRole: pool.roles.includes("controlplane"),
                     workerRole: pool.roles.includes("worker"),
                     machineConfigRef: { kind: machines.kind, name: machines.machineConfigs[i].metadata.name },
+                    ...(pool.replaceFirst ? { rollingUpdate: { maxSurge: 0, maxUnavailable: 1 } } : {}),
                 })),
             },
         },

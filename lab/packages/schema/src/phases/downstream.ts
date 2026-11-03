@@ -10,7 +10,7 @@ import type { Resolution } from "./context";
 
 /** The lab's downstream clusters, each by its type. */
 export function resolveDownstream(r: Resolution): void {
-    const { lab, L, diags, catalog, registry, hosts, harvesters, awsSites, downstream, vmDefaults, awsDefaults, useOs, needImage, checkNetwork, describe } = r;
+    const { lab, L, diags, catalog, registry, hosts, harvesters, awsSites, downstream, vmDefaults, awsDefaults, useOs, needImage, checkNetwork, fixedAddress, describe } = r;
     const clusterContext: ClusterContext = {
         error: (path, message) => diags.error(L, path, message),
         inputs: lab.downstream,
@@ -22,6 +22,7 @@ export function resolveDownstream(r: Resolution): void {
         useOs,
         needImage,
         checkNetwork,
+        fixedAddress,
         metalNodeOwner: new Map(),
         blocksMetalNode: host => blocksMetalClusterNode(registry, host.profiles),
     };

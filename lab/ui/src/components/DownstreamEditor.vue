@@ -64,6 +64,9 @@ provide(FORM_CONTEXT, () => ({
     cnis: distros.value.map(d => `${d.cni} (${d.name})`).join(", "),
     zones: zones.value,
     rancherNeeds: rancherNeeds.value ? ` and ${rancherNeeds.value.capability}` : "",
+    // A pool's fixed address: its one machine's, set in the VM (no DHCP).
+    ipPlaceholder: "from DHCP",
+    ipHint: "its one machine's (quantity 1): in the network's subnet, outside its DHCP range",
   },
 }));
 

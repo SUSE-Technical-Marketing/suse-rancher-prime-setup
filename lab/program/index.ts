@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import * as aws from "@pulumi/aws";
 import * as command from "@pulumi/command";
 import * as k8s from "@pulumi/kubernetes";
@@ -7,7 +6,7 @@ import { AwsNetwork, awsProfile, labTags, Pinned } from "@lab/aws";
 import { HarvesterBase, HarvesterVm } from "@lab/harvester";
 import { asRoot, ClusterObjects, helmJobWatch, HostAccess, runExisting, runUploaded, sshConnection, stepScript, waitForCloudInit } from "@lab/kubernetes";
 import { Amazonec2Credential, HarvesterCredential, HarvesterImport, RancherAccess } from "@lab/rancher";
-import { machineSetup, renderCloudConfig, renderNetworkConfig } from "@lab/os";
+import { machineSetup, renderCloudConfig, renderNetworkConfig, stableMac } from "@lab/os";
 import { AWS_CREDENTIAL_FIELDS, cloudInitVars, usesSecrets, type CloudInitVars, type ResolvedDownstream, type ResolvedLab, type ResolvedOs } from "@lab/schema";
 import {
     buildClusterProfiles, buildHarvesterProfiles, buildHostProfiles, buildLastProfiles, clusterProfiles, hostReady, nodeProfiles, profileBootcmd, profileCloudInit, profileSetup,
@@ -99,12 +98,6 @@ const rancherAccess: Record<string, RancherAccess> = {};
 const metalNodes = new Set(lab.downstream.flatMap(d => d.type === "metal" ? d.nodes.map(n => n.host) : []));
 /** How to reach every host that has to be, and when it's ready for that, and the VM if it is one. */
 const nodeAccess: Record<string, { access: HostAccess; ready: pulumi.Resource[]; machine?: pulumi.Resource }> = {};
-
-/** A MAC of a VM's own, the same on every run: locally administered, from the lab's and the VM's names. */
-function stableMac(labName: string, vm: string): string {
-    const h = createHash("sha256").update(`${labName}/${vm}`).digest();
-    return ["52", "54", "00", ...[h[0], h[1], h[2]].map(b => b.toString(16).padStart(2, "0"))].join(":");
-}
 
 for (const host of lab.hosts) {
     const runcmd = profileCloudInit(lab, host);

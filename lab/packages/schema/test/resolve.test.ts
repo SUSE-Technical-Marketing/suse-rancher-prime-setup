@@ -1449,6 +1449,28 @@ ${vms}
         expect(host("b").fqdn).toBe("b.lab.geeko.me");
     });
 
+    it("gives a one-machine pool of a Harvester cluster its own, checked as a VM's; other pools any size", () => {
+        const pools = (p: string) => lab(`  r: { on: hv-north, os: leap-16, network: vlan20, profiles: { ${RANCHER_STACK} } }
+${vm("a", "network: vlan50, ip: 203.0.113.20")}
+downstream:
+  apps: { type: harvester, rancher: r, harvester: hv-north, pools: [ ${p} ] }`);
+        const cp = (extra: string) => `{ name: cp, quantity: 1, roles: [etcd, controlplane, worker], os: leap-16, network: vlan50, ${extra} }`;
+        const { lab: resolved, diagnostics } = pools(`${cp("ip: 203.0.113.21, macAddress: '52:54:00:aa:bb:02'")}, { name: workers, quantity: 3, roles: [worker], os: leap-16, network: vlan20 }`);
+        expect(diagnostics.errors).toEqual([]);
+        const apps = resolved!.downstream[0] as any;
+        expect(apps.pools[0]).toMatchObject({ network: "vlan50", macAddress: "52:54:00:aa:bb:02", ip: { address: "203.0.113.21", prefix: 24, gateway: "203.0.113.1", dns: ["9.9.9.9"] } });
+        expect(apps.pools[1].ip).toBeUndefined();
+        expect(errors(pools([
+            "{ name: two, quantity: 2, roles: [etcd, controlplane, worker], os: leap-16, network: vlan50, ip: 203.0.113.22 }",
+            "{ name: macs, quantity: 2, roles: [worker], os: leap-16, macAddress: '52:54:00:aa:bb:03' }",
+            cp("ip: 203.0.113.20"),
+        ].join(", ")))).toEqual([
+            "downstream.apps.pools[0].quantity: must be 1 with a fixed ip or macAddress: every machine in a pool gets the same network settings",
+            "downstream.apps.pools[1].quantity: must be 1 with a fixed ip or macAddress: every machine in a pool gets the same network settings",
+        ]);
+        expect(errors(pools(cp("ip: 203.0.113.20")))).toEqual(["downstream.apps.pools[0].ip: 203.0.113.20 is a's fixed address too"]);
+    });
+
     it("keeps them in the subnet, out of the DHCP range and load-balancer pool, off the network's own addresses, and unique", () => {
         expect(errors(lab([
             vm("a", "network: vlan20, ip: 10.29.20.120"),

@@ -90,6 +90,9 @@ export interface RenderedObject {
     wait?: { condition: string; timeout: TimeoutName };
 }
 
+/** A fixed address, set in the VM itself (no DHCP): with its prefix, gateway and DNS servers. */
+export interface FixedAddress { address: string; prefix: number; gateway: string; dns: string[] }
+
 /** How the program wires a profile in (any profile, chart or code): what it provides and waits for. */
 export interface ProfileWiring {
     /** Its capabilities (its own name and `provides`): the build loop reports what it made under each it provides on a host. */
@@ -156,7 +159,7 @@ export interface ResolvedHarvesterHost extends ResolvedHostBase {
     network: string;
     macAddress?: string;
     /** Its fixed address, set in the VM (cloud-init's network config): address, prefix, gateway, DNS servers. */
-    ip?: { address: string; prefix: number; gateway: string; dns: string[] };
+    ip?: FixedAddress;
 }
 
 export interface ResolvedSshHost extends ResolvedHostBase {

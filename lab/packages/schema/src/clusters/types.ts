@@ -1,5 +1,5 @@
 import type { ResolvedOs } from "../os";
-import type { ResolvedAwsSite, ResolvedHarvester, ResolvedHost } from "../resolve";
+import type { FixedAddress, ResolvedAwsSite, ResolvedHarvester, ResolvedHost } from "../resolve";
 import type { DownstreamInput } from "./index";
 
 /**
@@ -22,6 +22,8 @@ export interface ClusterContext {
     needImage(harvester: string, os: string): void;
     /** A network of a Harvester, checked: its `namespace/name` or lab network name. */
     checkNetwork(harvester: ResolvedHarvester, network: string | undefined, at: string): string;
+    /** A machine's fixed address on a Harvester network, checked as a VM's (and unique in the lab with theirs). */
+    fixedAddress(harvester: ResolvedHarvester, network: string, h: { ip?: string; gateway?: string; dns?: string[] }, at: string): { ip?: FixedAddress };
     /** A metal cluster's nodes, by host -> the cluster: a host joins one at most. */
     metalNodeOwner: Map<string, string>;
     /** The profiles on a host that keep it from being a metal cluster's node (they bring Kubernetes). */
