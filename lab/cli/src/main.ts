@@ -127,8 +127,9 @@ async function withHarvesters(
 
 const versionsOf = (sessions: HarvesterSession[]) => Object.fromEntries(sessions.map(s => [s.harvester.name, s.version]));
 
+let pulumiStreamed = false;
 const pulumiOutput = {
-    onOutput: (s: string) => process.stdout.write(s),
+    onOutput: (s: string) => { pulumiStreamed = true; process.stdout.write(s); },
     color: (process.stdout.isTTY ? "always" : "never") as "always" | "never",
 };
 
@@ -324,6 +325,7 @@ main(process.argv.slice(2)).catch(e => {
     }
     // Pulumi's own output was already streamed; its error repeats all of it.
     const message = (e as Error).message;
-    log.error(/Command failed with exit code \d+: pulumi /.test(message) ? "Pulumi reported errors; see the output above" : message);
+    // Only abbreviate when Pulumi actually streamed something; otherwise the message is all there is.
+    log.error(pulumiStreamed && /Command failed with exit code \d+: pulumi /.test(message) ? "Pulumi reported errors; see the output above" : message);
     process.exit(1);
 });
