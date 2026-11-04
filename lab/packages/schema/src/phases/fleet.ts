@@ -50,6 +50,7 @@ export function resolveFleetProfiles(r: Resolution): void {
             }
             for (const c of [n, ...(p.provides ?? [])]) caps.set(c, [...(caps.get(c) ?? []), n]);
         }
+        d.fleetCapabilities = [...caps.keys()].sort();
         const ctx = { lab: { name: lab.lab, domain: lab.domain, vars: lab.vars }, cluster: { name: d.name, type: d.type, rancher: d.rancher } };
         const set: Record<"labels" | "annotations", Record<string, { value: string; from: string }>> = { labels: {}, annotations: {} };
         for (const field of ["labels", "annotations"] as const) {

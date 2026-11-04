@@ -13,6 +13,7 @@ import {
     profileUninstall, type LabClusters,
 } from "./profiles";
 import { objectValue, secretMap, secrets, secretString } from "./secrets";
+import { buildStackPacks } from "./stackpacks";
 import { distribution, harvesterChart } from "./catalog";
 import { buildCluster, isNested, type BuiltCluster, type ClusterBuildContext } from "./clusters";
 
@@ -298,6 +299,8 @@ function placeObjects(name: string, cluster: BuiltCluster) {
 
 // Once every cluster exists: the profiles' last steps (agents reporting to another cluster).
 buildLastProfiles(lab, clusters);
+// And the StackPacks the profiles want on the lab's SUSE Observability instances.
+buildStackPacks(lab, clusters);
 
 export const name = lab.name;
 export const harvesters = lab.harvesters.map(h => h.name);

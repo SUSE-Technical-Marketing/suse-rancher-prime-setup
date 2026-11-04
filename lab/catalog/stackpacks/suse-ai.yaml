@@ -1,0 +1,23 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: StackPack
+metadata:
+  name: suse-ai
+  description: "SUSE AI Observability Extension: GenAI topology, dashboards and monitors (github.com/SUSE/suse-ai-observability-extension)"
+spec:
+  # SUSE doesn't publish it as a .sts: the engine builds one from the tag's source, as its
+  # scripts/package-stackpack.sh does, and uploads it.
+  url: https://github.com/SUSE/suse-ai-observability-extension/archive/refs/tags/v{version}.zip
+  path: stackpack/suse-ai
+  version: 3.0.0
+  # Of the .sts built from it: a tag moved to other content is refused.
+  sha256: 4f7e957282b287eacf7e83bcfb89cc7a5ff948e79f17e42e853d610bbc91b060
+  # As its installer does: its views and monitors are SUSE's, not edited by hand.
+  unlocked: overwrite
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: StackPack
+metadata:
+  name: open-telemetry
+  description: "OpenTelemetry: services and traces from OTLP (in every SUSE Observability instance's catalog)"
+spec:
+  unlocked: fail

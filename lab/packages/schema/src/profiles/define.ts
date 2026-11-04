@@ -24,8 +24,23 @@ export const ProfileChartEntry = z.strictObject({
     values: z.record(z.string(), z.unknown()).optional(),
     /** A chart's values merged last; for the first chart, a lab can't set them. */
     lockedValues: z.record(z.string(), z.unknown()).optional(),
+    /**
+     * Values for some targets only: each overlay whose `when` (a template rendering to true or
+     * false, on `target.kind`, `target.capabilities`, settings) is true merges its `values` and
+     * `lockedValues` over the entry's, in order. Its locked paths are protected as the entry's.
+     */
+    valueOverlays: z.array(z.strictObject({
+        when: z.string().min(1),
+        values: z.record(z.string(), z.unknown()).optional(),
+        lockedValues: z.record(z.string(), z.unknown()).optional(),
+    })).optional(),
     /** A template that must render to true or false: the entry is only installed when true. */
     when: z.string().min(1).optional(),
+    /**
+     * What must exist on the cluster before it's installed, by API path (a template), optionally with
+     * a condition True: what something else puts there (Fleet's cert-manager, by its CRD).
+     */
+    waitFor: z.array(z.strictObject({ path: z.string().min(1), condition: z.string().min(1).optional() })).optional(),
     /** Another version than the catalog's (a template; empty means the catalog's). */
     version: z.string().optional(),
     /** A manifest's URL placeholders besides `{version}`, e.g. `{channel}`. */
@@ -56,6 +71,12 @@ export const ProfileObjectEntry = z.strictObject({
     aliases: z.array(z.string().min(1)).optional(),
     /** Wait until the object has this condition True (`Ready`), up to one of the lab's timeouts. */
     wait: z.strictObject({ condition: z.string().min(1), timeout: z.enum(TIMEOUTS).default("resourceReady") }).optional(),
+    /**
+     * Parts for some targets only, as a chart entry's `valueOverlays`: each overlay whose `when` (a
+     * template rendering to true or false) is true merges its `object` into the object, in order:
+     * maps key by key, anything else (lists too) replaced.
+     */
+    objectOverlays: z.array(z.strictObject({ when: z.string().min(1), object: z.record(z.string(), z.unknown()) })).optional(),
 });
 export type ProfileObjectEntry = z.infer<typeof ProfileObjectEntry>;
 
@@ -123,6 +144,16 @@ export const ProfileInput = z.strictObject({
      * provide (`observer`, naming a cluster with SUSE Observability).
      */
     clusterRefs: z.array(z.strictObject({ field: z.string().min(1), provides: z.string().min(1) })).optional(),
+    /**
+     * StackPacks the SUSE Observability instance it sends to gets (DESIGN.md §9.6): on the cluster
+     * its `on` clusterRefs field names, installed with `adminToken` (a template: a secret setting),
+     * once per instance, while any profile in the lab wants them; uninstalled after the last.
+     */
+    observerStackPacks: z.strictObject({
+        on: z.string().min(1),
+        adminToken: z.string().min(1),
+        install: z.array(z.string().min(1)).min(1),
+    }).optional(),
     /** Settings fields that name another host in the lab, and what that host must provide. */
     hostRefs: z.array(z.strictObject({ field: z.string().min(1), provides: z.string().min(1) })).optional(),
     /**

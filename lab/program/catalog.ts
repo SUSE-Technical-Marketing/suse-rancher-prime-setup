@@ -1,5 +1,7 @@
 import type { ChartSpec, RenderedProfileChart } from "@lab/kubernetes";
-import { renderTemplates, type ResolvedComponent, type ResolvedDistribution, type ResolvedHost, type ResolvedLab, type VersionValue } from "@lab/schema";
+import type * as pulumi from "@pulumi/pulumi";
+import { renderTemplates, type RenderedChartEntry, type ResolvedComponent, type ResolvedDistribution, type ResolvedHost, type ResolvedLab, type VersionValue } from "@lab/schema";
+import { credentials } from "./secrets";
 
 // Everything installed comes from the catalog's components (`lab/catalog/components.yaml`,
 // overridable from the personal config and the lab file, DESIGN.md §16); the resolver hands over
@@ -103,5 +105,9 @@ export function profileChart(profile: string, host: Pick<ResolvedHost, "chartVal
     const main = p.entries[i];
     if (!main || main.kind !== "chart") throw new Error(`profile ${profile} has no chart of its own`);
     const values = host.chartValues[profile].entries[i];
-    return { ...chart(main.chart, lab, own ?? values.version), namespace: main.namespace, defaults: values.values, lockedValues: values.lockedValues };
+    return { ...chart(main.chart, lab, own ?? values.version), ...login(values), namespace: main.namespace, defaults: values.values, lockedValues: values.lockedValues };
 }
+
+/** A rendered chart entry's registry login (its HelmChart's `credentials` input), as Helm takes it. */
+export const login = (entry: Pick<RenderedChartEntry, "credentials">): { credentials?: { username: pulumi.Output<string>; password: pulumi.Output<string> } } =>
+    (entry.credentials !== undefined ? { credentials: credentials(entry.credentials) } : {});

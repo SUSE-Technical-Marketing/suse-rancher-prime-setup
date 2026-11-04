@@ -1,0 +1,556 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: ChartProfile
+metadata:
+  name: opentelemetry
+  description: "SUSE AI observability for the cluster: the OpenTelemetry Operator and SUSE AI's collector, sending traces, metrics and topology to SUSE Observability on another cluster"
+spec:
+  icon: telescope            # in the lab UI (lucide.dev/icons)
+  # After SUSE AI Factory's AI monitoring guides ("OpenTelemetry Operator", "Monitoring vLLM", GPU,
+  # Qdrant, Milvus, OpenSearch). On downstream clusters: their cert-manager and the Application
+  # Collection and SUSE registry pull secrets come from the lab's Fleet repos, which it waits for.
+  targets: [ cluster ]
+  # The SUSE Observability instance it sends to, on another cluster (its OTLP and API endpoints).
+  clusterRefs:
+    - { field: observer, provides: suse-observability }
+  # On that instance (once, however many clusters send to it): OpenTelemetry's StackPack, and SUSE
+  # AI's views of what the collector sends (the SUSE AI Observability Extension).
+  observerStackPacks:
+    on: observer
+    adminToken: "{{ settings.adminToken }}"
+    install: [ open-telemetry, suse-ai ]
+  # A vllm profile on the cluster is scraped (its namespace from its outputs).
+  uses: [ vllm ]
+  # Where the cluster's apps send their telemetry (the collector's usual address).
+  outputs:
+    opentelemetry:
+      grpc: http://opentelemetry-collector.observability.svc.cluster.local:4317
+      http: http://opentelemetry-collector.observability.svc.cluster.local:4318
+  charts:
+    - chart: opentelemetry-operator
+      namespace: opentelemetry-operator
+      waitFor:
+        # Its admission webhooks' certificate comes from cert-manager.
+        - path: /apis/apps/v1/namespaces/cert-manager/deployments/cert-manager-webhook
+          condition: Available
+        # Sprouter copies it into the namespaces the chart and this profile make.
+        - path: /api/v1/namespaces/cattle-system/secrets/application-collection
+        - path: /api/v1/namespaces/cattle-system/secrets/suse-registry
+      values:
+        global: { imagePullSecrets: [ application-collection ] }
+        manager:
+          autoInstrumentation:
+            go: { enabled: true }
+  objects:
+    # The collector's namespace, where SUSE AI's apps send by default
+    # (opentelemetry-collector.observability.svc.cluster.local).
+    - name: namespace
+      object:
+        apiVersion: v1
+        kind: Namespace
+        metadata: { name: observability }
+    # It pulls SUSE AI's collector image from registry.suse.com (the SUSE registry pull secret).
+    - name: service-account
+      object:
+        apiVersion: v1
+        kind: ServiceAccount
+        metadata: { name: suse-ai-collector, namespace: observability }
+        imagePullSecrets: [ { name: suse-registry } ]
+    # Kubernetes metadata (k8sattributes) and service discovery (vLLM, the GPU exporter), cluster-wide.
+    - name: cluster-role
+      object:
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRole
+        metadata: { name: suse-ai-collector }
+        rules:
+          - { apiGroups: [ "" ], resources: [ pods, namespaces, nodes, endpoints, services ], verbs: [ get, list, watch ] }
+          - { apiGroups: [ discovery.k8s.io ], resources: [ endpointslices ], verbs: [ get, list, watch ] }
+          - { apiGroups: [ apps ], resources: [ replicasets, deployments, statefulsets ], verbs: [ get, list, watch ] }
+    - name: cluster-role-binding
+      object:
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        metadata: { name: suse-ai-collector }
+        roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: suse-ai-collector }
+        subjects: [ { kind: ServiceAccount, name: suse-ai-collector, namespace: observability } ]
+    # Its SUSE Observability API key (the key must be named API_KEY).
+    - name: api-key
+      object:
+        apiVersion: v1
+        kind: Secret
+        metadata: { name: open-telemetry-collector, namespace: observability }
+        stringData:
+          API_KEY: "{{ settings.apiKey }}"
+    - name: opensearch-credentials
+      when: "{{ settings.opensearch is defined }}"
+      object:
+        apiVersion: v1
+        kind: Secret
+        metadata: { name: opensearch-credentials, namespace: observability }
+        stringData:
+          username: "{{ settings.opensearch.credentials | field('username') if settings.opensearch is defined else '' }}"
+          password: "{{ settings.opensearch.credentials | field('password') if settings.opensearch is defined else '' }}"
+    # SUSE AI's collector: OTLP from the AI apps, GenAI topology and relations, scraped AI components.
+    # Each optional part (a scrape job, its processors, its pipeline) is an overlay, keyed on its own.
+    - name: collector
+      admitted: true
+      object:
+        apiVersion: opentelemetry.io/v1beta1
+        kind: OpenTelemetryCollector
+        metadata: { name: opentelemetry-collector, namespace: observability }
+        spec:
+          mode: deployment
+          replicas: 1
+          image: "{{ settings.collectorImage }}:{{ settings.collectorVersion }}"
+          imagePullPolicy: IfNotPresent
+          serviceAccount: suse-ai-collector
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits: { cpu: "1", memory: 1Gi }
+          envFrom: [ { secretRef: { name: open-telemetry-collector } } ]
+          env:
+            # As the agent names the cluster in SUSE Observability.
+            - { name: K8S_CLUSTER_NAME, value: "{{ settings.clusterName or target.name }}" }
+            - { name: SUSE_AI_NAMESPACE, value: "{{ settings.suseAiNamespace }}" }
+          config:
+            extensions:
+              health_check: { endpoint: "0.0.0.0:13133" }
+            receivers:
+              otlp:
+                protocols:
+                  grpc: { endpoint: "0.0.0.0:4317" }
+                  http: { endpoint: "0.0.0.0:4318" }
+            processors:
+              memory_limiter: { check_interval: 5s, limit_percentage: 80, spike_limit_percentage: 25 }
+              batch: {}
+              k8sattributes:
+                auth_type: serviceAccount
+                passthrough: false
+                extract:
+                  metadata: [ k8s.namespace.name, k8s.pod.name, k8s.pod.uid, k8s.node.name, k8s.deployment.name, k8s.statefulset.name, k8s.container.name ]
+                pod_association:
+                  - sources: [ { from: resource_attribute, name: k8s.pod.ip } ]
+                  - sources: [ { from: resource_attribute, name: k8s.pod.uid } ]
+                  - sources: [ { from: connection } ]
+              resource:
+                attributes:
+                  - { key: k8s.cluster.name, value: "${env:K8S_CLUSTER_NAME}", action: upsert }
+                  - { key: service.instance.id, from_attribute: k8s.pod.uid, action: insert }
+              filter/genai-metrics-only:
+                error_mode: ignore
+                metrics:
+                  metric: [ 'not(IsMatch(name, "gen_ai\\..*"))' ]
+              filter/exclude-already-tagged:
+                error_mode: ignore
+                metrics:
+                  resource: [ 'attributes["suse.ai.component.name"] != nil' ]
+              groupbyattrs/infer-providers: { keys: [ gen_ai.provider.name ] }
+              groupbyattrs/infer-models: { keys: [ gen_ai.request.model, gen_ai.provider.name ] }
+              groupbyattrs/model-relations: { keys: [ gen_ai.provider.name ] }
+              transform/infer-providers:
+                error_mode: ignore
+                metric_statements:
+                  - context: resource
+                    statements:
+                      - 'set(attributes["service.name"], attributes["gen_ai.provider.name"]) where attributes["gen_ai.provider.name"] != nil'
+                      - 'set(attributes["service.instance.id"], attributes["gen_ai.provider.name"]) where attributes["gen_ai.provider.name"] != nil'
+                      - 'set(attributes["suse.ai.managed"], "true") where attributes["gen_ai.provider.name"] != nil'
+                      - 'set(attributes["suse.ai.component.name"], attributes["gen_ai.provider.name"]) where attributes["gen_ai.provider.name"] != nil'
+                      - 'set(attributes["suse.ai.component.type"], "inference-engine") where attributes["gen_ai.provider.name"] != nil'
+                      - 'set(attributes["k8s.namespace.name"], "${env:SUSE_AI_NAMESPACE}") where attributes["gen_ai.provider.name"] != nil'
+              transform/infer-models:
+                error_mode: ignore
+                metric_statements:
+                  - context: resource
+                    statements:
+                      - 'set(attributes["service.name"], attributes["gen_ai.request.model"]) where attributes["gen_ai.request.model"] != nil'
+                      - 'set(attributes["service.instance.id"], attributes["gen_ai.request.model"]) where attributes["gen_ai.request.model"] != nil'
+                      - 'set(attributes["suse.ai.managed"], "true") where attributes["gen_ai.request.model"] != nil'
+                      - 'set(attributes["suse.ai.component.name"], attributes["gen_ai.request.model"]) where attributes["gen_ai.request.model"] != nil'
+                      - 'set(attributes["suse.ai.component.type"], "llm-model") where attributes["gen_ai.request.model"] != nil'
+                      - 'set(attributes["k8s.namespace.name"], "${env:SUSE_AI_NAMESPACE}") where attributes["gen_ai.request.model"] != nil'
+              transform/infer-applications:
+                error_mode: ignore
+                metric_statements:
+                  - context: resource
+                    statements:
+                      - 'set(attributes["suse.ai.managed"], "true")'
+                      - 'set(attributes["suse.ai.component.type"], "application")'
+                      - 'set(attributes["suse.ai.component.name"], attributes["service.name"])'
+              filter/genai-spans:
+                error_mode: ignore
+                traces:
+                  span: [ 'attributes["gen_ai.request.model"] == nil' ]
+              transform/model-relations:
+                error_mode: ignore
+                trace_statements:
+                  - context: resource
+                    statements:
+                      - 'set(attributes["service.name"], attributes["gen_ai.provider.name"]) where attributes["gen_ai.provider.name"] != nil'
+                      - 'set(attributes["service.instance.id"], attributes["gen_ai.provider.name"]) where attributes["gen_ai.provider.name"] != nil'
+                  - context: span
+                    statements:
+                      - 'set(attributes["peer.service"], attributes["gen_ai.request.model"]) where attributes["gen_ai.request.model"] != nil'
+              transform/provider-relations:
+                error_mode: ignore
+                trace_statements:
+                  - context: span
+                    statements:
+                      - 'set(attributes["peer.service"], resource.attributes["gen_ai.provider.name"]) where resource.attributes["gen_ai.provider.name"] != nil'
+              tail_sampling:
+                decision_wait: 10s
+                policies:
+                  - name: rate-limited-composite
+                    type: composite
+                    composite:
+                      max_total_spans_per_second: 500
+                      policy_order: [ errors, slow-traces, rest ]
+                      composite_sub_policy:
+                        - { name: errors, type: status_code, status_code: { status_codes: [ ERROR ] } }
+                        - { name: slow-traces, type: latency, latency: { threshold_ms: 1000 } }
+                        - { name: rest, type: always_sample }
+                      rate_allocation:
+                        - { policy: errors, percent: 33 }
+                        - { policy: slow-traces, percent: 33 }
+                        - { policy: rest, percent: 34 }
+            connectors:
+              spanmetrics: { metrics_expiration: 5m, namespace: otel_span }
+              routing/traces:
+                error_mode: ignore
+                table:
+                  - statement: route()
+                    pipelines: [ traces/sampling, traces/spanmetrics, traces/model-relations, traces/provider-relations ]
+            exporters:
+              otlp:
+                endpoint: "{{ refs.observer.outputs['suse-observability'].otlp }}"
+                headers: { Authorization: "SUSEObservability ${env:API_KEY}" }
+                # A staging certificate (a CA nothing trusts) isn't verified.
+                tls: { insecure_skip_verify: "{{ lab.tls.privateCA }}" }
+            service:
+              extensions: [ health_check ]
+              pipelines:
+                traces:
+                  receivers: [ otlp ]
+                  processors: [ memory_limiter, k8sattributes, resource ]
+                  exporters: [ routing/traces ]
+                traces/sampling:
+                  receivers: [ routing/traces ]
+                  processors: [ tail_sampling, batch ]
+                  exporters: [ otlp ]
+                traces/spanmetrics:
+                  receivers: [ routing/traces ]
+                  exporters: [ spanmetrics ]
+                traces/model-relations:
+                  receivers: [ routing/traces ]
+                  processors: [ filter/genai-spans, groupbyattrs/model-relations, transform/model-relations, batch ]
+                  exporters: [ otlp ]
+                traces/provider-relations:
+                  receivers: [ routing/traces ]
+                  processors: [ filter/genai-spans, transform/provider-relations, batch ]
+                  exporters: [ otlp ]
+                metrics:
+                  receivers: [ otlp, spanmetrics ]
+                  processors: [ memory_limiter, k8sattributes, resource, batch ]
+                  exporters: [ otlp ]
+                metrics/infer-providers:
+                  receivers: [ otlp ]
+                  processors: [ filter/genai-metrics-only, groupbyattrs/infer-providers, transform/infer-providers, resource, batch ]
+                  exporters: [ otlp ]
+                metrics/infer-models:
+                  receivers: [ otlp ]
+                  processors: [ filter/genai-metrics-only, groupbyattrs/infer-models, transform/infer-models, resource, batch ]
+                  exporters: [ otlp ]
+                metrics/infer-applications:
+                  receivers: [ otlp ]
+                  processors: [ filter/genai-metrics-only, filter/exclude-already-tagged, transform/infer-applications, resource, batch ]
+                  exporters: [ otlp ]
+      objectOverlays:
+        # The topology exporter names the cluster with instance_url before 0.160, cluster_name from 0.160.
+        - when: "{{ settings.topology and (settings.collectorVersion.split('.')[1] | int) < 160 }}"
+          object:
+            spec:
+              config:
+                exporters:
+                  topology:
+                    endpoint: "{{ refs.observer.outputs['suse-observability'].url }}"
+                    api_key: "${env:API_KEY}"
+                    instance_url: "${env:K8S_CLUSTER_NAME}"
+                    namespace: "${env:SUSE_AI_NAMESPACE}"
+                    tls: { insecure_skip_verify: "{{ lab.tls.privateCA }}" }
+        - when: "{{ settings.topology and (settings.collectorVersion.split('.')[1] | int) >= 160 }}"
+          object:
+            spec:
+              config:
+                exporters:
+                  topology:
+                    endpoint: "{{ refs.observer.outputs['suse-observability'].url }}"
+                    api_key: "${env:API_KEY}"
+                    cluster_name: "${env:K8S_CLUSTER_NAME}"
+                    namespace: "${env:SUSE_AI_NAMESPACE}"
+                    tls: { insecure_skip_verify: "{{ lab.tls.privateCA }}" }
+        # SUSE's topology exporter (only in SUSE AI's collector): the GenAI components and their relations.
+        - when: "{{ settings.topology }}"
+          object:
+            spec:
+              config:
+                connectors:
+                  routing/traces:
+                    table:
+                      - statement: route()
+                        pipelines: [ traces/sampling, traces/spanmetrics, traces/model-relations, traces/provider-relations, traces/topology ]
+                service:
+                  pipelines:
+                    traces/topology:
+                      receivers: [ routing/traces ]
+                      processors: [ batch ]
+                      exporters: [ topology ]
+        # GPU metrics: the GPU Operator's DCGM exporter (the gpu-operator Fleet profile gives the cluster `gpu`).
+        - when: "{{ 'gpu' in target.capabilities }}"
+          object:
+            spec:
+              config:
+                receivers:
+                  prometheus/gpu:
+                    config:
+                      scrape_configs:
+                        - job_name: gpu-metrics
+                          scrape_interval: 10s
+                          scheme: http
+                          kubernetes_sd_configs: [ { role: endpoints, namespaces: { names: [ gpu-operator ] } } ]
+                          relabel_configs:
+                            - { action: keep, source_labels: [ __meta_kubernetes_service_label_app ], regex: nvidia-dcgm-exporter }
+                            - { action: replace, source_labels: [ __meta_kubernetes_endpoint_node_name ], target_label: k8s_node_name }
+                service:
+                  pipelines:
+                    metrics/gpu:
+                      receivers: [ prometheus/gpu ]
+                      processors: [ memory_limiter, k8sattributes, resource, batch ]
+                      exporters: [ otlp ]
+        # vLLM: its engines only (not the router), with its metric names as SUSE AI's dashboards query them.
+        - when: "{{ outputs.vllm is defined or settings.vllm is defined }}"
+          object:
+            spec:
+              config:
+                receivers:
+                  prometheus/vllm:
+                    config:
+                      scrape_configs:
+                        - job_name: vllm
+                          scrape_interval: 10s
+                          scheme: http
+                          metrics_path: /metrics
+                          kubernetes_sd_configs: [ { role: service } ]
+                          relabel_configs:
+                            - { action: keep, source_labels: [ __meta_kubernetes_namespace ], regex: "{{ settings.vllm.namespace if settings.vllm is defined else outputs.vllm.namespace }}" }
+                            - { action: keep, source_labels: [ __meta_kubernetes_service_label_app_kubernetes_io_component ], regex: serving-engine }
+                            - { action: keep, source_labels: [ __meta_kubernetes_service_port_number ], regex: "80" }
+                processors:
+                  transform/vllm-names:
+                    error_mode: ignore
+                    metric_statements:
+                      - context: metric
+                        statements:
+                          - 'replace_pattern(name, "^vllm:", "vllm_")'
+                          - 'set(name, "vllm_gpu_cache_usage_perc") where name == "vllm_kv_cache_usage_perc"'
+                          - 'set(name, "vllm_time_per_output_token_seconds") where name == "vllm_request_time_per_output_token_seconds"'
+                  transform/vllm:
+                    error_mode: ignore
+                    metric_statements:
+                      - context: resource
+                        statements:
+                          - 'set(attributes["suse.ai.managed"], "true") where attributes["service.name"] == "vllm"'
+                          - 'set(attributes["suse.ai.component.name"], "vllm") where attributes["service.name"] == "vllm"'
+                          - 'set(attributes["suse.ai.component.type"], "inference-engine") where attributes["service.name"] == "vllm"'
+                          - 'set(attributes["service.instance.id"], "vllm") where attributes["service.name"] == "vllm"'
+                          - 'set(attributes["k8s.namespace.name"], "${env:SUSE_AI_NAMESPACE}") where attributes["service.name"] == "vllm"'
+                service:
+                  pipelines:
+                    metrics/vllm:
+                      receivers: [ prometheus/vllm ]
+                      processors: [ transform/vllm-names, memory_limiter, k8sattributes, transform/vllm, resource, batch ]
+                      exporters: [ otlp ]
+        # Qdrant (a vector database), by its Service.
+        - when: "{{ settings.qdrant is defined }}"
+          object:
+            spec:
+              config:
+                receivers:
+                  prometheus/qdrant:
+                    config:
+                      scrape_configs:
+                        - job_name: qdrant
+                          scrape_interval: 10s
+                          metrics_path: /metrics
+                          static_configs: [ { targets: [ "{{ settings.qdrant.service if settings.qdrant is defined else '' }}.{{ settings.suseAiNamespace }}.svc.cluster.local:6333" ] } ]
+                processors:
+                  transform/qdrant:
+                    error_mode: ignore
+                    metric_statements:
+                      - context: resource
+                        statements:
+                          - 'set(attributes["suse.ai.managed"], "true") where attributes["service.name"] == "qdrant"'
+                          - 'set(attributes["suse.ai.component.name"], "qdrant") where attributes["service.name"] == "qdrant"'
+                          - 'set(attributes["suse.ai.component.type"], "vectordb") where attributes["service.name"] == "qdrant"'
+                          - 'set(attributes["k8s.namespace.name"], "${env:SUSE_AI_NAMESPACE}") where attributes["service.name"] == "qdrant"'
+                service:
+                  pipelines:
+                    metrics/qdrant:
+                      receivers: [ prometheus/qdrant ]
+                      processors: [ memory_limiter, k8sattributes, transform/qdrant, resource, batch ]
+                      exporters: [ otlp ]
+        # Milvus (a vector database), by its Service.
+        - when: "{{ settings.milvus is defined }}"
+          object:
+            spec:
+              config:
+                receivers:
+                  prometheus/milvus:
+                    config:
+                      scrape_configs:
+                        - job_name: milvus
+                          scrape_interval: 15s
+                          metrics_path: /metrics
+                          static_configs: [ { targets: [ "{{ settings.milvus.service if settings.milvus is defined else '' }}.{{ settings.suseAiNamespace }}.svc.cluster.local:9091" ] } ]
+                processors:
+                  transform/milvus:
+                    error_mode: ignore
+                    metric_statements:
+                      - context: resource
+                        statements:
+                          - 'set(attributes["suse.ai.managed"], "true") where attributes["service.name"] == "milvus"'
+                          - 'set(attributes["suse.ai.component.name"], "milvus") where attributes["service.name"] == "milvus"'
+                          - 'set(attributes["suse.ai.component.type"], "vectordb") where attributes["service.name"] == "milvus"'
+                          - 'set(attributes["k8s.namespace.name"], "${env:SUSE_AI_NAMESPACE}") where attributes["service.name"] == "milvus"'
+                service:
+                  pipelines:
+                    metrics/milvus:
+                      receivers: [ prometheus/milvus ]
+                      processors: [ memory_limiter, k8sattributes, transform/milvus, resource, batch ]
+                      exporters: [ otlp ]
+        # OpenSearch: its cluster health, polled with its credentials (a Secret of their own).
+        - when: "{{ settings.opensearch is defined }}"
+          object:
+            spec:
+              env:
+                - { name: K8S_CLUSTER_NAME, value: "{{ settings.clusterName or target.name }}" }
+                - { name: SUSE_AI_NAMESPACE, value: "{{ settings.suseAiNamespace }}" }
+                - { name: OPENSEARCH_USERNAME, valueFrom: { secretKeyRef: { name: opensearch-credentials, key: username } } }
+                - { name: OPENSEARCH_PASSWORD, valueFrom: { secretKeyRef: { name: opensearch-credentials, key: password } } }
+              config:
+                receivers:
+                  elasticsearch:
+                    endpoint: "http://opensearch-cluster-master-headless.{{ settings.opensearch.namespace if settings.opensearch is defined else '' }}.svc.cluster.local:9200"
+                    username: "${env:OPENSEARCH_USERNAME}"
+                    password: "${env:OPENSEARCH_PASSWORD}"
+                    tls: { insecure_skip_verify: true }
+                    collection_interval: 10s
+                processors:
+                  resource/elasticsearch:
+                    attributes:
+                      - { key: suse.ai.managed, value: "true", action: insert }
+                      - { key: suse.ai.component.name, value: opensearch, action: insert }
+                      - { key: suse.ai.component.type, value: search-engine, action: insert }
+                      - { key: service.name, value: opensearch, action: insert }
+                      - { key: service.namespace, value: "${env:SUSE_AI_NAMESPACE}", action: insert }
+                      - { key: k8s.namespace.name, value: "${env:SUSE_AI_NAMESPACE}", action: upsert }
+                      - { key: service.instance.id, value: opensearch-cluster, action: insert }
+                service:
+                  pipelines:
+                    metrics/elasticsearch:
+                      receivers: [ elasticsearch ]
+                      processors: [ memory_limiter, resource/elasticsearch, resource, batch ]
+                      exporters: [ otlp ]
+    # The collector's usual address: the Operator names its Service opentelemetry-collector-collector.
+    - name: service
+      object:
+        apiVersion: v1
+        kind: Service
+        metadata: { name: opentelemetry-collector, namespace: observability }
+        spec:
+          selector:
+            app.kubernetes.io/component: opentelemetry-collector
+            app.kubernetes.io/instance: observability.opentelemetry-collector
+          ports:
+            - { name: otlp-grpc, port: 4317, targetPort: 4317, protocol: TCP }
+            - { name: otlp-http, port: 4318, targetPort: 4318, protocol: TCP }
+    # Zero-code tracing, for workloads in any namespace that opt in by annotation (not for apps that
+    # already use OpenLIT or another OpenTelemetry SDK: their spans would be doubled):
+    # instrumentation.opentelemetry.io/inject-python: "observability/otel-instrumentation"
+    # (or inject-java, inject-nodejs, inject-go with otel-go-auto-target-exe).
+    - name: instrumentation
+      admitted: true
+      object:
+        apiVersion: opentelemetry.io/v1alpha1
+        kind: Instrumentation
+        metadata: { name: otel-instrumentation, namespace: observability }
+        spec:
+          exporter:
+            endpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+          propagators: [ tracecontext, baggage ]
+          defaults: { useLabelsForResourceAttributes: true }
+          python:
+            env: [ { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://opentelemetry-collector.observability.svc.cluster.local:4318" } ]
+          go:
+            env: [ { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://opentelemetry-collector.observability.svc.cluster.local:4318" } ]
+          sampler: { type: parentbased_traceidratio, argument: "1" }
+  settings:
+    type: object
+    required: [ observer ]
+    properties:
+      observer:
+        type: dnsLabel
+        description: the downstream cluster running SUSE Observability that it sends to
+      apiKey:
+        type: secret
+        default: "{{ secrets.observability.token }}"
+        description: a SUSE Observability API key (service token) to send with; default the instance's bootstrap token
+      adminToken:
+        type: secret
+        default: "{{ secrets.observability.token }}"
+        description: "a service token with admin rights on the instance, to install its StackPacks; default the instance's bootstrap token"
+      clusterName:
+        type: dnsLabel
+        description: "the cluster's name in SUSE Observability (as its agent's clusterName); default the cluster's"
+      suseAiNamespace:
+        type: dnsLabel
+        default: suse-ai
+        description: the namespace of the AI workloads; SUSE AI components are reported in it
+      collectorImage:
+        type: string
+        default: registry.suse.com/ai/containers/suse-ai-opentelemetry-collector
+        description: "the collector's image: SUSE AI's (amd64 only), or otel/opentelemetry-collector-contrib on arm64 with topology off"
+      topology:
+        type: boolean
+        default: true
+        description: "send the GenAI topology with SUSE's exporter (only in SUSE AI's collector)"
+      collectorVersion:
+        type: string
+        pattern: "^0\\.[0-9]+\\.[0-9]+$"
+        default: 0.149.0
+        description: "the collector image's tag (SUSE AI's follows the upstream collector's versions)"
+      vllm:
+        type: object
+        description: a vLLM not deployed by the vllm profile, to scrape (its engines, label serving-engine, port 80)
+        properties:
+          namespace: { type: dnsLabel }
+        required: [ namespace ]
+      qdrant:
+        type: object
+        description: a Qdrant in the AI namespace, to scrape
+        properties:
+          service: { type: dnsLabel }
+        required: [ service ]
+      milvus:
+        type: object
+        description: a Milvus in the AI namespace, to scrape
+        properties:
+          service: { type: dnsLabel }
+        required: [ service ]
+      opensearch:
+        type: object
+        description: an OpenSearch to poll for its cluster health (Service opensearch-cluster-master-headless)
+        properties:
+          namespace: { type: dnsLabel }
+          credentials: { type: credentials }
+        required: [ namespace, credentials ]
+      version: { type: string }
+      values: { type: chartValues }

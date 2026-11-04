@@ -155,7 +155,7 @@ export function renderCatalog(catalog: ResolvedCatalog): string {
         for (const [a, b, c] of rows) out.push(`  ${a.padEnd(w0)}  ${b.padEnd(w1)}  ${c}`);
     };
     const versionText = (v: VersionValue | undefined) => v === undefined ? "-" : typeof v === "string" ? v : Object.entries(v).map(([minor, x]) => `${minor}: ${x}`).join(", ");
-    for (const kind of ["KubernetesDistribution", "HelmChart", "Manifest", "Binary"] as const) {
+    for (const kind of ["KubernetesDistribution", "HelmChart", "Manifest", "Binary", "StackPack"] as const) {
         const entries = Object.entries(catalog.components).filter(([, c]) => c.value.kind === kind).sort(([a], [b]) => a.localeCompare(b));
         if (entries.length === 0) continue;
         if (out.length > 0) out.push("");
@@ -163,7 +163,7 @@ export function renderCatalog(catalog: ResolvedCatalog): string {
         table(entries.map(([key, { value, source }]) => [
             key,
             versionText(value.version),
-            `${shortSource(source).padEnd(10)}  ${"manifest" in value ? value.manifest : "download" in value ? value.download : "chart" in value ? `${value.repo ? `${value.repo} ` : ""}${value.chart}${value.namespace ? `  (${value.namespace})` : ""}` : ""}`,
+            `${shortSource(source).padEnd(10)}  ${"manifest" in value ? value.manifest : "download" in value ? value.download : value.kind === "StackPack" ? (value.archive ?? "in the instance's catalog") : "chart" in value ? `${value.repo ? `${value.repo} ` : ""}${value.chart}${value.namespace ? `  (${value.namespace})` : ""}` : ""}`,
         ]));
     }
     out.push("", "UiPlugin");

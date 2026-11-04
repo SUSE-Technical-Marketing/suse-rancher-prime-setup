@@ -1,7 +1,7 @@
 // Profiles on Harvesters themselves (the DNS controller, an observability agent).
 
 import { profileTargets } from "../profiles/define";
-import { checkHarvesterProfiles } from "../profiles/rules";
+import { checkHarvesterProfiles, hostCapabilities } from "../profiles/rules";
 import type { Credentials } from "../schema";
 import type { Resolution } from "./context";
 
@@ -31,7 +31,10 @@ export function resolveHarvesterProfiles(r: Resolution): void {
             secretTemplate: (template, path) => useTemplate(template, "string", L, path),
         });
         // A ChartProfile on a Harvester is an add-on: its chart's values and its objects, rendered here.
-        const target = { kind: "harvester" as const, name: h.name, fqdn: new URL(h.url).hostname };
+        // Imported into a Rancher of the lab: a Harvester downstream cluster runs on it.
+        const imported = r.downstream.some(d => d.type === "harvester" && d.harvester === h.name);
+        const capabilities = [...hostCapabilities(registry, h.profiles).keys(), "kubernetes"].sort();
+        const target = { kind: "harvester" as const, name: h.name, fqdn: new URL(h.url).hostname, capabilities, imported };
         for (const n of Object.keys(h.profiles)) {
             const rendered = renderProfile(n, h.profiles, {}, { target }, `Harvester ${h.name}`);
             if (rendered) h.chartValues[n] = rendered;

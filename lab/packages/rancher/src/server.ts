@@ -26,6 +26,8 @@ export interface RancherServerArgs {
     chart: ProfileChartSpec;
     /** The lab's own chart values, merged over the engine's (protected paths validated earlier). */
     values?: pulumi.Input<Record<string, unknown>>;
+    /** The host Rancher runs on, by its address: told apart from a wrong or missing DNS record for `hostname`. */
+    hostAddress?: pulumi.Input<string>;
     /** Full name, e.g. `rancher.rancher.lab.geeko.me` (the chart's `hostname`, from its Profile's lockedValues). */
     hostname: string;
     adminPassword: pulumi.Input<string>;
@@ -122,6 +124,7 @@ export class RancherServer extends pulumi.ComponentResource {
             url,
             insecure: args.insecure,
             password: args.adminPassword,
+            hostAddress: args.hostAddress,
             timeoutSeconds,
         }, withCluster(args.cluster, this, { dependsOn: [local] }));
 

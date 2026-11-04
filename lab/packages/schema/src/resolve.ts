@@ -8,6 +8,7 @@ import { Profiles } from "./profiles";
 import type { ResolvedClusterOfType } from "./clusters";
 import { AwsCredentials, Credentials, LabFile, PersonalConfig } from "./schema";
 import { type SecretShape } from "./secrets";
+import { stackPackFile } from "./stackpack-files";
 import { createResolution } from "./phases/context";
 import { resolveAwsSites } from "./phases/aws-sites";
 import { placeHostCharts } from "./phases/charts";
@@ -16,7 +17,7 @@ import { resolveClusterProfiles, resolveDownstream } from "./phases/downstream";
 import { resolveFleetProfiles, resolveFleetRepos } from "./phases/fleet";
 import { resolveHarvesterProfiles } from "./phases/harvester-profiles";
 import { resolveHarvesters } from "./phases/harvesters";
-import { resolveHosts } from "./phases/hosts";
+import { renderHostProfiles, resolveHosts } from "./phases/hosts";
 import { createLabObjects, placeLabObjects } from "./phases/objects";
 
 export { MACHINE_CLOUD_INIT_KEYS } from "./phases/hosts";
@@ -76,6 +77,10 @@ export interface RenderedChartEntry {
     /** Another version than the catalog's, when its `version` template gives one. */
     version?: string;
     vars: Record<string, string>;
+    /** Its registry's login (its HelmChart's `credentials` input), a secret template or a map. */
+    credentials?: Credentials;
+    /** What must exist (or have a condition True) on the cluster before it's installed. */
+    waitFor?: { path: string; condition?: string }[];
 }
 
 /** One of a profile's `objects` on a host (only those whose `when` holds), its templates rendered. */
@@ -107,6 +112,8 @@ export interface ProfileWiring {
 export interface RenderedProfile {
     entries: RenderedChartEntry[];
     objects: RenderedObject[];
+    /** The StackPacks it wants on the SUSE Observability instance it sends to (`observerStackPacks`). */
+    stackPacks?: { observer: string; adminToken: string; install: string[] };
     /** What its own chart's resource was created as before (`aliases`): kept, not replaced. */
     aliases: { type?: string; name?: string }[];
 }
@@ -190,6 +197,8 @@ export type ResolvedDownstream = {
     chartProfiles?: ResolvedClusterProfiles;
     /** What its Fleet profiles say Fleet installs, by capability (`suse-observability: { url }`), rendered. */
     fleetOutputs?: Record<string, Record<string, string>>;
+    /** What its Fleet profiles provide: their names and `provides` (`gpu`). */
+    fleetCapabilities?: string[];
 } & ResolvedClusterOfType;
 
 export interface ResolvedLab {
@@ -229,6 +238,8 @@ export interface ResolvedLab {
     images: { kubectl: string };
     /** The HaulManifests the lab's profiles name, rendered as Hauler content documents. */
     haulManifests: Record<string, string>;
+    /** StackPacks on the lab's SUSE Observability instances, each once per instance (its profiles' `observerStackPacks`). */
+    stackPacks: ResolvedStackPack[];
     /** Profiles the lab uses that the engine doesn't build yet (`status: planned`): `lab up` refuses the lab. */
     planned: string[];
 }
@@ -247,6 +258,43 @@ export interface ResolveInput {
     personalDir: string;
     home: string;
     fs: { exists(p: string): boolean; read(p: string): string };
+}
+
+/** A StackPack on a SUSE Observability instance of the lab, while any profile wants it (DESIGN.md §9.6). */
+export interface ResolvedStackPack {
+    /** The downstream cluster running the instance, and the instance (its Fleet profile's `url`). */
+    observer: string;
+    url: string;
+    name: string;
+    stackPack: Extract<ResolvedComponent, { kind: "StackPack" }>;
+    /** Built from source: its .sts, built by `lab stackpacks` (`up` checks it's there first). */
+    file?: string;
+    /** A template (a secret's): the first wanting profile's. */
+    adminToken: string;
+    /** What wants it, `<host, cluster or Harvester>/<profile>`, in the lab's order. */
+    wantedBy: string[];
+}
+
+/** Every profile's `observerStackPacks`, by instance and StackPack. */
+function collectStackPacks(rendered: [string, Record<string, RenderedProfile> | undefined][], downstream: ResolvedDownstream[], components: Record<string, ResolvedComponent>): ResolvedStackPack[] {
+    const byKey = new Map<string, ResolvedStackPack>();
+    for (const [on, profiles] of rendered) {
+        for (const [profile, r] of Object.entries(profiles ?? {})) {
+            if (!r.stackPacks) continue;
+            const url = downstream.find(d => d.name === r.stackPacks!.observer)?.fleetOutputs?.["suse-observability"]?.url;
+            if (url === undefined) continue;
+            for (const name of r.stackPacks.install) {
+                const stackPack = components[name];
+                if (stackPack?.kind !== "StackPack") continue;
+                const key = `${r.stackPacks.observer}/${name}`;
+                const file = stackPack.archive && stackPack.version ? { file: stackPackFile(name, stackPack.version) } : {};
+                const entry = byKey.get(key) ?? { observer: r.stackPacks.observer, url, name, stackPack, ...file, adminToken: r.stackPacks.adminToken, wantedBy: [] };
+                entry.wantedBy.push(`${on}/${profile}`);
+                byKey.set(key, entry);
+            }
+        }
+    }
+    return [...byKey.values()];
 }
 
 export interface ResolveResult {
@@ -269,6 +317,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
     resolveFleetRepos(r);
     resolveDownstream(r);
     resolveFleetProfiles(r);
+    renderHostProfiles(r);
     placeHostCharts(r);
     resolveClusterProfiles(r);
     resolveHarvesterProfiles(r);
@@ -312,6 +361,11 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             timeouts: catalog.defaults.value.timeouts,
             images: catalog.defaults.value.images,
             haulManifests: Object.fromEntries([...usedHaulManifests].sort().map(n => [n, renderedHaul[n]])),
+            stackPacks: collectStackPacks([
+                ...[...hosts.values()].map(h => [h.name, h.chartValues] as [string, Record<string, RenderedProfile> | undefined]),
+                ...downstream.map(d => [d.name, d.chartProfiles?.chartValues] as [string, Record<string, RenderedProfile> | undefined]),
+                ...[...harvesters.values()].map(h => [h.name, h.chartValues] as [string, Record<string, RenderedProfile> | undefined]),
+            ], downstream, catalogValues(catalog.components) as Record<string, ResolvedComponent>),
             planned: [...plannedProfiles].sort(),
         },
     };

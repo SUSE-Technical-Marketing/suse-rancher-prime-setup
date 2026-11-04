@@ -6,7 +6,45 @@ interface Inputs {
     url: string;
     insecure: boolean;
     password: string;
+    /** The Rancher host's own address: where Rancher answers when its name doesn't lead there. */
+    hostAddress?: string;
     timeoutSeconds: number;
+}
+
+/** How long a wrong name (while Rancher answers at its host) is waited out: a DNS record that's just been made. */
+const WRONG_NAME_SECONDS = 180;
+
+/**
+ * Why Rancher can't be reached by its URL's name, when that's the name: it doesn't resolve, or it
+ * resolves elsewhere while Rancher answers at the host's own address (asked by its name). `sure`:
+ * Rancher answers at the host, so waiting can't help, only a DNS record. Undefined when the name
+ * isn't to blame (or it can't tell: Rancher behind a load balancer or tunnel answers elsewhere).
+ */
+export async function nameProblem(url: string, hostAddress: string | undefined, port = 443): Promise<{ message: string; sure: boolean } | undefined> {
+    const dns = require("node:dns").promises;
+    const https = require("node:https");
+    const name = new URL(url).hostname;
+    const addresses = async (host: string): Promise<string[]> => {
+        if (/^[\d.]+$|:/.test(host)) return [host];
+        return (await dns.lookup(host, { all: true }).catch(() => [])).map((a: { address: string }) => a.address);
+    };
+    // Rancher by its name, at the host: through the host's ingress, as a browser would with the right record.
+    const answersAtHost = (address: string) => new Promise<boolean>(resolve => {
+        const req = https.request({ host: address, port, path: "/ping", servername: name, headers: { host: name }, rejectUnauthorized: false, timeout: 10000 },
+            (res: any) => { res.resume(); resolve(res.statusCode === 200); });
+        req.on("timeout", () => req.destroy());
+        req.on("error", () => resolve(false));
+        req.end();
+    });
+    const resolved = await addresses(name);
+    const host = hostAddress ? await addresses(hostAddress) : [];
+    const atHost = host.length > 0 && await answersAtHost(host[0]);
+    const fix = `give ${name} a DNS record for ${host[0] ?? "the Rancher host"} (the Harvester's harvester-dns-controller profile makes them, or your own DNS)`;
+    if (resolved.length === 0) return { message: `${name} doesn't resolve: ${fix}`, sure: atHost };
+    if (atHost && !resolved.some(a => host.includes(a))) {
+        return { message: `${name} resolves to ${resolved.join(", ")}, but Rancher answers at its host ${host[0]}: ${fix}`, sure: true };
+    }
+    return undefined;
 }
 
 /**
@@ -17,7 +55,22 @@ interface Inputs {
 const provider: pulumi.dynamic.ResourceProvider = {
     async create(inputs: Inputs) {
         const endpoint = { url: inputs.url, insecure: inputs.insecure };
+        let wrongSince: number | undefined;
         await poll(async seen => {
+            // Rancher by its name first: when that fails, the name may be why.
+            const byName = await rancherRequest(endpoint, "GET", "/ping").then(r => r.status === 200, () => false);
+            if (!byName) {
+                const problem = await nameProblem(inputs.url, inputs.hostAddress);
+                if (problem?.sure) {
+                    wrongSince ??= Date.now();
+                    if (Date.now() - wrongSince >= WRONG_NAME_SECONDS * 1000) throw new Error(`Rancher is up, but the lab can't reach it at ${inputs.url}: ${problem.message}`);
+                } else {
+                    wrongSince = undefined;
+                }
+                seen(problem ? problem.message : `Rancher doesn't answer at ${inputs.url} yet`);
+                return undefined;
+            }
+            wrongSince = undefined;
             try {
                 if (await rancherLogin(endpoint, "admin", inputs.password)) return true;
                 const secret = await kubeRequest({ kubeconfig: inputs.kubeconfig }, "GET", "/api/v1/namespaces/cattle-system/secrets/bootstrap-secret");
@@ -56,6 +109,8 @@ export interface RancherBootstrapArgs {
     url: pulumi.Input<string>;
     insecure: boolean;
     password: pulumi.Input<string>;
+    /** The Rancher host's address: to tell when its name, not Rancher, is the problem. */
+    hostAddress?: pulumi.Input<string>;
     timeoutSeconds: number;
 }
 

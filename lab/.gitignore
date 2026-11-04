@@ -3,3 +3,5 @@ node_modules/
 program/Pulumi.*.yaml
 # A lab's kubeconfig, written next to its lab file by `lab up` (it holds credentials).
 *.kubeconfig
+# StackPacks built from source by `lab stackpacks` (DESIGN.md §9.6), for `up` to upload.
+.cache/

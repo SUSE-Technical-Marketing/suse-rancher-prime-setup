@@ -5,5 +5,7 @@ metadata:
   description: "NVIDIA GPU operator (apps/ai/nvidia-gpu-operator)"
 spec:
   icon: gpu
+  # The cluster has NVIDIA GPUs: profiles on it can tailor their values (`'gpu' in target.capabilities`).
+  provides: [ gpu ]
   labels:
     has-gpu: "nvidia"

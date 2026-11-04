@@ -51,7 +51,18 @@ export interface TemplateContext {
      * this. A cluster's `fqdn` is `<cluster>.<domain>`, as the Fleet apps name things there; a
      * Harvester's is its URL's host.
      */
-    target: { kind: "host" | "cluster" | "harvester"; name: string; fqdn: string };
+    target: {
+        kind: "host" | "cluster" | "harvester"; name: string; fqdn: string;
+        /** What its profiles provide (`kubernetes`, `ingress`), and a cluster's Fleet profiles (`gpu`). */
+        capabilities: string[];
+        /** A Harvester: imported into a Rancher of the lab (a Harvester downstream cluster runs on it). */
+        imported?: boolean;
+    };
+    /**
+     * The downstream clusters its settings name (its Profile's `clusterRefs`), by field: their name
+     * and what their Fleet profiles say Fleet installs (`refs.observer.outputs['suse-observability'].url`).
+     */
+    refs: Record<string, { name: string; outputs: Record<string, Record<string, string>> }>;
     /** `tls.privateCA`: the ACME server's CA isn't trusted by default (Let's Encrypt staging). */
     /** `tls.url`: the ACME server's directory; `tls.cloudflare`: the DNS-01 token, a secret template. */
     lab: { name: string; domain: string; vars: Record<string, unknown>; tls: { acme: string; privateCA: boolean; url?: string; email?: string; cloudflare?: string } };

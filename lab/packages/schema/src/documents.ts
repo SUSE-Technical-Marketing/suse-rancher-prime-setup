@@ -49,6 +49,11 @@ export const CATALOG_KINDS = {
             version: VersionValue.optional(),
             /** Where `charts:` on a host installs it unless the placement says otherwise. */
             namespace: z.string().min(1).optional(),
+            /**
+             * The lab input holding its registry's login (a username and password): an OCI registry
+             * that needs one, SUSE Application Collection's `appco`. A lab installing it sets it under inputs.
+             */
+            credentials: dnsLabel.optional(),
         }),
     },
     Manifest: {
@@ -59,6 +64,25 @@ export const CATALOG_KINDS = {
     Binary: {
         name: dnsLabel,
         spec: z.strictObject({ url: z.string().min(1).optional(), version: VersionValue.optional() }),
+    },
+    /**
+     * A SUSE Observability StackPack the engine installs on an instance its profiles send to
+     * (DESIGN.md §9.6): one in every instance's own catalog (no `url`), or one built from a source
+     * archive and uploaded (the suse-ai StackPack, which SUSE doesn't publish as a .sts).
+     */
+    StackPack: {
+        name: dnsLabel,
+        spec: z.strictObject({
+            /** A zip archive of its source: `{version}` in the URL (a GitHub tag's). */
+            url: z.string().min(1).optional(),
+            /** The StackPack's directory in the archive, its stackpack.yaml at the top (`stackpack/suse-ai`). */
+            path: z.string().min(1).optional(),
+            /** The sha256 of the .sts the engine builds from it: the archive's content is pinned, not only its tag. */
+            sha256: z.string().regex(/^[0-9a-f]{64}$/, "must be a sha256 (64 hex digits)").optional(),
+            version: VersionValue.optional(),
+            /** What provisioning does with resources it would change that were changed by hand (the CLI's --unlocked-strategy). */
+            unlocked: z.enum(["fail", "skip", "overwrite"]).optional(),
+        }),
     },
     KubernetesDistribution: {
         name: dnsLabel,
@@ -353,7 +377,7 @@ export function documentsLayer(docs: CatalogDocument[], source: string, diags: D
     for (const d of docs) {
         const key = `${d.kind}/${d.name}`;
         // Charts, manifests and distributions share one namespace: profiles and the engine refer to them by name.
-        const ns = ["HelmChart", "Manifest", "Binary", "KubernetesDistribution"].includes(d.kind) ? `component/${d.name}` : key;
+        const ns = ["HelmChart", "Manifest", "Binary", "StackPack", "KubernetesDistribution"].includes(d.kind) ? `component/${d.name}` : key;
         const other = seen.get(ns);
         if (other !== undefined && (builtin || other !== d.kind)) {
             diags.error(d.source, docAt(d.kind, d.name), other === d.kind ? "is defined twice" : `has the same name as ${other}/${d.name}`);
@@ -365,9 +389,10 @@ export function documentsLayer(docs: CatalogDocument[], source: string, diags: D
             case "HelmChart":
             case "Manifest":
             case "Binary":
+            case "StackPack":
             case "KubernetesDistribution": {
                 const { url, ...rest } = spec;
-                const field = d.kind === "Manifest" ? "manifest" : "download";
+                const field = d.kind === "Manifest" ? "manifest" : d.kind === "StackPack" ? "archive" : "download";
                 layer.components[d.name] = d.kind === "KubernetesDistribution" ? rest : { ...rest, ...(url !== undefined ? { [field]: url } : {}) };
                 layer.componentSources![d.name] = d.source;
                 if (d.description) layer.componentDescriptions![d.name] = d.description;

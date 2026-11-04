@@ -81,6 +81,7 @@ describe("SUSE Observability agents", () => {
         expect(JSON.parse(addon.inputs.valuesContent)).toEqual({
             stackstate: { url: "https://observability.obs.lab.example.com/receiver/stsAgent", cluster: { name: "hv" } },
             global: { apiKey: { fromSecret: "suse-observability-agent-key" } },
+            nodeAgent: { skipKubeletTLSVerify: true },
             // A Harvester: SUSE Virtualization, and Rancher's agent (its clusters make it imported).
             otel: { enabled: true, integrations: { suseVirtualization: true, rancherAgent: true } },
         });

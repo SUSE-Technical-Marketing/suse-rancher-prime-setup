@@ -38,6 +38,45 @@ export function workspaceSettings(env = process.env): WorkspaceSettings {
     return { backendUrl, passphraseFile, createdPassphrase: passphraseFile };
 }
 
+/** A lock on a lab's state: its file, and who took it when (Pulumi's lock file). */
+export interface StateLock {
+    file: string;
+    user?: string;
+    host?: string;
+    pid?: number;
+    since?: string;
+    /** Whether that process still runs: only known when it ran on this machine. */
+    running?: boolean;
+}
+
+/**
+ * The locks on a lab's state, in a file backend (`.pulumi/locks/organization/lab/<lab>/`): a running
+ * command holds one; one stopped halfway leaves it behind.
+ */
+export function stateLocks(labName: string, settings: Pick<WorkspaceSettings, "backendUrl">): StateLock[] {
+    if (!settings.backendUrl.startsWith("file://")) return [];
+    const dir = path.join(settings.backendUrl.slice("file://".length), ".pulumi", "locks", "organization", "lab", labName);
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir).filter(f => f.endsWith(".json")).map(f => {
+        const file = path.join(dir, f);
+        let lock: { pid?: number; username?: string; hostname?: string; timestamp?: string } = {};
+        try {
+            lock = JSON.parse(fs.readFileSync(file, "utf8"));
+        } catch { /* an unreadable lock is still a lock */ }
+        const here = lock.hostname === os.hostname();
+        let running: boolean | undefined;
+        if (here && lock.pid) {
+            try {
+                process.kill(lock.pid, 0);
+                running = true;
+            } catch (e) {
+                running = (e as NodeJS.ErrnoException).code === "EPERM";
+            }
+        }
+        return { file, user: lock.username, host: lock.hostname, pid: lock.pid, since: lock.timestamp, ...(running !== undefined ? { running } : {}) };
+    });
+}
+
 function envVars(settings: WorkspaceSettings, extra: Record<string, string>): Record<string, string> {
     return {
         PULUMI_BACKEND_URL: settings.backendUrl,

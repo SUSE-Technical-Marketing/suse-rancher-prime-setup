@@ -17,3 +17,4 @@ export * from "./os";
 export * from "./resolve";
 export { awsFootprint, CLUSTER_TYPES, planCluster, type AwsFootprint, type ClusterContext, type ClusterType, type ResolvedClusterOfType, type ResolvedEc2Pool, type ResolvedEksNodeGroup } from "./clusters";
 export * from "./load";
+export * from "./stackpack-files";

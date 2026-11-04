@@ -32,6 +32,6 @@ describe("profile builders", () => {
 
     it("leave the chart-only profiles to the generic builder", () => {
         const generic = Object.values(catalog!.profiles).filter(p => p.chart && !BUILDERS[p.name as keyof typeof BUILDERS]).map(p => p.name).sort();
-        expect(generic).toEqual(["ai-factory", "cert-manager", "harvester-dns-controller", "hauler-chart", "metallb", "outrider", "sprouter", "traefik"]);
+        expect(generic).toEqual(["ai-factory", "cert-manager", "harvester-dns-controller", "hauler-chart", "metallb", "open-webui", "opentelemetry", "outrider", "sprouter", "traefik", "vllm"]);
     });
 });

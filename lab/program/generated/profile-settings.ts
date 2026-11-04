@@ -91,6 +91,66 @@ export type MlmServerSettings = {
     products: "auto" | string[];
 };
 
+/** Settings of the `open-webui` profile: Open WebUI chatting with an OpenAI-compatible API (a vLLM), traced into SUSE Observability when the cluster has the opentelemetry profile */
+export type OpenWebuiSettings = {
+    /** the OpenAI-compatible API it chats with (a vLLM's router: http://<host>:<port>/v1) */
+    openaiUrl: string;
+    /** its key (vLLM takes any) */
+    openaiApiKey: string;
+    /** the model a new chat starts with (vLLM's name for it: the Hugging Face model) */
+    defaultModel?: string;
+    title: string;
+    /** its ingress's host; default open-webui.<cluster>.<domain> */
+    host?: string;
+    /** its volumes' storage class; default the cluster's */
+    storageClass?: string;
+    /** SUSE AI's Open WebUI filter in a pipelines server, for SUSE Observability's GenAI views */
+    pipelines: boolean;
+    /** the SUSE AI Observability Extension release the filter is from */
+    filterVersion: string;
+    version?: string;
+    values?: Record<string, unknown>;
+};
+
+/** Settings of the `opentelemetry` profile: SUSE AI observability for the cluster: the OpenTelemetry Operator and SUSE AI's collector, sending traces, metrics and topology to SUSE Observability on another cluster */
+export type OpentelemetrySettings = {
+    /** the downstream cluster running SUSE Observability that it sends to */
+    observer: string;
+    /** a SUSE Observability API key (service token) to send with; default the instance's bootstrap token */
+    apiKey: string;
+    /** a service token with admin rights on the instance, to install its StackPacks; default the instance's bootstrap token */
+    adminToken: string;
+    /** the cluster's name in SUSE Observability (as its agent's clusterName); default the cluster's */
+    clusterName?: string;
+    /** the namespace of the AI workloads; SUSE AI components are reported in it */
+    suseAiNamespace: string;
+    /** the collector's image: SUSE AI's (amd64 only), or otel/opentelemetry-collector-contrib on arm64 with topology off */
+    collectorImage: string;
+    /** send the GenAI topology with SUSE's exporter (only in SUSE AI's collector) */
+    topology: boolean;
+    /** the collector image's tag (SUSE AI's follows the upstream collector's versions) */
+    collectorVersion: string;
+    /** a vLLM not deployed by the vllm profile, to scrape (its engines, label serving-engine, port 80) */
+    vllm?: {
+        namespace: string;
+    };
+    /** a Qdrant in the AI namespace, to scrape */
+    qdrant?: {
+        service: string;
+    };
+    /** a Milvus in the AI namespace, to scrape */
+    milvus?: {
+        service: string;
+    };
+    /** an OpenSearch to poll for its cluster health (Service opensearch-cluster-master-headless) */
+    opensearch?: {
+        namespace: string;
+        credentials: Credentials;
+    };
+    version?: string;
+    values?: Record<string, unknown>;
+};
+
 /** Settings of the `outrider` profile: Outrider: propagates annotated secrets to downstream clusters */
 export type OutriderSettings = {
     version?: string;
@@ -158,6 +218,63 @@ export type TraefikSettings = {
     values?: Record<string, unknown>;
 };
 
+/** Settings of the `vllm` profile: vLLM serving one model on the cluster's NVIDIA GPUs, an OpenAI-compatible API (after SUSE AI Factory's vLLM guide) */
+export type VllmSettings = {
+    /** the Hugging Face model to serve (e.g. RadixArk/Qwen3.8-27B-NVFP4) */
+    model: string;
+    /** the model's name in the stack (its engine's Deployment) */
+    name: string;
+    imageRegistry: string;
+    imageRepository: string;
+    imageTag: string;
+    requestCPU: number;
+    requestMemory: string;
+    requestGPU: number;
+    /** shared memory for the engine */
+    shmSize: string;
+    /** the longest context it serves (its KV cache is sized for it); default the model's own */
+    maxModelLen?: number;
+    /** the most requests it serves at once */
+    maxNumSeqs: number;
+    /** the most tokens in one batch (with chunked prefill, a long prompt is split by it) */
+    maxNumBatchedTokens: number;
+    /** the share of the GPU's memory it takes (on a DGX Spark, of the memory it shares with the CPU) */
+    gpuMemoryUtilization: number;
+    tensorParallelSize: number;
+    /** the KV cache's type (auto, fp8, …) */
+    kvCacheDtype: string;
+    enableChunkedPrefill: boolean;
+    enablePrefixCaching: boolean;
+    asyncScheduling: boolean;
+    /** run the model's own code from Hugging Face */
+    trustRemoteCode: boolean;
+    /** how it loads the weights (e.g. instanttensor, in the DGX Spark build) */
+    loadFormat?: string;
+    /** speculative decoding, as vLLM's --speculative-config ({ method: dflash, model: …, num_speculative_tokens: 8 }) */
+    speculativeConfig?: Record<string, never>;
+    /** the model's reasoning parser (e.g. qwen3) */
+    reasoningParser?: string;
+    /** the model's tool-call parser (e.g. qwen3_xml); turns on automatic tool choice */
+    toolCallParser?: string;
+    /** a volume for the model's cache (e.g. 100Gi); without one, every restart downloads it again */
+    pvcStorage?: string;
+    storageClass?: string;
+    /** a directory on the node for the model and the compiled kernels (e.g. /var/lib/vllm-cache): kept over restarts without a storage class */
+    hostCache?: string;
+    /** free the page cache and the kernel's reclaimable memory before the engine starts (privileged): for shared CPU/GPU memory, as on a DGX Spark */
+    dropCaches: boolean;
+    /** how long its first start may take (downloading the model, compiling kernels) before it is restarted */
+    startupMinutes: number;
+    /** the router's OpenAI API on this port of every node (http://<node>:<port>/v1), for other clusters */
+    nodePort?: number;
+    /** the GPU Operator's runtime class */
+    runtimeClassName: string;
+    /** a Hugging Face token, for gated models */
+    hfToken?: string;
+    version?: string;
+    values?: Record<string, unknown>;
+};
+
 /** Profile name -> its settings. */
 export interface ProfileSettings {
     "ai-factory": AiFactorySettings;
@@ -171,10 +288,13 @@ export interface ProfileSettings {
     "metallb": MetallbSettings;
     "mlm-client": MlmClientSettings;
     "mlm-server": MlmServerSettings;
+    "open-webui": OpenWebuiSettings;
+    "opentelemetry": OpentelemetrySettings;
     "outrider": OutriderSettings;
     "rancher": RancherSettings;
     "rke2": Rke2Settings;
     "sprouter": SprouterSettings;
     "suse-observability-agent": SuseObservabilityAgentSettings;
     "traefik": TraefikSettings;
+    "vllm": VllmSettings;
 }

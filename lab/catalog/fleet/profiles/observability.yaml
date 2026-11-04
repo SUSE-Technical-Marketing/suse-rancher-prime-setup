@@ -16,3 +16,5 @@ spec:
   outputs:
     suse-observability:
       url: "https://observability.{{ cluster.name }}.{{ lab.domain }}"
+      # Its OTLP gRPC endpoint (TLS, through its ingress), for OpenTelemetry collectors on other clusters.
+      otlp: "otlp-observability.{{ cluster.name }}.{{ lab.domain }}:443"

@@ -2,13 +2,13 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { stringify } from "yaml";
 import { ChartProfile } from "@lab/apps";
-import { ClusterAccess, ClusterObjects, helmApp, HostAccess, KubeAdmitted, mergeValues, type ProfileChartSpec, type RenderedProfileChart } from "@lab/kubernetes";
+import { ClusterAccess, ClusterObjects, helmApp, HostAccess, KubeAdmitted, KubeWait, mergeValues, type ProfileChartSpec, type RenderedProfileChart } from "@lab/kubernetes";
 import { HarvesterAddon, type HarvesterBase } from "@lab/harvester";
 import type { RancherAccess } from "@lab/rancher";
-import type { RenderedObject, ResolvedDownstream, ResolvedHarvester, ResolvedHost, ResolvedLab, ResolvedOs } from "@lab/schema";
+import type { RenderedChartEntry, RenderedObject, ResolvedDownstream, ResolvedHarvester, ResolvedHost, ResolvedLab, ResolvedOs } from "@lab/schema";
 import type { ProfileSettings } from "./generated/profile-settings";
 import { chartValuesWithSecrets, objectValue } from "./secrets";
-import { chart, manifest, profileChart, version } from "./catalog";
+import { chart, login, manifest, profileChart, version } from "./catalog";
 import { harvesterCloudProvider } from "./builders/harvester-cloud-provider";
 import { hauler } from "./builders/hauler";
 import { kubernetesBuilder } from "./builders/kubernetes";
@@ -211,11 +211,14 @@ export function installChartProfile(
     // Only manifests and extra charts: install them all, in order.
     if (main < 0) return installEntries(lab, target, name, cluster, range(0, p.entries.length), after);
     const before = installEntries(lab, target, name, cluster, range(0, main), after);
+    const mainAfter = before.length ? before.slice(-1) : after;
+    const mainChart = p.entries[main] as { chart: string };
+    const waits = waitsFor(lab, `${target.name}/${name}/${mainChart.chart}`, cluster, target.chartValues[name].entries[main], mainAfter);
     const component = new ChartProfile(`${target.name}/${name}`, {
         cluster,
         chart: withSecrets(profileChart(name, target, lab, settings.version)),
         values: chartValuesWithSecrets(settings.values),
-        after: before.length ? before.slice(-1) : after,
+        after: [...mainAfter, ...waits],
     }, { aliases: target.chartValues[name]?.aliases ?? [] });
     const done = [...before, component.release];
     done.push(...installEntries(lab, target, name, cluster, range(main + 1, p.entries.length), [component.release]));
@@ -240,11 +243,13 @@ function chartProfileBuilder(name: string): AnyBuilder {
                 return { ready: done.slice(-1) };
             }
             const cluster = need(ctx, "kubernetes");
+            const mainChart = p.entries[main] as { chart: string };
+            const waits = waitsFor(lab, `${host.name}/${name}/${mainChart.chart}`, cluster, host.chartValues[name].entries[main], after);
             const component = new ChartProfile(`${host.name}/${name}`, {
                 cluster,
                 chart: withSecrets(profileChart(name, host, lab, s.version)),
                 values: chartValuesWithSecrets(s.values),
-                after,
+                after: [...after, ...waits],
             }, { aliases: host.chartValues[name]?.aliases ?? [] });
             const done: pulumi.Resource[] = [component.release];
             const objects = host.chartValues[name]?.objects ?? [];
@@ -305,7 +310,9 @@ function installEntries(lab: ResolvedLab, host: ChartTarget, profile: string, cl
         const entry = lab.profileCharts[profile].entries[i];
         const rendered = host.chartValues[profile].entries[i];
         if (!rendered.install) continue;
-        const opts: pulumi.CustomResourceOptions = { provider: cluster.provider, deletedWith: cluster.deletedWith, dependsOn: previous };
+        const what = entry.kind === "manifest" ? entry.manifest : entry.chart;
+        const waits = waitsFor(lab, `${host.name}/${profile}/${what}`, cluster, rendered, previous);
+        const opts: pulumi.CustomResourceOptions = { provider: cluster.provider, deletedWith: cluster.deletedWith, dependsOn: [...previous, ...waits] };
         let resource: pulumi.Resource;
         if (entry.kind === "manifest") {
             let url = manifest(entry.manifest, lab).replace(/\{version\}/g, rendered.version ?? version(entry.manifest, lab));
@@ -314,6 +321,7 @@ function installEntries(lab: ResolvedLab, host: ChartTarget, profile: string, cl
         } else {
             resource = helmApp(`${host.name}/${profile}/${entry.chart}`, {
                 ...chart(entry.chart, lab, rendered.version),
+                ...login(rendered),
                 namespace: entry.namespace,
                 releaseName: entry.chart,
                 // A profile's templates can name secrets (`field('username')` of a credentials setting): rendered here, kept secret.
@@ -325,6 +333,21 @@ function installEntries(lab: ResolvedLab, host: ChartTarget, profile: string, cl
         previous = [resource];
     }
     return done;
+}
+
+/**
+ * What a chart entry waits for before it's installed (its `waitFor`): an object on the cluster,
+ * with a condition True, that something else puts there (Fleet's cert-manager). After `after`.
+ */
+function waitsFor(lab: ResolvedLab, prefix: string, cluster: ChartCluster, rendered: RenderedChartEntry, after: pulumi.Resource[]): pulumi.Resource[] {
+    const waitFor = rendered.waitFor ?? [];
+    if (waitFor.length > 0 && !cluster.kubeconfig) throw new Error(`${prefix}: waitFor needs the cluster's kubeconfig`);
+    return waitFor.map((w, j) => new KubeWait(`${prefix}/wait-${j}`, {
+        kubeconfig: cluster.kubeconfig!,
+        path: w.path,
+        ...(w.condition ? { condition: w.condition } : {}),
+        timeoutSeconds: lab.timeouts.resourceReady,
+    }, { dependsOn: after, deletedWith: cluster.deletedWith }));
 }
 
 /**

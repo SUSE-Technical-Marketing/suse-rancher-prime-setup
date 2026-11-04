@@ -6,6 +6,8 @@ export interface ChartSpec {
     chart: string;
     repo?: string;
     version: string;
+    /** Its registry's login (an OCI registry that needs one: SUSE Application Collection). */
+    credentials?: { username: pulumi.Input<string>; password: pulumi.Input<string> };
 }
 
 /**
@@ -68,7 +70,9 @@ export function helmApp(name: string, args: HelmAppArgs, opts: pulumi.CustomReso
         version: args.version,
         namespace: args.namespace,
         createNamespace: true,
-        ...(args.repo ? { repositoryOpts: { repo: args.repo } } : {}),
+        ...(args.repo || args.credentials ? {
+            repositoryOpts: { ...(args.repo ? { repo: args.repo } : {}), ...(args.credentials ? { username: args.credentials.username, password: pulumi.secret(args.credentials.password) } : {}) },
+        } : {}),
         values,
         timeout: 900,
     }, opts);

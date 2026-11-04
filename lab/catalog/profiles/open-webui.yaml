@@ -1,0 +1,94 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: ChartProfile
+metadata:
+  name: open-webui
+  description: "Open WebUI chatting with an OpenAI-compatible API (a vLLM), traced into SUSE Observability when the cluster has the opentelemetry profile"
+spec:
+  icon: message-square       # in the lab UI (lucide.dev/icons)
+  # After SUSE AI Factory's Open WebUI and "Monitoring Open WebUI" guides. On a downstream cluster
+  # with a hosted-domain: its ingress at open-webui.<cluster>.<domain>, with Fleet's wildcard certificate.
+  targets: [ cluster ]
+  # The collector's address, when there is one.
+  uses: [ opentelemetry ]
+  charts:
+    - chart: open-webui
+      namespace: suse-ai
+      waitFor:
+        - path: /api/v1/namespaces/cattle-system/secrets/application-collection
+        - path: /api/v1/namespaces/cert-manager/secrets/wildcard-tls
+      values:
+        global:
+          imagePullSecrets: [ application-collection ]
+          # The ingress's certificate is the wildcard's copy (secret), not one the chart issues itself.
+          tls: { source: secret }
+        ollama: { enabled: false }
+        ollamaUrls: []
+        persistence:
+          enabled: true
+          storageClass: "{{ settings.storageClass | optional }}"
+        ingress:
+          enabled: true
+          class: ""
+          host: "{{ settings.host or ('open-webui.' ~ target.fqdn) }}"
+          tls: true
+          existingSecret: wildcard-tls
+        # SUSE AI's filter: GenAI traces (models, tokens, cost) for SUSE Observability's AI views.
+        pipelines:
+          enabled: "{{ settings.pipelines }}"
+          persistence:
+            storageClass: "{{ settings.storageClass | optional }}"
+          extraEnvVars:
+            - name: PIPELINES_URLS
+              value: "https://raw.githubusercontent.com/SUSE/suse-ai-observability-extension/refs/tags/{{ settings.filterVersion }}/integrations/oi-filter/suse_ai_filter.py;"
+            - name: PRICING_JSON
+              value: "https://raw.githubusercontent.com/SUSE/suse-ai-observability-extension/refs/tags/{{ settings.filterVersion }}/integrations/oi-filter/pricing.json"
+            - { name: OTEL_SERVICE_NAME, value: Open WebUI }
+            - name: OTEL_EXPORTER_HTTP_OTLP_ENDPOINT
+              value: "{{ outputs.opentelemetry.http if outputs.opentelemetry is defined else '' }}"
+        # The model's API: with pipelines, the chart puts the pipelines first (their key is the chart's default).
+        openaiBaseApiUrl: "{{ settings.openaiUrl }}"
+        openaiApiKey: "{{ settings.openaiApiKey }}"
+        openaiApiKeys: "{{ ['0p3n-w3bu!', settings.openaiApiKey] if settings.pipelines else [] }}"
+        extraEnvVars:
+          - { name: WEBUI_NAME, value: "{{ settings.title }}" }
+          - { name: DEFAULT_USER_ROLE, value: user }
+          - { name: DEFAULT_MODELS, value: "{{ settings.defaultModel | optional }}" }
+          # Open WebUI's own traces and metrics.
+          - { name: ENABLE_OTEL, value: "{{ 'true' if outputs.opentelemetry is defined else 'false' }}" }
+          - { name: ENABLE_OTEL_METRICS, value: "{{ 'true' if outputs.opentelemetry is defined else 'false' }}" }
+          - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "{{ outputs.opentelemetry.grpc if outputs.opentelemetry is defined else '' }}" }
+          - { name: OTEL_EXPORTER_OTLP_INSECURE, value: "true" }
+          - { name: OTEL_SERVICE_NAME, value: "{{ settings.title }}" }
+  settings:
+    type: object
+    required: [ openaiUrl ]
+    properties:
+      openaiUrl:
+        type: string
+        description: "the OpenAI-compatible API it chats with (a vLLM's router: http://<host>:<port>/v1)"
+      openaiApiKey:
+        type: string
+        default: dummy
+        description: its key (vLLM takes any)
+      defaultModel:
+        type: string
+        description: "the model a new chat starts with (vLLM's name for it: the Hugging Face model)"
+      title:
+        type: string
+        default: SUSE AI
+      host:
+        type: string
+        description: "its ingress's host; default open-webui.<cluster>.<domain>"
+      storageClass:
+        type: string
+        description: its volumes' storage class; default the cluster's
+      pipelines:
+        type: boolean
+        default: true
+        description: SUSE AI's Open WebUI filter in a pipelines server, for SUSE Observability's GenAI views
+      filterVersion:
+        type: string
+        default: v2.0.0
+        description: the SUSE AI Observability Extension release the filter is from
+      version: { type: string }
+      values: { type: chartValues }

@@ -49,7 +49,8 @@ interface Outputs extends Inputs {
     virtualizationInstance?: number;
 }
 
-const describe = (res: { status: number; body: any }) => {
+/** An API response, for an error message. */
+export const describe = (res: { status: number; body: any }) => {
     const message = typeof res.body === "string" ? res.body.slice(0, 200) : res.body?.message ?? res.body?.errors?.[0]?.message;
     return `HTTP ${res.status}${message ? `: ${message}` : ""}`;
 };
@@ -63,7 +64,7 @@ const REJECTED_GRACE_MS = 15 * 60 * 1000;
  * right after the token changes, Fleet is still upgrading the instance with it ("Service Token …
  * is unknown"); if it keeps being rejected, the token is wrong.
  */
-async function waitForApi(i: Inputs): Promise<void> {
+export async function waitForApi(i: Pick<Inputs, "url" | "adminToken" | "insecure" | "timeoutSeconds">): Promise<void> {
     let rejectedSince: number | undefined;
     await poll(async seen => {
         try {
@@ -221,30 +222,18 @@ export class ObservabilityRegistration extends pulumi.dynamic.Resource {
     }
 }
 
-/** The Secret the agent reads its token from (`global.apiKey.fromSecret`), and the chart's values. */
+/** The Secret the agent reads its token from (`global.apiKey.fromSecret` in its profile's values). */
 export const AGENT_SECRET = "suse-observability-agent-key";
-
-/**
- * The agent chart's values: where to report, as which cluster, its token from AGENT_SECRET. On a
- * Harvester, its OpenTelemetry integrations too: SUSE Virtualization, and Rancher's agent when it's
- * imported into a Rancher.
- */
-export function agentValues(url: string, clusterName: string, harvester?: { rancherAgent: boolean }): Record<string, unknown> {
-    return {
-        stackstate: { url: `${url.replace(/\/+$/, "")}/receiver/stsAgent`, cluster: { name: clusterName } },
-        global: { apiKey: { fromSecret: AGENT_SECRET } },
-        ...(harvester ? { otel: { enabled: true, integrations: { suseVirtualization: true, rancherAgent: harvester.rancherAgent } } } : {}),
-    };
-}
 
 export interface ObservabilityAgentArgs {
     cluster: Pick<ClusterAccess, "provider" | "deletedWith">;
     chart: { chart: string; repo?: string; version: string; namespace: string };
-    url: string;
-    clusterName: string;
     /** The agent's service token. */
     token: pulumi.Input<string>;
-    /** The lab's own chart values, under the engine's. */
+    /** Its profile's values for this target, rendered: defaults, and locked ones (where to report, as which cluster). */
+    defaults: Record<string, unknown>;
+    lockedValues: Record<string, unknown>;
+    /** The lab's own chart values, between the two. */
     values?: pulumi.Input<Record<string, unknown>>;
     after: pulumi.Resource[];
 }
@@ -266,8 +255,9 @@ export class ObservabilityAgent extends pulumi.ComponentResource {
             ...(args.chart.repo ? { repo: args.chart.repo } : {}),
             version: args.chart.version,
             namespace: args.chart.namespace,
+            defaults: args.defaults,
             values: args.values ?? {},
-            lockedValues: agentValues(args.url, args.clusterName),
+            lockedValues: args.lockedValues,
         }, { ...o, dependsOn: [secret] });
         this.registerOutputs({});
     }

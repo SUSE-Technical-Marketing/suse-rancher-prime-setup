@@ -10,7 +10,7 @@ export const MACHINE_CLOUD_INIT_KEYS = ["packages", "runcmd", "package_update"];
 
 /** The lab's hosts, their profiles checked and ordered, and their charts' values. */
 export function resolveHosts(r: Resolution): void {
-    const { lab, L, diags, useOs, allOs, catalog, registry, harvesters, hosts, vmDefaults, needImage, checkNetwork, fixedAddress, parseProfiles, useCredentials, useSecretOrString, useTemplate, renderProfile } = r;
+    const { lab, L, diags, useOs, allOs, catalog, registry, harvesters, hosts, vmDefaults, needImage, checkNetwork, fixedAddress, parseProfiles, useCredentials, useSecretOrString, useTemplate } = r;
 
     // Kubernetes on a host: its own distribution, or Rancher's as a metal cluster's node.
     const metalNodes = new Set(Object.values(lab.downstream).flatMap(d => (d.type === "metal" ? d.nodes.map(n => n.host) : [])));
@@ -85,14 +85,22 @@ export function resolveHosts(r: Resolution): void {
         for (const host of hosts.values()) host.profileOrder = profileBuildOrder(registry, host.profiles);
     }
 
-    // --- Chart profiles' values: their templates, rendered per host (§17) -------------------------
+}
+
+/**
+ * The hosts' profiles' charts and objects, their templates rendered per host (§17): after the
+ * downstream clusters' Fleet profiles, whose outputs a profile's `refs` read (an agent's observer).
+ */
+export function renderHostProfiles(r: Resolution): void {
+    const { registry, hosts, renderProfile } = r;
     for (const host of hosts.values()) {
         // Only from the profile that actually provides each capability (not a fallback another profile replaced).
         for (const name of Object.keys(host.profiles)) {
             for (const [cap, o] of Object.entries(registry[name]?.outputs ?? {})) if (host.providers[cap]?.includes(name)) host.outputs[cap] = o;
         }
+        const target = { kind: "host" as const, name: host.name, fqdn: host.fqdn, capabilities: host.capabilities };
         for (const name of Object.keys(host.profiles)) {
-            const rendered = renderProfile(name, host.profiles, host.outputs, { host: { name: host.name, fqdn: host.fqdn }, target: { kind: "host", name: host.name, fqdn: host.fqdn } }, `host ${host.name}`);
+            const rendered = renderProfile(name, host.profiles, host.outputs, { host: { name: host.name, fqdn: host.fqdn }, target }, `host ${host.name}`);
             if (rendered) host.chartValues[name] = rendered;
         }
     }

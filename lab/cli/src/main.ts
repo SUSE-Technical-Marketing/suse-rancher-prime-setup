@@ -5,6 +5,7 @@ import { parseArgs } from "node:util";
 import { defaultPersonalConfigPath, formatDiagnostic, loadCatalog, loadLab, PersonalConfig, ResolvedLab } from "@lab/schema";
 import { awsKeys, findAwsLeftovers } from "./aws";
 import { CloudInitWatch } from "./cloudinit";
+import { ConcurrentUpdateError } from "@pulumi/pulumi/automation";
 import {
     checkOwnership, claimHarvesters, closeSessions, currentUser, HarvesterSession, openSessions, releaseHarvesters, writeRunFiles,
 } from "./harvesters";
@@ -12,12 +13,14 @@ import { kubeconfigPath, mergeKubeconfigs, writeKubeconfig } from "./kubeconfig"
 import { findLeftovers } from "./leftovers";
 import { log } from "./log";
 import { renderCatalog, renderPlan, renderProfiles } from "./plan";
+import { buildCatalogStackPacks, stackPackProblems } from "./stackpacks";
 import { resolveSecrets, ResolvedSecret } from "./secrets";
-import { createOrSelectStack, selectStack, workspaceSettings, writeStackConfig } from "./workspace";
+import { createOrSelectStack, selectStack, stateLocks, workspaceSettings, writeStackConfig } from "./workspace";
 
 const USAGE = `Usage: lab <command> <lab.yaml> [options]
        lab profiles
        lab catalog [lab.yaml]
+       lab stackpacks [lab.yaml]
 
 Commands
   validate   Check the lab file, personal config and secrets; changes nothing
@@ -31,6 +34,8 @@ Commands
   profiles   List the host profiles and their rules (no lab file needed)
   catalog    Show the effective catalog (components, plugins, Fleet, OS profiles) and where
              each entry comes from; with a lab file, including its overrides
+  stackpacks Build the catalog's StackPacks that come from source (suse-ai) into lab/.cache/stackpacks/,
+             for "up" to upload; with a lab file, its own catalog's too
 
 Options
   --config <file>       Personal config (default: $LAB_CONFIG or ~/.config/lab/config.yaml)
@@ -39,7 +44,7 @@ Options
                         changed in the Harvester UI is put back
   --show-secrets        Show secret outputs in plain text (outputs)
   --harvester <name>    Only this Harvester (release; repeatable)
-  --force               Release a claim owned by another lab or user (release)
+  --force               Release a claim owned by another lab or user (release); build again (stackpacks)
   --check               List what the lab left on its Harvesters; destroys nothing (destroy)
 `;
 
@@ -66,6 +71,9 @@ interface Context {
 }
 
 /** Load and check everything; print diagnostics; exit on errors. */
+/** The lab a command works on, for a locked state's message. */
+let currentLab: string | undefined;
+
 function load(labFile: string, configPath: string | undefined): Context {
     const result = loadLab({ labFile, personalConfig: configPath });
     for (const d of result.diagnostics.warnings) log.warn(formatDiagnostic(d).replace(/^warning: /, ""));
@@ -74,6 +82,7 @@ function load(labFile: string, configPath: string | undefined): Context {
         log.error(`${result.diagnostics.errors.length} problem(s) in the lab definition`);
         process.exit(1);
     }
+    currentLab = result.lab.name;
     return { lab: result.lab, personal: result.personal, personalSource: result.personalSource };
 }
 
@@ -128,8 +137,11 @@ async function withHarvesters(
 const versionsOf = (sessions: HarvesterSession[]) => Object.fromEntries(sessions.map(s => [s.harvester.name, s.version]));
 
 let pulumiStreamed = false;
+// Pulumi's output and its errors as it runs: what it says before the engine starts (a locked stack)
+// is only on stderr.
 const pulumiOutput = {
     onOutput: (s: string) => { pulumiStreamed = true; process.stdout.write(s); },
+    onError: (s: string) => process.stderr.write(s),
     color: (process.stdout.isTTY ? "always" : "never") as "always" | "never",
 };
 
@@ -168,6 +180,14 @@ async function main(argv: string[]): Promise<void> {
         console.log(renderCatalog(catalog));
         return;
     }
+    if (command === "stackpacks") {
+        if (rest.length > 0) throw new UsageError(`unexpected arguments: ${rest.join(" ")}`);
+        const { diagnostics, catalog } = loadCatalog({ labFile, personalConfig: opts.config ?? defaultPersonalConfigPath() });
+        for (const d of diagnostics.items) console.error(formatDiagnostic(d));
+        if (!catalog) process.exit(1);
+        for (const line of await buildCatalogStackPacks(catalog, { force: !!opts.force })) log.ok(line);
+        return;
+    }
     if (!labFile) throw new UsageError(`"${command}" needs a lab file`);
     if (rest.length > 0) throw new UsageError(`unexpected arguments: ${rest.join(" ")}`);
     const configPath = opts.config ?? defaultPersonalConfigPath();
@@ -194,6 +214,9 @@ async function main(argv: string[]): Promise<void> {
             if (ctx.lab.planned.length > 0) {
                 throw new UsageError(`${labFile} uses ${ctx.lab.planned.join(", ")}, which the engine doesn't build yet (status: planned); "${command}" needs a lab without them`);
             }
+            // StackPacks built from source are built before, by "lab stackpacks": "up" uploads them.
+            const unbuilt = stackPackProblems(ctx.lab);
+            if (unbuilt.length > 0) throw new Error(unbuilt.join("\n"));
             const { values } = secretsFor(ctx, true);
             const settings = workspaceSettings();
             if (settings.createdPassphrase) {
@@ -323,7 +346,20 @@ main(process.argv.slice(2)).catch(e => {
         process.stderr.write(`\n${USAGE}`);
         process.exit(2);
     }
-    // Pulumi's own output was already streamed; its error repeats all of it.
+    // A stack is locked while a command runs on it, and stays locked if one was stopped halfway.
+    if (e instanceof ConcurrentUpdateError) {
+        const locks = currentLab ? stateLocks(currentLab, workspaceSettings()) : [];
+        log.error(`the state of lab ${currentLab ?? "?"} is locked: another lab command is running on it, or one was stopped halfway`);
+        for (const l of locks) {
+            const who = `${l.user ?? "?"}@${l.host ?? "?"}, pid ${l.pid ?? "?"}, since ${l.since ?? "?"}`;
+            const state = l.running === true ? "that process still runs: let it finish"
+                : l.running === false ? "that process is gone: the lock is stale, remove the file and try again"
+                : "it ran on another machine: check it isn't running there, then remove the file";
+            log.error(`  ${l.file} (${who}): ${state}`);
+        }
+        process.exit(1);
+    }
+    // Pulumi's own output and errors were already streamed; its error repeats all of it.
     const message = (e as Error).message;
     // Only abbreviate when Pulumi actually streamed something; otherwise the message is all there is.
     log.error(pulumiStreamed && /Command failed with exit code \d+: pulumi /.test(message) ? "Pulumi reported errors; see the output above" : message);

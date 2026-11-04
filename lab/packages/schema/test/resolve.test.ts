@@ -932,6 +932,62 @@ ${catalog}`;
         ]);
     });
 
+    describe("value overlays", () => {
+        // A probe chart profile: overlays by the target's kind and capabilities, on a host and on a GPU cluster.
+        const PROBE = `catalog:
+  chartProfiles:
+    probe:
+      charts:
+        - chart: sprouter
+          namespace: probe
+          values: { base: 1, where: anywhere }
+          valueOverlays:
+            - when: "{{ 'gpu' in target.capabilities }}"
+              values: { gpu: { enabled: true } }
+            - when: "{{ target.kind == 'cluster' and 'gpu' in target.capabilities }}"
+              lockedValues: { where: gpu-cluster }
+            - when: "{{ target.kind == 'host' }}"
+              values: { where: host, caps: "{{ target.capabilities | join(',') }}" }
+      objects:
+        - name: config
+          object: { apiVersion: v1, kind: ConfigMap, metadata: { name: probe, namespace: probe }, data: { base: "1", where: anywhere } }
+          objectOverlays:
+            - when: "{{ 'gpu' in target.capabilities }}"
+              object: { data: { gpu: "yes", where: gpu } }
+      settings: { type: object, properties: { values: { type: chartValues } } }
+`;
+        const probeLab = (cluster: string, extra = "") => load(lab(`${cluster}\n    profiles: { probe: { ${extra} } }`, PROBE).replace(
+            `profiles: { ${RANCHER_STACK} }`, `profiles: { ${RANCHER_STACK}, probe: {} }`));
+
+        it("apply in order where their when is true: by the target's kind and capabilities (its Fleet profiles' too)", () => {
+            const result = probeLab("    fleetProfiles: { gpu-operator: {} }");
+            expect(errors(result)).toEqual([]);
+            const onCluster = result.lab!.downstream[0].chartProfiles!.chartValues.probe.entries[0];
+            expect(onCluster.values).toEqual({ base: 1, where: "anywhere", gpu: { enabled: true } });
+            expect(onCluster.lockedValues).toEqual({ where: "gpu-cluster" });
+            const onHost = result.lab!.hosts[0].chartValues.probe.entries[0];
+            expect(onHost.values).toMatchObject({ base: 1, where: "host" });
+            expect(onHost.values.gpu).toBeUndefined();
+            expect(String(onHost.values.caps).split(",")).toEqual(expect.arrayContaining(["kubernetes", "rancher", "tls"]));
+            // Objects too: maps merged key by key.
+            const config = (r: typeof result) => r.lab!.downstream[0].chartProfiles!.chartValues.probe.objects[0].object;
+            expect(config(result)).toMatchObject({ metadata: { name: "probe" }, data: { base: "1", where: "gpu", gpu: "yes" } });
+            // Without the GPU Fleet profile, no GPU overlays.
+            const plainLab = probeLab("    fleetProfiles: { storage: {} }");
+            const plain = plainLab.lab!.downstream[0].chartProfiles!.chartValues.probe.entries[0];
+            expect(plain).toMatchObject({ values: { base: 1, where: "anywhere" }, lockedValues: {} });
+            expect(config(plainLab).data).toEqual({ base: "1", where: "anywhere" });
+        });
+
+        it("protect their locked paths, and need a when that's true or false", () => {
+            expect(errors(probeLab("    fleetProfiles: { gpu-operator: {} }", "values: { where: mine }"))).toEqual([
+                "downstream.apps.profiles.probe.values.where: is set by the lab engine (where); it can't be overridden",
+            ]);
+            const broken = load(lab("    profiles: { probe: {} }", PROBE.replace(`"{{ target.kind == 'host' }}"`, `"{{ target.kind }}"`)));
+            expect(errors(broken)).toContain("ChartProfile/probe.spec.charts[0].valueOverlays[2].when: must render to true or false, not \"cluster\" (on cluster apps)");
+        });
+    });
+
     it("installs ChartProfiles on the cluster, rendered for it", () => {
         const result = load(lab("    profiles: { cert-manager: {}, sprouter: {} }"));
         expect(errors(result)).toEqual([]);
@@ -944,7 +1000,7 @@ ${catalog}`;
 
     it("takes only ChartProfiles, with their rules, on a cluster", () => {
         expect(errors(load(lab("    profiles: { k3s: {}, storage: {}, nope: {}, ai-factory: { applicationCollection: \"{{ secrets.a }}\", suseRegistry: \"{{ secrets.s }}\" } }")))).toEqual([
-            expect.stringMatching(/^downstream\.apps\.profiles\.k3s: is a Profile for lab hosts .*a downstream cluster takes: ai-factory, cert-manager, hauler-chart, landlock, metallb, outrider, sprouter, suse-observability-agent, traefik$/),
+            expect.stringMatching(/^downstream\.apps\.profiles\.k3s: is a Profile for lab hosts .*a downstream cluster takes: ai-factory, cert-manager, hauler-chart, landlock, metallb, open-webui, opentelemetry, outrider, sprouter, suse-observability-agent, traefik, vllm$/),
             "downstream.apps.profiles.storage: is a Fleet profile: list it under fleetProfiles",
             expect.stringMatching(/^downstream\.apps\.profiles\.nope: unknown profile "nope"/),
             expect.stringMatching(/^downstream\.apps\.profiles\.ai-factory: needs rancher .*on the same cluster$/),
@@ -1038,11 +1094,92 @@ downstream:
         const agent = "suse-observability-agent: { observer: obs }";
         const { lab: resolved, diagnostics } = lab({ host: `, ${agent}`, harvester: agent, apps: agent });
         expect(diagnostics.errors).toEqual([]);
-        expect(resolved!.downstream.find(d => d.name === "obs")!.fleetOutputs).toEqual({ "suse-observability": { url: "https://observability.obs.lab.geeko.me" } });
+        expect(resolved!.downstream.find(d => d.name === "obs")!.fleetOutputs).toEqual({
+            "suse-observability": { url: "https://observability.obs.lab.geeko.me", otlp: "otlp-observability.obs.lab.geeko.me:443" },
+        });
         expect(resolved!.hosts[0].profiles["suse-observability-agent"]).toEqual({ observer: "obs", adminToken: "{{ secrets.observability.token }}" });
         expect(resolved!.harvesters[0].profiles["suse-observability-agent"]).toMatchObject({ observer: "obs" });
         expect(resolved!.downstream.find(d => d.name === "apps")!.chartProfiles!.profiles["suse-observability-agent"]).toMatchObject({ observer: "obs" });
         expect(resolved!.secrets.observability).toEqual({ fields: ["token"] });
+    });
+
+    describe("OpenTelemetry (the opentelemetry ChartProfile)", () => {
+        const otel = (settings: string, inputs = 'inputs: { appco: "{{ secrets.appco }}" }\n') =>
+            load(`${inputs}${BASE.replace("  hv-north: {}", "  hv-north: {}")}
+hosts:
+  vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { ${RANCHER_STACK} } }
+downstream:
+  obs: { type: harvester, rancher: vm, ${POOL}, fleetProfiles: { storage: {}, observability: {} } }
+  apps: { type: harvester, rancher: vm, ${POOL}, profiles: { opentelemetry: { ${settings} } } }
+`);
+
+        it("sends to its observer's OTLP endpoint as the cluster, after what Fleet puts there, logged in to Application Collection", () => {
+            const result = otel("observer: obs");
+            expect(errors(result)).toEqual([]);
+            const rendered = result.lab!.downstream.find(d => d.name === "apps")!.chartProfiles!.chartValues.opentelemetry;
+            const chart = rendered.entries[0];
+            expect(chart.credentials).toBe("{{ secrets.appco }}");
+            expect(chart.waitFor).toEqual([
+                { path: "/apis/apps/v1/namespaces/cert-manager/deployments/cert-manager-webhook", condition: "Available" },
+                { path: "/api/v1/namespaces/cattle-system/secrets/application-collection" },
+                { path: "/api/v1/namespaces/cattle-system/secrets/suse-registry" },
+            ]);
+            expect(chart.values).toMatchObject({ global: { imagePullSecrets: ["application-collection"] } });
+            const collector = rendered.objects.find(o => o.name === "collector")!.object as any;
+            expect(collector.spec.config.exporters.otlp).toEqual({
+                endpoint: "otlp-observability.obs.lab.geeko.me:443",
+                headers: { Authorization: "SUSEObservability ${env:API_KEY}" },
+                // Let's Encrypt staging in the test lab: a CA nothing trusts.
+                tls: { insecure_skip_verify: true },
+            });
+            expect(collector.spec.env).toContainEqual({ name: "K8S_CLUSTER_NAME", value: "apps" });
+            expect(rendered.objects.find(o => o.name === "api-key")!.object).toMatchObject({ stringData: { API_KEY: "{{ secrets.observability.token }}" } });
+            expect(result.lab!.secrets).toMatchObject({ appco: "credentials", observability: { fields: ["token"] } });
+        });
+
+        it("wants OpenTelemetry's and SUSE AI's StackPacks on its observer: once for every cluster sending there", () => {
+            const result = load(`inputs: { appco: "{{ secrets.appco }}" }\n${BASE}
+hosts:
+  vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { ${RANCHER_STACK} } }
+downstream:
+  obs: { type: harvester, rancher: vm, ${POOL}, fleetProfiles: { storage: {}, observability: {} } }
+  apps: { type: harvester, rancher: vm, ${POOL}, profiles: { opentelemetry: { observer: obs } } }
+  chat: { type: harvester, rancher: vm, ${POOL}, profiles: { opentelemetry: { observer: obs } } }
+`);
+            expect(errors(result)).toEqual([]);
+            expect(result.lab!.stackPacks.map(p => ({ ...p, stackPack: p.stackPack.archive ?? "catalog" }))).toEqual([
+                { observer: "obs", url: "https://observability.obs.lab.geeko.me", name: "open-telemetry", stackPack: "catalog", adminToken: "{{ secrets.observability.token }}", wantedBy: ["apps/opentelemetry", "chat/opentelemetry"] },
+                // Built from source: its .sts, which `lab stackpacks` builds before `up`.
+                { observer: "obs", url: "https://observability.obs.lab.geeko.me", name: "suse-ai", stackPack: expect.stringMatching(/^https:\/\/github\.com\/SUSE\/suse-ai-observability-extension\/archive\/refs\/tags\/v\{version\}\.zip$/), file: expect.stringMatching(/\/lab\/\.cache\/stackpacks\/suse-ai-3\.0\.0\.sts$/), adminToken: "{{ secrets.observability.token }}", wantedBy: ["apps/opentelemetry", "chat/opentelemetry"] },
+            ]);
+            expect(result.lab!.stackPacks[1].stackPack).toMatchObject({ kind: "StackPack", version: "3.0.0", path: "stackpack/suse-ai", sha256: expect.stringMatching(/^[0-9a-f]{64}$/), unlocked: "overwrite" });
+            expect(result.lab!.stackPacks[0].stackPack).toEqual({ kind: "StackPack", unlocked: "fail", description: expect.any(String) });
+        });
+
+        it("names StackPacks of the catalog, on a clusterRefs field providing suse-observability", () => {
+            const bad = `catalog:
+  chartProfiles:
+    probe:
+      charts: [ { chart: sprouter, namespace: probe } ]
+      clusterRefs: [ { field: observer, provides: suse-observability } ]
+      observerStackPacks: { on: target, adminToken: x, install: [ suse-ai, nope, opentelemetry-operator ] }
+      settings: { type: object, properties: { observer: { type: dnsLabel } } }
+`;
+            expect(errors(load(`${bad}${BASE}`))).toEqual([
+                "ChartProfile/probe.spec.observerStackPacks.on: isn't one of its clusterRefs fields providing suse-observability",
+                'ChartProfile/probe.spec.observerStackPacks.install[1]: no StackPack "nope"',
+                'ChartProfile/probe.spec.observerStackPacks.install[2]: no StackPack "opentelemetry-operator"',
+            ]);
+        });
+
+        it("needs the lab's Application Collection login, and an observer with SUSE Observability", () => {
+            expect(errors(otel("observer: obs", ""))).toEqual([
+                "inputs.appco: required: HelmChart opentelemetry-operator (the opentelemetry profile on cluster apps) logs in to its registry with it",
+            ]);
+            expect(errors(otel("observer: apps"))).toEqual([
+                expect.stringMatching(/^downstream\.apps\.profiles\.opentelemetry\.observer: /),
+            ]);
+        });
     });
 
     it("need an observer that runs SUSE Observability, in the lab", () => {
@@ -1071,7 +1208,7 @@ hosts:
   vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { nope: {}, k3s: { versoin: x }, hauler: { port: 70000 } } }
 `);
         expect(errors(result)).toEqual([
-            'hosts.vm.profiles: unknown profile "nope"; known: ai-factory, cert-manager, harvester-cloud-provider, harvester-dns-controller, hauler, hauler-chart, k3s, landlock, metallb, mlm-client, mlm-server, outrider, rancher, rke2, sprouter, suse-observability-agent, traefik',
+            'hosts.vm.profiles: unknown profile "nope"; known: ai-factory, cert-manager, harvester-cloud-provider, harvester-dns-controller, hauler, hauler-chart, k3s, landlock, metallb, mlm-client, mlm-server, open-webui, opentelemetry, outrider, rancher, rke2, sprouter, suse-observability-agent, traefik, vllm',
             'hosts.vm.profiles.k3s.versoin: unknown field "versoin"',
             "hosts.vm.profiles.hauler.port: Too big: expected number to be <=65535",
         ]);

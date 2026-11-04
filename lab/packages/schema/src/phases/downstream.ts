@@ -75,7 +75,9 @@ export function resolveClusterProfiles(r: Resolution): void {
         for (const n of Object.keys(profiles)) {
             for (const [cap, o] of Object.entries(registry[n]?.outputs ?? {})) if (caps.get(cap)?.includes(n)) outputs[cap] = o;
         }
-        const target = { kind: "cluster" as const, name: d.name, fqdn: `${d.name}.${lab.domain}` };
+        // Its capabilities: its profiles' and its Fleet profiles' (`gpu`).
+        const capabilities = [...new Set([...caps.keys(), ...(d.fleetCapabilities ?? [])])].sort();
+        const target = { kind: "cluster" as const, name: d.name, fqdn: `${d.name}.${lab.domain}`, capabilities };
         const chartValues: ResolvedClusterProfiles["chartValues"] = {};
         for (const n of Object.keys(profiles)) {
             const rendered = renderProfile(n, profiles, outputs, { target }, `cluster ${d.name}`);

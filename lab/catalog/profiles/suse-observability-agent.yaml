@@ -7,6 +7,25 @@ spec:
   icon: radar                # in the lab UI (lucide.dev/icons)
   # On a lab host's cluster, a downstream cluster, or a Harvester itself (as an add-on).
   targets: [ host, cluster, harvester ]
+  # The engine registers it with its observer (a token of its own), then installs the chart with
+  # these values: where to report, as which cluster, its token from the Secret it creates. Values
+  # for some targets only are overlays: on a Harvester, its OpenTelemetry integrations.
+  charts:
+    - chart: suse-observability-agent
+      namespace: suse-observability-agent
+      lockedValues:
+        stackstate:
+          url: "{{ refs.observer.outputs['suse-observability'].url }}/receiver/stsAgent"
+          cluster: { name: "{{ settings.clusterName or target.name }}" }
+        global: { apiKey: { fromSecret: suse-observability-agent-key } }
+      values:
+        # RKE2's and k3s's kubelets serve self-signed certificates.
+        nodeAgent: { skipKubeletTLSVerify: true }
+      valueOverlays:
+        # SUSE Virtualization's metrics, and Rancher's agent when the Harvester is imported into Rancher.
+        - when: "{{ target.kind == 'harvester' }}"
+          lockedValues:
+            otel: { enabled: true, integrations: { suseVirtualization: true, rancherAgent: "{{ target.imported }}" } }
   requires: [ kubernetes ]
   # The observer: a downstream cluster that runs SUSE Observability (the observability Fleet profile).
   clusterRefs:

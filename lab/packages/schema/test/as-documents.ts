@@ -28,6 +28,10 @@ function catalogDocuments(catalog: Record<string, any> = {}): object[] {
     for (const [name, repo] of Object.entries<any>(catalog.fleet?.repos ?? {})) docs.push(doc("FleetRepo", name, repo));
     for (const [name, op] of Object.entries<any>(catalog.fleet?.helmOps ?? {})) docs.push(doc("FleetHelmOp", name, op));
     for (const [name, p] of Object.entries<any>(catalog.fleet?.profiles ?? {})) docs.push(doc("FleetProfile", name, p));
+    for (const [name, p] of Object.entries<any>(catalog.chartProfiles ?? {})) {
+        const { description, ...spec } = p;
+        docs.push(doc("ChartProfile", name, spec, description ?? `test ${name}`));
+    }
     for (const [name, os] of Object.entries<any>(catalog.os ?? {})) {
         const { displayName, ...rest } = os;
         docs.push(doc("OperatingSystem", name, rest, displayName));

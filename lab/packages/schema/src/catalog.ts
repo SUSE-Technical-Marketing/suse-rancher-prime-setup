@@ -39,10 +39,17 @@ export interface ComponentInput extends Partial<DistributionSpec> {
     /** A Binary's download URL. */
     download?: string;
     namespace?: string;
+    /** A HelmChart's registry login: the lab input holding it. */
+    credentials?: string;
+    /** A StackPack's source archive, its directory in it, the sha256 of the .sts built from it, its unlocked strategy. */
+    archive?: string;
+    path?: string;
+    sha256?: string;
+    unlocked?: "fail" | "skip" | "overwrite";
 }
 
 /** The component kinds: one namespace, profiles and the engine refer to them by name. */
-export type ComponentKind = "HelmChart" | "Manifest" | "Binary" | "KubernetesDistribution";
+export type ComponentKind = "HelmChart" | "Manifest" | "Binary" | "StackPack" | "KubernetesDistribution";
 
 /** An ACME server certificates come from (an AcmeServer's `spec`). */
 export interface AcmeServerInput {
@@ -153,9 +160,11 @@ export interface Sourced<T> {
  * or a Kubernetes distribution the engine installs itself.
  */
 export type ResolvedComponent =
-    | { kind: "HelmChart"; chart: string; repo?: string; version: VersionValue; namespace?: string; description?: string }
+    | { kind: "HelmChart"; chart: string; repo?: string; version: VersionValue; namespace?: string; credentials?: string; description?: string }
     | { kind: "Manifest"; manifest: string; version: VersionValue; description?: string }
     | { kind: "Binary"; download: string; version: VersionValue; description?: string }
+    /** In the instance's catalog (no `archive`: its latest version, unless one is set), or built from `archive` and uploaded. */
+    | { kind: "StackPack"; version?: string; archive?: string; path?: string; sha256?: string; unlocked: "fail" | "skip" | "overwrite"; description?: string }
     | ({ kind: "KubernetesDistribution"; version: VersionValue; description?: string } & DistributionSpec);
 
 export type ResolvedDistribution = Extract<ResolvedComponent, { kind: "KubernetesDistribution" }>;
@@ -263,9 +272,24 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
     for (const [key, { value, source }] of Object.entries(inputs)) {
         const kind = kinds[key] ?? "HelmChart";
         const at = (field?: string) => docAt(kind, key, field);
-        const { version, manifest, download, chart, repo, namespace } = value;
+        const { version, manifest, download, chart, repo, namespace, credentials } = value;
         const description = descriptions[key] ? { description: descriptions[key] } : {};
-        if (version === undefined) {
+        if (kind === "StackPack") {
+            const { archive, path, sha256, unlocked } = value;
+            if (version !== undefined && typeof version !== "string") diags.error(source, at("spec.version"), "must be one version (a StackPack isn't per Harvester version)");
+            const missing = archive === undefined ? [] : (["path", "sha256", "version"] as const).filter(f => value[f] === undefined);
+            for (const f of missing) diags.error(source, at(`spec.${f}`), "required with a url: the .sts is built from the archive");
+            if (missing.length === 0 && (version === undefined || typeof version === "string")) {
+                components[key] = {
+                    value: {
+                        kind, unlocked: unlocked ?? "fail", ...description,
+                        ...(typeof version === "string" ? { version } : {}),
+                        ...(archive !== undefined ? { archive, path, sha256 } : {}),
+                    },
+                    source,
+                };
+            }
+        } else if (version === undefined) {
             diags.error(source, at("spec.version"), "required");
         } else if (kind === "Manifest") {
             if (manifest === undefined) diags.error(source, at("spec.url"), "required");
@@ -298,7 +322,7 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
             diags.error(source, at("spec.repo"), `chart "${chart}" needs a repo, or must be an oci:// reference`);
         } else {
             components[key] = {
-                value: { kind, chart, version, ...(repo !== undefined ? { repo } : {}), ...(namespace !== undefined ? { namespace } : {}), ...description },
+                value: { kind, chart, version, ...(repo !== undefined ? { repo } : {}), ...(namespace !== undefined ? { namespace } : {}), ...(credentials !== undefined ? { credentials } : {}), ...description },
                 source,
             };
         }
@@ -339,6 +363,15 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
                     for (const f of ["namespace", "values", "lockedValues"] as const) if (e[f] !== undefined) problems.push({ at: `${at}.${f}`, message: "only for a chart" });
                 }
             });
+            const sp = rules.observerStackPacks;
+            if (sp) {
+                if (!(rules.clusterRefs ?? []).some(r => r.field === sp.on && r.provides === "suse-observability")) {
+                    problems.push({ at: "spec.observerStackPacks.on", message: `isn't one of its clusterRefs fields providing suse-observability` });
+                }
+                sp.install.forEach((n, i) => {
+                    if (components[n]?.value.kind !== "StackPack") problems.push({ at: `spec.observerStackPacks.install[${i}]`, message: `no StackPack "${n}"` });
+                });
+            }
             if (distribution !== undefined && components[distribution]?.value.kind !== "KubernetesDistribution") problems.push({ at: "spec.distribution", message: `no KubernetesDistribution "${distribution}"` });
             // On a Harvester, a chart is an add-on: one chart of its own, its objects (made first), nothing else.
             if (kind === "chart" && profile.targets?.includes("harvester")) {
@@ -364,7 +397,7 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
             profiles[name] = {
                 ...rules, name, description, source, kind,
                 // Its first chart's locked values.
-                protectedValues: valuePaths(main?.lockedValues ?? {}),
+                protectedValues: [...new Set([main?.lockedValues ?? {}, ...(main?.valueOverlays ?? []).map(o => o.lockedValues ?? {})].flatMap(v => valuePaths(v)))],
                 settingsSchema: schema,
                 settings: settingZod(schema),
                 ...(main ? { chart: main.chart } : {}),

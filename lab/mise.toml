@@ -16,6 +16,12 @@ description = "Run the lab CLI (mise run lab -- <command> <lab.yaml>)"
 dir = "{{cwd}}"
 run = "{{config_root}}/node_modules/.bin/tsx {{config_root}}/cli/src/main.ts"
 
+[tasks.stackpacks]
+depends = ["install"]
+description = "Build the catalog's StackPacks that come from source (suse-ai) into .cache/stackpacks/, for lab up to upload"
+dir = "{{cwd}}"
+run = "{{config_root}}/node_modules/.bin/tsx {{config_root}}/cli/src/main.ts stackpacks"
+
 [tasks.test]
 depends = ["install"]
 description = "Run all unit tests"

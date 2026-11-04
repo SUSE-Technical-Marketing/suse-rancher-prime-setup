@@ -10,7 +10,7 @@ import { haulManifestFiles, renderHaulManifest } from "../hauler";
 import { createObjects } from "../objects";
 import type { ResolvedOs } from "../os";
 import type { Profiles } from "../profiles";
-import { activeRequirements, describeCapability, hostCapabilities } from "../profiles/rules";
+import { activeRequirements, describeCapability, getPath, hostCapabilities } from "../profiles/rules";
 import { profileTargets } from "../profiles/define";
 import type { FixedAddress, RenderedProfile, ResolvedAwsSite, ResolvedDownstream, ResolvedHarvester, ResolvedHost, ResolveInput } from "../resolve";
 import { AWS_CREDENTIAL_FIELDS, type AwsCredentials, type Credentials } from "../schema";
@@ -196,6 +196,14 @@ export function createResolution(input: ResolveInput, diags: Diagnostics) {
         const caps = hostCapabilities(registry, profiles);
         if (where.target.kind !== "host") caps.set("kubernetes", [`the ${where.target.kind}`]);
         if (activeRequirements(def, profiles[name]).some(c => !caps.has(c))) return undefined;
+        // Nor a cluster its settings name that isn't there, or doesn't provide what it should (the clusterRefs check reports those).
+        const refs = Object.fromEntries((def.clusterRefs ?? []).flatMap(ref => {
+            const cluster = getPath(profiles[name], ref.field);
+            const d = typeof cluster === "string" ? downstream.find(c => c.name === cluster) : undefined;
+            return d ? [[ref.field, { name: d.name, outputs: d.fleetOutputs ?? {}, provides: ref.provides }]] : [];
+        }));
+        const unresolved = (def.clusterRefs ?? []).some(ref => getPath(profiles[name], ref.field) !== undefined && !refs[ref.field]?.outputs[ref.provides]);
+        if (unresolved) return undefined;
         // Only what the profile waits for: a template can't read a profile built after it.
         const waitFor = new Set([...(def.requires ?? []), ...(def.uses ?? []), ...(def.requiresWhen ?? []).map(r => r.capability)]);
         const ctx: TemplateContext = {
@@ -212,6 +220,8 @@ export function createResolution(input: ResolveInput, diags: Diagnostics) {
                 },
             },
             outputs: Object.fromEntries(Object.entries(outputs).filter(([cap]) => waitFor.has(cap))),
+            // The clusters its settings name: what their Fleet profiles say Fleet installs there.
+            refs: Object.fromEntries(Object.entries(refs).map(([field, { name, outputs }]) => [field, { name, outputs }])),
             haulManifests: names => haulManifestFiles(names, renderedHaul),
         };
         const errorAt = (part: string) => (path: string, message: string) =>
@@ -222,9 +232,37 @@ export function createResolution(input: ResolveInput, diags: Diagnostics) {
                 const install = e.when === undefined ? true : renderTemplates(e.when, ctx, "", error("when"));
                 if (typeof install !== "boolean") error("when")("", `must render to true or false, not ${JSON.stringify(install)}`);
                 const version = e.version === undefined ? undefined : renderTemplates(e.version, ctx, "", error("version"));
+                let values = renderTemplates(e.values ?? {}, ctx, "", error("values")) as Record<string, unknown>;
+                let lockedValues = renderTemplates(e.lockedValues ?? {}, ctx, "", error("lockedValues")) as Record<string, unknown>;
+                // Its overlays for this target, in order, over the entry's values.
+                (e.valueOverlays ?? []).forEach((o, j) => {
+                    const at = (field: string) => error(`valueOverlays[${j}].${field}`);
+                    const applies = renderTemplates(o.when, ctx, "", at("when"));
+                    if (typeof applies !== "boolean") at("when")("", `must render to true or false, not ${JSON.stringify(applies)}`);
+                    if (applies !== true) return;
+                    values = mergeMaps(values, renderTemplates(o.values ?? {}, ctx, "", at("values")) as Record<string, unknown>);
+                    lockedValues = mergeMaps(lockedValues, renderTemplates(o.lockedValues ?? {}, ctx, "", at("lockedValues")) as Record<string, unknown>);
+                });
+                // Its registry's login: the lab input its HelmChart names (Application Collection's appco).
+                const component = e.chart !== undefined ? catalog.components[e.chart]?.value : undefined;
+                const loginInput = component?.kind === "HelmChart" ? component.credentials : undefined;
+                let credentials: Credentials | undefined;
+                if (loginInput) {
+                    const given = lab.inputs[loginInput];
+                    if (given === undefined) diags.error(L, `inputs.${loginInput}`, `required: HelmChart ${e.chart} (the ${name} profile on ${on}) logs in to its registry with it`);
+                    else if (typeof given === "object" && "username" in given) credentials = given;
+                    else if (typeof given === "string") credentials = given;
+                    if (credentials !== undefined) useCredentials(credentials, L, `inputs.${loginInput}`);
+                }
+                const waitFor = (e.waitFor ?? []).map((w, j) => ({
+                    path: String(renderTemplates(w.path, ctx, "", error(`waitFor[${j}].path`))),
+                    ...(w.condition ? { condition: w.condition } : {}),
+                }));
                 return {
-                    values: renderTemplates(e.values ?? {}, ctx, "", error("values")) as Record<string, unknown>,
-                    lockedValues: renderTemplates(e.lockedValues ?? {}, ctx, "", error("lockedValues")) as Record<string, unknown>,
+                    values,
+                    lockedValues,
+                    ...(credentials !== undefined ? { credentials } : {}),
+                    ...(waitFor.length ? { waitFor } : {}),
                     install: install === true,
                     ...(typeof version === "string" && version !== "" ? { version } : {}),
                     vars: Object.fromEntries(Object.entries(e.vars ?? {}).map(([k, v]) => [k, String(renderTemplates(v, ctx, "", error(`vars.${k}`)))])),
@@ -235,13 +273,28 @@ export function createResolution(input: ResolveInput, diags: Diagnostics) {
                 const create = e.when === undefined ? true : renderTemplates(e.when, ctx, "", error("when"));
                 if (typeof create !== "boolean") error("when")("", `must render to true or false, not ${JSON.stringify(create)}`);
                 if (create !== true) return [];
-                const object = renderTemplates(e.object, ctx, "", error("object")) as Record<string, unknown>;
+                let object = renderTemplates(e.object, ctx, "", error("object")) as Record<string, unknown>;
+                // Its overlays for this target, in order, into the object.
+                (e.objectOverlays ?? []).forEach((o, j) => {
+                    const at = (field: string) => error(`objectOverlays[${j}].${field}`);
+                    const applies = renderTemplates(o.when, ctx, "", at("when"));
+                    if (typeof applies !== "boolean") at("when")("", `must render to true or false, not ${JSON.stringify(applies)}`);
+                    if (applies === true) object = mergeMaps(object, renderTemplates(o.object, ctx, "", at("object")) as Record<string, unknown>);
+                });
                 const aliases = (e.aliases ?? []).map((a, j) => String(renderTemplates(a, ctx, "", error(`aliases[${j}]`))));
                 return [{
                     name: String(renderTemplates(e.name, ctx, "", error("name"))), object,
                     ...(e.admitted ? { admitted: true } : {}), ...(e.wait ? { wait: e.wait } : {}), ...(aliases.length ? { aliases } : {}),
                 }];
             }),
+            // StackPacks for the instance it sends to: the cluster its `on` field names, with its admin token.
+            ...(def.observerStackPacks && refs[def.observerStackPacks.on] ? {
+                stackPacks: {
+                    observer: refs[def.observerStackPacks.on].name,
+                    adminToken: String(renderTemplates(def.observerStackPacks.adminToken, ctx, "", errorAt("observerStackPacks.adminToken"))),
+                    install: def.observerStackPacks.install,
+                },
+            } : {}),
             aliases: (def.aliases ?? []).map((a, i) => typeof a === "string" ? { type: a } : {
                 ...(a.type ? { type: a.type } : {}),
                 ...(a.name ? { name: String(renderTemplates(a.name, ctx, "", errorAt(`aliases[${i}].name`))) } : {}),
@@ -319,4 +372,13 @@ export function createResolution(input: ResolveInput, diags: Diagnostics) {
         /** The lab's secrets and configmaps: created by the objects phase, placed by later ones. */
         objects: undefined as unknown as ReturnType<typeof createObjects>,
     };
+}
+
+const isMap = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/** `over` merged into `base`: maps key by key, anything else (lists too) replaced. */
+function mergeMaps(base: Record<string, unknown>, over: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = { ...base };
+    for (const [k, v] of Object.entries(over)) out[k] = isMap(v) && isMap(out[k]) ? mergeMaps(out[k] as Record<string, unknown>, v) : v;
+    return out;
 }

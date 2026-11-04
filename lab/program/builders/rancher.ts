@@ -19,6 +19,7 @@ export const rancher: ProfileBuilder<"rancher"> = {
             chart: profileChart("rancher", host, lab, settings.version),
             values: chartValuesWithSecrets(settings.values),
             hostname: String(profileChart("rancher", host, lab).lockedValues.hostname),
+            hostAddress: ctx.access.address,
             adminPassword: secretString(settings.adminPassword),
             // A CA nothing trusts (Let's Encrypt staging): agents (imported Harvesters, downstream
             // nodes) trust Rancher through its roots, and the engine skips verifying it.

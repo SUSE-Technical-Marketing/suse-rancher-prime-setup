@@ -1,0 +1,198 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: ChartProfile
+metadata:
+  name: vllm
+  description: "vLLM serving one model on the cluster's NVIDIA GPUs, an OpenAI-compatible API (after SUSE AI Factory's vLLM guide)"
+spec:
+  icon: cpu                  # in the lab UI (lucide.dev/icons)
+  # On a cluster with the gpu-operator Fleet profile: its GPU Operator gives the nvidia runtime class
+  # and the nvidia.com/gpu resource. The Application Collection pull secret comes from Sprouter.
+  targets: [ cluster ]
+  charts:
+    - chart: vllm
+      namespace: suse-ai
+      waitFor:
+        - path: /apis/nvidia.com/v1/clusterpolicies/cluster-policy
+          condition: Ready
+        - path: /api/v1/namespaces/cattle-system/secrets/application-collection
+      values:
+        global: { imagePullSecrets: [ application-collection ] }
+        servingEngineSpec:
+          runtimeClassName: "{{ settings.runtimeClassName }}"
+          # The old engine lets go of its GPUs before the new one takes them: a rolling update waits forever.
+          strategy: { type: Recreate }
+          # Freeing the memory the GPU left as reclaimable needs a privileged init container (and the chart gives the engine the same context).
+          containerSecurityContext: "{{ { 'privileged': true } if settings.dropCaches else none | optional }}"
+          # The first start downloads the model and compiles its kernels: the chart's ten minutes are too few.
+          startupProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: "{{ settings.startupMinutes * 6 }}"
+          modelSpec:
+            - name: "{{ settings.name }}"
+              registry: "{{ settings.imageRegistry }}"
+              repository: "{{ settings.imageRepository }}"
+              tag: "{{ settings.imageTag }}"
+              imagePullPolicy: IfNotPresent
+              modelURL: "{{ settings.model }}"
+              replicaCount: 1
+              requestCPU: "{{ settings.requestCPU }}"
+              requestMemory: "{{ settings.requestMemory }}"
+              requestGPU: "{{ settings.requestGPU }}"
+              # Shared memory for the engine (docker's --shm-size).
+              shmSize: "{{ settings.shmSize | optional }}"
+              # The model's cache: a PVC of this size (from the storage class, or the cluster's default) or none.
+              pvcStorage: "{{ settings.pvcStorage | optional }}"
+              storageClass: "{{ settings.storageClass | optional }}"
+              # On shared CPU/GPU memory (a DGX Spark's GB10), CUDA doesn't count the page cache, nor what the
+              # kernel holds as reclaimable after GPU allocations, as free: free them before the engine starts.
+              initContainer: >-
+                {{ { 'name': 'drop-caches', 'image': settings.imageRegistry ~ '/' ~ settings.imageRepository ~ ':' ~ settings.imageTag,
+                     'command': ['sh', '-c', 'sync && echo 3 > /proc/sys/vm/drop_caches'] } if settings.dropCaches else none | optional }}
+              # Or the node's own directory, as ~/stacks/vllm-node mounts the host's caches: the model
+              # (HF_HOME is /tmp without a PVC) and the kernels vLLM, FlashInfer, Triton and TileLang compile.
+              extraVolumes: "{{ [{ 'name': 'host-cache', 'hostPath': { 'path': settings.hostCache, 'type': 'DirectoryOrCreate' } }] if settings.hostCache is defined else none | optional }}"
+              extraVolumeMounts: >-
+                {{ [
+                  { 'name': 'host-cache', 'mountPath': '/tmp/hub', 'subPath': 'huggingface/hub' },
+                  { 'name': 'host-cache', 'mountPath': '/root/.cache/vllm', 'subPath': 'vllm' },
+                  { 'name': 'host-cache', 'mountPath': '/root/.cache/flashinfer', 'subPath': 'flashinfer' },
+                  { 'name': 'host-cache', 'mountPath': '/root/.triton', 'subPath': 'triton' },
+                  { 'name': 'host-cache', 'mountPath': '/root/.tilelang', 'subPath': 'tilelang' }
+                ] if settings.hostCache is defined else none | optional }}
+              vllmConfig:
+                maxModelLen: "{{ settings.maxModelLen | optional }}"
+                maxNumSeqs: "{{ settings.maxNumSeqs }}"
+                gpuMemoryUtilization: "{{ settings.gpuMemoryUtilization }}"
+                tensorParallelSize: "{{ settings.tensorParallelSize }}"
+                enableChunkedPrefill: "{{ settings.enableChunkedPrefill }}"
+                enablePrefixCaching: "{{ settings.enablePrefixCaching }}"
+                # The rest of `vllm serve`'s flags, one argument each, unset ones left out.
+                extraArgs:
+                  - "{{ ('--trust-remote-code' if settings.trustRemoteCode else none) | optional }}"
+                  - "{{ ('--kv-cache-dtype=' ~ settings.kvCacheDtype) if settings.kvCacheDtype is defined else none | optional }}"
+                  - "{{ ('--max-num-batched-tokens=' ~ settings.maxNumBatchedTokens) if settings.maxNumBatchedTokens is defined else none | optional }}"
+                  - "{{ ('--async-scheduling' if settings.asyncScheduling else none) | optional }}"
+                  - "{{ ('--load-format=' ~ settings.loadFormat) if settings.loadFormat is defined else none | optional }}"
+                  - "{{ ('--speculative-config=' ~ (settings.speculativeConfig | dump)) if settings.speculativeConfig is defined else none | optional }}"
+                  - "{{ ('--reasoning-parser=' ~ settings.reasoningParser) if settings.reasoningParser is defined else none | optional }}"
+                  - "{{ ('--tool-call-parser=' ~ settings.toolCallParser) if settings.toolCallParser is defined else none | optional }}"
+                  - "{{ ('--enable-auto-tool-choice' if settings.toolCallParser is defined else none) | optional }}"
+              # For gated models on Hugging Face.
+              hf_token: "{{ settings.hfToken | optional }}"
+  objects:
+    # The stack's router (its OpenAI API) on every node's address, for other clusters: a metal
+    # cluster has no load balancer.
+    - name: node-port
+      when: "{{ settings.nodePort is defined }}"
+      object:
+        apiVersion: v1
+        kind: Service
+        metadata: { name: vllm-router-node-port, namespace: suse-ai }
+        spec:
+          type: NodePort
+          selector: { environment: router, release: router }
+          ports:
+            - { name: http, port: 80, targetPort: 8000, nodePort: "{{ settings.nodePort if settings.nodePort is defined else 0 }}", protocol: TCP }
+  # Where the opentelemetry profile scrapes its engines.
+  outputs:
+    vllm: { namespace: suse-ai }
+  # Defaults as the DGX Spark stack runs vLLM (~/stacks/vllm-node): its engine settings; what goes
+  # with its model (parsers, speculative decoding, the Spark build's load format) is the lab's.
+  settings:
+    type: object
+    required: [ model ]
+    properties:
+      model:
+        type: string
+        description: "the Hugging Face model to serve (e.g. RadixArk/Qwen3.8-27B-NVFP4)"
+      name:
+        type: dnsLabel
+        default: model
+        description: the model's name in the stack (its engine's Deployment)
+      # The vLLM image; default Application Collection's (a DGX Spark runs a build of its own, docker.io eugr/spark-vllm).
+      imageRegistry: { type: string, default: dp.apps.rancher.io }
+      imageRepository: { type: string, default: containers/vllm-openai }
+      imageTag: { type: string, default: 0.19.0 }
+      requestCPU: { type: integer, default: 6 }
+      requestMemory: { type: string, default: 16Gi }
+      requestGPU: { type: integer, default: 1 }
+      shmSize:
+        type: string
+        default: 64Gi
+        description: shared memory for the engine
+      maxModelLen:
+        type: integer
+        description: the longest context it serves (its KV cache is sized for it); default the model's own
+      maxNumSeqs:
+        type: integer
+        default: 8
+        description: the most requests it serves at once
+      maxNumBatchedTokens:
+        type: integer
+        default: 16384
+        description: the most tokens in one batch (with chunked prefill, a long prompt is split by it)
+      gpuMemoryUtilization:
+        type: number
+        minimum: 0.05
+        maximum: 1
+        default: 0.7
+        description: "the share of the GPU's memory it takes (on a DGX Spark, of the memory it shares with the CPU)"
+      tensorParallelSize: { type: integer, default: 1 }
+      kvCacheDtype:
+        type: string
+        default: fp8
+        description: "the KV cache's type (auto, fp8, …)"
+      enableChunkedPrefill: { type: boolean, default: true }
+      enablePrefixCaching: { type: boolean, default: true }
+      asyncScheduling: { type: boolean, default: true }
+      trustRemoteCode:
+        type: boolean
+        default: true
+        description: run the model's own code from Hugging Face
+      loadFormat:
+        type: string
+        description: "how it loads the weights (e.g. instanttensor, in the DGX Spark build)"
+      speculativeConfig:
+        type: object
+        additionalProperties: true
+        description: "speculative decoding, as vLLM's --speculative-config ({ method: dflash, model: …, num_speculative_tokens: 8 })"
+      reasoningParser:
+        type: string
+        description: "the model's reasoning parser (e.g. qwen3)"
+      toolCallParser:
+        type: string
+        description: "the model's tool-call parser (e.g. qwen3_xml); turns on automatic tool choice"
+      pvcStorage:
+        type: string
+        description: "a volume for the model's cache (e.g. 100Gi); without one, every restart downloads it again"
+      storageClass: { type: string }
+      hostCache:
+        type: string
+        pattern: "^/"
+        description: "a directory on the node for the model and the compiled kernels (e.g. /var/lib/vllm-cache): kept over restarts without a storage class"
+      dropCaches:
+        type: boolean
+        default: false
+        description: "free the page cache and the kernel's reclaimable memory before the engine starts (privileged): for shared CPU/GPU memory, as on a DGX Spark"
+      startupMinutes:
+        type: integer
+        minimum: 10
+        default: 30
+        description: how long its first start may take (downloading the model, compiling kernels) before it is restarted
+      nodePort:
+        type: integer
+        minimum: 30000
+        maximum: 32767
+        description: "the router's OpenAI API on this port of every node (http://<node>:<port>/v1), for other clusters"
+      runtimeClassName:
+        type: string
+        default: nvidia
+        description: the GPU Operator's runtime class
+      hfToken:
+        type: secret
+        suggest: "{{ secrets.huggingface }}"
+        description: a Hugging Face token, for gated models
+      version: { type: string }
+      values: { type: chartValues }
