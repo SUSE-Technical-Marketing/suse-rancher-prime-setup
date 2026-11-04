@@ -62,6 +62,10 @@ function catalogInfo(catalog: ResolvedCatalog): Omit<Catalog, "personal"> {
         rancherNeeds: Object.fromEntries(Object.entries(CLUSTER_TYPES).flatMap(([type, t]) => (t.rancherNeeds ? [[type, t.rancherNeeds]] : []))),
         distributions: Object.entries(catalog.components).sort(([a], [b]) => a.localeCompare(b)).flatMap(([name, { value }]) =>
             value.kind === "KubernetesDistribution" ? [{ name, description: value.description, cni: value.cni, default: name === DEFAULT_DISTRO }] : []),
+        // What a cluster running SUSE Observability can list under stackPacks.
+        stackPacks: Object.entries(catalog.components).sort(([a], [b]) => a.localeCompare(b)).flatMap(([name, { value }]) => (value.kind === "StackPack" ? [{
+            name, description: value.description ?? name, icon: value.icon, ...(value.version ? { version: value.version } : {}), fromSource: !!value.archive,
+        }] : [])),
         // The palette's standard hosts, in name order.
         recipes: Object.entries(catalog.recipes).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]): HostRecipe => ({
             name, label: value.label ?? name, description: value.description ?? "", icon: value.icon, kind: value.kind, hostName: value.name ?? name, host: value.host,

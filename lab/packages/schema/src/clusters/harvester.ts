@@ -2,7 +2,7 @@ import { z } from "zod";
 import { addressFields } from "../addressing";
 import { form } from "../form";
 import { dnsLabel, quantity } from "../primitives";
-import { annotations, checkDistro, checkPassthrough, checkRoles, ClusterPassthrough, distro, fleetProfiles, kubernetesVersion, labels, profiles, rancher, roles } from "./common";
+import { annotations, checkDistro, checkPassthrough, checkRoles, ClusterPassthrough, distro, fleetProfiles, stackPacks, kubernetesVersion, labels, profiles, rancher, roles } from "./common";
 import type { FixedAddress } from "../resolve";
 import type { ClusterType } from "./types";
 
@@ -36,6 +36,7 @@ export const HarvesterClusterInput = z.strictObject({
     labels,
     annotations,
     fleetProfiles,
+    stackPacks,
     profiles,
     ...ClusterPassthrough,
     pools: z.array(HarvesterPool).min(1).meta(form({ label: "Machine pools", cards: { add: "a pool", title: "name" } })),

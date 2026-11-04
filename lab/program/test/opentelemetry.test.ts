@@ -15,6 +15,7 @@ spec:
   ssh: { publicKey: "ssh-ed25519 AAAA test", privateKey: "{{ secrets['ssh-key'] }}" }
   inputs:
     appco: "{{ secrets.appco }}"
+    suse-observability-token: "{{ secrets.observability.token }}"
 ---
 kind: Harvester
 metadata: { name: hv }
@@ -29,7 +30,7 @@ spec:
 ---
 kind: DownstreamCluster
 metadata: { name: obs }
-spec: { type: harvester, rancher: rancher, harvester: hv, ${POOL}, fleetProfiles: { storage: {}, observability: {} } }
+spec: { type: harvester, rancher: rancher, harvester: hv, ${POOL}, fleetProfiles: { storage: {}, observability: {} }, stackPacks: [ open-telemetry, suse-ai ] }
 ---
 kind: DownstreamCluster
 metadata: { name: apps }
@@ -193,7 +194,7 @@ describe("OpenTelemetry on a downstream cluster", () => {
         expect(apps.connectors["routing/traces"].table[0].pipelines).toContain("traces/topology");
     });
 
-    it("installs OpenTelemetry's and SUSE AI's StackPacks on the observer once, however many clusters send to it", () => {
+    it("installs the StackPacks the observer lists, once, with its bootstrap token", () => {
         const packs = registered.filter(r => r.name.startsWith("downstream/obs/stackpack/"));
         expect(packs.map(r => r.name).sort()).toEqual(["downstream/obs/stackpack/open-telemetry", "downstream/obs/stackpack/suse-ai"]);
         const suseAi = packs.find(r => r.name.endsWith("/suse-ai"))!.inputs;

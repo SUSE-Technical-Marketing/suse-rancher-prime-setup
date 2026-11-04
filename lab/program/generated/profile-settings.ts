@@ -130,8 +130,6 @@ export type OpentelemetrySettings = {
     observer: string;
     /** a SUSE Observability API key (service token) to send with; default the instance's bootstrap token */
     apiKey: string;
-    /** a service token with admin rights on the instance, to install its StackPacks; default the instance's bootstrap token */
-    adminToken: string;
     /** the cluster's name in SUSE Observability (as its agent's clusterName); default the cluster's */
     clusterName?: string;
     /** the namespace of the AI workloads; SUSE AI components are reported in it */

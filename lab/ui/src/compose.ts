@@ -151,3 +151,19 @@ export function addFleetProfile(index: number, name: string) {
 export function removeFleetProfile(index: number, name: string) {
     set(index, ["spec", "fleetProfiles", name], undefined);
 }
+
+/** Whether a downstream cluster runs SUSE Observability: one of its Fleet profiles provides it. */
+export const runsObservability = (index: number) => Object.keys(views.value[index]?.spec?.fleetProfiles ?? {})
+    .some(n => catalog.value?.fleetProfiles.find(p => p.name === n)?.provides.includes("suse-observability"));
+
+/** A StackPack dropped on a cluster running SUSE Observability: added to its `stackPacks`. */
+export function addStackPack(index: number, name: string) {
+    const list: string[] = views.value[index]?.spec?.stackPacks ?? [];
+    if (list.includes(name)) return;
+    set(index, ["spec", "stackPacks"], [...list, name]);
+}
+
+export function removeStackPack(index: number, name: string) {
+    const list = ((views.value[index]?.spec?.stackPacks ?? []) as string[]).filter(n => n !== name);
+    set(index, ["spec", "stackPacks"], list.length > 0 ? list : undefined);
+}

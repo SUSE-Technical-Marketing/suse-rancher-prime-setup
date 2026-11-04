@@ -2,7 +2,7 @@
 import ProfileIcon from "./ProfileIcon.vue";
 import KindIcon from "./KindIcon.vue";
 import { computed, reactive, ref, watch } from "vue";
-import { addBlock, addFleetProfile, addProfile, addRecipe, removeFleetProfile, removeProfile } from "../compose";
+import { addBlock, addFleetProfile, addProfile, addRecipe, addStackPack, removeFleetProfile, removeProfile, removeStackPack, runsObservability } from "../compose";
 import { dragging, end, start, target, type Block, type Payload } from "../dnd";
 import { CLUSTER_UI } from "../clusters";
 import { BLOCK_KIND, CATEGORIES } from "../kinds";
@@ -12,7 +12,8 @@ import { catalog, drawer, reportOf, selected, views } from "../store";
 // board. A block can also be clicked: it goes on the first Harvester or AWS site. One search box
 // filters both. The profiles follow what the drawer has open: only those that go on it, a check on
 // the ones it has, suggestions for what its profiles still need, and a click adds one to it. A
-// profile dragged back here comes off its host or cluster.
+// profile dragged back here comes off its host or cluster. StackPacks go on a cluster running SUSE
+// Observability the same way.
 const BLOCKS: { block: Block; label: string; hint: string }[] = [
   { block: "Harvester", label: "Harvester", hint: "a Harvester the lab uses: drop on the board" },
   { block: "HarvesterVM", label: "VM", hint: "a VM: drop on a Harvester" },
@@ -65,6 +66,9 @@ const context = computed(() => {
     index: selected.value, name: String(doc.metadata?.name ?? ""), where,
     profiles: new Set(Object.keys(doc.spec?.profiles ?? {})),
     fleet: new Set(Object.keys(doc.spec?.fleetProfiles ?? {})),
+    stackPacks: new Set<string>(doc.spec?.stackPacks ?? []),
+    /** A cluster running SUSE Observability: StackPacks go on it. */
+    observes: where === "cluster" && runsObservability(selected.value),
   };
 });
 /** The user's own choice; it lasts until the drawer opens something else. */
@@ -73,19 +77,25 @@ watch(() => context.value?.index, () => (picked.value = undefined));
 const where = computed<Where>(() => picked.value ?? context.value?.where ?? "all");
 const following = computed(() => !!context.value && where.value === context.value.where);
 
-/** A profile row: an engine Profile, a ChartProfile or a Fleet profile. */
-interface Row { key: string; name: string; description: string; title: string; fleet: boolean; kind: "custom" | "chart" | "resource" | "fleet"; provides: string[] }
+/** A row: an engine Profile, a ChartProfile, a ResourceProfile, a Fleet profile or a StackPack; `type` is what a drag of it carries. */
+interface Row { key: string; name: string; description: string; title: string; type: "profile" | "fleet" | "stackpack"; kind: "custom" | "chart" | "resource" | "fleet" | "stackpack"; provides: string[] }
 const goesOn = (targets: string[]) => where.value === "all" || targets.includes(where.value);
 // Planned profiles aren't built yet: not offered (a lab using one shows it in its form).
 const profileRows = computed<Row[]>(() => (catalog.value?.profiles ?? []).filter(p => p.status !== "planned" && goesOn(p.targets) && hit(p.name, p.description)).map(p => ({
-  key: `p-${p.name}`, name: p.name, description: p.description, fleet: false, kind: p.kind,
+  key: `p-${p.name}`, name: p.name, description: p.description, type: "profile" as const, kind: p.kind,
   provides: [...p.provides, ...p.fallback, p.name],
   title: `${p.description}\nprovides: ${p.provides.join(", ") || "—"}\nneeds: ${p.requires.join(", ") || "—"}\ngoes on: ${p.targets.map(t => ({ host: "a VM or Machine", cluster: "a downstream cluster", harvester: "a Harvester" })[t]).join(", ")}`,
 })));
 const fleetRows = computed<Row[]>(() => (where.value === "all" || where.value === "cluster" ? catalog.value?.fleetProfiles ?? [] : [])
   .filter(p => hit(p.name, p.description)).map(p => ({
-    key: `f-${p.name}`, name: p.name, description: p.description, fleet: true, kind: "fleet" as const, provides: [...p.provides, p.name],
+    key: `f-${p.name}`, name: p.name, description: p.description, type: "fleet" as const, kind: "fleet" as const, provides: [...p.provides, p.name],
     title: `${p.description}\nlabels: ${Object.entries(p.labels).map(([k, v]) => `${k}=${v}`).join(", ") || "—"}\nneeds: ${p.requires.join(", ") || "—"}\ngoes on: a downstream cluster (Fleet installs it)`,
+  })));
+
+const stackPackRows = computed<Row[]>(() => (where.value === "all" || where.value === "cluster" ? catalog.value?.stackPacks ?? [] : [])
+  .filter(p => hit(p.name, p.description)).map(p => ({
+    key: `s-${p.name}`, name: p.name, description: p.description, type: "stackpack" as const, kind: "stackpack" as const, provides: [],
+    title: `${p.description}\nversion: ${p.version ?? "the instance's latest"}${p.fromSource ? " (built from source: lab stackpacks)" : ""}\ngoes on: a downstream cluster running SUSE Observability (the observability Fleet profile)`,
   })));
 
 /** What the open document's profiles need that nothing on it provides (the engine's say, at the last check), and the profiles that do. */
@@ -97,12 +107,14 @@ const suggested = computed(() => {
   return { needs, rows };
 });
 
-const isOn = (r: Row) => !!context.value && following.value && (r.fleet ? context.value.fleet : context.value.profiles).has(r.name);
-const canAdd = (r: Row) => !!context.value && following.value && !isOn(r);
+const onIt = (r: Row) => (r.type === "fleet" ? context.value!.fleet : r.type === "stackpack" ? context.value!.stackPacks : context.value!.profiles);
+const isOn = (r: Row) => !!context.value && following.value && onIt(r).has(r.name);
+const canAdd = (r: Row) => !!context.value && following.value && !isOn(r) && (r.type !== "stackpack" || context.value.observes);
 function add(r: Row) {
   const c = context.value;
   if (!c || !canAdd(r)) return;
-  if (r.fleet) addFleetProfile(c.index, r.name);
+  if (r.type === "fleet") addFleetProfile(c.index, r.name);
+  else if (r.type === "stackpack") addStackPack(c.index, r.name);
   else addProfile(c.index, r.name);
 }
 
@@ -112,6 +124,7 @@ const sections = computed(() => [
   { id: "chart", label: "Charts", hint: "a Helm install with its manifests and objects, by the engine", rows: profileRows.value.filter(r => r.kind === "chart") },
   { id: "resource", label: "Resources", hint: "objects for what's installed already (a ClusterRepo, a Fleet GitRepo), by the engine", rows: profileRows.value.filter(r => r.kind === "resource") },
   { id: "fleet", label: "Fleet", hint: "labels and annotations for a downstream cluster; Fleet installs what they select", rows: fleetRows.value },
+  { id: "stackpack", label: "StackPacks", hint: "on a cluster running SUSE Observability: the engine installs them through its API", rows: stackPackRows.value },
 ].filter(s => s.rows.length > 0));
 
 // --- Collapsed sections, remembered ------------------------------------------------------------
@@ -122,17 +135,18 @@ watch(collapsed, v => { try { localStorage.setItem(KEY, JSON.stringify(v)); } ca
 const isOpen = (id: string) => !!q.value || !collapsed[id];
 
 const over = ref(false);
-const fromBoard = (p: { type: string; from?: number }) => (p.type === "profile" || p.type === "fleet") && p.from !== undefined;
+const fromBoard = (p: { type: string; from?: number }) => (p.type === "profile" || p.type === "fleet" || p.type === "stackpack") && p.from !== undefined;
 const trash = target(fromBoard, p => {
   if (p.type === "profile" && p.from !== undefined) removeProfile(p.from, p.name);
   if (p.type === "fleet" && p.from !== undefined) removeFleetProfile(p.from, p.name);
+  if (p.type === "stackpack" && p.from !== undefined) removeStackPack(p.from, p.name);
 }, on => (over.value = on));
 const removing = computed(() => !!dragging.value && fromBoard(dragging.value));
 </script>
 
 <template>
   <nav class="palette" :class="{ removing, over }" v-on="trash">
-    <p v-if="removing" class="trash-hint">Drop here to remove the profile</p>
+    <p v-if="removing" class="trash-hint">Drop here to remove {{ dragging?.type === "stackpack" ? "the StackPack" : "the profile" }}</p>
     <label class="search">
       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
       <input v-model="filter" class="filter" type="search" placeholder="Search…" title="Search blocks and profiles" aria-label="Search blocks and profiles" spellcheck="false" />
@@ -172,9 +186,9 @@ const removing = computed(() => !!dragging.value && fromBoard(dragging.value));
       <h5 :title="`its profiles need: ${suggested.needs.join(', ')}`">Suggested <span class="muted">needs {{ suggested.needs.join(", ") }}</span></h5>
       <button
         v-for="r in suggested.rows" :key="`s-${r.key}`" type="button" class="prow" :class="r.kind" draggable="true" :title="r.title"
-        @dragstart="start($event, { type: r.fleet ? 'fleet' : 'profile', name: r.name })" @dragend="end" @click="add(r)"
+        @dragstart="start($event, { type: r.type, name: r.name })" @dragend="end" @click="add(r)"
       >
-        <ProfileIcon :name="r.name" :size="18" :fleet="r.fleet" /><span class="pname">{{ r.name }}</span><span class="padd" aria-hidden="true">+</span>
+        <ProfileIcon :name="r.name" :size="18" :fleet="r.type === 'fleet'" :stack-pack="r.type === 'stackpack'" /><span class="pname">{{ r.name }}</span><span class="padd" aria-hidden="true">+</span>
       </button>
     </section>
 
@@ -188,9 +202,9 @@ const removing = computed(() => !!dragging.value && fromBoard(dragging.value));
         <button
           v-for="r in s.rows" :key="r.key" type="button" class="prow" :class="[r.kind, { on: isOn(r), addable: canAdd(r) }]" draggable="true"
           :title="isOn(r) ? `${r.title}\n(on ${context?.name})` : r.title"
-          @dragstart="start($event, { type: r.fleet ? 'fleet' : 'profile', name: r.name })" @dragend="end" @click="add(r)"
+          @dragstart="start($event, { type: r.type, name: r.name })" @dragend="end" @click="add(r)"
         >
-          <ProfileIcon :name="r.name" :size="18" :fleet="r.fleet" /><span class="pname">{{ r.name }}</span>
+          <ProfileIcon :name="r.name" :size="18" :fleet="r.type === 'fleet'" :stack-pack="r.type === 'stackpack'" /><span class="pname">{{ r.name }}</span>
           <span v-if="isOn(r)" class="pon" aria-label="added">✓</span>
           <span v-else-if="canAdd(r)" class="padd" aria-hidden="true">+</span>
         </button>

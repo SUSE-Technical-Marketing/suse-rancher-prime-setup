@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { form } from "../form";
 import { awsZone, cidr, dnsLabel, quantity } from "../primitives";
-import { annotations, fleetProfiles, labels, placements, profiles, rancher } from "./common";
+import { annotations, fleetProfiles, stackPacks, labels, placements, profiles, rancher } from "./common";
 import { EC2_TYPES } from "./ec2";
 import type { ClusterType } from "./types";
 
@@ -37,6 +37,7 @@ export const EksClusterInput = z.strictObject({
     labels,
     annotations,
     fleetProfiles,
+    stackPacks,
     profiles,
     /** Who may reach its API endpoint besides Rancher's proxy; default anyone. */
     publicAccessSources: z.array(cidr).optional().meta(form({

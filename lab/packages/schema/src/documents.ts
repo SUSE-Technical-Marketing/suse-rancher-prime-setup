@@ -82,6 +82,8 @@ export const CATALOG_KINDS = {
             version: VersionValue.optional(),
             /** What provisioning does with resources it would change that were changed by hand (the CLI's --unlocked-strategy). */
             unlocked: z.enum(["fail", "skip", "overwrite"]).optional(),
+            /** Its icon in the lab UI (a lucide.dev name). */
+            icon: z.string().min(1).optional(),
         }),
     },
     KubernetesDistribution: {

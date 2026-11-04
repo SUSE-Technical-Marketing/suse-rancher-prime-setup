@@ -8,6 +8,8 @@ export type Payload =
     | { type: "recipe"; name: string }
     | { type: "profile"; name: string; from?: number }
     | { type: "fleet"; name: string; from?: number }
+    /** A catalog StackPack: on a cluster running SUSE Observability. */
+    | { type: "stackpack"; name: string; from?: number }
     | { type: "host"; index: number };
 
 export type Block = "Harvester" | "HarvesterVM" | "Machine" | "DownstreamCluster" | "AwsSite" | "Ec2Cluster" | "EksCluster" | "MetalCluster" | "K3kCluster";

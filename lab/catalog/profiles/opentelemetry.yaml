@@ -12,12 +12,11 @@ spec:
   # The SUSE Observability instance it sends to, on another cluster (its OTLP and API endpoints).
   clusterRefs:
     - { field: observer, provides: suse-observability }
-  # On that instance (once, however many clusters send to it): OpenTelemetry's StackPack, and SUSE
-  # AI's views of what the collector sends (the SUSE AI Observability Extension).
+  # What that instance should have to show what the collector sends (its cluster's stackPacks):
+  # OpenTelemetry's StackPack, and SUSE AI's views (the SUSE AI Observability Extension).
   observerStackPacks:
     on: observer
-    adminToken: "{{ settings.adminToken }}"
-    install: [ open-telemetry, suse-ai ]
+    expects: [ open-telemetry, suse-ai ]
   # A vllm profile on the cluster is scraped (its namespace from its outputs).
   uses: [ vllm ]
   # Where the cluster's apps send their telemetry (the collector's usual address).
@@ -503,10 +502,6 @@ spec:
         type: secret
         default: "{{ secrets.observability.token }}"
         description: a SUSE Observability API key (service token) to send with; default the instance's bootstrap token
-      adminToken:
-        type: secret
-        default: "{{ secrets.observability.token }}"
-        description: "a service token with admin rights on the instance, to install its StackPacks; default the instance's bootstrap token"
       clusterName:
         type: dnsLabel
         description: "the cluster's name in SUSE Observability (as its agent's clusterName); default the cluster's"

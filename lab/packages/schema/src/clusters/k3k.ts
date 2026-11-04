@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { form } from "../form";
 import { dnsLabel, quantity } from "../primitives";
-import { annotations, fleetProfiles, labels, placements, profiles, rancher } from "./common";
+import { annotations, fleetProfiles, stackPacks, labels, placements, profiles, rancher } from "./common";
 import type { ClusterType } from "./types";
 
 // A k3k virtual cluster inside another downstream cluster, imported into Rancher.
@@ -30,6 +30,7 @@ export const K3kClusterInput = z.strictObject({
     labels,
     annotations,
     fleetProfiles,
+    stackPacks,
     profiles,
     ...placements,
 });

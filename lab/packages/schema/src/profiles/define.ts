@@ -145,14 +145,13 @@ export const ProfileInput = z.strictObject({
      */
     clusterRefs: z.array(z.strictObject({ field: z.string().min(1), provides: z.string().min(1) })).optional(),
     /**
-     * StackPacks the SUSE Observability instance it sends to gets (DESIGN.md §9.6): on the cluster
-     * its `on` clusterRefs field names, installed with `adminToken` (a template: a secret setting),
-     * once per instance, while any profile in the lab wants them; uninstalled after the last.
+     * StackPacks the SUSE Observability it sends to should have (DESIGN.md §9.6), on the cluster its
+     * `on` clusterRefs field names: that cluster's `stackPacks` installs them; one missing there is
+     * a warning (SUSE Observability doesn't show what it sends).
      */
     observerStackPacks: z.strictObject({
         on: z.string().min(1),
-        adminToken: z.string().min(1),
-        install: z.array(z.string().min(1)).min(1),
+        expects: z.array(z.string().min(1)).min(1),
     }).optional(),
     /** Settings fields that name another host in the lab, and what that host must provide. */
     hostRefs: z.array(z.strictObject({ field: z.string().min(1), provides: z.string().min(1) })).optional(),

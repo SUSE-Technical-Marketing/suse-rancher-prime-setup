@@ -15,6 +15,11 @@ export const annotations = z.record(z.string(), z.string()).default({})
     .meta(form({ section: "fleet", hint: "fleet.yaml reads them as .ClusterAnnotations, e.g. hosted-domain: {{ lab.domain }}" }));
 /** Fleet profiles (§16.3) by name: their labels and annotations go on the cluster, and Fleet installs what they select. */
 export const fleetProfiles = z.record(z.string().min(1), z.strictObject({})).default({}).meta(form({ section: "hidden" }));
+/**
+ * StackPacks (catalog StackPack documents) on the SUSE Observability this cluster runs (a Fleet profile
+ * providing suse-observability), installed with its bootstrap token (§9.6); one taken out is uninstalled.
+ */
+export const stackPacks = z.array(z.string().min(1)).optional().meta(form({ section: "hidden" }));
 /** ChartProfiles by name, with their settings: installed by the engine once the cluster is ready (§17). */
 export const profiles = z.record(z.string(), z.record(z.string(), z.unknown())).default({}).meta(form({ section: "hidden" }));
 /** The host running the Rancher that manages it. */

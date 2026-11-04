@@ -37,6 +37,18 @@ export interface FleetProfileInfo {
     conflicts: string[];
 }
 
+/** A StackPack of the catalog, for a cluster running SUSE Observability (its `stackPacks`). */
+export interface StackPackInfo {
+    name: string;
+    description: string;
+    /** A Lucide icon name. */
+    icon?: string;
+    /** Its pinned version; none: the instance's latest. */
+    version?: string;
+    /** Built from source (`lab stackpacks`), not in the instance's own catalog. */
+    fromSource: boolean;
+}
+
 export interface CatalogProfile {
     /** `planned`: not built yet; the composer doesn't offer it, `lab up` refuses labs using it. */
     status?: "planned";
@@ -101,6 +113,8 @@ export interface Catalog {
     rancherNeeds: Record<string, { capability: string; because: string }>;
     /** KubernetesDistributions, for a downstream cluster's `distro`; `default` is the one a cluster gets without one. */
     distributions: { name: string; description?: string; cni: string; default: boolean }[];
+    /** The catalog's StackPacks: what a cluster running SUSE Observability can list under stackPacks. */
+    stackPacks: StackPackInfo[];
     /** Standard hosts for the palette (HostRecipe documents): what dropping one adds. */
     recipes: HostRecipe[];
     /** HaulManifests, for the hauler profiles' `manifests`. */

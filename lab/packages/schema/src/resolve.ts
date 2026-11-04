@@ -9,7 +9,7 @@ import type { ResolvedClusterOfType } from "./clusters";
 import { AwsCredentials, Credentials, LabFile, PersonalConfig } from "./schema";
 import { type SecretShape } from "./secrets";
 import { stackPackFile } from "./stackpack-files";
-import { createResolution } from "./phases/context";
+import { createResolution, type Resolution } from "./phases/context";
 import { resolveAwsSites } from "./phases/aws-sites";
 import { placeHostCharts } from "./phases/charts";
 import { checkProfiles, checkTopLevel, resolveImages } from "./phases/checks";
@@ -112,8 +112,8 @@ export interface ProfileWiring {
 export interface RenderedProfile {
     entries: RenderedChartEntry[];
     objects: RenderedObject[];
-    /** The StackPacks it wants on the SUSE Observability instance it sends to (`observerStackPacks`). */
-    stackPacks?: { observer: string; adminToken: string; install: string[] };
+    /** The StackPacks the SUSE Observability it sends to should have (`observerStackPacks`): a check. */
+    stackPacks?: { observer: string; expects: string[] };
     /** What its own chart's resource was created as before (`aliases`): kept, not replaced. */
     aliases: { type?: string; name?: string }[];
 }
@@ -238,7 +238,7 @@ export interface ResolvedLab {
     images: { kubectl: string };
     /** The HaulManifests the lab's profiles name, rendered as Hauler content documents. */
     haulManifests: Record<string, string>;
-    /** StackPacks on the lab's SUSE Observability instances, each once per instance (its profiles' `observerStackPacks`). */
+    /** StackPacks on the lab's SUSE Observability instances: their clusters' `stackPacks`. */
     stackPacks: ResolvedStackPack[];
     /** Profiles the lab uses that the engine doesn't build yet (`status: planned`): `lab up` refuses the lab. */
     planned: string[];
@@ -260,7 +260,7 @@ export interface ResolveInput {
     fs: { exists(p: string): boolean; read(p: string): string };
 }
 
-/** A StackPack on a SUSE Observability instance of the lab, while any profile wants it (DESIGN.md §9.6). */
+/** A StackPack on a SUSE Observability instance of the lab: its cluster's `stackPacks` (DESIGN.md §9.6). */
 export interface ResolvedStackPack {
     /** The downstream cluster running the instance, and the instance (its Fleet profile's `url`). */
     observer: string;
@@ -269,32 +269,66 @@ export interface ResolvedStackPack {
     stackPack: Extract<ResolvedComponent, { kind: "StackPack" }>;
     /** Built from source: its .sts, built by `lab stackpacks` (`up` checks it's there first). */
     file?: string;
-    /** A template (a secret's): the first wanting profile's. */
+    /** The instance's bootstrap token: the lab's suse-observability-token input (a secret template). */
     adminToken: string;
-    /** What wants it, `<host, cluster or Harvester>/<profile>`, in the lab's order. */
-    wantedBy: string[];
 }
 
-/** Every profile's `observerStackPacks`, by instance and StackPack. */
-function collectStackPacks(rendered: [string, Record<string, RenderedProfile> | undefined][], downstream: ResolvedDownstream[], components: Record<string, ResolvedComponent>): ResolvedStackPack[] {
-    const byKey = new Map<string, ResolvedStackPack>();
-    for (const [on, profiles] of rendered) {
-        for (const [profile, r] of Object.entries(profiles ?? {})) {
-            if (!r.stackPacks) continue;
-            const url = downstream.find(d => d.name === r.stackPacks!.observer)?.fleetOutputs?.["suse-observability"]?.url;
-            if (url === undefined) continue;
-            for (const name of r.stackPacks.install) {
-                const stackPack = components[name];
-                if (stackPack?.kind !== "StackPack") continue;
-                const key = `${r.stackPacks.observer}/${name}`;
-                const file = stackPack.archive && stackPack.version ? { file: stackPackFile(name, stackPack.version) } : {};
-                const entry = byKey.get(key) ?? { observer: r.stackPacks.observer, url, name, stackPack, ...file, adminToken: r.stackPacks.adminToken, wantedBy: [] };
-                entry.wantedBy.push(`${on}/${profile}`);
-                byKey.set(key, entry);
+/**
+ * The StackPacks on the lab's SUSE Observability instances: each cluster's `stackPacks` (§9.6), on
+ * the instance its Fleet profiles run, installed with its bootstrap token (the lab's
+ * suse-observability-token input, which its values file uses too). A profile's `observerStackPacks`
+ * only says what the instance it sends to should have: one missing there is a warning.
+ */
+function resolveStackPacks(r: Resolution): ResolvedStackPack[] {
+    const { lab, L, diags, catalog, downstream, hosts, harvesters } = r;
+    const components = catalogValues(catalog.components) as Record<string, ResolvedComponent>;
+    const known = Object.keys(components).filter(n => components[n].kind === "StackPack").sort();
+    const token = lab.inputs["suse-observability-token"];
+    const resolved: ResolvedStackPack[] = [];
+    for (const d of downstream) {
+        const names = d.stackPacks ?? [];
+        if (names.length === 0) continue;
+        const at = `downstream.${d.name}.stackPacks`;
+        const url = d.fleetOutputs?.["suse-observability"]?.url;
+        if (url === undefined) {
+            diags.error(L, at, `cluster ${d.name} doesn't run suse-observability: give it the Fleet profile observability`);
+            continue;
+        }
+        if (typeof token !== "string") {
+            diags.error(L, "inputs.suse-observability-token", `required: the StackPacks on ${d.name} are installed with its SUSE Observability's bootstrap token (a secret, as its values file has it)`);
+            continue;
+        }
+        names.forEach((name, i) => {
+            const stackPack = components[name];
+            if (stackPack?.kind !== "StackPack") {
+                diags.error(L, `${at}[${i}]`, `no StackPack "${name}"; the catalog has: ${known.join(", ")}`);
+                return;
+            }
+            if (names.indexOf(name) !== i) {
+                diags.error(L, `${at}[${i}]`, `${name} is listed twice`);
+                return;
+            }
+            const file = stackPack.archive && stackPack.version ? { file: stackPackFile(name, stackPack.version) } : {};
+            resolved.push({ observer: d.name, url, name, stackPack, ...file, adminToken: token });
+        });
+    }
+    // What the profiles sending to an instance expect on it.
+    const rendered: [string, Record<string, RenderedProfile> | undefined][] = [
+        ...[...hosts.values()].map(h => [`hosts.${h.name}`, h.chartValues] as [string, Record<string, RenderedProfile> | undefined]),
+        ...downstream.map(d => [`downstream.${d.name}`, d.chartProfiles?.chartValues] as [string, Record<string, RenderedProfile> | undefined]),
+        ...[...harvesters.values()].map(h => [`harvesters.${h.name}`, h.chartValues] as [string, Record<string, RenderedProfile> | undefined]),
+    ];
+    for (const [at, profiles] of rendered) {
+        for (const [profile, p] of Object.entries(profiles ?? {})) {
+            if (!p.stackPacks) continue;
+            const { observer, expects } = p.stackPacks;
+            const missing = expects.filter(n => !resolved.some(s => s.observer === observer && s.name === n));
+            if (missing.length > 0) {
+                diags.warning(L, `${at}.profiles.${profile}`, `${observer}'s SUSE Observability has no StackPack ${missing.join(", ")}, so it won't show all this sends: add ${missing.length > 1 ? "them" : "it"} to ${observer}'s stackPacks`);
             }
         }
     }
-    return [...byKey.values()];
+    return resolved;
 }
 
 export interface ResolveResult {
@@ -324,6 +358,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
     checkProfiles(r);
     placeLabObjects(r);
     resolveImages(r);
+    const stackPacks = resolveStackPacks(r);
     const ssh = checkTopLevel(r);
 
     const { lab, acme, catalog, harvesters, awsSites, hosts, downstream, usedOs, fleet, objects, secrets, usedHaulManifests, renderedHaul, plannedProfiles } = r;
@@ -361,11 +396,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
             timeouts: catalog.defaults.value.timeouts,
             images: catalog.defaults.value.images,
             haulManifests: Object.fromEntries([...usedHaulManifests].sort().map(n => [n, renderedHaul[n]])),
-            stackPacks: collectStackPacks([
-                ...[...hosts.values()].map(h => [h.name, h.chartValues] as [string, Record<string, RenderedProfile> | undefined]),
-                ...downstream.map(d => [d.name, d.chartProfiles?.chartValues] as [string, Record<string, RenderedProfile> | undefined]),
-                ...[...harvesters.values()].map(h => [h.name, h.chartValues] as [string, Record<string, RenderedProfile> | undefined]),
-            ], downstream, catalogValues(catalog.components) as Record<string, ResolvedComponent>),
+            stackPacks,
             planned: [...plannedProfiles].sort(),
         },
     };

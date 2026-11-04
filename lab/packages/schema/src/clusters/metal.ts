@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { form } from "../form";
-import { annotations, checkDistro, checkPassthrough, checkRoles, ClusterPassthrough, distro, fleetProfiles, kubernetesVersion, labels, profiles, rancher, roles } from "./common";
+import { annotations, checkDistro, checkPassthrough, checkRoles, ClusterPassthrough, distro, fleetProfiles, stackPacks, kubernetesVersion, labels, profiles, rancher, roles } from "./common";
 import type { ClusterType } from "./types";
 
 // Rancher installs Kubernetes on the lab's own hosts (Machines, bare VMs): Rancher's "custom" cluster.
@@ -14,6 +14,7 @@ export const MetalClusterInput = z.strictObject({
     labels,
     annotations,
     fleetProfiles,
+    stackPacks,
     profiles,
     ...ClusterPassthrough,
     nodes: z.array(z.strictObject({ host: z.string().meta(form({ options: "nodeHosts" })), roles })).min(1).meta(form({

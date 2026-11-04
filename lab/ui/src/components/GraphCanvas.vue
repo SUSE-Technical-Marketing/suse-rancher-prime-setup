@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { addBlock, addFleetProfile, addNode, addProfile, addRecipe, canBeNode, defaultDistro, removeFleetProfile, defaultNetwork, removeProfile, runsKubernetes } from "../compose";
+import { addBlock, addFleetProfile, addNode, addProfile, addRecipe, addStackPack, canBeNode, defaultDistro, removeFleetProfile, defaultNetwork, removeProfile, removeStackPack, runsKubernetes, runsObservability } from "../compose";
 import { CLUSTER_UI, clusterOfBlock, clusterType } from "../clusters";
 import type { ClusterTypeName } from "../../../packages/schema/src/clusters/names";
 import { dragging, end, start, target, type Payload } from "../dnd";
@@ -22,7 +22,7 @@ const W = 184, H = 84, GAP_X = 52, GAP_Y = 30, PAD = 20, TOP = PAD + H + 32;
 const TOKEN = 26, TOKEN_GAP = 4;
 
 type EdgeKind = "runs" | "manages" | "node" | "inside" | "observes";
-interface Box { index: number; key: string; kind: string; type?: ClusterTypeName; category?: Category; icon?: string; label: string; title: string; sub: string; chips: string[]; profiles: string[]; fleet: string[]; col: number; x: number; y: number }
+interface Box { index: number; key: string; kind: string; type?: ClusterTypeName; category?: Category; icon?: string; label: string; title: string; sub: string; chips: string[]; profiles: string[]; fleet: string[]; stackPacks: string[]; col: number; x: number; y: number }
 
 const docs = computed(() => views.value.map((v, index) => ({ v, index })));
 const name = (d: { v: { metadata?: { name?: string } } }) => d.v.metadata?.name ?? "";
@@ -39,14 +39,16 @@ function columnOf(d: { v: { kind?: string; spec?: any } }): number {
   }
 }
 
-function describe(d: { v: any; index: number }): Pick<Box, "label" | "title" | "sub" | "chips" | "profiles" | "fleet"> {
+function describe(d: { v: any; index: number }): Pick<Box, "label" | "title" | "sub" | "chips" | "profiles" | "fleet" | "stackPacks"> {
   const base = describeBox(d);
   const host = d.v.kind === "HarvesterVM" || d.v.kind === "Machine";
   const cluster = d.v.kind === "DownstreamCluster";
   const fleet = cluster ? Object.keys(d.v.spec?.fleetProfiles ?? {}) : [];
-  // A host's, cluster's or Harvester's profiles: round tokens; a cluster's Fleet profiles square ones after them.
+  const stackPacks: string[] = cluster ? d.v.spec?.stackPacks ?? [] : [];
+  // A host's, cluster's or Harvester's profiles: round tokens; a cluster's Fleet profiles square ones
+  // after them, then the StackPacks of the SUSE Observability it runs, sharper squares.
   const profiles = host || cluster || d.v.kind === "Harvester" ? Object.keys(d.v.spec?.profiles ?? {}) : [];
-  return { ...base, chips: host || profiles.length || fleet.length ? [] : base.chips, profiles, fleet };
+  return { ...base, chips: host || profiles.length || fleet.length || stackPacks.length ? [] : base.chips, profiles, fleet, stackPacks };
 }
 
 function describeBox(d: { v: any; index: number }): Pick<Box, "label" | "title" | "sub" | "chips"> {
@@ -257,6 +259,8 @@ const accepts = (b: Box, p: Payload) => {
     return b.kind === "DownstreamCluster" && targets.includes("cluster");
   }
   if (p.type === "fleet") return b.kind === "DownstreamCluster" && p.from !== b.index && !b.fleet.includes(p.name);
+  // On a cluster running SUSE Observability (its Fleet profiles).
+  if (p.type === "stackpack") return b.kind === "DownstreamCluster" && p.from !== b.index && !b.stackPacks.includes(p.name) && runsObservability(b.index);
   if (p.type === "block") {
     const type = clusterOfBlock(p.block);
     if (!type) return b.kind === "Harvester" && p.block === "HarvesterVM";
@@ -273,6 +277,7 @@ const accepts = (b: Box, p: Payload) => {
 const dropOn = (b: Box) => target(p => accepts(b, p), p => {
   if (p.type === "profile") { addProfile(b.index, p.name); if (p.from !== undefined) removeProfile(p.from, p.name); }
   else if (p.type === "fleet") { addFleetProfile(b.index, p.name); if (p.from !== undefined) removeFleetProfile(p.from, p.name); }
+  else if (p.type === "stackpack") { addStackPack(b.index, p.name); if (p.from !== undefined) removeStackPack(p.from, p.name); }
   else if (p.type === "block") addBlock(p.block, b.title, b.kind === "Harvester" ? defaultNetwork(b.title) : undefined);
   else if (p.type === "recipe") addRecipe(p.name, b.title, defaultNetwork(b.title));
   else if (p.type === "host") addNode(b.index, views.value[p.index]?.metadata?.name ?? "");
@@ -285,6 +290,10 @@ const wants = (b: Box) => !!dragging.value && accepts(b, dragging.value);
 const badge = (i: number) => problems.value[i];
 const profileInfo = (name: string) => catalog.value?.profiles.find(p => p.name === name)?.description ?? "not in the catalog";
 const fleetInfo = (name: string) => catalog.value?.fleetProfiles.find(p => p.name === name)?.description ?? "not in the catalog";
+const stackPackInfo = (name: string) => {
+  const p = catalog.value?.stackPacks.find(x => x.name === name);
+  return p ? `${p.description}${p.version ? ` (${p.version})` : ""}` : "not in the catalog";
+};
 </script>
 
 <template>
@@ -350,6 +359,13 @@ const fleetInfo = (name: string) => catalog.value?.fleetProfiles.find(p => p.nam
             @dragstart="start($event, { type: 'fleet', name: p, from: b.index })" @dragend="end"
             @click="emit('select', b.index)"
           ><ProfileIcon :name="p" :size="TOKEN" fleet /></span>
+          <span
+            v-for="(p, i) in b.stackPacks" :key="`s-${p}`" class="gtoken stackpack" draggable="true"
+            :style="{ left: `${b.x + 10 + (b.profiles.length + b.fleet.length + i) * (TOKEN + TOKEN_GAP)}px`, top: `${b.y + H - TOKEN / 2}px` }"
+            :title="`${p} (StackPack, on its SUSE Observability): ${stackPackInfo(p)}\ndrag to another cluster running SUSE Observability, or back to the palette to remove`"
+            @dragstart="start($event, { type: 'stackpack', name: p, from: b.index })" @dragend="end"
+            @click="emit('select', b.index)"
+          ><ProfileIcon :name="p" :size="TOKEN" stack-pack /></span>
         </template>
         <p v-if="boxes.length <= 1" class="graph-empty" :style="{ top: `${TOP}px`, left: `${PAD}px` }">Drag a Harvester or a Machine here to start.</p>
       </div>
@@ -401,6 +417,7 @@ const fleetInfo = (name: string) => catalog.value?.fleetProfiles.find(p => p.nam
 .gchip { font-size: 11px; padding: 0 6px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel-2); cursor: grab; }
 .graph-empty { position: absolute; margin: 0; color: var(--muted); }
 .gtoken.fleet { border-radius: 28%; }
+.gtoken.stackpack { border-radius: 12%; }
 .gtoken { position: absolute; z-index: 1; display: inline-flex; border-radius: 50%; cursor: grab; box-shadow: 0 0 0 2px var(--panel-2); }
 .gtoken:hover { transform: scale(1.12); }
 .hint { font-style: italic; }

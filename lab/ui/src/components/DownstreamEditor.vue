@@ -2,7 +2,7 @@
 import { computed, provide } from "vue";
 import { useDoc } from "../doc";
 import { catalog, reportOf, views } from "../store";
-import { addFleetProfile, defaultDistro, removeFleetProfile } from "../compose";
+import { addFleetProfile, addStackPack, defaultDistro, removeFleetProfile, removeStackPack, runsObservability } from "../compose";
 import { CLUSTER_UI, clusterType } from "../clusters";
 import { FORM_CONTEXT } from "../form";
 import type { ClusterTypeName } from "../../../packages/schema/src/clusters/names";
@@ -112,6 +112,20 @@ function addFleet(e: Event) {
   if (select.value) addFleetProfile(props.index, select.value);
   select.value = "";
 }
+
+/** The StackPacks of the SUSE Observability it runs (its Fleet profiles), and the others it can add. */
+const observes = computed(() => runsObservability(props.index));
+const stackPackNames = computed<string[]>(() => spec.value.stackPacks ?? []);
+const stackPackChoices = computed(() => (catalog.value?.stackPacks ?? []).filter(p => !stackPackNames.value.includes(p.name)));
+const stackPackInfo = (name: string) => {
+  const p = catalog.value?.stackPacks.find(x => x.name === name);
+  return p ? `${p.description}\nversion: ${p.version ?? "the instance's latest"}${p.fromSource ? " (built from source: lab stackpacks)" : ""}` : "not in the catalog";
+};
+function addPack(e: Event) {
+  const select = e.target as HTMLSelectElement;
+  if (select.value) addStackPack(props.index, select.value);
+  select.value = "";
+}
 </script>
 
 <template>
@@ -147,6 +161,22 @@ function addFleet(e: Event) {
         </select>
       </div>
       <SchemaForm :index="index" :schema="schema" section="fleet" />
+    </section>
+
+    <section v-if="observes || stackPackNames.length">
+      <h3>StackPacks</h3>
+      <p class="muted">On the SUSE Observability this cluster runs: the engine installs them with its bootstrap token, and uninstalls one taken out. Drop them on the cluster box, or add them here.</p>
+      <p v-if="!observes" class="warn-text notice">None of its Fleet profiles runs SUSE Observability (the observability Fleet profile): validation rejects its StackPacks.</p>
+      <div class="fleet-profiles">
+        <span v-for="p in stackPackNames" :key="p" class="fleet-chip" :title="stackPackInfo(p)">
+          <ProfileIcon :name="p" :size="20" stack-pack />{{ p }}
+          <button type="button" class="icon" :title="`Remove ${p}`" @click="removeStackPack(index, p)">×</button>
+        </span>
+        <select v-if="observes && stackPackChoices.length" class="fleet-add" :value="''" @change="addPack">
+          <option value="" disabled>+ add a StackPack</option>
+          <option v-for="p in stackPackChoices" :key="p.name" :value="p.name">{{ p.name }} — {{ p.description }}</option>
+        </select>
+      </div>
     </section>
 
     <ProfilesEditor :index="index" :model-value="spec.profiles" target="cluster" @set="(n, x) => set(['spec', 'profiles', n], x ?? {})" @remove="n => set(['spec', 'profiles', n], undefined)" />

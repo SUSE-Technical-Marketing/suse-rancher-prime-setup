@@ -46,6 +46,8 @@ export interface ComponentInput extends Partial<DistributionSpec> {
     path?: string;
     sha256?: string;
     unlocked?: "fail" | "skip" | "overwrite";
+    /** A StackPack's icon in the lab UI. */
+    icon?: string;
 }
 
 /** The component kinds: one namespace, profiles and the engine refer to them by name. */
@@ -164,7 +166,7 @@ export type ResolvedComponent =
     | { kind: "Manifest"; manifest: string; version: VersionValue; description?: string }
     | { kind: "Binary"; download: string; version: VersionValue; description?: string }
     /** In the instance's catalog (no `archive`: its latest version, unless one is set), or built from `archive` and uploaded. */
-    | { kind: "StackPack"; version?: string; archive?: string; path?: string; sha256?: string; unlocked: "fail" | "skip" | "overwrite"; description?: string }
+    | { kind: "StackPack"; version?: string; archive?: string; path?: string; sha256?: string; unlocked: "fail" | "skip" | "overwrite"; icon?: string; description?: string }
     | ({ kind: "KubernetesDistribution"; version: VersionValue; description?: string } & DistributionSpec);
 
 export type ResolvedDistribution = Extract<ResolvedComponent, { kind: "KubernetesDistribution" }>;
@@ -275,14 +277,14 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
         const { version, manifest, download, chart, repo, namespace, credentials } = value;
         const description = descriptions[key] ? { description: descriptions[key] } : {};
         if (kind === "StackPack") {
-            const { archive, path, sha256, unlocked } = value;
+            const { archive, path, sha256, unlocked, icon } = value;
             if (version !== undefined && typeof version !== "string") diags.error(source, at("spec.version"), "must be one version (a StackPack isn't per Harvester version)");
             const missing = archive === undefined ? [] : (["path", "sha256", "version"] as const).filter(f => value[f] === undefined);
             for (const f of missing) diags.error(source, at(`spec.${f}`), "required with a url: the .sts is built from the archive");
             if (missing.length === 0 && (version === undefined || typeof version === "string")) {
                 components[key] = {
                     value: {
-                        kind, unlocked: unlocked ?? "fail", ...description,
+                        kind, unlocked: unlocked ?? "fail", ...(icon ? { icon } : {}), ...description,
                         ...(typeof version === "string" ? { version } : {}),
                         ...(archive !== undefined ? { archive, path, sha256 } : {}),
                     },
@@ -368,8 +370,8 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
                 if (!(rules.clusterRefs ?? []).some(r => r.field === sp.on && r.provides === "suse-observability")) {
                     problems.push({ at: "spec.observerStackPacks.on", message: `isn't one of its clusterRefs fields providing suse-observability` });
                 }
-                sp.install.forEach((n, i) => {
-                    if (components[n]?.value.kind !== "StackPack") problems.push({ at: `spec.observerStackPacks.install[${i}]`, message: `no StackPack "${n}"` });
+                sp.expects.forEach((n, i) => {
+                    if (components[n]?.value.kind !== "StackPack") problems.push({ at: `spec.observerStackPacks.expects[${i}]`, message: `no StackPack "${n}"` });
                 });
             }
             if (distribution !== undefined && components[distribution]?.value.kind !== "KubernetesDistribution") problems.push({ at: "spec.distribution", message: `no KubernetesDistribution "${distribution}"` });

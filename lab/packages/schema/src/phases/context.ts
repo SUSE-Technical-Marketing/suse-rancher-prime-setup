@@ -287,13 +287,9 @@ export function createResolution(input: ResolveInput, diags: Diagnostics) {
                     ...(e.admitted ? { admitted: true } : {}), ...(e.wait ? { wait: e.wait } : {}), ...(aliases.length ? { aliases } : {}),
                 }];
             }),
-            // StackPacks for the instance it sends to: the cluster its `on` field names, with its admin token.
+            // The StackPacks the instance it sends to should have: the cluster its `on` field names.
             ...(def.observerStackPacks && refs[def.observerStackPacks.on] ? {
-                stackPacks: {
-                    observer: refs[def.observerStackPacks.on].name,
-                    adminToken: String(renderTemplates(def.observerStackPacks.adminToken, ctx, "", errorAt("observerStackPacks.adminToken"))),
-                    install: def.observerStackPacks.install,
-                },
+                stackPacks: { observer: refs[def.observerStackPacks.on].name, expects: def.observerStackPacks.expects },
             } : {}),
             aliases: (def.aliases ?? []).map((a, i) => typeof a === "string" ? { type: a } : {
                 ...(a.type ? { type: a.type } : {}),

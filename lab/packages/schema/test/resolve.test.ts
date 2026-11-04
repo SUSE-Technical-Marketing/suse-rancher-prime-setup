@@ -61,6 +61,11 @@ function errors(result: LoadResult): string[] {
     return result.diagnostics.errors.map(d => `${resolverPath(d.path)}: ${d.message}`);
 }
 
+/** Warnings, the same way. */
+function warnings(result: LoadResult): string[] {
+    return result.diagnostics.warnings.map(d => `${resolverPath(d.path)}: ${d.message}`);
+}
+
 // The profiles a Rancher host needs (DESIGN.md §5.4).
 const RANCHER_STACK = "k3s: {}, cert-manager: {}, sprouter: {}, traefik: {}, rancher: { adminPassword: \"{{ secrets.ra }}\" }";
 
@@ -1137,23 +1142,57 @@ downstream:
             expect(result.lab!.secrets).toMatchObject({ appco: "credentials", observability: { fields: ["token"] } });
         });
 
-        it("wants OpenTelemetry's and SUSE AI's StackPacks on its observer: once for every cluster sending there", () => {
-            const result = load(`inputs: { appco: "{{ secrets.appco }}" }\n${BASE}
+        // Its observer, with StackPacks of its own: installed with the instance's bootstrap token (an input).
+        const observed = (stackPacks: string, inputs = 'inputs: { appco: "{{ secrets.appco }}", suse-observability-token: "{{ secrets.observability.token }}" }\n') => load(`${inputs}${BASE}
 hosts:
   vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { ${RANCHER_STACK} } }
 downstream:
-  obs: { type: harvester, rancher: vm, ${POOL}, fleetProfiles: { storage: {}, observability: {} } }
+  obs: { type: harvester, rancher: vm, ${POOL}, fleetProfiles: { storage: {}, observability: {} }${stackPacks} }
   apps: { type: harvester, rancher: vm, ${POOL}, profiles: { opentelemetry: { observer: obs } } }
-  chat: { type: harvester, rancher: vm, ${POOL}, profiles: { opentelemetry: { observer: obs } } }
 `);
+
+        it("go on the cluster running SUSE Observability, explicitly, with its bootstrap token", () => {
+            const result = observed(", stackPacks: [ open-telemetry, suse-ai ]");
             expect(errors(result)).toEqual([]);
+            expect(warnings(result)).toEqual([]);
             expect(result.lab!.stackPacks.map(p => ({ ...p, stackPack: p.stackPack.archive ?? "catalog" }))).toEqual([
-                { observer: "obs", url: "https://observability.obs.lab.geeko.me", name: "open-telemetry", stackPack: "catalog", adminToken: "{{ secrets.observability.token }}", wantedBy: ["apps/opentelemetry", "chat/opentelemetry"] },
+                { observer: "obs", url: "https://observability.obs.lab.geeko.me", name: "open-telemetry", stackPack: "catalog", adminToken: "{{ secrets.observability.token }}" },
                 // Built from source: its .sts, which `lab stackpacks` builds before `up`.
-                { observer: "obs", url: "https://observability.obs.lab.geeko.me", name: "suse-ai", stackPack: expect.stringMatching(/^https:\/\/github\.com\/SUSE\/suse-ai-observability-extension\/archive\/refs\/tags\/v\{version\}\.zip$/), file: expect.stringMatching(/\/lab\/\.cache\/stackpacks\/suse-ai-3\.0\.0\.sts$/), adminToken: "{{ secrets.observability.token }}", wantedBy: ["apps/opentelemetry", "chat/opentelemetry"] },
+                { observer: "obs", url: "https://observability.obs.lab.geeko.me", name: "suse-ai", stackPack: expect.stringMatching(/^https:\/\/github\.com\/SUSE\/suse-ai-observability-extension\/archive\/refs\/tags\/v\{version\}\.zip$/), file: expect.stringMatching(/\/lab\/\.cache\/stackpacks\/suse-ai-3\.0\.0\.sts$/), adminToken: "{{ secrets.observability.token }}" },
             ]);
             expect(result.lab!.stackPacks[1].stackPack).toMatchObject({ kind: "StackPack", version: "3.0.0", path: "stackpack/suse-ai", sha256: expect.stringMatching(/^[0-9a-f]{64}$/), unlocked: "overwrite" });
-            expect(result.lab!.stackPacks[0].stackPack).toEqual({ kind: "StackPack", unlocked: "fail", description: expect.any(String) });
+            expect(result.lab!.stackPacks[0].stackPack).toEqual({ kind: "StackPack", unlocked: "fail", icon: "activity", description: expect.any(String) });
+        });
+
+        it("warn when the instance a profile sends to lacks the StackPacks it expects", () => {
+            const result = observed(", stackPacks: [ open-telemetry ]");
+            expect(errors(result)).toEqual([]);
+            expect(warnings(result)).toEqual([
+                "downstream.apps.profiles.opentelemetry: obs's SUSE Observability has no StackPack suse-ai, so it won't show all this sends: add it to obs's stackPacks",
+            ]);
+            expect(warnings(observed(""))).toEqual([
+                "downstream.apps.profiles.opentelemetry: obs's SUSE Observability has no StackPack open-telemetry, suse-ai, so it won't show all this sends: add them to obs's stackPacks",
+            ]);
+            // None of them installed for it: only what obs lists.
+            expect(observed("").lab!.stackPacks).toEqual([]);
+        });
+
+        it("need SUSE Observability on the cluster, StackPacks of the catalog, and the bootstrap token", () => {
+            expect(errors(observed(", stackPacks: [ open-telemetry, nope, open-telemetry ]"))).toEqual([
+                'downstream.obs.stackPacks[1]: no StackPack "nope"; the catalog has: open-telemetry, suse-ai',
+                "downstream.obs.stackPacks[2]: open-telemetry is listed twice",
+            ]);
+            expect(errors(observed(", stackPacks: [ open-telemetry ]", 'inputs: { appco: "{{ secrets.appco }}" }\n'))).toEqual([
+                "inputs.suse-observability-token: required: the StackPacks on obs are installed with its SUSE Observability's bootstrap token (a secret, as its values file has it)",
+            ]);
+            expect(errors(load(`inputs: { appco: "{{ secrets.appco }}", suse-observability-token: "{{ secrets.observability.token }}" }\n${BASE}
+hosts:
+  vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { ${RANCHER_STACK} } }
+downstream:
+  apps: { type: harvester, rancher: vm, ${POOL}, stackPacks: [ open-telemetry ] }
+`))).toEqual([
+                "downstream.apps.stackPacks: cluster apps doesn't run suse-observability: give it the Fleet profile observability",
+            ]);
         });
 
         it("names StackPacks of the catalog, on a clusterRefs field providing suse-observability", () => {
@@ -1162,13 +1201,13 @@ downstream:
     probe:
       charts: [ { chart: sprouter, namespace: probe } ]
       clusterRefs: [ { field: observer, provides: suse-observability } ]
-      observerStackPacks: { on: target, adminToken: x, install: [ suse-ai, nope, opentelemetry-operator ] }
+      observerStackPacks: { on: target, expects: [ suse-ai, nope, opentelemetry-operator ] }
       settings: { type: object, properties: { observer: { type: dnsLabel } } }
 `;
             expect(errors(load(`${bad}${BASE}`))).toEqual([
                 "ChartProfile/probe.spec.observerStackPacks.on: isn't one of its clusterRefs fields providing suse-observability",
-                'ChartProfile/probe.spec.observerStackPacks.install[1]: no StackPack "nope"',
-                'ChartProfile/probe.spec.observerStackPacks.install[2]: no StackPack "opentelemetry-operator"',
+                'ChartProfile/probe.spec.observerStackPacks.expects[1]: no StackPack "nope"',
+                'ChartProfile/probe.spec.observerStackPacks.expects[2]: no StackPack "opentelemetry-operator"',
             ]);
         });
 

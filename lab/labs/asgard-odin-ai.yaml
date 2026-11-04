@@ -89,6 +89,8 @@ spec:
     traefik: {}
     storage: {}
     observability: {}
+  # On its SUSE Observability, for what the clusters' SUSE AI collectors send.
+  stackPacks: [ open-telemetry, suse-ai ]
   annotations:
     hosted-domain: "{{ lab.domain }}"
   machineGlobalConfig:

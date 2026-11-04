@@ -9,18 +9,20 @@ import { iconRef } from "../icons";
 import { catalog } from "../store";
 
 // A profile's icon in its color: a round token. `size` is its diameter in pixels. A Fleet profile's
-// (`fleet`) is a rounded square: Fleet installs it on a cluster, not the engine on a host.
-const props = withDefaults(defineProps<{ name: string; size?: number; fleet?: boolean }>(), { size: 26 });
+// (`fleet`) is a rounded square: Fleet installs it on a cluster, not the engine on a host. A
+// StackPack's (`stackPack`) is a sharper square: it goes on the SUSE Observability a cluster runs.
+const props = withDefaults(defineProps<{ name: string; size?: number; fleet?: boolean; stackPack?: boolean }>(), { size: 26 });
 
-const list = computed<{ name: string; icon?: string }[]>(() => (props.fleet ? catalog.value?.fleetProfiles : catalog.value?.profiles) ?? []);
+const list = computed<{ name: string; icon?: string }[]>(() =>
+  (props.stackPack ? catalog.value?.stackPacks : props.fleet ? catalog.value?.fleetProfiles : catalog.value?.profiles) ?? []);
 const index = computed(() => list.value.findIndex(p => p.name === props.name));
 const profile = computed(() => list.value[index.value]);
 const color = computed(() => (index.value < 0 ? "#6b7280" : PROFILE_COLORS[index.value % PROFILE_COLORS.length]));
-const icon = computed(() => iconRef(profile.value?.icon ?? "puzzle").value);
+const icon = computed(() => iconRef(profile.value?.icon ?? (props.stackPack ? "layers" : "puzzle")).value);
 </script>
 
 <template>
-  <span class="picon" :class="{ fleet }" :style="{ '--c': color, width: `${size}px`, height: `${size}px` }" role="img" :aria-label="name">
+  <span class="picon" :class="{ fleet, stackpack: stackPack }" :style="{ '--c': color, width: `${size}px`, height: `${size}px` }" role="img" :aria-label="name">
     <component :is="icon" v-if="icon" :size="Math.round(size * 0.58)" :stroke-width="2" aria-hidden="true" />
   </span>
 </template>
@@ -34,4 +36,5 @@ const icon = computed(() => iconRef(profile.value?.icon ?? "puzzle").value);
 /* The same hues, lighter, on dark panels. */
 :root[data-theme="dark"] .picon { --ink: color-mix(in srgb, var(--c) 55%, white); background: color-mix(in srgb, var(--c) 30%, var(--panel)); }
 .picon.fleet { border-radius: 28%; }
+.picon.stackpack { border-radius: 12%; }
 </style>

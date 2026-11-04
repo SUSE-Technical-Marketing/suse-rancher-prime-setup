@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { form } from "../form";
 import { awsZone, dnsLabel, quantity } from "../primitives";
-import { annotations, checkDistro, checkPassthrough, checkRoles, ClusterPassthrough, distro, fleetProfiles, kubernetesVersion, labels, profiles, rancher, roles } from "./common";
+import { annotations, checkDistro, checkPassthrough, checkRoles, ClusterPassthrough, distro, fleetProfiles, stackPacks, kubernetesVersion, labels, profiles, rancher, roles } from "./common";
 
 /** Common sizes for lab nodes, suggested in the lab UI; any instance type works. */
 export const EC2_TYPES = ["t3.medium", "t3.large", "t3.xlarge", "t3.2xlarge", "m6i.large", "m6i.xlarge", "m6i.2xlarge", "c6i.xlarge", "r6i.xlarge"];
@@ -33,6 +33,7 @@ export const Ec2ClusterInput = z.strictObject({
     labels,
     annotations,
     fleetProfiles,
+    stackPacks,
     profiles,
     ...ClusterPassthrough,
     pools: z.array(Ec2Pool).min(1).meta(form({ label: "Machine pools", cards: { add: "a pool", title: "name" } })),
