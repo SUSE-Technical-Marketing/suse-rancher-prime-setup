@@ -61,7 +61,7 @@ spec:
         expect(diagnostics.errors.map(d => `${d.path}: ${d.message}`)).toEqual([
             "HostRecipe/broken.spec.host.memory: doesn't apply to a Machine",
             'HostRecipe/broken.spec.host.os: unknown OS "nope"; known: leap-16, rocky-9, sl-micro-6.1, sles-16, ubuntu-24.04',
-            expect.stringMatching(/^HostRecipe\/broken\.spec\.host\.profiles: unknown profile "nope"; known: ai-factory, /),
+            expect.stringMatching(/^HostRecipe\/broken\.spec\.host\.profiles: unknown profile "nope"; known: ai-demos, ai-factory, /),
             "HostRecipe/broken.spec.host.profiles.harvester-cloud-provider: only runs on harvester hosts, not a Machine",
             "HostRecipe/broken.spec.host.profiles.hauler.port: Too big: expected number to be <=65535",
         ]);

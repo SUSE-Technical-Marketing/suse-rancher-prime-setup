@@ -56,7 +56,7 @@ spec: {}
         expect(errors(result)).toEqual([
             "document 2.apiVersion: must be lab.geeko.me/v1alpha1",
             'document 2.extra: unknown field "extra"; a document has apiVersion, kind, metadata and spec',
-            'document 3.kind: unknown kind "Deployment"; one of HelmChart, Manifest, Binary, StackPack, KubernetesDistribution, AcmeServer, Defaults, Profile, ChartProfile, SecretTemplate, ConfigMapTemplate, FleetRepo, FleetHelmOp, FleetProfile, HostRecipe, HaulManifest, ClusterGroup, UiPluginRepository, UiPlugin, OperatingSystem, Harvester, AwsSite, HarvesterVM, Machine, DownstreamCluster',
+            'document 3.kind: unknown kind "Deployment"; one of HelmChart, Manifest, Binary, StackPack, KubernetesDistribution, AcmeServer, Defaults, Profile, ChartProfile, ResourceProfile, SecretTemplate, ConfigMapTemplate, FleetRepo, FleetHelmOp, FleetProfile, HostRecipe, HaulManifest, ClusterGroup, UiPluginRepository, UiPlugin, OperatingSystem, Harvester, AwsSite, HarvesterVM, Machine, DownstreamCluster',
             "document 4.kind: Lab can only be the first document of its own file",
         ]);
     });
@@ -373,7 +373,7 @@ spec: { address: box.example.com, os: leap-16, profiles: { k3s: {}, mine: {} } }
 `);
         expect(errors(loadLab({ labFile: lab, personalConfig: noPersonal() }))).toEqual([
             "ChartProfile/hosty.spec.hostKinds: is for a Profile (lab hosts only); a ChartProfile has charts and objects only",
-            "ChartProfile/chartless.spec.charts: needs a chart of its own (its objects go with it)",
+            "ChartProfile/chartless.spec.charts: needs a chart of its own (its objects go with it); objects alone are a ResourceProfile",
         ]);
         // Without those two, the lab's own ChartProfile is used like a built-in one.
         fs.writeFileSync(lab, fs.readFileSync(lab, "utf8").replace(/---\nkind: ChartProfile\nmetadata: \{ name: hosty \}[\s\S]*?(?=---\nkind: Machine)/, ""));
@@ -385,6 +385,55 @@ spec: { address: box.example.com, os: leap-16, profiles: { k3s: {}, mine: {} } }
         expect(errors(loadLab({ labFile: lab, personalConfig: noPersonal() }))).toEqual([
             "Profile/coded: Profiles can only be defined in the engine's catalog (lab/catalog/): their builders are written against them",
         ]);
+    });
+
+    it("takes a lab's own ResourceProfiles: objects only, on hosts and clusters", () => {
+        const lab = write("own-resources.yaml", `apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata: { name: own }
+spec:
+  domain: lab.example.com
+  tls: { acme: none }
+  ssh: { user: lab, publicKey: "ssh-ed25519 AAAA", privateKey: "{{ secrets.k }}" }
+---
+kind: ResourceProfile
+metadata: { name: repo, description: "A chart repository" }
+spec:
+  requires: [ kubernetes ]
+  objects:
+    - name: repo
+      object: { apiVersion: catalog.cattle.io/v1, kind: ClusterRepo, metadata: { name: "{{ settings.name }}" }, spec: { url: https://example.com } }
+  settings: { type: object, properties: { name: { type: dnsLabel, default: mine } } }
+---
+kind: ResourceProfile
+metadata: { name: charted }
+spec:
+  charts: [ { chart: sprouter, namespace: charted } ]
+  objects: [ { name: x, object: { apiVersion: v1, kind: ConfigMap, metadata: { name: x } } } ]
+---
+kind: ResourceProfile
+metadata: { name: empty }
+spec:
+  targets: [ harvester ]
+  distribution: rke2
+---
+kind: Machine
+metadata: { name: box }
+spec: { address: box.example.com, os: leap-16, profiles: { k3s: {}, repo: {} } }
+`);
+        expect(errors(loadLab({ labFile: lab, personalConfig: noPersonal() }))).toEqual([
+            "ResourceProfile/charted.spec.charts: a ResourceProfile has objects only: with a chart it's a ChartProfile",
+            "ResourceProfile/empty.spec.distribution: is for a Profile (lab hosts only); a ResourceProfile has objects only",
+            "ResourceProfile/empty.spec.objects: required: a ResourceProfile is its objects",
+            "ResourceProfile/empty.spec.targets: a ResourceProfile goes on hosts and clusters (on a Harvester, a profile is an add-on: a chart)",
+        ]);
+        fs.writeFileSync(lab, fs.readFileSync(lab, "utf8").replace(/---\nkind: ResourceProfile\nmetadata: \{ name: charted \}[\s\S]*?(?=---\nkind: Machine)/, ""));
+        const ok = loadLab({ labFile: lab, personalConfig: noPersonal() });
+        expect(errors(ok)).toEqual([]);
+        expect(ok.lab!.hosts[0].profileOrder).toEqual(["k3s", "repo"]);
+        // Its objects, rendered with its settings; no chart of its own.
+        expect(ok.lab!.hosts[0].chartValues!.repo).toMatchObject({ entries: [], objects: [{ name: "repo", object: { kind: "ClusterRepo", metadata: { name: "mine" } } }] });
+        expect(ok.lab!.profileCharts.repo).toEqual({ entries: [] });
     });
 
     it("assembles a lab from its Harvester, HarvesterVM, Machine and DownstreamCluster documents", () => {

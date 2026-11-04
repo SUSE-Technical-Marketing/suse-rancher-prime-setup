@@ -11,7 +11,7 @@ import { createObjects } from "../objects";
 import type { ResolvedOs } from "../os";
 import type { Profiles } from "../profiles";
 import { activeRequirements, describeCapability, getPath, hostCapabilities } from "../profiles/rules";
-import { profileTargets } from "../profiles/define";
+import { profileDocKind, profileTargets } from "../profiles/define";
 import type { FixedAddress, RenderedProfile, ResolvedAwsSite, ResolvedDownstream, ResolvedHarvester, ResolvedHost, ResolveInput } from "../resolve";
 import { AWS_CREDENTIAL_FIELDS, type AwsCredentials, type Credentials } from "../schema";
 import { checkSecretTemplate, describeShape, mapShape, mergeShapes, type SecretShape, usesSecrets } from "../secrets";
@@ -225,7 +225,7 @@ export function createResolution(input: ResolveInput, diags: Diagnostics) {
             haulManifests: names => haulManifestFiles(names, renderedHaul),
         };
         const errorAt = (part: string) => (path: string, message: string) =>
-            diags.error(def.source, docAt(def.kind === "chart" ? "ChartProfile" : "Profile", name, `spec.${part}${path ? `.${path}` : ""}`), `${message} (on ${on})`);
+            diags.error(def.source, docAt(profileDocKind(def.kind), name, `spec.${part}${path ? `.${path}` : ""}`), `${message} (on ${on})`);
         return {
             entries: (def.charts ?? []).map((e, i) => {
                 const error = (field: string) => errorAt(`charts[${i}].${field}`);

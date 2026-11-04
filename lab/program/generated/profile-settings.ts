@@ -1,6 +1,18 @@
 // Generated from the Profile documents in lab/catalog/ by `mise run profile-types`. Don't edit.
 import type { Credentials } from "@lab/schema";
 
+/** Settings of the `ai-demos` profile: AI demos (github.com/wiredquill/ai-demos) as SUSE AI Factory blueprints: their chart repositories, and the blueprints */
+export type AiDemosSettings = {
+    /** the demos' git repository (a fork, to try changes) */
+    repo: string;
+    /** the branch whose catalog/blueprints holds the blueprints */
+    blueprintsBranch: string;
+    /** the branch with the packaged charts (index.yaml and .tgz files) of the wiredquill-ai-demos ClusterRepo */
+    chartsBranch: string;
+    /** the branch with the community charts of the wiredquill-upstream ClusterRepo */
+    upstreamBranch: string;
+};
+
 /** Settings of the `ai-factory` profile: SUSE AI Factory on Rancher: its operator and UI extension, logged in to the registries its blueprints install from */
 export type AiFactorySettings = {
     version?: string;
@@ -277,6 +289,7 @@ export type VllmSettings = {
 
 /** Profile name -> its settings. */
 export interface ProfileSettings {
+    "ai-demos": AiDemosSettings;
     "ai-factory": AiFactorySettings;
     "cert-manager": CertManagerSettings;
     "harvester-cloud-provider": HarvesterCloudProviderSettings;

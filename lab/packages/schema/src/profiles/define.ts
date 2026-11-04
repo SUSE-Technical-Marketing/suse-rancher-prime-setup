@@ -171,8 +171,12 @@ export const ProfileInput = z.strictObject({
 export type ProfileInput = z.infer<typeof ProfileInput>;
 
 export interface ProfileDefinition extends Omit<ProfileInput, "settings"> {
-    /** `custom`: a Profile, with a builder in the engine, for lab hosts; `chart`: a ChartProfile, for hosts and downstream clusters. */
-    kind: "custom" | "chart";
+    /**
+     * `custom`: a Profile, with a builder in the engine, for lab hosts; `chart`: a ChartProfile, for
+     * hosts and downstream clusters; `resource`: a ResourceProfile, a ChartProfile's objects without
+     * a chart (what something else installed is set up with: a ClusterRepo, a Fleet GitRepo).
+     */
+    kind: ProfileKind;
     /** Its first chart: the one the lab's `values` and the `version` setting apply to. */
     chart?: string;
     /** Value paths a lab's `values` may not touch: the leaves of the first chart's `lockedValues`. */
@@ -187,9 +191,14 @@ export interface ProfileDefinition extends Omit<ProfileInput, "settings"> {
     source: string;
 }
 
-/** Where a profile can go: a Profile's `targets` (default lab hosts), a ChartProfile hosts and clusters. */
+export type ProfileKind = "custom" | "chart" | "resource";
+
+/** A profile kind's document kind, for messages. */
+export const profileDocKind = (kind: ProfileKind) => kind === "chart" ? "ChartProfile" : kind === "resource" ? "ResourceProfile" : "Profile";
+
+/** Where a profile can go: a Profile's `targets` (default lab hosts), a ChartProfile's or ResourceProfile's hosts and clusters. */
 export const profileTargets = (def: Pick<ProfileDefinition, "kind" | "targets">): ("host" | "cluster" | "harvester")[] =>
-    def.targets ?? (def.kind === "chart" ? ["host", "cluster"] : ["host"]);
+    def.targets ?? (def.kind === "custom" ? ["host"] : ["host", "cluster"]);
 
 /** All profiles, by name: built from the catalog, passed to the rule checks. */
 export type ProfileRegistry = Record<string, ProfileDefinition>;

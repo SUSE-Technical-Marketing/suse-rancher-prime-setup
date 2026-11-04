@@ -208,8 +208,11 @@ export function installChartProfile(
     const p = lab.profileCharts[name];
     const main = p.entries.findIndex(e => e.kind === "chart" && e.main);
     const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, k) => from + k);
-    // Only manifests and extra charts: install them all, in order.
-    if (main < 0) return installEntries(lab, target, name, cluster, range(0, p.entries.length), after);
+    // Only manifests and extra charts, or only objects (a ResourceProfile): install them all, in order.
+    if (main < 0) {
+        const done = installEntries(lab, target, name, cluster, range(0, p.entries.length), after);
+        return [...done, ...objectsOnly(lab, `${target.name}/${name}`, cluster, target.chartValues[name]?.objects ?? [], done.length ? done.slice(-1) : after)];
+    }
     const before = installEntries(lab, target, name, cluster, range(0, main), after);
     const mainAfter = before.length ? before.slice(-1) : after;
     const mainChart = p.entries[main] as { chart: string };
@@ -239,7 +242,9 @@ function chartProfileBuilder(name: string): AnyBuilder {
             // after it: here its chart and its objects.
             const main = p.entries.findIndex(e => e.kind === "chart" && e.main);
             if (main < 0) {
-                const done = installEntries(lab, host, name, need(ctx, "kubernetes"), p.entries.map((_, i) => i), after);
+                const cluster = need(ctx, "kubernetes");
+                const done = installEntries(lab, host, name, cluster, p.entries.map((_, i) => i), after);
+                done.push(...objectsOnly(lab, `${host.name}/${name}`, cluster, host.chartValues[name]?.objects ?? [], done.length ? done.slice(-1) : after));
                 return { ready: done.slice(-1) };
             }
             const cluster = need(ctx, "kubernetes");
@@ -348,6 +353,13 @@ function waitsFor(lab: ResolvedLab, prefix: string, cluster: ChartCluster, rende
         ...(w.condition ? { condition: w.condition } : {}),
         timeoutSeconds: lab.timeouts.resourceReady,
     }, { dependsOn: after, deletedWith: cluster.deletedWith }));
+}
+
+/** A profile's objects without a chart of its own to go under (a ResourceProfile's): under a component of their own. */
+function objectsOnly(lab: ResolvedLab, prefix: string, cluster: ChartCluster, objects: RenderedObject[], after: pulumi.Resource[]): pulumi.Resource[] {
+    if (objects.length === 0) return [];
+    const parent = new pulumi.ComponentResource("lab:apps:ResourceProfile", prefix, {}, {});
+    return applyObjects(lab, prefix, cluster, objects, parent, after);
 }
 
 /**

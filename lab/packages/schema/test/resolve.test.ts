@@ -1000,7 +1000,7 @@ ${catalog}`;
 
     it("takes only ChartProfiles, with their rules, on a cluster", () => {
         expect(errors(load(lab("    profiles: { k3s: {}, storage: {}, nope: {}, ai-factory: { applicationCollection: \"{{ secrets.a }}\", suseRegistry: \"{{ secrets.s }}\" } }")))).toEqual([
-            expect.stringMatching(/^downstream\.apps\.profiles\.k3s: is a Profile for lab hosts .*a downstream cluster takes: ai-factory, cert-manager, hauler-chart, landlock, metallb, open-webui, opentelemetry, outrider, sprouter, suse-observability-agent, traefik, vllm$/),
+            expect.stringMatching(/^downstream\.apps\.profiles\.k3s: is a Profile for lab hosts .*a downstream cluster takes: ai-demos, ai-factory, cert-manager, hauler-chart, landlock, metallb, open-webui, opentelemetry, outrider, sprouter, suse-observability-agent, traefik, vllm$/),
             "downstream.apps.profiles.storage: is a Fleet profile: list it under fleetProfiles",
             expect.stringMatching(/^downstream\.apps\.profiles\.nope: unknown profile "nope"/),
             expect.stringMatching(/^downstream\.apps\.profiles\.ai-factory: needs rancher .*on the same cluster$/),
@@ -1208,7 +1208,7 @@ hosts:
   vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { nope: {}, k3s: { versoin: x }, hauler: { port: 70000 } } }
 `);
         expect(errors(result)).toEqual([
-            'hosts.vm.profiles: unknown profile "nope"; known: ai-factory, cert-manager, harvester-cloud-provider, harvester-dns-controller, hauler, hauler-chart, k3s, landlock, metallb, mlm-client, mlm-server, open-webui, opentelemetry, outrider, rancher, rke2, sprouter, suse-observability-agent, traefik, vllm',
+            'hosts.vm.profiles: unknown profile "nope"; known: ai-demos, ai-factory, cert-manager, harvester-cloud-provider, harvester-dns-controller, hauler, hauler-chart, k3s, landlock, metallb, mlm-client, mlm-server, open-webui, opentelemetry, outrider, rancher, rke2, sprouter, suse-observability-agent, traefik, vllm',
             'hosts.vm.profiles.k3s.versoin: unknown field "versoin"',
             "hosts.vm.profiles.hauler.port: Too big: expected number to be <=65535",
         ]);

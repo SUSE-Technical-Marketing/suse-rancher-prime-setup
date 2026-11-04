@@ -71,6 +71,8 @@ spec:
       applicationCollection: "{{ secrets.appco }}"
       suseRegistry: "{{ secrets.scc }}"
       nvidia: "{{ secrets.nvidia }}"
+    # The AI demos (github.com/wiredquill/ai-demos) as AI Factory blueprints.
+    ai-demos: {}
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: DownstreamCluster

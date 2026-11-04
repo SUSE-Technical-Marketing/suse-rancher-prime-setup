@@ -1,0 +1,60 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: ResourceProfile
+metadata:
+  name: ai-demos
+  description: "AI demos (github.com/wiredquill/ai-demos) as SUSE AI Factory blueprints: their chart repositories, and the blueprints"
+spec:
+  icon: presentation         # in the lab UI (lucide.dev/icons)
+  # On the Rancher that runs SUSE AI Factory: AI Factory → Blueprints lists them, and deploys one to a
+  # downstream cluster (an AIWorkload, as Fleet bundles). Deploying needs AI Factory's Rancher catalog
+  # token (Settings rancherCatalog): it reads the charts of a git ClusterRepo through Rancher's API.
+  requires: [ ai-factory ]
+  objects:
+    # The chart repositories the blueprints' components name (chartRepo), by these names: the component
+    # charts and SUSE's charts republished with install forms; and the community charts (ai-compare upstream).
+    - name: chart-repo
+      admitted: true
+      object:
+        apiVersion: catalog.cattle.io/v1
+        kind: ClusterRepo
+        metadata: { name: wiredquill-ai-demos }
+        spec: { gitRepo: "{{ settings.repo }}", gitBranch: "{{ settings.chartsBranch }}" }
+    - name: upstream-chart-repo
+      admitted: true
+      object:
+        apiVersion: catalog.cattle.io/v1
+        kind: ClusterRepo
+        metadata: { name: wiredquill-upstream }
+        spec: { gitRepo: "{{ settings.repo }}", gitBranch: "{{ settings.upstreamBranch }}" }
+    # The blueprints, and their BlueprintCatalog: Fleet applies them on Rancher's own cluster, as
+    # aif-operator does its partner catalog (a GitRepo of its own, not a Settings blueprintCatalogs
+    # entry, which the Settings page can change). Only catalog/blueprints: the rest holds Helm charts.
+    - name: blueprints
+      admitted: true
+      object:
+        apiVersion: fleet.cattle.io/v1alpha1
+        kind: GitRepo
+        metadata: { name: ai-demos-blueprints, namespace: fleet-local }
+        spec:
+          repo: "{{ settings.repo }}"
+          branch: "{{ settings.blueprintsBranch }}"
+          paths: [ catalog/blueprints ]
+  settings:
+    type: object
+    properties:
+      repo:
+        type: string
+        default: https://github.com/wiredquill/ai-demos
+        description: the demos' git repository (a fork, to try changes)
+      blueprintsBranch:
+        type: string
+        default: main
+        description: the branch whose catalog/blueprints holds the blueprints
+      chartsBranch:
+        type: string
+        default: aif/hr-assistant-vllm
+        description: "the branch with the packaged charts (index.yaml and .tgz files) of the wiredquill-ai-demos ClusterRepo"
+      upstreamBranch:
+        type: string
+        default: aif/upstream-charts
+        description: the branch with the community charts of the wiredquill-upstream ClusterRepo

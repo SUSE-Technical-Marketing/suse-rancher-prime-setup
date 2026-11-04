@@ -40,8 +40,11 @@ export interface FleetProfileInfo {
 export interface CatalogProfile {
     /** `planned`: not built yet; the composer doesn't offer it, `lab up` refuses labs using it. */
     status?: "planned";
-    /** `custom`: a Profile, code in the engine, lab hosts only; `chart`: a ChartProfile, hosts and downstream clusters. */
-    kind: "custom" | "chart";
+    /**
+     * `custom`: a Profile, code in the engine, lab hosts only; `chart`: a ChartProfile, hosts and
+     * downstream clusters; `resource`: a ResourceProfile, a ChartProfile's objects without a chart.
+     */
+    kind: "custom" | "chart" | "resource";
     name: string;
     description: string;
     /** A Lucide icon name. */

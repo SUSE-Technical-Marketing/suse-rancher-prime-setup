@@ -12,7 +12,7 @@ describe("profiles in the catalog", () => {
         const { catalog, diagnostics } = loadCatalog({ personalConfig: noPersonal });
         expect(diagnostics.errors).toEqual([]);
         expect(Object.keys(catalog!.profiles).sort()).toEqual([
-            "ai-factory", "cert-manager", "harvester-cloud-provider", "harvester-dns-controller", "hauler", "hauler-chart", "k3s", "landlock", "metallb", "mlm-client", "mlm-server",
+            "ai-demos", "ai-factory", "cert-manager", "harvester-cloud-provider", "harvester-dns-controller", "hauler", "hauler-chart", "k3s", "landlock", "metallb", "mlm-client", "mlm-server",
             "open-webui", "opentelemetry", "outrider", "rancher", "rke2", "sprouter", "suse-observability-agent", "traefik", "vllm",
         ]);
         expect(catalog!.profiles.rancher).toMatchObject({ requires: ["kubernetes", "ingress", "tls", "secret-propagation"], chart: "rancher" });

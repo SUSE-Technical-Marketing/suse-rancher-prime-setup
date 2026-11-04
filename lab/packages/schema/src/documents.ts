@@ -156,6 +156,8 @@ export const CATALOG_KINDS = {
     },
     Profile: { name: dnsLabel, spec: ProfileInput },
     ChartProfile: { name: dnsLabel, spec: ProfileInput },
+    /** A ChartProfile's objects without a chart: what something else installed is set up with. */
+    ResourceProfile: { name: dnsLabel, spec: ProfileInput },
     SecretTemplate: { name: dnsLabel, spec: ObjectTemplateSpec(true) },
     ConfigMapTemplate: { name: dnsLabel, spec: ObjectTemplateSpec(false) },
     FleetRepo: { name: dnsLabel, spec: FleetRepoInput },
@@ -407,9 +409,10 @@ export function documentsLayer(docs: CatalogDocument[], source: string, diags: D
                 layer.profiles![d.name] = { profile: spec as ProfileInput, description: d.description ?? d.name, source: d.source, kind: "custom" };
                 break;
             case "ChartProfile":
+            case "ResourceProfile":
                 // No builder behind it: any catalog can have one (a lab's own, the personal config's).
                 layer.profiles = layer.profiles ?? {};
-                layer.profiles[d.name] = { profile: spec as ProfileInput, description: d.description ?? d.name, source: d.source, kind: "chart" };
+                layer.profiles[d.name] = { profile: spec as ProfileInput, description: d.description ?? d.name, source: d.source, kind: d.kind === "ChartProfile" ? "chart" : "resource" };
                 break;
             case "SecretTemplate":
             case "ConfigMapTemplate": {

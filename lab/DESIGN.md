@@ -338,6 +338,7 @@ profile. `lab profiles` prints the current list with all rules.
 | `hauler-chart` | a ChartProfile (hosts and clusters); requires `kubernetes`, `ingress`, `tls`, `secret-propagation`; provides `registry`; one `registry` per host | `manifests`, `storage` (the store's volume, 50Gi), `fileserver`, `version`, `values` | The `hauler-helm` chart at `registry.<target>` (and `files.<target>`) with the wildcard certificate; its store synced by a Job (§9.4) |
 | `mlm-server` | OS family `suse`; conflicts with `kubernetes` and `mlm-client`; secret `adminPassword` | `version`, `adminPassword`, `products` | `MlmAccess` |
 | `mlm-client` | `server` must name a host running `mlm-server` | `server`, `activationKey` | — |
+| `ai-demos` | a ResourceProfile; requires `ai-factory` | `repo` (default `https://github.com/wiredquill/ai-demos`), `blueprintsBranch` (`main`), `chartsBranch` (`aif/hr-assistant-vllm`), `upstreamBranch` (`aif/upstream-charts`) | The AI demos as SUSE AI Factory blueprints: the ClusterRepos their components name (`wiredquill-ai-demos`, `wiredquill-upstream`, git ClusterRepos), and a Fleet GitRepo `fleet-local/ai-demos-blueprints` applying `catalog/blueprints` (the Blueprints and their BlueprintCatalog) on Rancher's cluster, as aif-operator does its partner catalog. Deploying one needs AI Factory's Rancher catalog token (Settings `rancherCatalog`), not set yet |
 | `ai-factory` | requires `rancher`; secrets `applicationCollection`, `suseRegistry`, `nvidia` (credentials) | `version`, `applicationCollection` (required), `suseRegistry` (required; SCC), `nvidia` (the NGC login: user `$oauthtoken`, the API key as password), `values` | SUSE AI Factory on Rancher's cluster: the `aif-operator` chart, which installs the `aif-ui` extension and gets the registry logins as values, so its Settings need no Test and Apply |
 | `landlock` | a Profile for hosts and clusters (`targets`); not on k3k clusters (put it on the parent) or EKS; the OS profile needs `landlock.enable` | — | Landlock active on every node, which OpenShell's agent sandboxes need: turned on at first boot (VMs, a cluster's machines) or over SSH (machines), with one reboot, only where it isn't already; checked before `up` goes on (§9.7) |
 | `harvester-dns-controller` | a ChartProfile for Harvesters only (`targets: [harvester]`, an add-on); secret `credentials` | `backend` (`routeros`, `glinet`), `host`, `credentials` (all required), `ttl`, `useTls`, `tlsVerify`, `values` | The harvester-dns-controller add-on with the Harvester's base: a record on the router for every VM (§8). It used to be the Harvester's `dns:` |
@@ -896,7 +897,7 @@ Rules are expressed in **capabilities**. Every profile provides its own name, pl
 | `labRequires` | What it needs of the lab itself (`acme`: an ACME server, so `tls.acme` isn't `none`) | resolver |
 | `notOnClusterTypes` | Downstream cluster types it can't go on, each with the reason the error gives (Landlock: `k3k` runs on its parent's nodes, `eks` nodes are images the lab doesn't make) | resolver |
 | `hostRefs` | Settings fields naming another host, and the capability that host must provide | resolver |
-| `targets` | Where it goes: `host`, `cluster` (a downstream cluster's `profiles`) and `harvester` (a Harvester document's `profiles`, the HCI cluster itself). Default `[host]` for a Profile, `[host, cluster]` for a ChartProfile. A ChartProfile on a Harvester is an add-on: one chart (no manifests), its objects made before it, none with `admitted` or `wait` | resolver, UI (where a profile can be dropped) |
+| `targets` | Where it goes: `host`, `cluster` (a downstream cluster's `profiles`) and `harvester` (a Harvester document's `profiles`, the HCI cluster itself). Default `[host]` for a Profile, `[host, cluster]` for a ChartProfile or ResourceProfile. A ChartProfile on a Harvester is an add-on: one chart (no manifests), its objects made before it, none with `admitted` or `wait` | resolver, UI (where a profile can be dropped) |
 | `clusterRefs` | Settings fields naming a downstream cluster in the lab, and the capability its Fleet profiles must provide (`observer` → `suse-observability`) | resolver, UI (a select of the clusters that qualify, and a "reports to" arrow) |
 | `requiresWhen` | Like `requires`, but only when a settings field is set | resolver, build order |
 | `charts` | What the profile installs, in order, each after the one before: entries with a `chart` (and `namespace`, `values`, `lockedValues`) or a `manifest` (and `vars` for its URL placeholders), each with an optional `when` and `version`, `waitFor` (API paths, templates, optionally with a `condition` True: what must exist on the cluster before it's installed, put there by something else, Fleet's cert-manager), and `valueOverlays`: values for some targets only, each `{ when, values, lockedValues }` merged over the entry's, in order, when its `when` is true (`{{ target.kind == 'harvester' }}`, `{{ 'gpu' in target.capabilities and target.kind == 'cluster' }}`; Jinja's `and`, `or`, `not`); an overlay's locked paths are protected as the entry's. The first chart is the profile's own: the lab's `values` and the `version` setting go to it, and the leaves of its `lockedValues` are protected. Entries before it are installed before its builder runs, entries after it once the builder's work is ready | resolver (renders), program |
@@ -1975,17 +1976,20 @@ file it's defined in, which may be an included one), `spec.tls.email` for the La
 `HelmChart/rancher.spec.version` for a catalog document, `document 3.kind` for one that couldn't
 be read as a document at all.
 
-**Three kinds of profile.** What goes on a host or a downstream cluster is one of:
+**Four kinds of profile.** What goes on a host or a downstream cluster is one of:
 
 | Kind | Document | Where | Who installs it |
 |---|---|---|---|
 | Profile | `Profile`, with a builder in the engine (Rancher, the Harvester cloud provider; k3s and RKE2 share the Kubernetes one) | lab hosts only | the engine, with code |
 | ChartProfile | `ChartProfile`: `charts` and `objects`, templates, rules; no code (cert-manager, Traefik, MetalLB, Sprouter, Outrider, AI Factory) | lab hosts and downstream clusters | the engine: a Helm install, its manifests and objects, its waits |
+| ResourceProfile | `ResourceProfile`: a ChartProfile's `objects` without a chart, for what's installed already (`ai-demos`: ClusterRepos and a Fleet GitRepo for AI Factory) | lab hosts and downstream clusters | the engine: its objects, in order, under a component of their own |
 | Fleet profile | `FleetProfile`: labels and annotations (§16.3) | downstream clusters only | Fleet, from the repos and HelmOps that select them |
 
 A ChartProfile has a Profile's fields but the host-only ones (`distribution`, `fallback`,
 `hostKinds`, `osFamilies`, `networkFeatures`, `hostRefs`), and a chart of its own. Having no code,
-any catalog can define one (a lab's, the personal config's), unlike a Profile. Its templates use
+any catalog can define one (a lab's, the personal config's), unlike a Profile. A ResourceProfile is
+the same without charts (`charts` is refused, `objects` required, `aliases` are its objects' own) and
+not on a Harvester, where a profile is an add-on, a chart. Its templates use
 `target` (`kind`, `name`, `fqdn`) for where it's installed; a downstream cluster's `fqdn` is
 `<cluster>.<domain>`, as the Fleet apps name things there, so cert-manager's wildcard on a cluster
 covers `*.<cluster>.<domain>`. A cluster's `profiles` take ChartProfiles only, checked as on a host:

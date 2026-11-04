@@ -74,7 +74,7 @@ const where = computed<Where>(() => picked.value ?? context.value?.where ?? "all
 const following = computed(() => !!context.value && where.value === context.value.where);
 
 /** A profile row: an engine Profile, a ChartProfile or a Fleet profile. */
-interface Row { key: string; name: string; description: string; title: string; fleet: boolean; kind: "custom" | "chart" | "fleet"; provides: string[] }
+interface Row { key: string; name: string; description: string; title: string; fleet: boolean; kind: "custom" | "chart" | "resource" | "fleet"; provides: string[] }
 const goesOn = (targets: string[]) => where.value === "all" || targets.includes(where.value);
 // Planned profiles aren't built yet: not offered (a lab using one shows it in its form).
 const profileRows = computed<Row[]>(() => (catalog.value?.profiles ?? []).filter(p => p.status !== "planned" && goesOn(p.targets) && hit(p.name, p.description)).map(p => ({
@@ -110,6 +110,7 @@ function add(r: Row) {
 const sections = computed(() => [
   { id: "custom", label: "Engine", hint: "profiles with code in the engine (Kubernetes, Rancher, …)", rows: profileRows.value.filter(r => r.kind === "custom") },
   { id: "chart", label: "Charts", hint: "a Helm install with its manifests and objects, by the engine", rows: profileRows.value.filter(r => r.kind === "chart") },
+  { id: "resource", label: "Resources", hint: "objects for what's installed already (a ClusterRepo, a Fleet GitRepo), by the engine", rows: profileRows.value.filter(r => r.kind === "resource") },
   { id: "fleet", label: "Fleet", hint: "labels and annotations for a downstream cluster; Fleet installs what they select", rows: fleetRows.value },
 ].filter(s => s.rows.length > 0));
 

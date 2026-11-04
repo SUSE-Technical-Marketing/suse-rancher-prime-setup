@@ -5,7 +5,7 @@ import { ClusterSelector, FleetHelmOpInput, FleetProfileInput, FleetRepoInput } 
 import { HaulManifestInput } from "./hauler";
 import { checkRecipes, HostRecipeInput } from "./recipes";
 import { ConfigMapInput, SecretInput } from "./objects";
-import { ProfileDefinition, ProfileInput, ProfileRegistry } from "./profiles";
+import { profileDocKind, ProfileDefinition, ProfileInput, ProfileKind, ProfileRegistry } from "./profiles";
 import { checkSettingSchema, SettingSchema, settingZod } from "./settings-schema";
 import { renderTemplates } from "./templates";
 import { durationSeconds, TimeoutName, TIMEOUTS } from "./primitives";
@@ -120,7 +120,7 @@ export interface CatalogLayer {
     componentKinds?: Record<string, ComponentKind>;
     /** Host profiles, only in the built-in catalog: their rules are what the engine's builders expect. */
     /** `custom`: a Profile, with a builder in the engine, for lab hosts; `chart`: a ChartProfile, only charts and objects, for hosts and downstream clusters. */
-    profiles?: Record<string, { profile: ProfileInput; description: string; source: string; kind: "custom" | "chart" }>;
+    profiles?: Record<string, { profile: ProfileInput; description: string; source: string; kind: ProfileKind }>;
     /** Secret and configmap templates built from inputs (§16.6), each with the file it came from. */
     secrets: Record<string, Sourced<SecretInput>>;
     configmaps: Record<string, Sourced<ConfigMapInput>>;
@@ -341,10 +341,10 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
     for (const layer of layers) {
         for (const [name, { profile, description, source, kind }] of Object.entries(layer.profiles ?? {})) {
             const { settings, distribution, ...rules } = profile;
-            const docKind = kind === "chart" ? "ChartProfile" : "Profile";
+            const docKind = profileDocKind(kind);
             const before = profiles[name];
             if (before && before.kind !== kind) {
-                diags.error(source, docAt(docKind, name), `is a ${before.kind === "chart" ? "ChartProfile" : "Profile"} already (${before.source}); a profile keeps its kind`);
+                diags.error(source, docAt(docKind, name), `is a ${profileDocKind(before.kind)} already (${before.source}); a profile keeps its kind`);
                 continue;
             }
             const schema: SettingSchema = settings ?? { type: "object", properties: {} };
@@ -379,12 +379,18 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
                 if (entries.length !== 1 || entries[0].chart === undefined) problems.push({ at: "spec.charts", message: "on a Harvester it's an add-on: one chart, no manifests" });
                 (rules.objects ?? []).forEach((o, i) => { if (o.admitted || o.wait) problems.push({ at: `spec.objects[${i}]`, message: "admitted and wait are for hosts and clusters; on a Harvester an add-on's objects are made before it" }); });
             }
-            if (kind === "chart") {
+            if (kind !== "custom") {
                 // Only charts and objects, installed the same way on a host or a downstream cluster.
                 for (const f of ["distribution", "fallback", "hostKinds", "osFamilies", "networkFeatures", "hostRefs"] as const) {
-                    if (profile[f] !== undefined) problems.push({ at: `spec.${f}`, message: "is for a Profile (lab hosts only); a ChartProfile has charts and objects only" });
+                    if (profile[f] !== undefined) problems.push({ at: `spec.${f}`, message: `is for a Profile (lab hosts only); a ${docKind} has ${kind === "chart" ? "charts and objects" : "objects"} only` });
                 }
-                if (!(rules.charts ?? []).some(e => e.chart !== undefined)) problems.push({ at: "spec.charts", message: "needs a chart of its own (its objects go with it)" });
+            }
+            if (kind === "chart" && !(rules.charts ?? []).some(e => e.chart !== undefined)) problems.push({ at: "spec.charts", message: "needs a chart of its own (its objects go with it); objects alone are a ResourceProfile" });
+            if (kind === "resource") {
+                if (rules.charts !== undefined) problems.push({ at: "spec.charts", message: "a ResourceProfile has objects only: with a chart it's a ChartProfile" });
+                if (!rules.objects?.length) problems.push({ at: "spec.objects", message: "required: a ResourceProfile is its objects" });
+                if (profile.targets?.includes("harvester")) problems.push({ at: "spec.targets", message: "a ResourceProfile goes on hosts and clusters (on a Harvester, a profile is an add-on: a chart)" });
+                if (rules.aliases !== undefined) problems.push({ at: "spec.aliases", message: "is for a ChartProfile's own chart; an object has aliases of its own" });
             }
             for (const p of problems) diags.error(source, docAt(docKind, name, p.at), p.message);
             if (problems.length > 0) continue;
