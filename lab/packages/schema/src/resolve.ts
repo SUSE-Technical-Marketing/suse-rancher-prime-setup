@@ -46,7 +46,7 @@ export interface ResolvedHarvester {
     credentials: Credentials;
     insecure: boolean;
     clusterNetwork: string;
-    storageClass: { name: string; replicas: number; parameters: Record<string, string> };
+    storageClass: { name: string; replicas: number; parameters: Record<string, string>; /** The class images are stored in: `name` unless the lab says otherwise. */ imageClass: string };
     /** Profiles on the Harvester itself (those that target Harvesters), their settings checked. */
     profiles: Record<string, Record<string, unknown>>;
     /** By ChartProfile on it (an add-on): its chart's values and its objects, templates rendered. */

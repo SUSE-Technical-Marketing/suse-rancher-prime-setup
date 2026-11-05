@@ -197,6 +197,7 @@ harvesters:
       name: longhorn-single
       replicas: 1
       parameters: { staleReplicaTimeout: "30", migratable: "true" }   # Longhorn parameters
+      imageClass: longhorn-single           # optional: where OS images (and the VM disks cloned from them) live; default `name`
     profiles:                               # profiles on the Harvester itself
       harvester-dns-controller:             # DNS records on your router (§8)
         backend: routeros                   # or glinet
@@ -250,6 +251,8 @@ Everything here used to be hard-coded in `pulumi/setups/sample-setup/harvester-b
   from the `harvesters:` section of the personal config (§10) under the same name. Fields in the
   lab file win. This lets a team share lab files while each person points `hv-north` at their own
   machine.
+
+**Images live in the lab's StorageClass.** Each `VirtualMachineImage` sets `targetStorageClassName` to `storageClass.imageClass` (default: the class the lab creates), so VM disks cloned from it are provisioned there. Another value names a class already on the Harvester; changing it replaces the image.
 
 **Images are not listed per Harvester.** The engine puts exactly the images needed by the hosts
 and downstream pools on each Harvester (§6).

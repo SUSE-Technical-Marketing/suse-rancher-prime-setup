@@ -96,6 +96,8 @@ export const HarvesterInput = z.strictObject({
         name: dnsLabel.optional().meta(form({ placeholder: "default longhorn-single" })),
         replicas: z.int().min(1).max(3).optional().meta(form({ placeholder: "default 1" })),
         parameters: z.record(z.string(), z.string()).optional(),
+        /** The StorageClass the OS images (and so the VM disks cloned from them) are stored in. Default: `name`. */
+        imageClass: z.string().min(1).optional().meta(form({ label: "image storage class", hint: "where OS images and the VM disks cloned from them live", placeholder: "default: the lab's class (name)" })),
     }).optional().meta(form({ section: "advanced", label: "storage class", hint: "merged over the defaults" })),
     /** Profiles on the Harvester itself: those that target Harvesters (the SUSE Observability agent, the DNS controller). */
     profiles: z.record(z.string(), z.record(z.string(), z.unknown()).nullable().transform(v => v ?? {})).default({}).meta(form({ section: "hidden" })),

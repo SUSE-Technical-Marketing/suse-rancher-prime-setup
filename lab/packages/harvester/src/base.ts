@@ -65,7 +65,7 @@ export class HarvesterBase extends pulumi.ComponentResource {
         const ns = this.namespace.metadata.name;
         const inNs: pulumi.CustomResourceOptions = { ...o, dependsOn: [this.namespace] };
 
-        new k8s.storage.v1.StorageClass(child("storageclass"), {
+        const storageClass = new k8s.storage.v1.StorageClass(child("storageclass"), {
             metadata: { name: h.storageClass.name },
             provisioner: "driver.longhorn.io",
             allowVolumeExpansion: true,
@@ -188,20 +188,23 @@ export class HarvesterBase extends pulumi.ComponentResource {
                     displayName: image.os,
                     sourceType: "download",
                     url: image.source.url,
-                    storageClassParameters: { ...h.storageClass.parameters, numberOfReplicas: String(h.storageClass.replicas) },
+                    // The image's data volume lives in the lab's StorageClass (or the one the lab
+                    // names), so the VM disks cloned from it are provisioned there too.
+                    targetStorageClassName: h.storageClass.imageClass,
                 },
             }, {
                 ...inNs,
-                // Harvester fills in its own storageClassParameters and rejects any change to them;
-                // a different image means a new image.
-                ignoreChanges: ["spec.storageClassParameters"],
-                replaceOnChanges: ["spec.url", "spec.sourceType"],
+                // The lab's own class has to exist before an image can be stored in it.
+                dependsOn: [this.namespace, ...(h.storageClass.imageClass === h.storageClass.name ? [storageClass] : [])],
+                // A different image, or another class, means a new image.
+                replaceOnChanges: ["spec.url", "spec.sourceType", "spec.targetStorageClassName"],
                 deleteBeforeReplace: true,
             });
             this.images[image.os] = {
                 id: pulumi.interpolate`${ns}/${image.os}`,
-                // Harvester creates a storage class per image; VM disks cloned from it must use it.
-                storageClassName: vmImage.status.apply(s => s?.storageClassName ?? ""),
+                // VM disks cloned from the image use the class Harvester reports for it, which is
+                // the target class.
+                storageClassName: vmImage.status.apply(s => s?.storageClassName || h.storageClass.imageClass),
             };
         }
 

@@ -730,7 +730,7 @@ spec: { url: https://acme.zerossl.com/v2/DV90 }
         expect(base.timeouts).toMatchObject({ downstreamReady: 3600, uiPlugin: 600, loadBalancerCleanup: 300 });
         expect(base.harvesters[0]).toMatchObject({
             clusterNetwork: "mgmt",
-            storageClass: { name: "longhorn-single", replicas: 1, parameters: { staleReplicaTimeout: "30", migratable: "true" } },
+            storageClass: { name: "longhorn-single", replicas: 1, parameters: { staleReplicaTimeout: "30", migratable: "true" }, imageClass: "longhorn-single" },
         });
 
         const own = loadDocs(`${labDocument(BASE.replace("hv-north: {}", "hv-north: { storageClass: { replicas: 3, parameters: { dataLocality: best-effort } } }"))}---
@@ -744,7 +744,7 @@ spec:
         expect(own.lab!.timeouts).toMatchObject({ downstreamReady: 7200, uiPlugin: 600 });
         expect(own.lab!.harvesters[0]).toMatchObject({
             clusterNetwork: "storage",
-            storageClass: { name: "longhorn-single", replicas: 3, parameters: { staleReplicaTimeout: "30", migratable: "true", dataLocality: "best-effort" } },
+            storageClass: { name: "longhorn-single", replicas: 3, parameters: { staleReplicaTimeout: "30", migratable: "true", dataLocality: "best-effort" }, imageClass: "longhorn-single" },
         });
 
         const sized = loadDocs(`${labDocument(`${BASE.replace("user: lab, ", "")}

@@ -1,0 +1,105 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata:
+  name: my-lab
+spec:
+  domain: lab.geeko.me
+  tls:
+    acme: letsencrypt-staging
+    cloudflare: "{{ secrets['cloudflare-token'] }}"
+  ssh:
+    publicKey:
+      file: ~/.ssh/id_ed25519.pub
+    privateKey: "{{ secrets['ssh-key'] }}"
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Harvester
+metadata:
+  name: polaris
+spec:
+  networks:
+    vlans:
+      - id: 20
+        dhcp:
+          cidr: 10.29.20.0/24
+          gateway: 10.29.20.1
+          range:
+            - 10.29.20.100
+            - 10.29.20.150
+        loadBalancer:
+          range:
+            - 10.29.20.200
+            - 10.29.20.250
+  url: https://polaris.lab.geeko.me
+  credentials: "{{ secrets.asgard }}"
+  dns:
+    backend: routeros
+    host: 10.29.20.1
+    credentials: "{{ secrets.routeros }}"
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: sirius
+spec:
+  harvester: polaris
+  os: leap-16-k8s
+  memory: 8Gi
+  disk: 40Gi
+  profiles:
+    cert-manager: {}
+    sprouter: {}
+    outrider: {}
+    rancher:
+      adminPassword: "{{ secrets['rancher-admin'] }}"
+      liz: true
+    rke2: {}
+    harvester-cloud-provider: {}
+  network: vlan20
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: DownstreamCluster
+metadata:
+  name: orion
+spec:
+  type: harvester
+  rancher: sirius
+  harvester: polaris
+  distro: k3s
+  pools:
+    - name: all
+      quantity: 1
+      roles:
+        - etcd
+        - controlplane
+        - worker
+      os: leap-16-k8s
+      cpu: 12
+      memory: 40Gi
+      disk: 500Gi
+      network: vlan20
+  annotations:
+    hosted-domain: lab.geeko.me
+  labels:
+    needs-storage: "true"
+    needs-observability: "true"
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: DownstreamCluster
+metadata:
+  name: castor
+spec:
+  type: harvester
+  rancher: sirius
+  harvester: polaris
+  distro: rke2
+  pools:
+    - name: all
+      quantity: 1
+      roles:
+        - etcd
+        - controlplane
+        - worker
+      os: leap-16-k8s
+  labels:
+    needs-storage: "true"

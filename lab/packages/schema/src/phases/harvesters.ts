@@ -105,6 +105,7 @@ export function resolveHarvesters(r: Resolution): void {
             diags.error(L, `${at}.networks.default`, `unknown network "${defaultNetwork}"; known: ${networks.map(n => n.name).join(", ")}`);
         }
 
+        const scName = h.storageClass?.name ?? hvDefaults.storageClass.name;
         harvesters.set(name, {
             name,
             url: url ?? "",
@@ -112,9 +113,10 @@ export function resolveHarvesters(r: Resolution): void {
             insecure: h.insecure ?? mine.insecure ?? true,
             clusterNetwork: h.clusterNetwork ?? hvDefaults.clusterNetwork,
             storageClass: {
-                name: h.storageClass?.name ?? hvDefaults.storageClass.name,
+                name: scName,
                 replicas: h.storageClass?.replicas ?? hvDefaults.storageClass.replicas,
                 parameters: { ...hvDefaults.storageClass.parameters, ...h.storageClass?.parameters },
+                imageClass: h.storageClass?.imageClass ?? scName,
             },
             profiles: {}, // checked with the other profiles, below
             chartValues: {},
