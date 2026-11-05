@@ -5,7 +5,7 @@ import { computed, reactive, ref, watch } from "vue";
 import { addBlock, addFleetProfile, addProfile, addRecipe, addStackPack, removeFleetProfile, removeProfile, removeStackPack, runsObservability } from "../compose";
 import { dragging, end, start, target, type Block, type Payload } from "../dnd";
 import { CLUSTER_UI } from "../clusters";
-import { BLOCK_KIND, CATEGORIES } from "../kinds";
+import { BLOCK_KIND, CATEGORIES, kindOf } from "../kinds";
 import { catalog, drawer, reportOf, selected, views } from "../store";
 
 // Building blocks, by category, as small tiles, and the profiles, one line each, to drag onto the
@@ -23,20 +23,24 @@ const BLOCKS: { block: Block; label: string; hint: string }[] = [
   ...Object.values(CLUSTER_UI).map(ui => ({ block: ui.block, label: ui.label, hint: ui.hint })),
 ];
 
-/** One palette entry: a block, or a catalog HostRecipe (a standard host), as it's drawn and dragged. */
+/** One palette entry: a block, or a catalog Recipe (standard building blocks), as it's drawn and dragged. */
 interface Entry { key: string; label: string; hint: string; icon: string; cls: string[]; payload: Payload; add: () => void }
 const blockEntry = (b: (typeof BLOCKS)[number]): Entry => ({
   key: b.block, label: b.label, hint: b.hint, icon: BLOCK_KIND[b.block].icon,
   cls: [`cat-${BLOCK_KIND[b.block].category}`, `blk-${b.block}`],
   payload: { type: "block", block: b.block }, add: () => addBlock(b.block),
 });
-/** HostRecipes come right after the block of their kind (VM or Machine). */
-const recipesOf = (kind: "HarvesterVM" | "Machine"): Entry[] => (catalog.value?.recipes ?? []).filter(r => r.kind === kind).map(r => ({
-  key: `recipe-${r.name}`, label: r.label,
-  hint: `${r.description || r.label}${r.kind === "HarvesterVM" ? "" : ": drop on the board"}\nprofiles: ${Object.keys(r.host.profiles).join(", ") || "none"}\n(HostRecipe ${r.name})`,
-  icon: r.icon ?? BLOCK_KIND[kind].icon, cls: ["cat-machine", "recipe"],
-  payload: { type: "recipe", name: r.name }, add: () => addRecipe(r.name),
-}));
+/** The catalog's Recipes: standard building blocks, one or more documents; a tile in the color of its first's kind. */
+const recipeEntries = computed<Entry[]>(() => (catalog.value?.recipes ?? []).map(r => {
+  const first = kindOf(r.documents[0]?.kind, r.documents[0]?.spec?.type as string | undefined);
+  const on = r.dropsOn.length ? `drop on ${r.dropsOn.map(k => (k === "Harvester" ? "a Harvester" : "an AWS site")).join(" or ")}` : "drop on the board";
+  return {
+    key: `recipe-${r.name}`, label: r.label,
+    hint: `${r.description || r.label}\n${on}; adds ${r.documents.map(d => `${d.kind} ${d.metadata.name}`).join(", ")}\n(Recipe ${r.name})`,
+    icon: r.icon ?? first?.icon ?? "layout-template", cls: [`cat-${first?.category === "virtual" ? "cluster" : first?.category ?? "machine"}`, "recipe"],
+    payload: { type: "recipe" as const, name: r.name }, add: () => addRecipe(r.name),
+  };
+}).filter(e => hit(e.label, e.hint)));
 
 const filter = ref("");
 const q = computed(() => filter.value.trim().toLowerCase());
@@ -46,7 +50,7 @@ const hit = (...texts: (string | undefined)[]) => !q.value || texts.some(t => t?
 const groups = computed(() => CATEGORIES.map(c => ({
   ...c,
   entries: BLOCKS.filter(b => (BLOCK_KIND[b.block].category === "virtual" ? "cluster" : BLOCK_KIND[b.block].category) === c.id)
-    .flatMap(b => [blockEntry(b), ...(b.block === "HarvesterVM" || b.block === "Machine" ? recipesOf(b.block) : [])])
+    .map(blockEntry)
     .filter(e => hit(e.label, e.hint)),
 })).filter(g => g.entries.length > 0));
 
@@ -165,6 +169,19 @@ const removing = computed(() => !!dragging.value && fromBoard(dragging.value));
       </div>
     </section>
 
+    <section v-if="recipeEntries.length" class="pgroup recipes">
+      <h4 title="standard building blocks from the catalog: one or more documents, filled in where you drop them">Recipes</h4>
+      <div class="tiles">
+        <button
+          v-for="e in recipeEntries" :key="e.key" type="button" class="block" draggable="true" :title="e.hint"
+          :class="e.cls"
+          @dragstart="start($event, e.payload)" @dragend="end" @click="e.add()"
+        >
+          <KindIcon :icon="e.icon" /><span>{{ e.label }}</span>
+        </button>
+      </div>
+    </section>
+
     <div class="profiles-head">
       <h4>Profiles</h4>
       <div class="where" role="radiogroup" aria-label="Profiles that go on">
@@ -210,6 +227,6 @@ const removing = computed(() => !!dragging.value && fromBoard(dragging.value));
         </button>
       </template>
     </section>
-    <p v-if="!groups.length && !sections.length" class="muted">Nothing matches “{{ filter }}”.</p>
+    <p v-if="!groups.length && !recipeEntries.length && !sections.length" class="muted">Nothing matches “{{ filter }}”.</p>
   </nav>
 </template>

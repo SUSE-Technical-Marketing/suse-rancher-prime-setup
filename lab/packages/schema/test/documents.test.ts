@@ -56,7 +56,7 @@ spec: {}
         expect(errors(result)).toEqual([
             "document 2.apiVersion: must be lab.geeko.me/v1alpha1",
             'document 2.extra: unknown field "extra"; a document has apiVersion, kind, metadata and spec',
-            'document 3.kind: unknown kind "Deployment"; one of HelmChart, Manifest, Binary, StackPack, KubernetesDistribution, AcmeServer, Defaults, Profile, ChartProfile, ResourceProfile, SecretTemplate, ConfigMapTemplate, FleetRepo, FleetHelmOp, FleetProfile, HostRecipe, HaulManifest, ClusterGroup, UiPluginRepository, UiPlugin, OperatingSystem, Harvester, AwsSite, HarvesterVM, Machine, DownstreamCluster',
+            'document 3.kind: unknown kind "Deployment"; one of HelmChart, Manifest, Binary, StackPack, KubernetesDistribution, AcmeServer, Defaults, Profile, ChartProfile, ResourceProfile, SecretTemplate, ConfigMapTemplate, FleetRepo, FleetHelmOp, FleetProfile, Recipe, HaulManifest, ClusterGroup, UiPluginRepository, UiPlugin, OperatingSystem, Harvester, AwsSite, HarvesterVM, Machine, DownstreamCluster',
             "document 4.kind: Lab can only be the first document of its own file",
         ]);
     });

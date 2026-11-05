@@ -5,6 +5,7 @@ import { CLUSTER_UI, clusterOfBlock, clusterType } from "./clusters";
 import type { ClusterTypeName } from "../../packages/schema/src/clusters/names";
 import type { Block } from "./dnd";
 import { secretPath, secretTemplate } from "./secrets";
+import { renderRecipe, type RecipeVars } from "../../packages/schema/src/recipe-vars";
 import { addDoc, append, catalog, freeName, reportOf, set, views } from "./store";
 
 /** The OS new hosts and pools get; the engine adds what Harvester and Kubernetes need to it. */
@@ -47,21 +48,38 @@ export function defaultNetwork(harvester?: string): string {
 const networkOn = (harvester: string, network?: string) => (network && network !== defaultNetwork(harvester) ? { network } : {});
 
 /**
- * Add the host a catalog HostRecipe describes: its size, OS (default the composer's) and profiles,
- * each profile's settings over what the personal config can fill in (Rancher's admin password). A
- * VM goes on `on` (the Harvester, and network lane, it was dropped on) or the first Harvester.
+ * Add the documents a catalog Recipe holds, its `${ }` variables filled in: where it was dropped (`on`:
+ * a Harvester and its network lane, or an AWS site; else the first of each on the board), the
+ * board's Rancher and default OS, and its documents' names, each made unique first, so that one
+ * can name another (`${ names.observability }`). A profile's settings go over what the personal
+ * config can fill in (Rancher's admin password).
  */
-export function addRecipe(name: string, on?: string, network?: string) {
+export function addRecipe(name: string, on?: { kind: "Harvester" | "AwsSite"; name: string }, network?: string) {
     const r = catalog.value?.recipes.find(x => x.name === name);
     if (!r) return;
-    const { profiles, os, ...size } = r.host;
-    const host = {
-        os: os ?? defaultOs(),
-        profiles: Object.fromEntries(Object.entries(profiles).map(([p, settings]) => [p, { ...profileDefaults(p), ...settings }])),
+    const harvester = on?.kind === "Harvester" ? on.name : firstOf("Harvester") || undefined;
+    const site = on?.kind === "AwsSite" ? on.name : firstOf("AwsSite") || undefined;
+    // Free names for all of them before any is added: two of the same kind take different ones.
+    const taken = new Map<string, Set<string>>();
+    const names: Record<string, string> = {};
+    for (const d of r.documents) {
+        const mine = taken.get(d.kind) ?? new Set<string>();
+        let free = freeName(d.kind, d.metadata.name);
+        for (let i = 2; mine.has(free); i++) free = freeName(d.kind, `${d.metadata.name}-${i}`);
+        mine.add(free);
+        taken.set(d.kind, mine);
+        names[d.metadata.name] = free;
+    }
+    const vars: RecipeVars = {
+        drop: { harvester, site, network: harvester ? networkOn(harvester, network).network : undefined },
+        rancher: rancherHost() || undefined, os: defaultOs() || undefined, names,
     };
-    if (r.kind === "Machine") return addDoc("Machine", freeName("Machine", r.hostName), { address: "", ...host });
-    const harvester = on ?? firstOf("Harvester");
-    return addDoc("HarvesterVM", freeName("HarvesterVM", r.hostName), { harvester, ...networkOn(harvester, network), ...size, ...host });
+    for (const d of r.documents) {
+        const spec = renderRecipe(d.spec, vars) as Record<string, unknown> & { profiles?: Record<string, Record<string, unknown>> };
+        if (spec.profiles) spec.profiles = Object.fromEntries(Object.entries(spec.profiles).map(([p, settings]) => [p, { ...profileDefaults(p), ...settings }]));
+        // A Machine's address is the user's to fill in.
+        addDoc(d.kind, names[d.metadata.name], d.kind === "Machine" ? { address: "", ...spec } : spec);
+    }
 }
 
 /** Add a block; `on` is the Harvester (and network lane) or AWS site it was dropped on. */

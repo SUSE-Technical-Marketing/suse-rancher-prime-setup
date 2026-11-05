@@ -1,0 +1,39 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Recipe
+metadata:
+  name: observability-cluster
+  description: "SUSE Observability on k3s with storage and Traefik, and the StackPacks for SUSE AI: drop on a Harvester"
+spec:
+  label: Observability cluster
+  icon: radar                # lucide.dev/icons
+  documents:
+    - apiVersion: lab.geeko.me/v1alpha1
+      kind: DownstreamCluster
+      metadata: { name: observability }
+      spec:
+        type: harvester
+        harvester: ${ drop.harvester }
+        rancher: ${ rancher }
+        distro: k3s
+        # Fleet's Traefik (the traefik Fleet profile) replaces k3s's own. SUSE Observability's
+        # volumes use storage's longhorn-single class.
+        machineGlobalConfig:
+          disable: [ traefik ]
+        pools:
+          - name: all
+            quantity: 1
+            roles: [ etcd, controlplane, worker ]
+            cpu: 12
+            memory: 40Gi
+            disk: 500Gi
+            os: ${ os }
+            network: ${ drop.network }
+        fleetProfiles:
+          traefik: {}
+          storage: {}
+          observability: {}
+        # On its SUSE Observability, for what SUSE AI collectors send (the opentelemetry profile).
+        stackPacks: [ open-telemetry, suse-ai ]
+        # A lab template, copied into the lab as it is: Fleet's apps name things <app>.<cluster>.<domain>.
+        annotations:
+          hosted-domain: "{{ lab.domain }}"

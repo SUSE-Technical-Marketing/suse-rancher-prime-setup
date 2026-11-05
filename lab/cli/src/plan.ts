@@ -212,10 +212,10 @@ export function renderCatalog(catalog: ResolvedCatalog): string {
         ]));
     }
     if (Object.keys(catalog.recipes).length > 0) {
-        out.push("", "HostRecipe");
+        out.push("", "Recipe");
         table(Object.entries(catalog.recipes).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value, source }]) => [
             name,
-            `${value.kind}: ${Object.keys(value.host.profiles).join(", ") || "no profiles"}`,
+            value.documents.map(d => `${d.kind} ${d.metadata.name}`).join(", "),
             shortSource(source),
         ]));
     }

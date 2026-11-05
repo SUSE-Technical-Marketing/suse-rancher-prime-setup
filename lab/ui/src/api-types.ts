@@ -88,15 +88,16 @@ export interface PersonalSecret {
     fields?: string[];
 }
 
-export interface HostRecipe {
+/** A Recipe of the catalog: lab documents with `${ }` variables, which dropping it adds to the board. */
+export interface Recipe {
     name: string;
     label: string;
     description: string;
     icon?: string;
-    kind: "HarvesterVM" | "Machine";
-    /** The new host's name, before it's made unique. */
-    hostName: string;
-    host: { cpu?: number; memory?: string; disk?: string; os?: string; profiles: Record<string, Record<string, unknown>> };
+    /** Its documents, as in a lab file: `kind`, `metadata.name` (made unique when added), `spec`. */
+    documents: { kind: string; metadata: { name: string }; spec: Record<string, unknown> }[];
+    /** Where it's dropped: on a Harvester or AWS site (its documents use `drop.harvester`, `drop.site`); none: the board. */
+    dropsOn: ("Harvester" | "AwsSite")[];
 }
 
 export interface Catalog {
@@ -115,8 +116,8 @@ export interface Catalog {
     distributions: { name: string; description?: string; cni: string; default: boolean }[];
     /** The catalog's StackPacks: what a cluster running SUSE Observability can list under stackPacks. */
     stackPacks: StackPackInfo[];
-    /** Standard hosts for the palette (HostRecipe documents): what dropping one adds. */
-    recipes: HostRecipe[];
+    /** Standard building blocks for the palette (Recipe documents): what dropping one adds. */
+    recipes: Recipe[];
     /** HaulManifests, for the hauler profiles' `manifests`. */
     haulManifests: { name: string; description?: string }[];
     fleetRepos: { name: string; description?: string; default: boolean }[];

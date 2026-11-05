@@ -79,3 +79,6 @@ export type OsFamily = (typeof OS_FAMILIES)[number];
 
 /** Extra Helm values for a chart profile, merged over the engine's (DESIGN.md §16.2). */
 export const chartValues = z.record(z.string(), z.unknown()).optional();
+
+/** Every document's `apiVersion` (DESIGN.md §17). */
+export const API_VERSION = "lab.geeko.me/v1alpha1";

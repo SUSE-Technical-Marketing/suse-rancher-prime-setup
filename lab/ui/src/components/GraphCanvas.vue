@@ -270,7 +270,8 @@ const accepts = (b: Box, p: Payload) => {
     if (b.kind === "DownstreamCluster") return !!b.type && !!CLUSTER_UI[b.type].holdsNested;
     return true;
   }
-  if (p.type === "recipe") return b.kind === "Harvester" && catalog.value?.recipes.find(r => r.name === p.name)?.kind === "HarvesterVM";
+  // On what its documents' variables say (`drop.harvester`, `drop.site`).
+  if (p.type === "recipe") return (b.kind === "Harvester" || b.kind === "AwsSite") && !!catalog.value?.recipes.find(r => r.name === p.name)?.dropsOn.includes(b.kind);
   if (p.type === "host") return !!b.type && !!CLUSTER_UI[b.type].takesNodes && !runsKubernetes(p.index);
   return false;
 };
@@ -279,7 +280,7 @@ const dropOn = (b: Box) => target(p => accepts(b, p), p => {
   else if (p.type === "fleet") { addFleetProfile(b.index, p.name); if (p.from !== undefined) removeFleetProfile(p.from, p.name); }
   else if (p.type === "stackpack") { addStackPack(b.index, p.name); if (p.from !== undefined) removeStackPack(p.from, p.name); }
   else if (p.type === "block") addBlock(p.block, b.title, b.kind === "Harvester" ? defaultNetwork(b.title) : undefined);
-  else if (p.type === "recipe") addRecipe(p.name, b.title, defaultNetwork(b.title));
+  else if (p.type === "recipe") addRecipe(p.name, { kind: b.kind as "Harvester" | "AwsSite", name: b.title }, b.kind === "Harvester" ? defaultNetwork(b.title) : undefined);
   else if (p.type === "host") addNode(b.index, views.value[p.index]?.metadata?.name ?? "");
 }, on => (over.value = on ? b.index : undefined));
 const onCanvas = target(p => p.type === "block" || p.type === "recipe", p => {

@@ -9,12 +9,12 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { parseAllDocuments } from "yaml";
 import {
-    capabilityReport, defaultPersonalConfigPath, Diagnostics, documentFormSchemas, loadCatalog, loadLab, loadPersonal, profileTargets, renderLabSpec, withPersonalVars, type ResolvedCatalog,
+    capabilityReport, defaultPersonalConfigPath, Diagnostics, documentFormSchemas, loadCatalog, loadLab, loadPersonal, profileTargets, recipeDropsOn, renderLabSpec, withPersonalVars, type ResolvedCatalog,
 } from "../../packages/schema/src/index.ts";
 import { DEFAULT_DISTRO } from "../../packages/schema/src/clusters/common.ts";
 import { CLUSTER_TYPES, clusterFormSchemas } from "../../packages/schema/src/clusters/index.ts";
 import type {
-    CapabilityReport, Catalog, CatalogProfile, CheckResult, FleetProfileInfo, HostRecipe, LabFileEntry, LabFileText, PersonalSecret, SecretShape,
+    CapabilityReport, Catalog, CatalogProfile, CheckResult, FleetProfileInfo, Recipe, LabFileEntry, LabFileText, PersonalSecret, SecretShape,
 } from "../src/api-types.ts";
 import { renderPlan } from "../../cli/src/plan.ts";
 import { secretEnvName } from "../../cli/src/secrets.ts";
@@ -67,8 +67,9 @@ function catalogInfo(catalog: ResolvedCatalog): Omit<Catalog, "personal"> {
             name, description: value.description ?? name, icon: value.icon, ...(value.version ? { version: value.version } : {}), fromSource: !!value.archive,
         }] : [])),
         // The palette's standard hosts, in name order.
-        recipes: Object.entries(catalog.recipes).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]): HostRecipe => ({
-            name, label: value.label ?? name, description: value.description ?? "", icon: value.icon, kind: value.kind, hostName: value.name ?? name, host: value.host,
+        recipes: Object.entries(catalog.recipes).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]): Recipe => ({
+            name, label: value.label ?? name, description: value.description ?? "", icon: value.icon,
+            documents: value.documents, dropsOn: recipeDropsOn(value),
         })),
         haulManifests: Object.entries(catalog.haulManifests).sort(([a], [b]) => a.localeCompare(b)).map(([name, { value }]) => ({ name, description: value.description })),
         fleetRepos: Object.entries(catalog.fleet.repos).map(([name, { value }]) => ({ name, description: value.description, default: !!value.default })),

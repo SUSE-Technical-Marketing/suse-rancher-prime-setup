@@ -6,7 +6,7 @@ import { ClusterSelector, FleetHelmOpInput, FleetProfileInput, FleetRepoInput } 
 import { haulManifestName, HaulManifestInput } from "./hauler";
 import { LabRefs, labRefsFrom, renderLabRefs, renderLabSpec, withPersonalVars } from "./lab-refs";
 import { ConfigMapInput, SecretInput } from "./objects";
-import { HostRecipeInput } from "./recipes";
+import { RecipeInput } from "./recipes";
 import { awsZone, cidr, dnsLabel, duration, osName, quantity, TIMEOUTS } from "./primitives";
 import { ProfileInput } from "./profiles";
 import { AwsSiteInput, DownstreamInput, HarvesterInput, HarvesterVMSpec, LabSpec, MachineSpec, OsProfileInput, VersionValue } from "./schema";
@@ -15,7 +15,8 @@ import { formSchema } from "./clusters";
 // Catalog, lab and personal config files are Kubernetes-style documents (DESIGN.md §17):
 // `apiVersion`, `kind`, `metadata`, `spec`. A file can hold several, separated by `---`.
 
-export const API_VERSION = "lab.geeko.me/v1alpha1";
+export { API_VERSION } from "./primitives";
+import { API_VERSION } from "./primitives";
 
 const Metadata = (name: z.ZodType<string>) => z.strictObject({
     name,
@@ -166,7 +167,8 @@ export const CATALOG_KINDS = {
     FleetHelmOp: { name: dnsLabel, spec: FleetHelmOpInput },
     FleetProfile: { name: dnsLabel, spec: FleetProfileInput },
     /** A standard host for the composer's palette (a Rancher VM): its kind, size, OS and profiles. */
-    HostRecipe: { name: dnsLabel, spec: HostRecipeInput },
+    /** Standard building blocks for the composer's palette: lab documents with `${ }` variables. */
+    Recipe: { name: dnsLabel, spec: RecipeInput },
     /** What a Hauler store holds (images, charts, files), for the hauler profiles' `manifests`. */
     HaulManifest: { name: haulManifestName, spec: HaulManifestInput },
     ClusterGroup: { name: dnsLabel, spec: z.strictObject({ selector: ClusterSelector.optional() }) },
@@ -441,8 +443,8 @@ export function documentsLayer(docs: CatalogDocument[], source: string, diags: D
             case "FleetProfile":
                 layer.fleet.profiles[d.name] = { value: { ...(spec as FleetProfileInput), ...(d.description ? { description: d.description } : {}) } as FleetProfileInput, source: d.source };
                 break;
-            case "HostRecipe":
-                layer.recipes[d.name] = { value: { ...(spec as HostRecipeInput), ...(d.description ? { description: d.description } : {}) }, source: d.source };
+            case "Recipe":
+                layer.recipes[d.name] = { value: { ...(spec as RecipeInput), ...(d.description ? { description: d.description } : {}) }, source: d.source };
                 break;
             case "HaulManifest":
                 layer.haulManifests[d.name] = { value: { ...(spec as HaulManifestInput), ...(d.description ? { description: d.description } : {}) }, source: d.source };

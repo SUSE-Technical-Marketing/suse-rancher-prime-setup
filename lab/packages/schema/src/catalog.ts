@@ -3,7 +3,7 @@ import { docAt } from "./documents";
 import { OsLayerEntry, ResolvedOs, resolveOsProfiles } from "./os";
 import { ClusterSelector, FleetHelmOpInput, FleetProfileInput, FleetRepoInput } from "./fleet";
 import { HaulManifestInput } from "./hauler";
-import { checkRecipes, HostRecipeInput } from "./recipes";
+import { checkRecipes, RecipeInput } from "./recipes";
 import { ConfigMapInput, SecretInput } from "./objects";
 import { profileDocKind, ProfileDefinition, ProfileInput, ProfileKind, ProfileRegistry } from "./profiles";
 import { checkSettingSchema, SettingSchema, settingZod } from "./settings-schema";
@@ -138,7 +138,7 @@ export interface CatalogLayer {
     /** Hauler manifests, each with the file it came from; a later one replaces an earlier one whole. */
     haulManifests: Record<string, Sourced<HaulManifestInput & { description?: string }>>;
     /** Host recipes for the composer, each with the file it came from; a later one replaces an earlier one whole. */
-    recipes: Record<string, Sourced<HostRecipeInput & { description?: string }>>;
+    recipes: Record<string, Sourced<RecipeInput & { description?: string }>>;
     /** The layer's Defaults document. */
     defaults?: Sourced<DefaultsInput>;
 }
@@ -188,7 +188,7 @@ export interface ResolvedCatalog {
     os: Record<string, Sourced<ResolvedOs>>;
     acme: Record<string, Sourced<ResolvedAcmeServer>>;
     haulManifests: Record<string, Sourced<HaulManifestInput & { description?: string }>>;
-    recipes: Record<string, Sourced<HostRecipeInput & { description?: string }>>;
+    recipes: Record<string, Sourced<RecipeInput & { description?: string }>>;
     defaults: Sourced<ResolvedDefaults>;
 }
 
@@ -442,7 +442,11 @@ export function resolveCatalog(layers: CatalogLayer[], diags: Diagnostics): Reso
     const defaults = resolveDefaults(defaultsInput, defaultsSource, diags);
 
     const os = resolveOsProfiles(layers.map(l => l.os), diags);
-    checkRecipes(recipes, profiles, os, diags);
+    checkRecipes(recipes, {
+        profiles, os,
+        fleetProfiles: Object.keys(fleet.profiles),
+        stackPacks: Object.keys(components).filter(n => components[n].value.kind === "StackPack"),
+    }, diags);
     return {
         acme,
         defaults,
