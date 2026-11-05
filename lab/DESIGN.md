@@ -252,7 +252,27 @@ Everything here used to be hard-coded in `pulumi/setups/sample-setup/harvester-b
   lab file win. This lets a team share lab files while each person points `hv-north` at their own
   machine.
 
-**Images live in the lab's StorageClass.** Each `VirtualMachineImage` sets `targetStorageClassName` to `storageClass.imageClass` (default: the class the lab creates), so VM disks cloned from it are provisioned there. Another value names a class already on the Harvester; changing it replaces the image.
+**Image storage and VM disk storage.** Each `VirtualMachineImage` sets both
+`spec.targetStorageClassName` and the `harvesterhci.io/storageClassName` annotation to
+`storageClass.imageClass` (default: the class the lab creates). The target selects where the image
+data lives. The annotation selects the template for the separate, per-image `longhorn-<image>`
+StorageClass that Harvester generates for VM disks, including its replica count. Harvester 1.8/1.9
+reads that annotation before defaulting it from the target field: setting only the target (or
+`spec.storageClassParameters`) can leave the generated class using the cluster default's three
+replicas. The webhook fills in `storageClassParameters`, which are immutable and ignored on updates.
+
+VM disk PVCs use the generated class reported in `status.storageClassName`, not the target class.
+Downstream pools reference the imported image, so Rancher's Harvester driver uses the same class;
+both paths wait for the image to import. An explicit `imageClass` names an existing class, whose
+parameters determine the image's disk policy; changing it replaces the image.
+
+**Already-created images and volumes are not repaired by re-running `up`.** Image parameters and
+StorageClass parameters are immutable, and changing a StorageClass does not change existing
+Longhorn volumes. For a disposable lab, destroy and recreate it with the corrected engine. To keep
+data, change each affected volume's replica count to the intended value through Longhorn's UI/API.
+That repairs existing volumes only: before creating more disks, also repair the per-image class
+using a Harvester-supported procedure, or recreate the image after removing its dependent VMs,
+volumes, backups and templates. Do not delete in-use images or PVCs to change a replica count.
 
 **Images are not listed per Harvester.** The engine puts exactly the images needed by the hosts
 and downstream pools on each Harvester (§6).

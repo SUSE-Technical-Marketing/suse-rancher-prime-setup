@@ -61,4 +61,19 @@ describe("fixed addresses on a Harvester cluster's pool", () => {
         expect(pools.find(p => p.name === "cp")!.rollingUpdate).toEqual({ maxSurge: 0, maxUnavailable: 1 });
         expect(pools.find(p => p.name === "workers")!.rollingUpdate).toBeUndefined();
     });
+
+    it("uses the same single-replica image for the host VM and Rancher's pool disks", () => {
+        const image = find("hv/image/leap-16")!.inputs;
+        expect(image.metadata.annotations["harvesterhci.io/storageClassName"]).toBe("longhorn-single");
+        expect(image.spec.targetStorageClassName).toBe("longhorn-single");
+        expect(find("hv/storageclass")!.inputs.parameters.numberOfReplicas).toBe("1");
+        const imageId = `${image.metadata.namespace}/${image.metadata.name}`;
+        const disk = find("rancher/disk")!.inputs;
+        expect(disk.metadata.annotations["harvesterhci.io/imageId"]).toBe(imageId);
+        expect(disk.spec.storageClassName).toBe(`longhorn-${image.metadata.namespace}-${image.metadata.name}`);
+        for (const pool of ["cp", "workers"]) {
+            const disks = JSON.parse(find(`downstream/edge/${pool}`)!.inputs.diskInfo).disks;
+            expect(disks[0].imageName).toBe(imageId);
+        }
+    });
 });

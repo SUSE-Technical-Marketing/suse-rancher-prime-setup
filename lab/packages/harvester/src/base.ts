@@ -182,29 +182,40 @@ export class HarvesterBase extends pulumi.ComponentResource {
                 metadata: {
                     name: image.os,
                     namespace: ns,
-                    annotations: { [WAIT]: "condition=Imported", [TIMEOUT]: String(args.timeouts.image) },
+                    annotations: {
+                        [WAIT]: "condition=Imported",
+                        [TIMEOUT]: String(args.timeouts.image),
+                        // The create webhook reads this before targetStorageClassName, otherwise
+                        // it derives the per-image class's parameters from the cluster default.
+                        "harvesterhci.io/storageClassName": h.storageClass.imageClass,
+                    },
                 },
                 spec: {
                     displayName: image.os,
                     sourceType: "download",
                     url: image.source.url,
-                    // The image's data volume lives in the lab's StorageClass (or the one the lab
-                    // names), so the VM disks cloned from it are provisioned there too.
+                    // Image data goes here; VM disks use Harvester's generated per-image class.
                     targetStorageClassName: h.storageClass.imageClass,
+                    // Initial parameters; the webhook replaces these with the annotated class's.
+                    storageClassParameters: { ...h.storageClass.parameters, numberOfReplicas: String(h.storageClass.replicas) },
                 },
             }, {
                 ...inNs,
                 // The lab's own class has to exist before an image can be stored in it.
                 dependsOn: [this.namespace, ...(h.storageClass.imageClass === h.storageClass.name ? [storageClass] : [])],
+                // Harvester fills in its own storageClassParameters and rejects any change to them.
+                ignoreChanges: ["spec.storageClassParameters"],
                 // A different image, or another class, means a new image.
                 replaceOnChanges: ["spec.url", "spec.sourceType", "spec.targetStorageClassName"],
                 deleteBeforeReplace: true,
             });
             this.images[image.os] = {
-                id: pulumi.interpolate`${ns}/${image.os}`,
-                // VM disks cloned from the image use the class Harvester reports for it, which is
-                // the target class.
-                storageClassName: vmImage.status.apply(s => s?.storageClassName || h.storageClass.imageClass),
+                // Downstream pools also need to wait for the image to finish importing.
+                id: vmImage.metadata.apply(m => `${m.namespace}/${m.name}`),
+                storageClassName: vmImage.status.apply(s => {
+                    if (!s?.storageClassName) throw new Error(`harvester ${h.name}: imported image ${image.os} has no status.storageClassName`);
+                    return s.storageClassName;
+                }),
             };
         }
 

@@ -53,6 +53,9 @@ export async function runProgram(LAB: string, opts: RunOptions): Promise<Registe
         newResource(args) {
             registered.push({ type: args.type, name: args.name, inputs: args.inputs });
             const state: Record<string, unknown> = { ...args.inputs };
+            if (args.type === "kubernetes:harvesterhci.io/v1beta1:VirtualMachineImage") {
+                state.status = { storageClassName: `longhorn-${args.inputs.metadata.namespace}-${args.inputs.metadata.name}` };
+            }
             // What later steps read from outputs: kubeconfigs (a host's over SSH, a downstream cluster's from Rancher).
             if (args.name.endsWith("/kubeconfig") && args.type.startsWith("command:")) state.stdout = KUBECONFIG_YAML;
             if (args.name.endsWith("/kubeconfig") && args.type.startsWith("pulumi-nodejs:dynamic")) {
@@ -77,4 +80,3 @@ export async function runProgram(LAB: string, opts: RunOptions): Promise<Registe
     addresses.push(...((pulumi.runtime.getMonitor() as unknown as { resources: Map<string, unknown> }).resources.keys()));
     return registered;
 }
-
