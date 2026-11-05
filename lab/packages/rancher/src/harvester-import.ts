@@ -23,6 +23,12 @@ const CLUSTERS = "/apis/provisioning.cattle.io/v1/namespaces/fleet-default/clust
 const SETTING = "/apis/harvesterhci.io/v1beta1/settings/cluster-registration-url";
 const TOKEN_PLACEHOLDER = "{token}";
 
+/** A connection that never got an answer: a host that's gone or down, not an HTTP error. */
+function isUnreachable(e: unknown): boolean {
+    const text = `${(e as { code?: string })?.code ?? ""} ${(e as Error)?.message ?? e}`;
+    return /ETIMEDOUT|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|ECONNRESET|ENOTFOUND/.test(text);
+}
+
 /**
  * Imports a Harvester into Rancher (Virtualization Management): a cluster labelled as a Harvester,
  * whose registration URL goes into the Harvester's `cluster-registration-url` setting. Harvester
@@ -90,10 +96,18 @@ const provider: pulumi.dynamic.ResourceProvider = {
         await kubeRequest(harvester, "PATCH", SETTING, { value: "" });
         // Imports made before the timeout was an input waited 10 minutes.
         const timeout = props.timeoutSeconds ?? 600;
-        const res = await kubeRequest(rancher, "DELETE", `${CLUSTERS}/${props.name}`);
-        if (res.status !== 404) {
-            await poll(async () => ((await kubeRequest(rancher, "GET", `${CLUSTERS}/${props.name}`)).status === 404 ? true : undefined),
-                { timeoutSeconds: timeout, failure: () => `cluster ${props.name} wasn't removed from Rancher within ${timeout}s` });
+        try {
+            const res = await kubeRequest(rancher, "DELETE", `${CLUSTERS}/${props.name}`);
+            if (res.status !== 404) {
+                await poll(async () => ((await kubeRequest(rancher, "GET", `${CLUSTERS}/${props.name}`)).status === 404 ? true : undefined),
+                    { timeoutSeconds: timeout, failure: () => `cluster ${props.name} wasn't removed from Rancher within ${timeout}s` });
+            }
+        } catch (e) {
+            // A Rancher that's gone (its VM deleted by hand): there's no cluster to remove from it, and
+            // what the import left on the Harvester is removed below all the same. Only a network
+            // failure counts; Rancher answering with an error still fails the delete.
+            if (!isUnreachable(e)) throw e;
+            console.warn(`Rancher is unreachable; not removing cluster ${props.name} from it (${(e as Error).message}). Cleaning up the Harvester only.`);
         }
 
         // Rancher runs a cleanup job on the Harvester, which leaves most of what the import

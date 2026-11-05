@@ -4,3 +4,4 @@ export * from "./kube-value";
 export * from "./addon";
 export * from "./cloud-config";
 export * from "./lb-cleanup";
+export * from "./default-class";
