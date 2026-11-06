@@ -3,7 +3,7 @@ import * as pulumi from "@pulumi/pulumi";
 import { harvesterhci, k8s as cni, loadbalancer, network } from "@lab/crds";
 import type { ResolvedHarvester, Timeouts } from "@lab/schema";
 import { HarvesterAddon } from "./addon";
-import { DefaultStorageClassReset } from "./default-class";
+import { DefaultStorageClass, DefaultStorageClassReset } from "./default-class";
 import { LoadBalancerCleanup } from "./lb-cleanup";
 import { NamespaceBindingsCleanup } from "./rbac-cleanup";
 
@@ -66,18 +66,26 @@ export class HarvesterBase extends pulumi.ComponentResource {
         const ns = this.namespace.metadata.name;
         const inNs: pulumi.CustomResourceOptions = { ...o, dependsOn: [this.namespace] };
 
-        // Harvester's own class is the default, and its webhook refuses a second one: reset it first
-        // (and give it back on delete, after the lab's class is gone).
+        // Dynamic providers do not run during preview: create without the default annotation,
+        // then promote after resetting the previous default during the actual update.
         const resetDefault = new DefaultStorageClassReset(child("default-class-reset"), { harvester: h.name, className: h.storageClass.name }, { parent: this });
         const storageClass = new k8s.storage.v1.StorageClass(child("storageclass"), {
-            // The Harvester's default class from the moment it exists, so every PVC without a class lands here.
-            metadata: { name: h.storageClass.name, annotations: { "storageclass.kubernetes.io/is-default-class": "true" } },
+            metadata: { name: h.storageClass.name },
             provisioner: "driver.longhorn.io",
             allowVolumeExpansion: true,
             reclaimPolicy: "Delete",
             volumeBindingMode: "Immediate",
             parameters: { ...h.storageClass.parameters, numberOfReplicas: String(h.storageClass.replicas) },
-        }, { ...o, dependsOn: [resetDefault] });
+        }, {
+            ...o,
+            dependsOn: [resetDefault],
+            ignoreChanges: ['metadata.annotations["storageclass.kubernetes.io/is-default-class"]'],
+        });
+        const defaultClass = new DefaultStorageClass(child("default-class"), {
+            harvester: h.name,
+            className: storageClass.metadata.name,
+        }, { parent: this, dependsOn: [storageClass] });
+        this.ready.push(defaultClass);
 
         // --- Networks and DHCP ---------------------------------------------------------------
         const networks = h.networks.filter(n => args.usedNetworks.includes(n.name) || n.dhcp || n.loadBalancer);
@@ -207,7 +215,7 @@ export class HarvesterBase extends pulumi.ComponentResource {
             }, {
                 ...inNs,
                 // The lab's own class has to exist before an image can be stored in it.
-                dependsOn: [this.namespace, ...(h.storageClass.imageClass === h.storageClass.name ? [storageClass] : [])],
+                dependsOn: [this.namespace, defaultClass, ...(h.storageClass.imageClass === h.storageClass.name ? [storageClass] : [])],
                 // Harvester fills in its own storageClassParameters and rejects any change to them.
                 ignoreChanges: ["spec.storageClassParameters"],
                 // A different image, or another class, means a new image.

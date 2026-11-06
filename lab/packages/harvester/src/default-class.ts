@@ -20,13 +20,13 @@ async function setDefault(harvester: string, name: string, value: boolean): Prom
 /**
  * Takes the default storage class away from whichever class has it (Harvester's own
  * `harvester-longhorn`), so the lab's class can be the default: Harvester's webhook refuses a
- * second default ("reset it first"). The lab's class depends on this resource and carries the
- * annotation itself.
+ * second default ("reset it first"). The lab's class depends on this resource, and a separate
+ * DefaultStorageClass resource promotes it after creation, without affecting preview.
  *
  * On delete the default goes back to what it was, once the lab's class is gone (the class depends
  * on this resource, so it's deleted first): a destroyed lab leaves the Harvester as it found it.
  */
-const provider: pulumi.dynamic.ResourceProvider = {
+export const defaultStorageClassResetProvider: pulumi.dynamic.ResourceProvider = {
     async create(inputs: Inputs) {
         const list = await kubeRequest({ context: inputs.harvester }, "GET", CLASSES);
         if (list.status !== 200) throw new Error(`listing storage classes on ${inputs.harvester} failed: HTTP ${list.status}`);
@@ -41,7 +41,7 @@ const provider: pulumi.dynamic.ResourceProvider = {
     },
     async diff(_id: string, olds: Inputs, news: Inputs) {
         const replaces = (["harvester", "className"] as const).filter(k => olds[k] !== news[k]);
-        return { changes: replaces.length > 0, replaces };
+        return { changes: replaces.length > 0, replaces, deleteBeforeReplace: true };
     },
     async delete(_id: string, props: Inputs) {
         for (const name of props.previous ?? []) {
@@ -54,6 +54,29 @@ const provider: pulumi.dynamic.ResourceProvider = {
 
 export class DefaultStorageClassReset extends pulumi.dynamic.Resource {
     constructor(name: string, args: { harvester: string; className: pulumi.Input<string> }, opts?: pulumi.CustomResourceOptions) {
-        super(provider, name, { ...args, previous: undefined }, opts, "lab", "DefaultStorageClassReset");
+        super(defaultStorageClassResetProvider, name, { ...args, previous: undefined }, opts, "lab", "DefaultStorageClassReset");
+    }
+}
+
+export const defaultStorageClassProvider: pulumi.dynamic.ResourceProvider = {
+    async create(inputs: Inputs) {
+        const status = await setDefault(inputs.harvester, inputs.className, true);
+        if (status !== 200) throw new Error(`setting storage class ${inputs.className} as default on ${inputs.harvester} failed: HTTP ${status}`);
+        return { id: `${inputs.harvester}/${inputs.className}/default`, outs: inputs };
+    },
+    async diff(_id: string, olds: Inputs, news: Inputs) {
+        const replaces = (["harvester", "className"] as const).filter(k => olds[k] !== news[k]);
+        return { changes: replaces.length > 0, replaces, deleteBeforeReplace: true };
+    },
+    async delete(_id: string, props: Inputs) {
+        const status = await setDefault(props.harvester, props.className, false);
+        if (status !== 200 && status !== 404) throw new Error(`resetting the default of storage class ${props.className} on ${props.harvester} failed: HTTP ${status}`);
+    },
+};
+
+/** Promotes an existing class on update, and demotes it before the class and reset are deleted. */
+export class DefaultStorageClass extends pulumi.dynamic.Resource {
+    constructor(name: string, args: { harvester: string; className: pulumi.Input<string> }, opts?: pulumi.CustomResourceOptions) {
+        super(defaultStorageClassProvider, name, args, opts, "lab", "DefaultStorageClass");
     }
 }

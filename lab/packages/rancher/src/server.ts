@@ -16,7 +16,7 @@ export interface RancherAccess {
      * cache API discovery, so the cluster's original provider doesn't know Rancher's kinds.
      */
     provider: k8s.Provider;
-    /** Rancher is installed, its admin password set and its `local` cluster Ready. */
+    /** Rancher is bootstrapped, its local cluster Ready, and its webhook and CAPI rolled out. */
     ready: pulumi.Resource[];
 }
 
@@ -119,6 +119,14 @@ export class RancherServer extends pulumi.ComponentResource {
             timeoutSeconds,
         }, withCluster(args.cluster, this, { dependsOn: [webhookRollout] }));
 
+        // Local Ready does not mean Rancher's separately installed CAPI controller is ready.
+        const capi = new KubeWait(`${name}/capi-ready`, {
+            kubeconfig,
+            path: "/apis/apps/v1/namespaces/cattle-capi-system/deployments/capi-controller-manager",
+            rollout: true,
+            timeoutSeconds,
+        }, withCluster(args.cluster, this, { dependsOn: [webhookAdmits] }));
+
         const bootstrap = new RancherBootstrap(`${name}/admin-password`, {
             kubeconfig,
             url,
@@ -137,7 +145,7 @@ export class RancherServer extends pulumi.ComponentResource {
             insecure: args.insecure,
             cluster: args.cluster,
             provider,
-            ready: [local, webhookAdmits, bootstrap, ...settings],
+            ready: [local, webhookAdmits, capi, bootstrap, ...settings],
         };
         this.registerOutputs({ url });
     }

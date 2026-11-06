@@ -1,4 +1,5 @@
 import * as pulumi from "@pulumi/pulumi";
+import { MockMonitor } from "@pulumi/pulumi/runtime/mocks";
 import { expect } from "vitest";
 import { loadLab, type ResolvedLab } from "@lab/schema";
 import { register } from "tsx/cjs/api";
@@ -30,6 +31,7 @@ export interface Registered { type: string; name: string; inputs: any }
  * keeps a running lab's resources; one that changes them replaces them. Filled by `runProgram`.
  */
 export const addresses: string[] = [];
+export const resourceDependencies = new Map<string, string[]>();
 
 export interface RunOptions {
     secrets: Record<string, unknown>;
@@ -66,6 +68,14 @@ export async function runProgram(LAB: string, opts: RunOptions): Promise<Registe
         },
         call: args => (args.token === "aws:ec2/getAmi:getAmi" ? { id: `ami-${args.inputs.owners[0]}` } : args.inputs),
     }, "lab", "test", false);
+    const monitor = pulumi.runtime.getMonitor();
+    if (!(monitor instanceof MockMonitor)) throw new Error("expected Pulumi's mock monitor");
+    const mockMonitor: MockMonitor = monitor;
+    const registerResource = mockMonitor.registerResource.bind(mockMonitor);
+    mockMonitor.registerResource = (request: { getName(): string; getDependenciesList(): string[] }, callback) => {
+        resourceDependencies.set(request.getName(), request.getDependenciesList());
+        return registerResource(request, callback);
+    };
     pulumi.runtime.setAllConfig({
         "lab:resolved": JSON.stringify(lab),
         "lab:secrets": JSON.stringify(opts.secrets),

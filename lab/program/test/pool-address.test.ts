@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runProgram } from "./run-program";
+import { resourceDependencies, runProgram } from "./run-program";
 
 // The whole program under Pulumi's mocks: a Harvester cluster with a one-machine pool at a fixed
 // address on a VLAN without DHCP, and a pool of several machines from DHCP next to it.
@@ -74,6 +74,38 @@ describe("fixed addresses on a Harvester cluster's pool", () => {
         for (const pool of ["cp", "workers"]) {
             const disks = JSON.parse(find(`downstream/edge/${pool}`)!.inputs.diskInfo).disks;
             expect(disks[0].imageName).toBe(imageId);
+        }
+    });
+
+    it("waits for CAPI's rollout before importing Harvester or provisioning pool machines", () => {
+        const capiName = "rancher/rancher/capi-ready";
+        expect(find(capiName)!.inputs).toMatchObject({
+            path: "/apis/apps/v1/namespaces/cattle-capi-system/deployments/capi-controller-manager",
+            rollout: true,
+        });
+        expect(find(capiName)!.inputs.timeoutSeconds).toBe(find("rancher/rancher/local-ready")!.inputs.timeoutSeconds);
+        expect(resourceDependencies.get(capiName)).toEqual(expect.arrayContaining([
+            expect.stringContaining("::rancher/rancher/webhook-admits"),
+        ]));
+        for (const name of ["rancher/import/hv", "downstream/edge/cp", "downstream/edge/workers", "downstream/edge/cluster"]) {
+            expect(resourceDependencies.get(name), name).toEqual(expect.arrayContaining([
+                expect.stringContaining(`::${capiName}`),
+            ]));
+        }
+    });
+
+    it("waits for the Harvester's default-class promotion before creating VMs and clusters", () => {
+        expect(find("hv/storageclass")!.inputs.metadata.annotations?.["storageclass.kubernetes.io/is-default-class"]).toBeUndefined();
+        const waitsForDefault = (name: string, seen = new Set<string>()): boolean => {
+            if (seen.has(name)) return false;
+            seen.add(name);
+            return (resourceDependencies.get(name) ?? []).some(urn => {
+                const dependency = urn.split("::").pop()!;
+                return dependency === "hv/default-class" || waitsForDefault(dependency, seen);
+            });
+        };
+        for (const name of ["rancher/disk", "rancher/vm", "downstream/edge/cp", "downstream/edge/cluster"]) {
+            expect(waitsForDefault(name), name).toBe(true);
         }
     });
 });
