@@ -31,7 +31,7 @@ metadata:
   name: kubewarden
 spec:
   repository: rancher-ui-plugins
-  version: 4.2.2
+  version: 4.2.3
   default: true
 ---
 apiVersion: lab.geeko.me/v1alpha1
