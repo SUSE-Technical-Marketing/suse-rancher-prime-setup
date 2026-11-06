@@ -47,6 +47,7 @@ exports[`resource addresses > stay as they are 1`] = `
   "urn:pulumi:test::lab::lab:harvester:Base$kubernetes:k8s.cni.cncf.io/v1:NetworkAttachmentDefinition::hv/network/vlan20",
   "urn:pulumi:test::lab::lab:harvester:Base$kubernetes:network.harvesterhci.io/v1alpha1:IPPool::hv/ippool/vlan20",
   "urn:pulumi:test::lab::lab:harvester:Base$kubernetes:storage.k8s.io/v1:StorageClass::hv/storageclass",
+  "urn:pulumi:test::lab::lab:harvester:Base$pulumi-nodejs:dynamic/lab:DefaultStorageClassReset::hv/default-class-reset",
   "urn:pulumi:test::lab::lab:harvester:Base$pulumi-nodejs:dynamic/lab:HarvesterAddon::hv/dhcp-controller",
   "urn:pulumi:test::lab::lab:harvester:Base$pulumi-nodejs:dynamic/lab:HarvesterAddon::hv/harvester-dns-controller",
   "urn:pulumi:test::lab::lab:harvester:Base$pulumi-nodejs:dynamic/lab:NamespaceBindingsCleanup::hv/rbac-cleanup",
