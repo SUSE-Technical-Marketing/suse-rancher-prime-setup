@@ -2,7 +2,7 @@ defaultNamespace: forgejo
 helm:
   chart: oci://code.forgejo.org/forgejo-helm/forgejo
   releaseName: forgejo
-  version: "12.5.3"
+  version: "17.3.2"
   values:
     ingress:
       enabled: ${ if hasKey .ClusterAnnotations "hosted-domain" }true${ else }false${ end}
