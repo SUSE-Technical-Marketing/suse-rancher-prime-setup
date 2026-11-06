@@ -79,6 +79,12 @@ spec:
                   - "{{ ('--reasoning-parser=' ~ settings.reasoningParser) if settings.reasoningParser is defined else none | optional }}"
                   - "{{ ('--tool-call-parser=' ~ settings.toolCallParser) if settings.toolCallParser is defined else none | optional }}"
                   - "{{ ('--enable-auto-tool-choice' if settings.toolCallParser is defined else none) | optional }}"
+                  - "{{ ('--otlp-traces-endpoint=' ~ settings.otlpTracesEndpoint) if settings.otlpTracesEndpoint is defined else none | optional }}"
+              # Its traces' service, for the collector's service graph (SUSE AI 3.0's monitors select on these).
+              env: >-
+                {{ [{ 'name': 'OTEL_SERVICE_NAME', 'value': 'vllm' },
+                    { 'name': 'OTEL_RESOURCE_ATTRIBUTES', 'value': 'suse.ai.product=vllm,service.namespace=suse-ai' }]
+                   if settings.otlpTracesEndpoint is defined else none | optional }}
               # For gated models on Hugging Face.
               hf_token: "{{ settings.hfToken | optional }}"
   objects:
@@ -186,6 +192,9 @@ spec:
         minimum: 30000
         maximum: 32767
         description: "the router's OpenAI API on this port of every node (http://<node>:<port>/v1), for other clusters"
+      otlpTracesEndpoint:
+        type: string
+        description: "an OTLP gRPC endpoint for the engine's request spans (vLLM's --otlp-traces-endpoint, e.g. the cluster's collector); with the opentelemetry profile's gateway, the service graph shows who calls it"
       runtimeClassName:
         type: string
         default: nvidia

@@ -134,6 +134,20 @@ spec:
                 attributes:
                   - { key: k8s.cluster.name, value: "${env:K8S_CLUSTER_NAME}", action: upsert }
                   - { key: service.instance.id, from_attribute: k8s.pod.uid, action: insert }
+              # The StackPack's monitors and mappings key on service.namespace (a nonempty one): the Kubernetes
+              # namespace when the app sets none, else "default" (as SUSE's example collector normalizes it).
+              transform/suse-ai-namespace:
+                error_mode: ignore
+                trace_statements:
+                  - context: resource
+                    statements:
+                      - 'set(attributes["service.namespace"], attributes["k8s.namespace.name"]) where (attributes["service.namespace"] == nil or attributes["service.namespace"] == "") and attributes["k8s.namespace.name"] != nil and attributes["k8s.namespace.name"] != ""'
+                      - 'set(attributes["service.namespace"], "default") where attributes["service.namespace"] == nil or attributes["service.namespace"] == ""'
+                metric_statements:
+                  - context: resource
+                    statements:
+                      - 'set(attributes["service.namespace"], attributes["k8s.namespace.name"]) where (attributes["service.namespace"] == nil or attributes["service.namespace"] == "") and attributes["k8s.namespace.name"] != nil and attributes["k8s.namespace.name"] != ""'
+                      - 'set(attributes["service.namespace"], "default") where attributes["service.namespace"] == nil or attributes["service.namespace"] == ""'
               filter/genai-metrics-only:
                 error_mode: ignore
                 metrics:
@@ -217,7 +231,7 @@ spec:
                 error_mode: ignore
                 table:
                   - statement: route()
-                    pipelines: [ traces/sampling, traces/spanmetrics, traces/model-relations, traces/provider-relations ]
+                    pipelines: "{{ ['traces/sampling', 'traces/spanmetrics', 'traces/model-relations', 'traces/provider-relations'].concat(['traces/topology'] if settings.topology else []).concat(['traces/gateway'] if settings.gateway is defined else []) }}"
             exporters:
               otlp:
                 endpoint: "{{ refs.observer.outputs['suse-observability'].otlp }}"
@@ -229,7 +243,7 @@ spec:
               pipelines:
                 traces:
                   receivers: [ otlp ]
-                  processors: [ memory_limiter, k8sattributes, resource ]
+                  processors: [ memory_limiter, k8sattributes, resource, transform/suse-ai-namespace ]
                   exporters: [ routing/traces ]
                 traces/sampling:
                   receivers: [ routing/traces ]
@@ -248,7 +262,7 @@ spec:
                   exporters: [ otlp ]
                 metrics:
                   receivers: [ otlp, spanmetrics ]
-                  processors: [ memory_limiter, k8sattributes, resource, batch ]
+                  processors: [ memory_limiter, k8sattributes, resource, transform/suse-ai-namespace, batch ]
                   exporters: [ otlp ]
                 metrics/infer-providers:
                   receivers: [ otlp ]
@@ -291,17 +305,80 @@ spec:
           object:
             spec:
               config:
-                connectors:
-                  routing/traces:
-                    table:
-                      - statement: route()
-                        pipelines: [ traces/sampling, traces/spanmetrics, traces/model-relations, traces/provider-relations, traces/topology ]
                 service:
                   pipelines:
                     traces/topology:
                       receivers: [ routing/traces ]
                       processors: [ batch ]
                       exporters: [ topology ]
+        # Forwards the cluster's spans, unsampled, to the gateway collector of another cluster: its service graph
+        # pairs the CLIENT and SERVER spans of calls between clusters (Open WebUI on one, vLLM on another).
+        - when: "{{ settings.gateway is defined }}"
+          object:
+            spec:
+              config:
+                exporters:
+                  otlp/gateway:
+                    endpoint: "otlp-gateway.{{ settings.gateway if settings.gateway is defined else '' }}.{{ lab.domain }}:443"
+                    tls: { insecure_skip_verify: "{{ lab.tls.privateCA }}" }
+                processors:
+                  filter/gateway-spans:
+                    error_mode: ignore
+                    traces:
+                      span: [ 'kind != SPAN_KIND_CLIENT and kind != SPAN_KIND_SERVER' ]
+                service:
+                  pipelines:
+                    traces/gateway:
+                      receivers: [ routing/traces ]
+                      processors: [ filter/gateway-spans, batch ]
+                      exporters: [ otlp/gateway ]
+        # The gateway for other clusters' collectors: their spans in on a receiver of its own (so they are not
+        # exported twice), the standard service-graph connector pairing them into SUSE AI's service calls.
+        - when: "{{ settings.serveGateway }}"
+          object:
+            spec:
+              config:
+                receivers:
+                  otlp/gateway:
+                    protocols:
+                      grpc: { endpoint: "0.0.0.0:4319" }
+                connectors:
+                  servicegraph/suse_ai:
+                    dimensions: [ service.namespace ]
+                    metrics_flush_interval: 15s
+                    store: { ttl: 30s, max_items: 10000 }
+                    virtual_node_peer_attributes: []
+                    virtual_node_extra_label: true
+                processors:
+                  filter/suse-ai-calls:
+                    error_mode: propagate
+                    metrics:
+                      metric: [ 'name != "traces_service_graph_request_total"' ]
+                  cumulativetodelta/suse-ai-calls:
+                    include: { metrics: [ traces_service_graph_request_total ], match_type: strict }
+                    initial_value: keep
+                    max_staleness: 20m
+                  filter/suse-ai-idle-calls:
+                    error_mode: propagate
+                    metrics:
+                      datapoint: [ 'metric.name == "traces_service_graph_request_total" and datapoint.value_int == 0' ]
+                  transform/suse-ai-calls:
+                    error_mode: propagate
+                    metric_statements:
+                      - context: metric
+                        statements:
+                          - 'set(metric.name, "suse.ai.service.calls") where metric.name == "traces_service_graph_request_total"'
+                          - 'convert_sum_to_gauge() where metric.name == "suse.ai.service.calls"'
+                service:
+                  pipelines:
+                    traces/servicegraph:
+                      receivers: [ otlp/gateway ]
+                      processors: [ memory_limiter, batch ]
+                      exporters: [ servicegraph/suse_ai ]
+                    metrics/servicegraph:
+                      receivers: [ servicegraph/suse_ai ]
+                      processors: [ memory_limiter, filter/suse-ai-calls, cumulativetodelta/suse-ai-calls, filter/suse-ai-idle-calls, transform/suse-ai-calls, batch ]
+                      exporters: [ otlp ]
         # GPU metrics: the GPU Operator's DCGM exporter (the gpu-operator Fleet profile gives the cluster `gpu`).
         - when: "{{ 'gpu' in target.capabilities }}"
           object:
@@ -318,11 +395,28 @@ spec:
                           relabel_configs:
                             - { action: keep, source_labels: [ __meta_kubernetes_service_label_app ], regex: nvidia-dcgm-exporter }
                             - { action: replace, source_labels: [ __meta_kubernetes_endpoint_node_name ], target_label: k8s_node_name }
+                          # DCGM's workload labels, under the names the GPU presentations and pod mapping query.
+                          metric_relabel_configs:
+                            - { action: replace, source_labels: [ namespace ], target_label: pod_namespace }
+                            - { action: replace, source_labels: [ pod ], target_label: pod_name }
+                            - { action: replace, source_labels: [ container ], target_label: container_name }
+                processors:
+                  # The GPU mapping and monitors identify the node by the resource's k8s.node.name.
+                  transform/gpu-identity:
+                    error_mode: ignore
+                    metric_statements:
+                      - context: datapoint
+                        statements:
+                          - 'set(resource.attributes["k8s.node.name"], datapoint.attributes["k8s_node_name"]) where datapoint.attributes["k8s_node_name"] != nil'
+                          - 'delete_key(datapoint.attributes, "k8s_node_name")'
+                  resource/gpu:
+                    attributes:
+                      - { key: service.namespace, value: gpu-operator, action: insert }
                 service:
                   pipelines:
                     metrics/gpu:
                       receivers: [ prometheus/gpu ]
-                      processors: [ memory_limiter, k8sattributes, resource, batch ]
+                      processors: [ memory_limiter, transform/gpu-identity, k8sattributes, resource, resource/gpu, batch ]
                       exporters: [ otlp ]
         # vLLM: its engines only (not the router), with its metric names as SUSE AI's dashboards query them.
         - when: "{{ outputs.vllm is defined or settings.vllm is defined }}"
@@ -361,11 +455,16 @@ spec:
                           - 'set(attributes["suse.ai.component.type"], "inference-engine") where attributes["service.name"] == "vllm"'
                           - 'set(attributes["service.instance.id"], "vllm") where attributes["service.name"] == "vllm"'
                           - 'set(attributes["k8s.namespace.name"], "${env:SUSE_AI_NAMESPACE}") where attributes["service.name"] == "vllm"'
+                  # The StackPack's vLLM monitors select on suse.ai.product and a nonempty service.namespace.
+                  resource/vllm:
+                    attributes:
+                      - { key: service.namespace, value: "{{ settings.vllm.namespace if settings.vllm is defined else outputs.vllm.namespace }}", action: insert }
+                      - { key: suse.ai.product, value: vllm, action: insert }
                 service:
                   pipelines:
                     metrics/vllm:
                       receivers: [ prometheus/vllm ]
-                      processors: [ transform/vllm-names, memory_limiter, k8sattributes, transform/vllm, resource, batch ]
+                      processors: [ transform/vllm-names, memory_limiter, k8sattributes, transform/vllm, resource, resource/vllm, batch ]
                       exporters: [ otlp ]
         # Qdrant (a vector database), by its Service.
         - when: "{{ settings.qdrant is defined }}"
@@ -390,11 +489,15 @@ spec:
                           - 'set(attributes["suse.ai.component.name"], "qdrant") where attributes["service.name"] == "qdrant"'
                           - 'set(attributes["suse.ai.component.type"], "vectordb") where attributes["service.name"] == "qdrant"'
                           - 'set(attributes["k8s.namespace.name"], "${env:SUSE_AI_NAMESPACE}") where attributes["service.name"] == "qdrant"'
+                  resource/qdrant:
+                    attributes:
+                      - { key: service.namespace, value: "${env:SUSE_AI_NAMESPACE}", action: insert }
+                      - { key: suse.ai.product, value: qdrant, action: insert }
                 service:
                   pipelines:
                     metrics/qdrant:
                       receivers: [ prometheus/qdrant ]
-                      processors: [ memory_limiter, k8sattributes, transform/qdrant, resource, batch ]
+                      processors: [ memory_limiter, k8sattributes, transform/qdrant, resource, resource/qdrant, batch ]
                       exporters: [ otlp ]
         # Milvus (a vector database), by its Service.
         - when: "{{ settings.milvus is defined }}"
@@ -419,11 +522,15 @@ spec:
                           - 'set(attributes["suse.ai.component.name"], "milvus") where attributes["service.name"] == "milvus"'
                           - 'set(attributes["suse.ai.component.type"], "vectordb") where attributes["service.name"] == "milvus"'
                           - 'set(attributes["k8s.namespace.name"], "${env:SUSE_AI_NAMESPACE}") where attributes["service.name"] == "milvus"'
+                  resource/milvus:
+                    attributes:
+                      - { key: service.namespace, value: "${env:SUSE_AI_NAMESPACE}", action: insert }
+                      - { key: suse.ai.product, value: milvus, action: insert }
                 service:
                   pipelines:
                     metrics/milvus:
                       receivers: [ prometheus/milvus ]
-                      processors: [ memory_limiter, k8sattributes, transform/milvus, resource, batch ]
+                      processors: [ memory_limiter, k8sattributes, transform/milvus, resource, resource/milvus, batch ]
                       exporters: [ otlp ]
         # OpenSearch: its cluster health, polled with its credentials (a Secret of their own).
         - when: "{{ settings.opensearch is defined }}"
@@ -448,6 +555,7 @@ spec:
                       - { key: suse.ai.managed, value: "true", action: insert }
                       - { key: suse.ai.component.name, value: opensearch, action: insert }
                       - { key: suse.ai.component.type, value: search-engine, action: insert }
+                      - { key: suse.ai.product, value: opensearch, action: insert }
                       - { key: service.name, value: opensearch, action: insert }
                       - { key: service.namespace, value: "${env:SUSE_AI_NAMESPACE}", action: insert }
                       - { key: k8s.namespace.name, value: "${env:SUSE_AI_NAMESPACE}", action: upsert }
@@ -471,6 +579,33 @@ spec:
           ports:
             - { name: otlp-grpc, port: 4317, targetPort: 4317, protocol: TCP }
             - { name: otlp-http, port: 4318, targetPort: 4318, protocol: TCP }
+      objectOverlays:
+        # The gateway's receiver, to the ingress (Traefik speaks h2c to it).
+        - when: "{{ settings.serveGateway }}"
+          object:
+            metadata: { annotations: { traefik.ingress.kubernetes.io/service.serversscheme: h2c } }
+            spec:
+              ports:
+                - { name: otlp-grpc, port: 4317, targetPort: 4317, protocol: TCP }
+                - { name: otlp-http, port: 4318, targetPort: 4318, protocol: TCP }
+                - { name: otlp-gateway, port: 4319, targetPort: 4319, protocol: TCP }
+    # The gateway's address for other clusters' collectors (their `gateway`), with the wildcard certificate
+    # Sprouter copies into the namespace.
+    - name: gateway-ingress
+      when: "{{ settings.serveGateway }}"
+      object:
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata: { name: opentelemetry-gateway, namespace: observability }
+        spec:
+          ingressClassName: traefik
+          rules:
+            - host: "otlp-gateway.{{ target.name }}.{{ lab.domain }}"
+              http:
+                paths:
+                  - { path: /, pathType: Prefix, backend: { service: { name: opentelemetry-collector, port: { number: 4319 } } } }
+          tls:
+            - { hosts: [ "otlp-gateway.{{ target.name }}.{{ lab.domain }}" ], secretName: wildcard-tls }
     # Zero-code tracing, for workloads in any namespace that opt in by annotation (not for apps that
     # already use OpenLIT or another OpenTelemetry SDK: their spans would be doubled):
     # instrumentation.opentelemetry.io/inject-python: "observability/otel-instrumentation"
@@ -522,6 +657,13 @@ spec:
         pattern: "^0\\.[0-9]+\\.[0-9]+$"
         default: 0.149.0
         description: "the collector image's tag (SUSE AI's follows the upstream collector's versions)"
+      gateway:
+        type: dnsLabel
+        description: "a downstream cluster whose collector (serveGateway) this one sends its spans to, unsampled, for the service graph (otlp-gateway.<cluster>.<domain>:443)"
+      serveGateway:
+        type: boolean
+        default: false
+        description: "be the gateway: take other clusters' spans at otlp-gateway.<cluster>.<domain>:443 (the cluster's ingress and wildcard certificate; open to whoever reaches it) and send their calls to SUSE Observability as the service graph"
       vllm:
         type: object
         description: a vLLM not deployed by the vllm profile, to scrape (its engines, label serving-engine, port 80)

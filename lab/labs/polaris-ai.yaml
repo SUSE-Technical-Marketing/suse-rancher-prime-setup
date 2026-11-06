@@ -7,7 +7,7 @@ spec:
 
   tls:
     # Staging while iterating: Let's Encrypt allows 5 certificates per week for the same names.
-    acme: letsencrypt-staging
+    acme: letsencrypt
     email: jeroen@vanerp.info
     cloudflare: "{{ secrets.cloudflare.token }}"
 
@@ -40,14 +40,14 @@ spec:
       host: 10.29.30.1
       credentials: "{{ secrets.routeros }}"
     suse-observability-agent:
-      observer: heimdall
+      observer: orion
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: HarvesterVM
 metadata:
-  name: vega
+  name: sirius
 spec:
-  harvester: polaris
+  harvester: terra
   os: leap-16
   cpu: 4
   memory: 8Gi
@@ -70,11 +70,11 @@ spec:
 apiVersion: lab.geeko.me/v1alpha1
 kind: DownstreamCluster
 metadata:
-  name: heimdall
+  name: orion
 spec:
   type: harvester
-  rancher: vega
-  harvester: asgard
+  rancher: sirius
+  harvester: polaris
   distro: k3s
   # Fleet's Traefik (the traefik Fleet profile) replaces k3s's own, which is turned off below.
   # ServiceLB stays on. SUSE Observability's volumes use storage's longhorn-single class.
@@ -86,6 +86,11 @@ spec:
   stackPacks: [ open-telemetry, suse-ai ]
   annotations:
     hosted-domain: "{{ lab.domain }}"
+  # The gateway for vega's and the DGX's collectors: their spans pair into the service graph here.
+  profiles:
+    opentelemetry:
+      observer: orion
+      serveGateway: true
   machineGlobalConfig:
     disable: [ traefik ]
   pools:
@@ -95,17 +100,17 @@ spec:
       cpu: 12
       memory: 40Gi
       disk: 500Gi
-      network: vlan20
+      network: vlan40
       os: leap-16
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: DownstreamCluster
 metadata:
-  name: nova
+  name: vega
 spec:
   type: harvester
-  rancher: vega
-  harvester: polaris
+  rancher: sirius
+  harvester: terra
   distro: rke2
   pools:
     - name: all
@@ -117,7 +122,7 @@ spec:
       os: leap-16
       memory: 32Gi
       disk: 100Gi
-      network: vlan40
+      network: vlan20
       cpu: 8
   fleetProfiles:
     storage: {}
@@ -127,9 +132,11 @@ spec:
     hosted-domain: "{{ lab.domain }}"
   profiles:
     suse-observability-agent:
-      observer: heimdall
+      observer: orion
     opentelemetry:
-      observer: heimdall
+      observer: orion
+      # Its spans to orion's gateway: with the DGX's, the service graph pairs Open WebUI's calls with vLLM's.
+      gateway: orion
     open-webui:
       openaiUrl: http://dgx-spark.lab.geeko.me:30080/v1
       defaultModel: RadixArk/Qwen3.8-27B-NVFP4
@@ -150,7 +157,7 @@ metadata:
   name: dgx
 spec:
   type: metal
-  rancher: vega
+  rancher: sirius
   distro: k3s
   nodes:
     - host: dgx-spark
@@ -163,7 +170,7 @@ spec:
   # vLLM on the GPU (from the gpu-operator Fleet profile), observed by SUSE AI's collector on sirius.
   profiles:
     suse-observability-agent:
-      observer: heimdall
+      observer: orion
     vllm:
       model: RadixArk/Qwen3.8-27B-NVFP4
       imageRegistry: docker.io
@@ -179,6 +186,8 @@ spec:
       reasoningParser: qwen3
       toolCallParser: qwen3_xml
       nodePort: 30080
+      # Request spans to the cluster's collector (it forwards them to orion's gateway).
+      otlpTracesEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
       # The model and compiled kernels on the DGX's disk: downloaded and compiled once.
       hostCache: /var/lib/vllm-cache
       # A first start downloads 25 GB and builds FlashInfer's kernels (JIT): longer than the default 30 minutes.
@@ -186,16 +195,17 @@ spec:
     # SUSE AI's collector is amd64 only: the upstream one, without SUSE's topology exporter (freya's
     # collector sends the GenAI topology; this one sends vLLM's and the GPU's metrics).
     opentelemetry:
-      observer: heimdall
+      observer: orion
       collectorImage: docker.io/otel/opentelemetry-collector-contrib
       topology: false
+      gateway: orion
   fleetProfiles:
     gpu-operator: {}
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: Harvester
 metadata:
-  name: asgard
+  name: terra
 spec:
   networks:
     vlans:
@@ -222,11 +232,11 @@ spec:
 apiVersion: lab.geeko.me/v1alpha1
 kind: DownstreamCluster
 metadata:
-  name: thor
+  name: algol
 spec:
   type: harvester
-  rancher: vega
-  harvester: asgard
+  rancher: sirius
+  harvester: polaris
   distro: rke2
   pools:
     - name: all
@@ -239,7 +249,7 @@ spec:
       cpu: 6
       memory: 32Gi
       disk: 500Gi
-      network: vlan20
+      network: vlan40
   fleetProfiles:
     sbomscanner: {}
     cloudnative-pg: {}

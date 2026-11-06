@@ -140,6 +140,10 @@ export type OpentelemetrySettings = {
     topology: boolean;
     /** the collector image's tag (SUSE AI's follows the upstream collector's versions) */
     collectorVersion: string;
+    /** a downstream cluster whose collector (serveGateway) this one sends its spans to, unsampled, for the service graph (otlp-gateway.<cluster>.<domain>:443) */
+    gateway?: string;
+    /** be the gateway: take other clusters' spans at otlp-gateway.<cluster>.<domain>:443 (the cluster's ingress and wildcard certificate; open to whoever reaches it) and send their calls to SUSE Observability as the service graph */
+    serveGateway: boolean;
     /** a vLLM not deployed by the vllm profile, to scrape (its engines, label serving-engine, port 80) */
     vllm?: {
         namespace: string;
@@ -277,6 +281,8 @@ export type VllmSettings = {
     startupMinutes: number;
     /** the router's OpenAI API on this port of every node (http://<node>:<port>/v1), for other clusters */
     nodePort?: number;
+    /** an OTLP gRPC endpoint for the engine's request spans (vLLM's --otlp-traces-endpoint, e.g. the cluster's collector); with the opentelemetry profile's gateway, the service graph shows who calls it */
+    otlpTracesEndpoint?: string;
     /** the GPU Operator's runtime class */
     runtimeClassName: string;
     /** a Hugging Face token, for gated models */

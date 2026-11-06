@@ -43,6 +43,7 @@ spec:
             - name: PRICING_JSON
               value: "https://raw.githubusercontent.com/SUSE/suse-ai-observability-extension/refs/tags/{{ settings.filterVersion }}/integrations/oi-filter/pricing.json"
             - { name: OTEL_SERVICE_NAME, value: Open WebUI }
+            - { name: OTEL_RESOURCE_ATTRIBUTES, value: "suse.ai.product=open-webui,service.namespace=suse-ai" }
             - name: OTEL_EXPORTER_HTTP_OTLP_ENDPOINT
               value: "{{ outputs.opentelemetry.http if outputs.opentelemetry is defined else '' }}"
         # The model's API: with pipelines, the chart puts the pipelines first (their key is the chart's default).
@@ -59,6 +60,7 @@ spec:
           - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "{{ outputs.opentelemetry.grpc if outputs.opentelemetry is defined else '' }}" }
           - { name: OTEL_EXPORTER_OTLP_INSECURE, value: "true" }
           - { name: OTEL_SERVICE_NAME, value: "{{ settings.title }}" }
+          - { name: OTEL_RESOURCE_ATTRIBUTES, value: "suse.ai.product=open-webui,service.namespace=suse-ai" }
   settings:
     type: object
     required: [ openaiUrl ]

@@ -30,7 +30,7 @@ spec:
 ---
 kind: DownstreamCluster
 metadata: { name: obs }
-spec: { type: harvester, rancher: rancher, harvester: hv, ${POOL}, fleetProfiles: { storage: {}, observability: {} }, stackPacks: [ open-telemetry, suse-ai ] }
+spec: { type: harvester, rancher: rancher, harvester: hv, ${POOL}, fleetProfiles: { storage: {}, observability: {} }, stackPacks: [ open-telemetry, suse-ai ], profiles: { opentelemetry: { observer: obs, serveGateway: true } } }
 ---
 kind: DownstreamCluster
 metadata: { name: apps }
@@ -44,7 +44,7 @@ spec:
   harvester: hv
   ${POOL}
   profiles:
-    opentelemetry: { observer: obs, collectorImage: docker.io/otel/opentelemetry-collector-contrib, topology: false }
+    opentelemetry: { observer: obs, collectorImage: docker.io/otel/opentelemetry-collector-contrib, topology: false, gateway: obs }
     open-webui: { openaiUrl: "http://spark.lab.example.com:30080/v1", defaultModel: Qwen/Qwen3-8B }
 ---
 kind: DownstreamCluster
@@ -79,7 +79,7 @@ spec:
   ${POOL}
   fleetProfiles: { gpu-operator: {} }
   profiles:
-    vllm: { model: Qwen/Qwen3-8B, pvcStorage: 50Gi }
+    vllm: { model: Qwen/Qwen3-8B, pvcStorage: 50Gi, otlpTracesEndpoint: "http://opentelemetry-collector.observability.svc.cluster.local:4317" }
     opentelemetry: { observer: obs, collectorVersion: 0.160.1, qdrant: { service: qdrant } }
 `;
 
@@ -133,6 +133,22 @@ describe("OpenTelemetry on a downstream cluster", () => {
         expect(service.pipelines).toHaveProperty("traces/topology");
     });
 
+    it("gives the scraped products the resource attributes SUSE AI 3.0's monitors select on", () => {
+        const { processors, service } = find("downstream/gpu/opentelemetry/collector")!.inputs.spec.config;
+        expect(processors["resource/vllm"].attributes).toEqual([
+            { key: "service.namespace", value: "suse-ai", action: "insert" },
+            { key: "suse.ai.product", value: "vllm", action: "insert" },
+        ]);
+        expect(processors["resource/qdrant"].attributes).toContainEqual({ key: "suse.ai.product", value: "qdrant", action: "insert" });
+        expect(processors["resource/gpu"].attributes).toContainEqual({ key: "service.namespace", value: "gpu-operator", action: "insert" });
+        expect(service.pipelines["metrics/vllm"].processors).toContain("resource/vllm");
+        expect(service.pipelines["metrics/qdrant"].processors).toContain("resource/qdrant");
+        expect(service.pipelines["metrics/gpu"].processors).toEqual(expect.arrayContaining(["transform/gpu-identity", "resource/gpu"]));
+        // What the apps push gets a nonempty service.namespace before spans and metrics are derived.
+        expect(service.pipelines.traces.processors).toContain("transform/suse-ai-namespace");
+        expect(service.pipelines.metrics.processors).toContain("transform/suse-ai-namespace");
+    });
+
     it("serves the model with vLLM from Application Collection, as the DGX Spark stack runs it, once the GPU Operator is ready", () => {
         const chart = find("downstream/gpu/vllm/chart")!.inputs;
         expect(chart.chart).toBe("oci://dp.apps.rancher.io/charts/vllm");
@@ -145,7 +161,7 @@ describe("OpenTelemetry on a downstream cluster", () => {
         // The model's own context length unless set; the stack's engine settings.
         expect(spec.modelSpec[0].vllmConfig).toEqual({
             maxNumSeqs: 8, gpuMemoryUtilization: 0.7, tensorParallelSize: 1, enableChunkedPrefill: true, enablePrefixCaching: true,
-            extraArgs: ["--trust-remote-code", "--kv-cache-dtype=fp8", "--max-num-batched-tokens=16384", "--async-scheduling"],
+            extraArgs: ["--trust-remote-code", "--kv-cache-dtype=fp8", "--max-num-batched-tokens=16384", "--async-scheduling", expect.stringMatching(/^--otlp-traces-endpoint=/)],
         });
         expect(spec.modelSpec[0]).not.toHaveProperty("hf_token");
         expect(spec.modelSpec[0]).not.toHaveProperty("storageClass");
@@ -188,10 +204,32 @@ describe("OpenTelemetry on a downstream cluster", () => {
         expect(spec.image).toBe("docker.io/otel/opentelemetry-collector-contrib:0.149.0");
         expect(spec.config.exporters).not.toHaveProperty("topology");
         expect(spec.config.service.pipelines).not.toHaveProperty("traces/topology");
-        expect(spec.config.connectors["routing/traces"].table[0].pipelines).not.toContain("traces/topology");
+        expect(spec.config.connectors["routing/traces"].table[0].pipelines).toEqual(["traces/sampling", "traces/spanmetrics", "traces/model-relations", "traces/provider-relations", "traces/gateway"]);
         // With it (the default): its pipeline and its route.
         const apps = find("downstream/apps/opentelemetry/collector")!.inputs.spec.config;
-        expect(apps.connectors["routing/traces"].table[0].pipelines).toContain("traces/topology");
+        expect(apps.connectors["routing/traces"].table[0].pipelines).toEqual(["traces/sampling", "traces/spanmetrics", "traces/model-relations", "traces/provider-relations", "traces/topology"]);
+    });
+
+    it("sends the CLIENT and SERVER spans to a gateway, whose service graph becomes SUSE AI's service calls", () => {
+        const chat = find("downstream/chat/opentelemetry/collector")!.inputs.spec.config;
+        expect(chat.exporters["otlp/gateway"].endpoint).toBe("otlp-gateway.obs.lab.example.com:443");
+        expect(chat.connectors["routing/traces"].table[0].pipelines).toEqual(["traces/sampling", "traces/spanmetrics", "traces/model-relations", "traces/provider-relations", "traces/gateway"]);
+        expect(chat.service.pipelines["traces/gateway"]).toEqual({ receivers: ["routing/traces"], processors: ["filter/gateway-spans", "batch"], exporters: ["otlp/gateway"] });
+        expect(chat.receivers).not.toHaveProperty("otlp/gateway");
+        const obs = find("downstream/obs/opentelemetry/collector")!.inputs.spec.config;
+        expect(obs.receivers["otlp/gateway"].protocols.grpc.endpoint).toBe("0.0.0.0:4319");
+        expect(obs.connectors).toHaveProperty("servicegraph/suse_ai");
+        expect(obs.service.pipelines["traces/servicegraph"].exporters).toEqual(["servicegraph/suse_ai"]);
+        expect(obs.service.pipelines["metrics/servicegraph"].processors).toContain("transform/suse-ai-calls");
+        expect(obs.exporters).not.toHaveProperty("otlp/gateway");
+        expect(find("downstream/obs/opentelemetry/gateway-ingress")!.inputs.spec.rules[0].host).toBe("otlp-gateway.obs.lab.example.com");
+        expect(find("downstream/chat/opentelemetry/gateway-ingress")).toBeUndefined();
+        expect(find("downstream/obs/opentelemetry/service")!.inputs.spec.ports.map((p: { port: number }) => p.port)).toEqual([4317, 4318, 4319]);
+        // vLLM's request spans to the collector, as the service the monitors select.
+        const model = find("downstream/gpu/vllm/chart")!.inputs.values.servingEngineSpec.modelSpec[0];
+        expect(model.vllmConfig.extraArgs).toContain("--otlp-traces-endpoint=http://opentelemetry-collector.observability.svc.cluster.local:4317");
+        expect(model.env).toContainEqual({ name: "OTEL_SERVICE_NAME", value: "vllm" });
+        expect(find("downstream/spark/vllm/chart")!.inputs.values.servingEngineSpec.modelSpec[0]).not.toHaveProperty("env");
     });
 
     it("installs the StackPacks the observer lists, once, with its bootstrap token", () => {
