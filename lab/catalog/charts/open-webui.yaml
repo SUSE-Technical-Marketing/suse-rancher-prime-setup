@@ -5,8 +5,7 @@ metadata:
   description: Open WebUI, from SUSE Application Collection
 spec:
   chart: oci://dp.apps.rancher.io/charts/open-webui
-  # 7.2.0 (SUSE AI Factory's "Monitoring Open WebUI") ships bcrypt 5 with passlib: every signup fails.
-  version: "8.19.1"
+  version: "18.0.0"
   namespace: suse-ai
   # Application Collection's registry login: the lab's appco input.
   credentials: appco
