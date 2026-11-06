@@ -254,6 +254,8 @@ describe("OpenTelemetry on a downstream cluster", () => {
         expect(env).toMatchObject({
             DEFAULT_MODELS: "Qwen/Qwen3-8B",
             ENABLE_OTEL: "true",
+            ENABLE_OTEL_TRACES: "true",
+            OTEL_SERVICE_NAME: "Open WebUI",
             OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.observability.svc.cluster.local:4317",
         });
         expect(values).toMatchObject({ openaiBaseApiUrl: "http://spark.lab.example.com:30080/v1", openaiApiKeys: ["0p3n-w3bu!", "dummy"] });

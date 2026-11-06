@@ -54,12 +54,13 @@ spec:
           - { name: WEBUI_NAME, value: "{{ settings.title }}" }
           - { name: DEFAULT_USER_ROLE, value: user }
           - { name: DEFAULT_MODELS, value: "{{ settings.defaultModel | optional }}" }
-          # Open WebUI's own traces and metrics.
+          # Open WebUI's own traces (off unless ENABLE_OTEL_TRACES: its CLIENT spans to the model are the service graph's edge) and metrics.
           - { name: ENABLE_OTEL, value: "{{ 'true' if outputs.opentelemetry is defined else 'false' }}" }
+          - { name: ENABLE_OTEL_TRACES, value: "{{ 'true' if outputs.opentelemetry is defined else 'false' }}" }
           - { name: ENABLE_OTEL_METRICS, value: "{{ 'true' if outputs.opentelemetry is defined else 'false' }}" }
           - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "{{ outputs.opentelemetry.grpc if outputs.opentelemetry is defined else '' }}" }
           - { name: OTEL_EXPORTER_OTLP_INSECURE, value: "true" }
-          - { name: OTEL_SERVICE_NAME, value: "{{ settings.title }}" }
+          - { name: OTEL_SERVICE_NAME, value: "Open WebUI" }
           - { name: OTEL_RESOURCE_ATTRIBUTES, value: "suse.ai.product=open-webui,service.namespace=suse-ai" }
   settings:
     type: object
