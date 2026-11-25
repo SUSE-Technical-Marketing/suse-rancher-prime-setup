@@ -405,4 +405,5 @@ mise run crds            # after changing packages/crds/crd-sources/: regenerate
 | `packages/schema/src/profiles/` | Profile rule checks; the profiles themselves are `Profile` documents in `catalog/profiles/` |
 | `packages/core/` | Harvester API client, ownership claims |
 | `catalog/` | Built-in defaults as documents (see Catalog above): `plugins.yaml`, `secrets/`, `configmaps/`, Fleet repos and groups in `fleet/`, OS profiles in `os/` (`lab catalog` shows the effective set) |
-| `labs/` | Example labs |
+| `labs/` | The author's lab files (test and reference labs; they name his Harvesters and domain) |
+| `examples/` | Generic example labs to copy: `lab examples` lists them, `lab examples <name> > my-lab.yaml` prints one, `lab plan --example <name>` uses one in place |

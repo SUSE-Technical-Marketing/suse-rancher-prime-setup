@@ -9,6 +9,7 @@ import { ConcurrentUpdateError } from "@pulumi/pulumi/automation";
 import {
     checkOwnership, claimHarvesters, closeSessions, currentUser, HarvesterSession, openSessions, releaseHarvesters, writeRunFiles,
 } from "./harvesters";
+import { findExample, listExamples, renderExamples } from "./examples";
 import { kubeconfigPath, mergeKubeconfigs, writeKubeconfig } from "./kubeconfig";
 import { findLeftovers } from "@lab/backends";
 import { siteBackends } from "./sites";
@@ -22,6 +23,8 @@ const USAGE = `Usage: lab <command> <lab.yaml> [options]
        lab profiles
        lab catalog [lab.yaml]
        lab stackpacks [lab.yaml]
+       lab examples [name]
+       lab <validate|plan|preview|up> --example <name>
 
 Commands
   validate   Check the lab file, personal config and secrets; changes nothing
@@ -35,11 +38,13 @@ Commands
   profiles   List the host profiles and their rules (no lab file needed)
   catalog    Show the effective catalog (components, plugins, Fleet, OS profiles) and where
              each entry comes from; with a lab file, including its overrides
+  examples   List the example labs; with a name, print that one (lab examples single-vm > my-lab.yaml)
   stackpacks Build the catalog's StackPacks that come from source (suse-ai) into lab/.cache/stackpacks/,
              for "up" to upload; with a lab file, its own catalog's too
 
 Options
   --config <file>       Personal config (default: $LAB_CONFIG or ~/.config/lab/config.yaml)
+  --example <name>      Use an example lab instead of a lab file (see "lab examples")
   --yes, -y             Don't ask for confirmation
   --refresh             Read what's really there first (preview, up): an add-on deleted or
                         changed in the Harvester UI is put back
@@ -158,10 +163,13 @@ async function main(argv: string[]): Promise<void> {
             force: { type: "boolean" },
             refresh: { type: "boolean" },
             check: { type: "boolean" },
+            example: { type: "string" },
             help: { type: "boolean", short: "h" },
         },
     });
-    const [command, labFile, ...rest] = positionals;
+    const [command, labArg, ...rest] = positionals;
+    if (opts.example && labArg && command !== "examples") throw new UsageError("give a lab file or --example, not both");
+    const labFile = opts.example && command !== "examples" ? findExample(opts.example).file : labArg;
     if (opts.help || !command) {
         process.stderr.write(USAGE);
         return;
@@ -171,6 +179,12 @@ async function main(argv: string[]): Promise<void> {
         for (const d of diagnostics.items) console.error(formatDiagnostic(d));
         if (!catalog) process.exit(1);
         console.log(renderProfiles(catalog.profiles));
+        return;
+    }
+    if (command === "examples") {
+        if (rest.length > 0) throw new UsageError(`unexpected arguments: ${rest.join(" ")}`);
+        if (labFile) process.stdout.write(fs.readFileSync(findExample(labFile).file, "utf8"));
+        else console.log(renderExamples(listExamples()));
         return;
     }
     if (command === "catalog") {

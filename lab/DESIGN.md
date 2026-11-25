@@ -2226,4 +2226,5 @@ Not done, and why:
 |---|---|
 | 0 | done; CI written, not yet run on GitHub |
 | 1 | done, with the above |
-| 2 to 5 | planned |
+| 4 (part) | `lab examples [name]` and `--example <name>` done (`cli/src/examples.ts`, generic labs in `examples/`, each loaded and planned by `cli/test/examples.test.ts`) |
+| 2, 3, 5 and the rest of 4 | planned |
