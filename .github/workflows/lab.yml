@@ -1,0 +1,30 @@
+name: lab
+
+# The lab engine (lab/): typecheck, unit tests, and every example lab in lab/labs/ loaded and
+# resolved (packages/schema/test/labs.test.ts, part of the tests). Tool versions come from
+# lab/mise.toml, as on a developer machine.
+on:
+  push:
+    branches: [main]
+    paths: ["lab/**", ".github/workflows/lab.yml"]
+  pull_request:
+    paths: ["lab/**", ".github/workflows/lab.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lab
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          working_directory: lab
+      - name: Typecheck
+        run: mise run typecheck
+      - name: Test
+        run: mise run test

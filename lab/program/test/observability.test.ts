@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runProgram } from "./run-program";
+import { runProgram, catalogChartVersion } from "./run-program";
 
 // The whole program under Pulumi's mocks: SUSE Observability agents on a Rancher host, a downstream
 // cluster and the Harvester itself, each registered with the instance Fleet runs on cluster obs.
@@ -64,7 +64,7 @@ describe("SUSE Observability agents", () => {
 
     it("installs the agent on clusters with its token in a Secret, reporting as the cluster's name", () => {
         const release = find("downstream/apps/suse-observability-agent/chart")!;
-        expect(release.inputs).toMatchObject({ chart: "suse-observability-agent", namespace: "suse-observability-agent", version: "1.7.19" });
+        expect(release.inputs).toMatchObject({ chart: "suse-observability-agent", namespace: "suse-observability-agent", version: catalogChartVersion("suse-observability-agent") });
         expect(release.inputs.values).toMatchObject({
             logLevel: "debug",
             stackstate: { url: "https://observability.obs.lab.example.com/receiver/stsAgent", cluster: { name: "apps-cluster" } },

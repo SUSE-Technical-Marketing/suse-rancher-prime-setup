@@ -3,7 +3,7 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { runUploaded, sshConnection, type HostAccess } from "@lab/kubernetes";
 import { CLOUD_INIT_REBOOT, LANDLOCK_CHECK, landlockScript, MACHINE_REBOOT } from "@lab/os";
-import type { ResolvedOs } from "@lab/schema";
+import { hostTraits, type ResolvedOs } from "@lab/schema";
 import type { ProfileBuilder } from "../profiles";
 
 // The landlock profile (DESIGN.md §9.7), on hosts and on every node of a downstream cluster. A VM or
@@ -15,7 +15,7 @@ export const landlock: ProfileBuilder<"landlock"> = {
     boot: ({ os }) => [landlockScript(os, CLOUD_INIT_REBOOT)],
     setup({ host, access, os, machine, after }) {
         // A VM turned it on at its first boot: checked once cloud-init is done.
-        return host.kind === "ssh"
+        return hostTraits(host).bootstrap === "ssh"
             ? [landlockOnMachine(`${host.name}/landlock`, access, os, {})]
             : [landlockCheck(`${host.name}/landlock`, access, { dependsOn: after, deletedWith: machine })];
     },

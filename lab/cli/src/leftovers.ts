@@ -1,3 +1,4 @@
+import type { Leftovers } from "@lab/backends";
 import { ResolvedLab } from "@lab/schema";
 import { HarvesterSession } from "./harvesters";
 
@@ -50,14 +51,7 @@ function candidates(lab: ResolvedLab, session: HarvesterSession): { what: string
     ];
 }
 
-export interface Leftovers {
-    /** Still present and not being deleted: a teardown leak. */
-    found: string[];
-    /** Already being deleted (pods shutting down, finalizers running): give it a moment. */
-    terminating: string[];
-}
-
-export async function findLeftovers(lab: ResolvedLab, sessions: HarvesterSession[]): Promise<Leftovers> {
+export async function findHarvesterLeftovers(lab: ResolvedLab, sessions: HarvesterSession[]): Promise<Leftovers> {
     const found: string[] = [];
     const terminating: string[] = [];
     for (const session of sessions) {

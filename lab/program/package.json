@@ -10,6 +10,7 @@
     "dependencies": {
         "@lab/apps": "workspace:*",
         "@lab/aws": "workspace:*",
+        "@lab/backends": "workspace:*",
         "@lab/harvester": "workspace:*",
         "@lab/kube": "workspace:*",
         "@lab/kubernetes": "workspace:*",

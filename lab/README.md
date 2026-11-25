@@ -3,9 +3,12 @@
 Describe a lab environment on SUSE Virtualization (Harvester) in one YAML file and build it with
 one command. See [DESIGN.md](DESIGN.md) for the full design and the lab file reference.
 
-> **Status: M0.** The CLI, the lab file format, validation, secrets and the Harvester ownership
-> check work. Nothing is built on Harvester yet: `up` of a lab with hosts only records the lab.
-> Next up is M1 (Harvester base and VMs).
+> **Status.** Built (DESIGN.md §14 says which parts have run against a real lab): VMs on Harvester and on existing machines
+> (SSH), k3s and RKE2, Rancher with plugins and Fleet, Rancher-provisioned clusters on Harvester,
+> EC2, EKS and metal machines, k3k virtual clusters, Hauler, observability and AI profiles, and
+> the composer UI. Not built yet: the Multi-Linux Manager profiles (`mlm-server`, `mlm-client`,
+> planned). Milestone by milestone, and what is next (more backends than Harvester: libvirt, EC2,
+> Hetzner), is in [DESIGN.md](DESIGN.md) §14 and §18.
 
 ## Getting started
 

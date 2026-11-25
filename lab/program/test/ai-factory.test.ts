@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runProgram } from "./run-program";
+import { runProgram, catalogChartVersion } from "./run-program";
 
 // The whole program under Pulumi's mocks, for a Rancher host with SUSE AI Factory: the operator's
 // chart gets the registry logins as values, read from the secrets.
@@ -47,7 +47,7 @@ describe("ai-factory", () => {
         });
         const release = registered.find(r => r.type === "kubernetes:helm.sh/v3:Release" && r.name === "rancher/ai-factory/chart");
         expect(release, registered.filter(r => r.type.includes("Release")).map(r => r.name).join(", ")).toBeDefined();
-        expect(release!.inputs).toMatchObject({ chart: "oci://ghcr.io/suse/chart/aif-operator", version: "2.3.1", namespace: "aif-operator" });
+        expect(release!.inputs).toMatchObject({ chart: "oci://ghcr.io/suse/chart/aif-operator", version: catalogChartVersion("aif-operator"), namespace: "aif-operator" });
         // A secret output: the logins stay encrypted in the stack's state.
         const SECRET = "4dabf18193072939515e22adb298388d";
         expect(release!.inputs.values[SECRET]).toBe("1b47061264138c4ac30d75fd1eb44270");

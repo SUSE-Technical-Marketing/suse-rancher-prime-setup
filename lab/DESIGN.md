@@ -1,6 +1,8 @@
 # Lab engine — design
 
-Status: **M0 implemented** (CLI, schema, validation, secrets, ownership guard). M1 onwards not built yet.
+Status: M0, M1, M2 (Rancher on a lab VM), M4 (metal clusters) built, and most of M3 (Rancher-provisioned
+clusters on Harvester, EC2, EKS, k3k). Open: the Multi-Linux Manager profiles (M6). Next: more VM
+backends than Harvester (§18).
 
 A config-driven way to build complete demo/lab environments on SUSE Virtualization (Harvester):
 describe a lab in one YAML file, run one command, get VMs, Kubernetes, Rancher, Multi-Linux
@@ -29,7 +31,8 @@ code from `pulumi/modules` is ported (copied and adapted), not imported.
 
 **Non-goals**
 
-- Several labs sharing one Harvester at the same time. One Harvester runs one lab.
+- Several labs sharing one Harvester at the same time. One Harvester runs one lab. (Other kinds of site
+  host many labs, §18.3.)
 - Managing application workloads. Apps stay in Fleet (`apps/` + GitRepos); the lab only
   bootstraps Fleet.
 - Long-lived production environments, upgrades in place, or day-2 operations beyond re-running
@@ -91,10 +94,12 @@ lab/
     crds/                   # typed CRD classes, generated with crd2pulumi from crd-sources/
     os/                     # cloud-init builders per OS family (suse, rhel, debian)
     harvester/              # Harvester base, VMs, images, networks, add-ons
-    kubernetes/             # k3s/RKE2 install on hosts, kubeconfig retrieval, HelmApp
+    kubernetes/             # k3s/RKE2 install on hosts, kubeconfig retrieval, HelmApp, Hauler
+    apps/                   # cert-manager, Sprouter, Traefik, Outrider, observability, ...
+    kube/                   # Kubernetes and Rancher API clients, polling
+    aws/                    # AWS sites: network, pinned values
+    backends/               # the host and site backend contracts (§18): HostBackend, SiteBackend
     rancher/                # Rancher install, plugins, Fleet, Harvester import, downstream clusters
-    mlm/                    # Multi-Linux Manager server, products, activation keys, clients
-    registry/               # Hauler (host and Kubernetes modes)
   catalog/                  # built-in defaults as data (§16): components/, plugins.yaml, secrets/, fleet/, os/ (§6)
   labs/                     # example lab files (the four reference labs, §13)
 ```
@@ -1506,6 +1511,7 @@ downstream:
 | M5 | `hauler` (systemd) and `hauler-chart` (Kubernetes), HaulManifests, lego certificates | Registry part of reference lab 1. Built and tested under mocks; not yet run against a lab |
 | M6 | `sl-micro-6.1`, `ubuntu-24.04`, `rocky-9`; `mlm-server`, `mlm-client` | Reference labs 1 and 3 |
 | M7 | Docs for lab authors (`lab/README.md`), more examples, `AGENTS.md` | Someone new can write a lab without reading TypeScript |
+| M8 | More backends than Harvester: the host/site seam (phase 1), libvirt, EC2 and Hetzner VMs, stop/start, hybrid | §18 |
 
 ---
 
@@ -2088,3 +2094,136 @@ A profile whose requirements aren't met on a host isn't rendered there (the rule
 program gets plain values; the protected paths are the leaves of `lockedValues`, templates or not.
 Secret templates (§16.6) keep their `$input`/`$lab` refs: their values are secrets resolved at
 deploy time, and a key is left out when its inputs are missing.
+
+---
+
+## 18. More backends than Harvester
+
+Status: **Phase 0 and 1 built** (§18.7). Phases 2 to 5 are planned.
+
+Today a VM lives on a Harvester. This section adds other places VMs can live (libvirt on an
+existing machine, EC2, Hetzner) without touching what runs on them: profiles, Kubernetes, Rancher
+and downstream clusters. The idea comes from comparing the engine with lab-in-a-box, which runs
+labs on KVM and eight clouds; we keep our typed, declarative, previewable model and take its reach.
+
+### 18.1 Decisions
+
+1. **One kind per backend**, not one `VM` kind with `backend:`. `HarvesterVM` keeps its Harvester
+   fields (`network`, namespaces), `Ec2VM` gets `instanceType`, `LibvirtVM` gets `pool` and `bridge`.
+   Fields are typed per backend, errors name the right document (`Ec2VM/web.spec.instanceType`), the
+   composer's per-kind forms keep working, and a new backend is additive. The cost (no one-field
+   switch between backends) is met by a later `lab convert` command.
+2. **A shared base spec** (`VmCommon`: `os`, `cpu`, `memory`, `disk`, `fqdn`, `profiles`) that every
+   VM kind extends, so the common fields stay the same everywhere.
+3. **A kind-agnostic resolved `Host`.** After resolution a Harvester VM, an EC2 VM and a `Machine`
+   are all hosts; profiles, `plan`, kubeconfigs and cluster references read the host, never the
+   kind. Only provisioning switches on the backend, and the compiler checks that every backend is
+   handled (`exhaustive.ts`).
+4. **A `Site` is where VMs live**: a `Harvester`, an `AwsSite`, later a `LibvirtSite` and a
+   `HetznerSite`. A site holds the connection (its own credentials, or for libvirt an existing
+   `Machine`) and **hosts many labs**: each lab owns a namespace, VPC, tag set or domain prefix on
+   it. This relaxes "one lab per Harvester" (§1, §10).
+5. **`Machine` stays its own kind**: an existing box reached over SSH, never created or destroyed.
+   A `LibvirtSite` names a `Machine` as the place it runs on and reaches libvirt through that
+   machine's SSH.
+6. **`LibvirtSite` / `LibvirtVM`**, not `KvmSite`, with a `driver:` field that accepts only `qemu`
+   for now. Other libvirt drivers (Xen, VirtualBox, VMware) need their own domain XML, cloud-init
+   delivery and guest-agent readiness; they are a `driver` value and a builder each, built only if
+   wanted. Proxmox and vSphere are not libvirt: they would be sites of their own.
+7. **Downstream clusters on a backend without a Rancher node driver are custom (`metal`) clusters**,
+   which the engine already builds on hosts.
+
+### 18.2 Target model
+
+```
+Site kinds:   Harvester | AwsSite | LibvirtSite (-> Machine) | HetznerSite
+VM kinds:     HarvesterVM | Ec2VM | LibvirtVM | HetznerVM        (each extends VmCommon)
+Existing:     Machine (SSH; never created or destroyed)
+Resolved:     Host { name, os, fqdn, kind, site?, ... }           profiles, plan and refs read this
+Seam:         HostBackend { kind, created, provision(), leftovers() }   one per VM kind
+```
+
+### 18.3 Ownership on a shared site
+
+A site's claim stops being "one lab" and becomes a set of claims, one per lab, each tied to the user
+who runs it (the same lab name run by someone else is still refused). A Harvester stays
+**exclusive** for now: its cluster-wide pieces (the DHCP and DNS add-ons, the default storage class)
+have one owner, and sharing them needs reference counting that is not designed yet. A site kind
+declares whether it is exclusive or shared; libvirt, EC2 and Hetzner are shared by construction
+(domains, volumes, VPC and tags are per lab).
+
+Every backend must implement `leftovers()`: what is still there for a lab after `destroy`, found by
+the lab's name (namespace, tag, domain metadata). `destroy --check` runs it for every site.
+
+### 18.4 Phases
+
+| Phase | Scope | Done when |
+|---|---|---|
+| 0 | Groundwork: docs match the code, red test fixed, CI, every file in `labs/` validated by a test | CI green on main; `labs/` all load |
+| 1 | The seam: `VmCommon`, `Host` traits, `Site`, `HostBackend` with Harvester and SSH behind it, claims per lab (§18.3) | Every existing lab plans identically; Pulumi resource addresses unchanged; no Harvester logic outside its backend |
+| 2 | `LibvirtSite` + `LibvirtVM`: `virsh` over the Machine's SSH (spike the Pulumi libvirt provider first), preflight of `virsh`/pool/network, bridge networking with fixed addresses, deterministic addresses, dnsmasq or RouterOS DNS, image cache, ownership by domain metadata, `via: site` jump host | `rancher-harvester-rke2` with its `harvester:` references changed runs on one KVM box and `destroy` leaves nothing |
+| 3 | `Ec2VM` (reuses `AwsSite`), `HetznerSite` + `HetznerVM`, Route53 and Cloudflare DNS profiles | The same Rancher + RKE2 lab runs on EC2 and on Hetzner; `destroy` leaves nothing tagged |
+| 4 | `lab stop` / `lab start`, an active `ttl` with `lab reap`, `lab examples` and `lab up --example`, `lab convert` | A new user runs an example with no lab file; a cloud lab stops and starts |
+| 5 | WireGuard overlay between sites, a version compatibility matrix in the catalog, catalog profile gaps, CI per backend | One lab spans Harvester and a cloud site |
+
+### 18.5 Decided later, per phase
+
+- Libvirt through the Pulumi provider or through `virsh` over SSH: a one-day spike at the start of
+  phase 2, defaulting to SSH.
+- Libvirt networking: bridge on the host's LAN first (fixed addresses, DNS records ours to make);
+  NAT or an isolated network with lab DHCP after.
+- Whether a `kvm-host` profile may install and configure libvirt on the `Machine`. Until decided the
+  site is a precondition, checked by a preflight. Such a profile would be the one thing `destroy`
+  leaves on a machine.
+
+### 18.6 Not taken from lab-in-a-box
+
+Its hosted-model-provider add-ons, its translated documentation and its imperative script contract.
+Breadth stops at libvirt, EC2 and Hetzner until all three are in real use: each backend costs a
+transport, DNS, leftovers, tests and documentation.
+
+### 18.7 Progress
+
+**Phase 0** (done)
+
+- README status and §4 layout match the code.
+- Version assertions in the program tests read the catalog (`catalogChartVersion`), so a catalog bump no longer breaks them.
+- Every file in `labs/` is loaded by a test (`packages/schema/test/labs.test.ts`); `lab-polaris.yaml`
+  was stale (`dns:` moved under `profiles`, a removed OS profile, a missing `tls.email`) and is repaired.
+- `lab plan` of every example lab is a snapshot (`cli/test/plan-labs.test.ts`), taken before the phase 1
+  refactor and unchanged after it.
+- CI: `.github/workflows/lab.yml` runs `mise run typecheck` and `mise run test`. Written, **not yet run
+  on GitHub**.
+
+**Phase 1** (done, with the exceptions below)
+
+| What | Where |
+|---|---|
+| `VmCommon`: the fields every VM kind has; `VM_SPECS` lists the VM kinds and a test requires each to contain all of it | `packages/schema/src/schema.ts` |
+| `Host` traits (`created`, `bootstrap: user-data \| ssh`), `hostSite`, `sshUserOf`: callers ask these instead of comparing kinds | `packages/schema/src/host-model.ts` |
+| `Site` registry (`SITE_TRAITS`: label and `sharing`), `sitesOf(lab)` | `packages/schema/src/sites.ts` |
+| Claims per lab: `claimSite`, `releaseSite`, `checkSite` over a `ClaimStore`, exclusive or shared; the old single-owner `claim`/`release` are the exclusive case of them | `packages/core/src/claims.ts` |
+| `HostBackend` and `SiteBackend` contracts, registries typed over every kind, `provisionHost`, `findLeftovers` | `packages/backends` |
+| Harvester and SSH provisioning moved out of `program/index.ts` into backends | `program/backends/` |
+| `destroy --check` asks every kind of site the lab uses through `siteBackends`; the Harvester's claim reads the site's `sharing` | `cli/src/sites.ts`, `cli/src/harvesters.ts` |
+
+Not done, and why:
+
+- **A Harvester is still exclusive.** The claim logic supports shared sites, and `SITE_TRAITS` is where
+  a kind says which it is, but sharing a Harvester also needs its cluster-wide pieces (DHCP and DNS
+  add-ons, the default storage class) to have a single owner or a reference count. Not designed. The
+  first shared site is libvirt (phase 2).
+- **Harvester knowledge outside its backend** remains in four places: the resolver's network lookup and
+  fixed-address checks (`phases/hosts.ts`, `phases/checks.ts`), the profile rule that needs a network
+  feature (`profiles/rules.ts`), the program's collection of the networks a Harvester's base must make
+  (`program/index.ts`), and the composer's host form. These are about networks, which the second site
+  kind will model its own way; they are phase 2's first job, not worth abstracting from one example.
+- **`leftovers()` for a lab's sites is wired through `SiteBackend`** but a host backend has none: a
+  Harvester and AWS site find leftovers by namespace or tag, and an existing machine has none to find.
+- The **`Machine`** kind is unchanged and has no site; a `LibvirtSite` will name one (§18.1).
+
+| Phase | State |
+|---|---|
+| 0 | done; CI written, not yet run on GitHub |
+| 1 | done, with the above |
+| 2 to 5 | planned |

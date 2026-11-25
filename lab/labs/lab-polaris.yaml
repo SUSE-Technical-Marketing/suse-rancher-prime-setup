@@ -6,6 +6,7 @@ spec:
   domain: lab.geeko.me
   tls:
     acme: letsencrypt-staging
+    email: lab@geeko.me
     cloudflare: "{{ secrets['cloudflare-token'] }}"
   ssh:
     publicKey:
@@ -32,10 +33,11 @@ spec:
             - 10.29.20.250
   url: https://polaris.lab.geeko.me
   credentials: "{{ secrets.asgard }}"
-  dns:
-    backend: routeros
-    host: 10.29.20.1
-    credentials: "{{ secrets.routeros }}"
+  profiles:
+    harvester-dns-controller:
+      backend: routeros
+      host: 10.29.20.1
+      credentials: "{{ secrets.routeros }}"
 ---
 apiVersion: lab.geeko.me/v1alpha1
 kind: HarvesterVM
@@ -43,7 +45,7 @@ metadata:
   name: sirius
 spec:
   harvester: polaris
-  os: leap-16-k8s
+  os: leap-16
   memory: 8Gi
   disk: 40Gi
   profiles:
@@ -73,7 +75,7 @@ spec:
         - etcd
         - controlplane
         - worker
-      os: leap-16-k8s
+      os: leap-16
       cpu: 12
       memory: 40Gi
       disk: 500Gi
@@ -100,6 +102,6 @@ spec:
         - etcd
         - controlplane
         - worker
-      os: leap-16-k8s
+      os: leap-16
   labels:
     needs-storage: "true"

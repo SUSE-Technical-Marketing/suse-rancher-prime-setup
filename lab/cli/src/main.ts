@@ -3,14 +3,15 @@ import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 import { defaultPersonalConfigPath, formatDiagnostic, loadCatalog, loadLab, PersonalConfig, ResolvedLab } from "@lab/schema";
-import { awsKeys, findAwsLeftovers } from "./aws";
+import { awsKeys } from "./aws";
 import { CloudInitWatch } from "./cloudinit";
 import { ConcurrentUpdateError } from "@pulumi/pulumi/automation";
 import {
     checkOwnership, claimHarvesters, closeSessions, currentUser, HarvesterSession, openSessions, releaseHarvesters, writeRunFiles,
 } from "./harvesters";
 import { kubeconfigPath, mergeKubeconfigs, writeKubeconfig } from "./kubeconfig";
-import { findLeftovers } from "./leftovers";
+import { findLeftovers } from "@lab/backends";
+import { siteBackends } from "./sites";
 import { log } from "./log";
 import { renderCatalog, renderPlan, renderProfiles } from "./plan";
 import { buildCatalogStackPacks, stackPackProblems } from "./stackpacks";
@@ -265,10 +266,7 @@ async function main(argv: string[]): Promise<void> {
             const settings = workspaceSettings();
             await withHarvesters(ctx.lab, values, async (sessions, env) => {
                 if (opts.check) {
-                    const onHarvesters = await findLeftovers(ctx.lab, sessions);
-                    const onAws = await findAwsLeftovers(ctx.lab, awsKeys(ctx.lab, values));
-                    const found = [...onHarvesters.found, ...onAws.found];
-                    const terminating = [...onHarvesters.terminating, ...onAws.terminating];
+                    const { found, terminating } = await findLeftovers(siteBackends, ctx.lab, { sessions, aws: awsKeys(ctx.lab, values) });
                     for (const l of found) console.log(l);
                     for (const l of terminating) console.log(`${l}  (still shutting down)`);
                     const where = [...sessions.map(s => s.harvester.name), ...ctx.lab.awsSites.map(s => `${s.name} (AWS ${s.region})`)];

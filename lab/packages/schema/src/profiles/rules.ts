@@ -1,4 +1,5 @@
 import { Credentials, OsFamily } from "../primitives";
+import type { HostKind } from "../host-model";
 import { usesSecrets } from "../secrets";
 import { valuePaths } from "../catalog";
 import { ProfileDefinition, profileTargets, ProfileRegistry } from "./define";
@@ -56,7 +57,7 @@ export function describeCapability(registry: ProfileRegistry, capability: string
 
 export interface HostRulesContext {
     registry: ProfileRegistry;
-    host: { name: string; os: string; kind: "harvester" | "ssh"; profiles: Profiles };
+    host: { name: string; os: string; kind: HostKind; profiles: Profiles };
     osFamily: OsFamily | undefined;
     /** What the host's network has configured on its Harvester; empty for ssh hosts. */
     networkFeatures: ("dhcp" | "loadBalancer")[];
