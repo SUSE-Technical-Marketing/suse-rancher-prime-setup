@@ -59,8 +59,11 @@ export interface HostRulesContext {
     registry: ProfileRegistry;
     host: { name: string; os: string; kind: HostKind; profiles: Profiles };
     osFamily: OsFamily | undefined;
-    /** What the host's network has configured on its Harvester; empty for ssh hosts. */
-    networkFeatures: ("dhcp" | "loadBalancer")[];
+    /**
+     * What the host's network provides, when the site models it (a Harvester's network does). Undefined
+     * when it isn't modelled (an existing machine): a profile's `networkFeatures` is then not checked.
+     */
+    networkFeatures?: ("dhcp" | "loadBalancer")[];
     /**
      * Where the host's network is declared (`harvesters.asgard.networks.vlans[0]`), when the lab
      * declares it: a feature a profile needs and it lacks is reported there too, where it's added.
@@ -110,7 +113,7 @@ export function checkHostProfiles(ctx: HostRulesContext): void {
             ctx.error(at, `only runs on ${def.hostKinds.map(k => (k === "harvester" ? "Harvester VMs" : "existing (ssh) machines")).join(" or ")}`);
         }
         for (const feature of def.networkFeatures ?? []) {
-            if (host.kind === "harvester" && !ctx.networkFeatures.includes(feature)) {
+            if (ctx.networkFeatures && !ctx.networkFeatures.includes(feature)) {
                 ctx.error(at, `needs the host's network to have a ${feature} section on its Harvester`);
                 if (ctx.networkAt) ctx.error(`${ctx.networkAt}.${feature}`, `required: ${host.name}'s ${name} profile needs it on this network`);
             }
