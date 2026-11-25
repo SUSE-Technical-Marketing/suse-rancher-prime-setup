@@ -249,6 +249,8 @@ export const Include = z.array(z.string().min(1)).default([]);
 export const LabFile = z.strictObject({
     lab: dnsLabel,
     domain: dnsName.meta(form({ hint: "hosts are <name>.<domain>" })),
+    /** How long the lab is meant to live, from when it is first created: `lab reap` destroys it after that. */
+    ttl: duration.optional().meta(form({ section: "lifetime", placeholder: "none", hint: "e.g. 8h; `lab reap` destroys the lab once it is older" })),
     tls: z.strictObject({
         /** An AcmeServer from the catalog (`letsencrypt`, `letsencrypt-staging`), or `none`. */
         acme: z.string().min(1).default("letsencrypt")

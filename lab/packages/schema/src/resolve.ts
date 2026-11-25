@@ -3,7 +3,7 @@ import { CatalogLayer, catalogValues, ResolvedAcmeServer, ResolvedComponent, Res
 import { ResolvedFleet } from "./fleet";
 import { ResolvedObject } from "./objects";
 import { ResolvedOs } from "./os";
-import type { TimeoutName } from "./primitives";
+import { durationSeconds, type TimeoutName } from "./primitives";
 import { Profiles } from "./profiles";
 import type { ResolvedClusterOfType } from "./clusters";
 import { AwsCredentials, Credentials, LabFile, PersonalConfig } from "./schema";
@@ -204,6 +204,8 @@ export type ResolvedDownstream = {
 export interface ResolvedLab {
     name: string;
     domain: string;
+    /** How long the lab is meant to live from its creation, in seconds: `lab reap` destroys it after that. */
+    ttl?: number;
     /** The Lab document's `vars`, references rendered; secrets still templates. */
     vars: Record<string, unknown>;
     tls: LabFile["tls"];
@@ -368,6 +370,7 @@ export function resolveLab(input: ResolveInput, diags = new Diagnostics()): Reso
         lab: {
             name: lab.lab,
             domain: lab.domain,
+            ...(lab.ttl ? { ttl: durationSeconds(lab.ttl) } : {}),
             vars: lab.vars,
             tls: lab.tls,
             ...(acme ? { acme } : {}),

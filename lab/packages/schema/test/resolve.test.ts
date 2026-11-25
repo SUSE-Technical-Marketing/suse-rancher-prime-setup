@@ -474,6 +474,18 @@ downstream:
     });
 });
 
+describe("lab ttl", () => {
+    it("is seconds on the resolved lab, and absent without one", () => {
+        expect(load(BASE.replace("domain: lab.geeko.me", "domain: lab.geeko.me\nttl: 8h")).lab!.ttl).toBe(8 * 3600);
+        expect(load(BASE.replace("domain: lab.geeko.me", "domain: lab.geeko.me\nttl: 90m")).lab!.ttl).toBe(90 * 60);
+        expect(load(BASE).lab!.ttl).toBeUndefined();
+    });
+
+    it("must be a duration", () => {
+        expect(errors(load(BASE.replace("domain: lab.geeko.me", "domain: lab.geeko.me\nttl: tomorrow")))[0]).toContain("must be a duration like 90s, 15m or 2h");
+    });
+});
+
 describe("Harvester load balancer", () => {
     const VLAN = (pool: string) => BASE.replace("hv-north: {}", `hv-north: { networks: { default: vlan20, vlans: [{ id: 20, dhcp: { cidr: 10.29.20.0/24, gateway: 10.29.20.1, range: [10.29.20.100, 10.29.20.150] }${pool} }] } }`);
     const vm = (profiles: string) => `\nhosts:\n  vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: ${profiles} }\n`;

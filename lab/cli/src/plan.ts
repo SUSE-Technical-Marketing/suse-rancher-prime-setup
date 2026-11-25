@@ -9,6 +9,7 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
     const profiles = (order: string[]) => order.join(" → ") || "none";
 
     line(`Lab ${lab.name}  (domain ${lab.domain}, TLS ${lab.tls.acme})`);
+    if (lab.ttl) line(`  meant to live ${lab.ttl % 3600 === 0 ? `${lab.ttl / 3600}h` : `${Math.round(lab.ttl / 60)}m`} from its creation; "lab reap" destroys it after that`);
 
     line();
     line("Harvesters");

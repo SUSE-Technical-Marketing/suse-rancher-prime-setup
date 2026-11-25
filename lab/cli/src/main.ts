@@ -5,10 +5,11 @@ import { parseArgs } from "node:util";
 import { defaultPersonalConfigPath, formatDiagnostic, loadCatalog, loadLab, PersonalConfig, ResolvedLab } from "@lab/schema";
 import { awsKeys } from "./aws";
 import { CloudInitWatch } from "./cloudinit";
-import { ConcurrentUpdateError } from "@pulumi/pulumi/automation";
+import { ConcurrentUpdateError, type Stack } from "@pulumi/pulumi/automation";
 import {
     checkOwnership, claimHarvesters, closeSessions, currentUser, HarvesterSession, openSessions, releaseHarvesters, writeRunFiles,
 } from "./harvesters";
+import { expiryOf, reapDecision, relative } from "./ttl";
 import { findExample, listExamples, renderExamples } from "./examples";
 import { kubeconfigPath, mergeKubeconfigs, writeKubeconfig } from "./kubeconfig";
 import { findLeftovers } from "@lab/backends";
@@ -24,6 +25,7 @@ const USAGE = `Usage: lab <command> <lab.yaml> [options]
        lab catalog [lab.yaml]
        lab stackpacks [lab.yaml]
        lab examples [name]
+       lab reap <lab.yaml>...
        lab <validate|plan|preview|up> --example <name>
 
 Commands
@@ -38,6 +40,8 @@ Commands
   profiles   List the host profiles and their rules (no lab file needed)
   catalog    Show the effective catalog (components, plugins, Fleet, OS profiles) and where
              each entry comes from; with a lab file, including its overrides
+  reap       Destroy the given labs that are past their ttl (a Lab's \`ttl\`, counted from its creation);
+             with --dry-run, only say which. Meant for cron: lab reap --yes labs/*.yaml
   examples   List the example labs; with a name, print that one (lab examples single-vm > my-lab.yaml)
   stackpacks Build the catalog's StackPacks that come from source (suse-ai) into lab/.cache/stackpacks/,
              for "up" to upload; with a lab file, its own catalog's too
@@ -51,6 +55,7 @@ Options
   --show-secrets        Show secret outputs in plain text (outputs)
   --harvester <name>    Only this Harvester (release; repeatable)
   --force               Release a claim owned by another lab or user (release); build again (stackpacks)
+  --dry-run             Say what would be destroyed, destroy nothing (reap)
   --check               List what the lab left on its Harvesters; destroys nothing (destroy)
 `;
 
@@ -151,6 +156,63 @@ const pulumiOutput = {
     color: (process.stdout.isTTY ? "always" : "never") as "always" | "never",
 };
 
+/** Destroy the lab's stack (when it has one), then release its Harvesters. */
+async function destroyLab(ctx: Context, labFile: string, sessions: HarvesterSession[], stack: Stack | undefined, yes: boolean): Promise<void> {
+    if (!stack) {
+        log.info(`Lab ${ctx.lab.name} doesn't exist (never created, or already destroyed).`);
+    } else {
+        if (!yes && !(await confirmByName(ctx.lab.name, `This removes everything lab ${ctx.lab.name} created, on: ${[...ctx.lab.harvesters.map(h => h.name), ...ctx.lab.awsSites.map(s => `${s.name} (AWS ${s.region})`)].join(", ") || "no Harvesters"}.`))) {
+            log.info("Cancelled.");
+            return;
+        }
+        log.step(`Destroying lab ${ctx.lab.name}`);
+        await stack.destroy(pulumiOutput);
+        await stack.workspace.removeStack(ctx.lab.name);
+        // Its clusters are gone, and their credentials with them.
+        fs.rmSync(kubeconfigPath(labFile, ctx.lab.name), { force: true });
+    }
+    if (sessions.length > 0) {
+        log.step("Releasing Harvesters");
+        await releaseHarvesters(ctx.lab, sessions);
+    }
+    log.ok(`Lab ${ctx.lab.name} is gone.`);
+}
+
+/** `lab reap`: destroy the lab if it is past its ttl. Returns what it did, for the summary. */
+async function reapLab(labFile: string, configPath: string, opts: { yes?: boolean; dryRun?: boolean }): Promise<"destroyed" | "would-destroy" | "kept"> {
+    const ctx = load(labFile, configPath);
+    if (!ctx.lab.ttl) {
+        log.info(`${ctx.lab.name}: no ttl, kept`);
+        return "kept";
+    }
+    const { values } = secretsFor(ctx, true);
+    const settings = workspaceSettings();
+    let result: "destroyed" | "would-destroy" | "kept" = "kept";
+    await withHarvesters(ctx.lab, values, async (sessions, env) => {
+        const stack = await selectStack(ctx.lab.name, settings, env);
+        const createdAt = stack ? await stack.getConfig("lab:createdAt").then(c => c.value, () => undefined) : undefined;
+        const decision = reapDecision(ctx.lab.ttl, !!stack, createdAt);
+        const { at } = expiryOf(createdAt, ctx.lab.ttl);
+        if (decision !== "expired") {
+            log.info(decision === "no-lab" ? `${ctx.lab.name}: doesn't exist, nothing to reap` : `${ctx.lab.name}: expires ${at ? relative(at) : "?"} (${at?.toISOString()}), kept`);
+            return;
+        }
+        log.warn(`${ctx.lab.name}: expired ${relative(at!)} (${at!.toISOString()})`);
+        if (opts.dryRun) {
+            result = "would-destroy";
+            return;
+        }
+        if (!opts.yes && !(await confirm(`Destroy expired lab ${ctx.lab.name}?`))) {
+            log.info("Cancelled.");
+            return;
+        }
+        // Confirmed (or --yes): no second prompt for the name.
+        await destroyLab(ctx, labFile, sessions, stack, true);
+        result = "destroyed";
+    });
+    return result;
+}
+
 async function main(argv: string[]): Promise<void> {
     const { values: opts, positionals } = parseArgs({
         args: argv,
@@ -164,6 +226,7 @@ async function main(argv: string[]): Promise<void> {
             refresh: { type: "boolean" },
             check: { type: "boolean" },
             example: { type: "string" },
+            "dry-run": { type: "boolean" },
             help: { type: "boolean", short: "h" },
         },
     });
@@ -201,6 +264,15 @@ async function main(argv: string[]): Promise<void> {
         for (const d of diagnostics.items) console.error(formatDiagnostic(d));
         if (!catalog) process.exit(1);
         for (const line of await buildCatalogStackPacks(catalog, { force: !!opts.force })) log.ok(line);
+        return;
+    }
+    if (command === "reap") {
+        const files = [labFile, ...rest].filter((f): f is string => !!f);
+        if (files.length === 0 || opts.example) throw new UsageError('"reap" needs one or more lab files');
+        const results: Awaited<ReturnType<typeof reapLab>>[] = [];
+        for (const file of files) results.push(await reapLab(file, opts.config ?? defaultPersonalConfigPath(), { yes: opts.yes, dryRun: opts["dry-run"] }));
+        const count = (r: string) => results.filter(x => x === r).length;
+        log.ok(`${count("destroyed")} destroyed, ${count("would-destroy")} would be destroyed, ${count("kept")} kept`);
         return;
     }
     if (!labFile) throw new UsageError(`"${command}" needs a lab file`);
@@ -288,25 +360,7 @@ async function main(argv: string[]): Promise<void> {
                     else log.ok(`Nothing of lab ${ctx.lab.name} is left on ${where.join(", ") || "any Harvester"}${terminating.length > 0 ? " (some objects are still shutting down)" : ""}.`);
                     return;
                 }
-                const stack = await selectStack(ctx.lab.name, settings, env);
-                if (!stack) {
-                    log.info(`Lab ${ctx.lab.name} doesn't exist (never created, or already destroyed).`);
-                } else {
-                    if (!opts.yes && !(await confirmByName(ctx.lab.name, `This removes everything lab ${ctx.lab.name} created, on: ${[...ctx.lab.harvesters.map(h => h.name), ...ctx.lab.awsSites.map(s => `${s.name} (AWS ${s.region})`)].join(", ") || "no Harvesters"}.`))) {
-                        log.info("Cancelled.");
-                        return;
-                    }
-                    log.step(`Destroying lab ${ctx.lab.name}`);
-                    await stack.destroy(pulumiOutput);
-                    await stack.workspace.removeStack(ctx.lab.name);
-                    // Its clusters are gone, and their credentials with them.
-                    fs.rmSync(kubeconfigPath(labFile, ctx.lab.name), { force: true });
-                }
-                if (sessions.length > 0) {
-                    log.step("Releasing Harvesters");
-                    await releaseHarvesters(ctx.lab, sessions);
-                }
-                log.ok(`Lab ${ctx.lab.name} is gone.`);
+                await destroyLab(ctx, labFile, sessions, await selectStack(ctx.lab.name, settings, env), !!opts.yes);
             });
             return;
         }

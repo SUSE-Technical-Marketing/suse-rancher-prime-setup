@@ -121,6 +121,7 @@ Packages are consumed as TypeScript source: no `main: bin/...`, so there is no s
 ```yaml
 lab: rancher-airgap            # unique name; also the Pulumi stack name
 domain: lab.geeko.me           # base DNS domain for every host
+ttl: 8h                        # optional: how long the lab is meant to live from its creation; `lab reap` destroys it after that
 tls:
   acme: letsencrypt            # an AcmeServer (letsencrypt, letsencrypt-staging) or none
   email: me@example.com
@@ -636,7 +637,7 @@ spec:
   credentials: "{{ secrets.aws }}"          # a map secret with accessKey and secretKey, or { accessKey, secretKey }
   vpc: { cidr: 10.100.0.0/16 }              # default: Defaults aws.vpcCidr
   zones: [ a, b ]                           # default: Defaults aws.zones
-  ttl: 8h                                   # tagged as lab.geeko.me/expires; nothing enforces it
+  ttl: 8h                                   # tagged as lab.geeko.me/expires; nothing enforces it (the Lab's own `ttl` is enforced by `lab reap`)
 ```
 
 The engine creates the VPC, an internet gateway, a route table with the default route, a public
@@ -2227,4 +2228,5 @@ Not done, and why:
 | 0 | done; CI written, not yet run on GitHub |
 | 1 | done, with the above |
 | 4 (part) | `lab examples [name]` and `--example <name>` done (`cli/src/examples.ts`, generic labs in `examples/`, each loaded and planned by `cli/test/examples.test.ts`) |
+| 4 (part) | Lab `ttl` and `lab reap <lab.yaml>...` done (`cli/src/ttl.ts`; expiry = the stack's `lab:createdAt` + `ttl`; `--dry-run`, `--yes`). Reap needs the lab files: it logs in to the lab's sites to destroy it, so there is no registry of labs to sweep. Not covered: AWS-only labs have no claim, so nothing else shows them |
 | 2, 3, 5 and the rest of 4 | planned |
