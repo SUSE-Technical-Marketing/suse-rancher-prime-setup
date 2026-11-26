@@ -192,6 +192,9 @@ export type OutriderSettings = {
     values?: Record<string, unknown>;
 };
 
+/** Settings of the `public-ingress` profile: Makes the host's ingress reachable from the internet, through a Cloudflare Tunnel (operator to come) */
+export type PublicIngressSettings = Record<string, never>;
+
 /** Settings of the `rancher` profile: Rancher Manager on the host's Kubernetes cluster, with UI plugins and Fleet */
 export type RancherSettings = {
     version?: string;
@@ -343,6 +346,7 @@ export interface ProfileSettings {
     "open-webui": OpenWebuiSettings;
     "opentelemetry": OpentelemetrySettings;
     "outrider": OutriderSettings;
+    "public-ingress": PublicIngressSettings;
     "rancher": RancherSettings;
     "rancher-sso": RancherSsoSettings;
     "rke2": Rke2Settings;

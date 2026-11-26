@@ -54,13 +54,22 @@ describe("site backends", () => {
 
     it("reports nothing for a clean Harvester, and separates what is still shutting down", async () => {
         const clean = new FakeHarvester();
-        expect(await findLeftovers(siteBackends, lab("demo"), { sessions: [session(clean)], aws: [] })).toEqual({ found: [], terminating: [], checked: ["harvester"] });
+        expect(await findLeftovers(siteBackends, lab("demo"), { sessions: [session(clean)], aws: [] })).toEqual({ found: [], terminating: [], unknown: [], checked: ["harvester"] });
 
         const dying = new FakeHarvester();
         dying.objects.set("/api/v1/namespaces/demo", { metadata: { name: "demo", deletionTimestamp: "2026-10-01T10:00:00Z" } });
         const result = await findLeftovers(siteBackends, lab("demo"), { sessions: [session(dying)], aws: [] });
         expect(result.found).toEqual([]);
         expect(result.terminating).toEqual(["hv: namespace demo"]);
+    });
+
+    it("reports a check that couldn't run as unknown, not as a leftover", async () => {
+        const fake = new FakeHarvester();
+        const k8s = fake.k8s.bind(fake);
+        fake.k8s = async (method, path, body) => path.includes("virtualmachineimages") ? { status: 403, body: undefined } : k8s(method, path, body);
+        const result = await findLeftovers(siteBackends, lab("demo"), { sessions: [session(fake)], aws: [] });
+        expect(result.found).toEqual([]);
+        expect(result.unknown).toEqual(["hv: couldn't check images (HTTP 403)"]);
     });
 
     it("doesn't touch a kind of site the lab has none of", async () => {

@@ -1,0 +1,13 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: Profile
+metadata:
+  name: public-ingress
+  description: Makes the host's ingress reachable from the internet, through a Cloudflare Tunnel (operator to come)
+spec:
+  status: planned                 # not built yet: labs using it validate, `lab up` refuses them
+  icon: globe                     # in the lab UI (lucide.dev/icons)
+  # A placeholder for the Cloudflare Tunnel operator (a separate project). Its capability,
+  # public-ingress, is what `ec2` and `eks` clusters need of their Rancher's host: their machines
+  # and agents reach Rancher over the internet. Its settings (the tunnel's account and token, which
+  # hostnames) come with the operator.
+  requires: [ kubernetes ]

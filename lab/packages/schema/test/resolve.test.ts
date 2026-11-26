@@ -1335,7 +1335,7 @@ hosts:
   vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { nope: {}, k3s: { versoin: x }, hauler: { port: 70000 } } }
 `);
         expect(errors(result)).toEqual([
-            'hosts.vm.profiles: unknown profile "nope"; known: ai-demos, ai-factory, cert-manager, harvester-cloud-provider, harvester-dns-controller, hauler, hauler-chart, k3s, keycloak, landlock, metallb, mlm-client, mlm-server, open-webui, opentelemetry, outrider, rancher, rancher-sso, rke2, sprouter, suse-observability-agent, traefik, vllm',
+            'hosts.vm.profiles: unknown profile "nope"; known: ai-demos, ai-factory, cert-manager, harvester-cloud-provider, harvester-dns-controller, hauler, hauler-chart, k3s, keycloak, landlock, metallb, mlm-client, mlm-server, open-webui, opentelemetry, outrider, public-ingress, rancher, rancher-sso, rke2, sprouter, suse-observability-agent, traefik, vllm',
             'hosts.vm.profiles.k3s.versoin: unknown field "versoin"',
             "hosts.vm.profiles.hauler.port: Too big: expected number to be <=65535",
         ]);

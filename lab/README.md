@@ -386,7 +386,8 @@ touch a Harvester claimed by another lab or person. `destroy` releases the claim
 
 AWS sites aren't claimed: each lab gets its own VPC, and everything it makes there is tagged with
 the lab, the site and who ran `up` (`lab.geeko.me/*`). `destroy --check` finds leftovers by those
-tags.
+tags. It exits 0 when the lab is clean, 1 when something is left, and 3 when a check couldn't run
+(for scripts: not known to be clean). `lab reap` checks each lab it destroys the same way.
 
 ## Development
 

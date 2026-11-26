@@ -54,12 +54,13 @@ function candidates(lab: ResolvedLab, session: HarvesterSession): { what: string
 export async function findHarvesterLeftovers(lab: ResolvedLab, sessions: HarvesterSession[]): Promise<Leftovers> {
     const found: string[] = [];
     const terminating: string[] = [];
+    const unknown: string[] = [];
     for (const session of sessions) {
         for (const c of candidates(lab, session)) {
             const res = await session.api.k8s("GET", c.path);
             if (res.status === 404) continue;
             if (res.status !== 200) {
-                found.push(`${session.harvester.name}: couldn't check ${c.what} (HTTP ${res.status})`);
+                unknown.push(`${session.harvester.name}: couldn't check ${c.what} (HTTP ${res.status})`);
                 continue;
             }
             // Cluster-scoped lists (IP pools) are narrowed to this lab's objects by name prefix.
@@ -73,5 +74,5 @@ export async function findHarvesterLeftovers(lab: ResolvedLab, sessions: Harvest
             if (dying.length > 0) terminating.push(describe(dying));
         }
     }
-    return { found, terminating };
+    return { found, terminating, unknown };
 }

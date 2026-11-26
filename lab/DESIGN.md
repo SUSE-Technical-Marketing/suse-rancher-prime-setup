@@ -373,6 +373,7 @@ profile. `lab profiles` prints the current list with all rules.
 | `rancher-sso` | a ResourceProfile for the Rancher host only; requires `rancher` | `issuer` (required: `https://keycloak.<target>.<domain>/realms/<realm>`), `clientSecret` (required, the keycloak profile's), `clientId` (default `rancher`), `hostname` (default `rancher`), `accessMode` (default `unrestricted`) | Rancher's `keycloakoidc` AuthConfig and its client secret in `cattle-global-data`; the local admin keeps working. **Not yet tried against a running Rancher** (the object's fields and the secret's name follow Rancher's conventions, not checked against one) |
 | `traefik` | a ChartProfile (hosts and clusters); requires `kubernetes`; uses `load-balancer`; provides `ingress` and `gateway-api` (replacing the distribution's own Traefik) | `version`, `gatewayApi` | Gateway API CRDs + Traefik with its Gateway provider |
 | `outrider` | requires `kubernetes`; provides `downstream-secrets` | `version` | Propagates annotated secrets to downstream clusters |
+| `public-ingress` | requires `kubernetes`; `status: planned` | none yet | Placeholder for the Cloudflare tunnel operator: makes the host's ingress reachable from the internet, which `ec2` and `eks` clusters need of their Rancher's host |
 | `rancher` | requires `kubernetes`, `ingress`, `tls`, `secret-propagation`, and `gateway-api` when `exposure: gateway`; uses `downstream-secrets` (a Fleet secret can need it, §16.3) and `gateway-api`; secret `adminPassword` | `version`, `hostname`, `adminPassword`, `exposure` (`auto`, `gateway`, `ingress`; §9.1), `plugins`, `liz`, `fleet`, `values`, `settings` (Rancher settings by name; `server-url` is the engine's), `features` (feature flags, merged over the default `harvester-baremetal-container-workload: true`) | `RancherAccess` |
 | `hauler` | provides `registry`; one `registry` per host | `manifests` (HaulManifest names), `port` (5000), `fileserverPort`, `version` | Hauler as systemd services on the host, with a lego certificate (§9.4) |
 | `hauler-chart` | a ChartProfile (hosts and clusters); requires `kubernetes`, `ingress`, `tls`, `secret-propagation`; provides `registry`; one `registry` per host | `manifests`, `storage` (the store's volume, 50Gi), `fileserver`, `version`, `values` | The `hauler-helm` chart at `registry.<target>` (and `files.<target>`) with the wildcard certificate; its store synced by a Job (§9.4) |
@@ -537,9 +538,10 @@ needs a default StorageClass set on EKS (EKS marks none default), and the update
 **Reachability.** EC2 machines and EKS clusters reach Rancher over the internet, so `validate`
 rejects an `ec2` or `eks` cluster whose Rancher host doesn't provide `public-ingress`: their cluster
 types' `rancherNeeds` (a capability and why), which the resolver checks and the UI's cluster form
-says. No profile
-does yet: that's the Cloudflare tunnel operator's `public-ingress` profile, still to come. Until
-then they can be validated and previewed only with a stub profile (the tests do this).
+says. The catalog's `public-ingress` profile is a placeholder (`status: planned`) for the
+Cloudflare tunnel operator, still to come: a lab with it validates and plans (the
+`ai-factory-gpu` example does), and `preview` and `up` refuse it. The program tests preview such
+labs with a stub of their own.
 
 **Metal** — Rancher installs Kubernetes on the lab's own hosts (what Rancher calls a custom
 cluster: it doesn't create the machines, the lab supplies them):
@@ -1392,7 +1394,9 @@ removes a stale guard by hand.
   networks, images not present before), to catch leaks during development, and on each AWS site
   (by the lab's tags: instances, volumes, the VPC and what's in it, network interfaces left in the
   VPC, and key pairs named like the lab's machines; for EKS clusters, the EKS cluster, the
-CloudFormation stacks and the launch template Rancher names after it).
+  CloudFormation stacks and the launch template Rancher names after it). It exits 0 when clean, 1
+  when something is left, and 3 when a check couldn't run (no access, an API error) and nothing was
+  found: not known to be clean. `lab reap` runs it after each lab it destroys and exits the same way.
 - **AWS: machines before the network.** An `ec2` or `eks` cluster depends on its site's network,
   so destroy deletes the cluster (Rancher terminates its machines, or deletes the EKS cluster, its
   node groups and IAM stacks, waiting up to `timeouts.downstreamDelete`) before the security group,
@@ -2108,6 +2112,12 @@ Today a VM lives on a Harvester. This section adds other places VMs can live (li
 existing machine, EC2, Hetzner) without touching what runs on them: profiles, Kubernetes, Rancher
 and downstream clusters. The idea comes from comparing the engine with lab-in-a-box, which runs
 labs on KVM and eight clouds; we keep our typed, declarative, previewable model and take its reach.
+The full comparison, gap analysis and progress are in
+[Lab engine vs lab-in-a-box: analysis and plan](https://claude.ai/artifact/Js7df1nNqAchg8KSBc2V3h)
+(a shared doc, written 2026-11-26). The SUSE AI Factory deployment repos (Terraform on seven
+providers, and Metal3 bare metal) are compared in
+[docs/analysis/suse-ai-factory-repos.md](docs/analysis/suse-ai-factory-repos.md), and what we take from
+them is planned in [docs/plans/ai-factory-learnings.md](docs/plans/ai-factory-learnings.md).
 
 ### 18.1 Decisions
 

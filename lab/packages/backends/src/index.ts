@@ -51,6 +51,19 @@ export interface Leftovers {
     found: string[];
     /** Already being deleted (pods shutting down, finalizers running): give it a moment. */
     terminating: string[];
+    /** What couldn't be checked (no access, an API error): neither clean nor dirty. */
+    unknown: string[];
+}
+
+/**
+ * The exit code of a leftover check, for scripts: 0 clean, 1 something is left, 3 something couldn't
+ * be checked (and nothing was found). 2 is a usage error, as for every command. Leftovers win over
+ * unknowns: a found leak is certain, an unchecked spot isn't.
+ */
+export function leftoverExitCode(left: Leftovers): 0 | 1 | 3 {
+    if (left.found.length > 0) return 1;
+    if (left.unknown.length > 0) return 3;
+    return 0;
 }
 
 /** Knows a kind of site. `Ctx` is what the CLI has for reaching them (logins, keys). */
@@ -66,13 +79,14 @@ export type SiteBackends<Ctx> = { [K in SiteKind]: SiteBackend<Ctx> };
 /** The leftovers on every site kind the lab uses, and where it looked. Kinds the lab has no site of are skipped. */
 export async function findLeftovers<Ctx>(backends: SiteBackends<Ctx>, lab: ResolvedLab, ctx: Ctx): Promise<Leftovers & { checked: SiteKind[] }> {
     const used = new Set(sitesOf(lab).map(s => s.kind));
-    const result: Leftovers & { checked: SiteKind[] } = { found: [], terminating: [], checked: [] };
+    const result: Leftovers & { checked: SiteKind[] } = { found: [], terminating: [], unknown: [], checked: [] };
     for (const [kind, backend] of Object.entries(backends) as [SiteKind, SiteBackend<Ctx>][]) {
         if (backend.kind !== kind) throw new Error(`the site backend registered for "${kind}" says it is for "${backend.kind}"`);
         if (!used.has(kind)) continue;
         const left = await backend.leftovers(lab, ctx);
         result.found.push(...left.found);
         result.terminating.push(...left.terminating);
+        result.unknown.push(...left.unknown);
         result.checked.push(kind);
     }
     return result;
