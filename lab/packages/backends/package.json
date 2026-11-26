@@ -1,0 +1,15 @@
+{
+    "name": "@lab/backends",
+    "version": "0.1.0",
+    "private": true,
+    "main": "src/index.ts",
+    "types": "src/index.ts",
+    "scripts": {
+        "typecheck": "tsc -p .",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@lab/schema": "workspace:*",
+        "@pulumi/pulumi": "^3.271.0"
+    }
+}

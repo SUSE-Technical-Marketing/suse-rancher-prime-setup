@@ -3,17 +3,19 @@ import * as command from "@pulumi/command";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { AwsNetwork, awsProfile, labTags, Pinned } from "@lab/aws";
-import { HarvesterBase, HarvesterVm } from "@lab/harvester";
+import { provisionHost } from "@lab/backends";
+import { HarvesterBase } from "@lab/harvester";
 import { asRoot, ClusterObjects, helmJobWatch, HostAccess, runExisting, runUploaded, sshConnection, stepScript, waitForCloudInit } from "@lab/kubernetes";
 import { Amazonec2Credential, HarvesterCredential, HarvesterImport, RancherAccess } from "@lab/rancher";
-import { machineSetup, renderCloudConfig, renderNetworkConfig, stableMac } from "@lab/os";
-import { AWS_CREDENTIAL_FIELDS, cloudInitVars, usesSecrets, type CloudInitVars, type ResolvedDownstream, type ResolvedLab, type ResolvedOs } from "@lab/schema";
+import { machineSetup, renderCloudConfig } from "@lab/os";
+import { AWS_CREDENTIAL_FIELDS, cloudInitVars, hostTraits, sshUserOf, usesSecrets, type CloudInitVars, type ResolvedDownstream, type ResolvedLab, type ResolvedOs } from "@lab/schema";
 import {
     buildClusterProfiles, buildHarvesterProfiles, buildHostProfiles, buildLastProfiles, clusterProfiles, hostReady, nodeProfiles, profileBootcmd, profileCloudInit, profileSetup,
     profileUninstall, type LabClusters,
 } from "./profiles";
 import { objectValue, secretMap, secrets, secretString } from "./secrets";
 import { buildStackPacks } from "./stackpacks";
+import { hostBackends } from "./backends";
 import { distribution, harvesterChart } from "./catalog";
 import { buildCluster, isNested, type BuiltCluster, type ClusterBuildContext } from "./clusters";
 
@@ -102,62 +104,22 @@ const nodeAccess: Record<string, { access: HostAccess; ready: pulumi.Resource[];
 
 for (const host of lab.hosts) {
     const runcmd = profileCloudInit(lab, host);
-    let address: pulumi.Output<string>;
-    let ready: pulumi.Resource[] = [];
-    let machine: pulumi.Resource | undefined;
-    let harvester: { name: string; ready: pulumi.Resource[] } | undefined;
-
-    if (host.kind === "harvester") {
-        const base = bases[host.harvester];
-        const os = lab.os[host.os];
-        const userData = osVars().apply(vars => renderCloudConfig({
-            os,
-            harvester: true,
-            kubernetes: host.kubernetes,
-            hostname: host.name,
-            fqdn: host.fqdn,
-            user: { name: lab.ssh!.user, publicKey: lab.ssh!.publicKey },
-            vars,
-            runcmd,
-            bootcmd: profileBootcmd(lab, nodeProfiles(lab, host), os),
-        }));
-        const vm = new HarvesterVm(host.name, {
-            harvester: host.harvester,
-            namespace: base.namespace.metadata.name,
-            vmName: host.name,
-            cpu: host.cpu,
-            memory: host.memory,
-            disk: host.disk,
-            image: base.images[os.image],
-            // `namespace/name`: a network already on the Harvester, not the lab's.
-            network: host.network.includes("/") ? host.network : base.networks[host.network],
-            // A fixed address is set on the interface with this MAC: one of its own, unless the lab gives it one.
-            macAddress: host.macAddress ?? (host.ip ? stableMac(lab.name, host.name) : undefined),
-            userData: pulumi.secret(userData),
-            ...(host.ip ? {
-                networkData: renderNetworkConfig({ macAddress: host.macAddress ?? stableMac(lab.name, host.name), ...host.ip, search: [lab.domain] }),
-                fixedAddress: host.ip.address,
-            } : {}),
-            keyPair: pulumi.interpolate`${base.namespace.metadata.name}/${lab.ssh!.user}`,
-            timeouts: { start: lab.timeouts.vmStart, address: lab.timeouts.vmAddress },
-        }, { provider: providers[host.harvester], dependsOn: base.ready });
-        address = vm.ipAddress;
-        ready = [vm];
-        machine = vm.vm;
-        harvester = { name: host.harvester, ready: [base.namespace, ...base.ready] };
-    } else {
-        address = pulumi.output(host.address);
-    }
+    const provisioned = provisionHost(hostBackends, host, { lab, bases, providers, osVars, runcmd });
+    const traits = hostTraits(host);
+    // Its backend makes it (a VM on a Harvester) or finds it (an existing machine): where to reach it
+    // and what its setup waits for. The rest of this loop doesn't care which.
+    const { address, ready, site } = provisioned;
+    let machine = provisioned.machine;
     hostOutputs[host.name] = { fqdn: host.fqdn, address };
 
     if (host.profileOrder.length === 0 && !metalNodes.has(host.name)) continue;
-    const access: HostAccess = { name: host.name, fqdn: host.fqdn, address, user: host.kind === "ssh" ? host.user : lab.ssh!.user, privateKey };
+    const access: HostAccess = { name: host.name, fqdn: host.fqdn, address, user: sshUserOf(host, lab), privateKey };
     let setUp: pulumi.Resource[] = [];
     // Its profiles' setup steps (Landlock): on a VM once cloud-init is done, on an existing machine
     // before its own setup (nothing has run on it yet).
     const os = lab.os[host.os];
-    const first = host.kind === "ssh" ? profileSetup(lab, host, { access, os, after: [] }) : [];
-    if (host.kind === "harvester") {
+    const first = traits.bootstrap === "ssh" ? profileSetup(lab, host, { access, os, after: [] }) : [];
+    if (traits.bootstrap === "user-data") {
         const booted = waitForCloudInit(`${host.name}/cloud-init`, access, lab.timeouts.cloudInit, { dependsOn: ready, deletedWith: machine });
         setUp = profileSetup(lab, host, { access, os, machine, after: [booted] });
     } else if (runcmd.length > 0) {
@@ -182,7 +144,7 @@ for (const host of lab.hosts) {
     }
     nodeAccess[host.name] = { access, ready: setUp, machine };
     if (host.profileOrder.length === 0) continue;
-    const outputs = buildHostProfiles(lab, host, access, setUp, machine, harvester);
+    const outputs = buildHostProfiles(lab, host, access, setUp, machine, site);
     if (outputs.fleet) clusters.fleet[host.name] = outputs.fleet;
     if (outputs.kubernetes) clusterKubeconfigs[host.name] = outputs.kubernetes.kubeconfig;
     if (outputs.kubernetes) clusters.hosts[host.name] = { ...outputs.kubernetes, ready: hostReady(outputs) };

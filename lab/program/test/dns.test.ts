@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runProgram } from "./run-program";
+import { runProgram, catalogChartVersion } from "./run-program";
 
 // The whole program under Pulumi's mocks, for a Harvester with DNS: the controller as a Harvester
 // add-on, its values from the Harvester's harvester-dns-controller profile, the router's password in
@@ -41,7 +41,7 @@ describe("Harvester DNS", () => {
         expect(addon!.type).toBe("pulumi-nodejs:dynamic/lab:HarvesterAddon");
         expect(addon!.inputs).toMatchObject({
             harvester: "hv", name: "harvester-dns-controller", namespace: "harvester-system", repo: "",
-            chart: "oci://ghcr.io/hierynomus/harvester-dns-controller/charts/harvester-dns-controller", version: "0.3.0",
+            chart: "oci://ghcr.io/hierynomus/harvester-dns-controller/charts/harvester-dns-controller", version: catalogChartVersion("harvester-dns-controller"),
             labels: { "addon.harvesterhci.io/experimental": "true" },
         });
         // Secret, as the username comes from a secret: the mocks show it wrapped.

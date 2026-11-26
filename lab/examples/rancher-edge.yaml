@@ -1,0 +1,80 @@
+# Rancher on a VM, with a cluster on an existing physical machine over SSH.
+# Copy it, then change the domain, the email, the Harvester and its network to yours.
+# The Harvester's url and credentials come from your personal config (harvesters.my-harvester).
+apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata:
+  name: rancher-edge
+spec:
+  domain: example.com
+
+  tls:
+    acme: letsencrypt
+    email: you@example.com
+    cloudflare: "{{ secrets.cloudflare.token }}"
+
+  ssh:
+    user: lab
+    publicKey: { file: ~/.ssh/id_ed25519.pub }
+    privateKey: "{{ secrets['ssh-key'] }}"
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Harvester
+metadata:
+  name: my-harvester
+spec:
+  profiles:
+    harvester-dns-controller:
+      backend: routeros
+      host: 192.168.100.1
+      credentials: "{{ secrets.routeros }}"
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: rancher
+spec:
+  harvester: my-harvester
+  os: leap-16
+  cpu: 4
+  memory: 16Gi
+  disk: 100Gi
+  profiles:
+    k3s: {}
+    cert-manager: {}
+    sprouter: {}
+    traefik: {}
+    rancher:
+      adminPassword: "{{ secrets['rancher-admin'] }}"
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Machine
+metadata:
+  name: nuc-01
+  description: Physical machine with an existing DNS record
+spec:
+  # physical machine with an existing DNS record
+  address: nuc-01.example.com
+  user: root
+  os: sles-16
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: DownstreamCluster
+metadata:
+  name: edge
+spec:
+  type: metal
+  rancher: rancher
+  distro: rke2
+  labels: { env: edge }
+  nodes:
+    - host: nuc-01
+      roles: [ etcd, controlplane, worker ]
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: ClusterGroup
+metadata:
+  name: edge
+  description: The downstream clusters labelled for it
+spec:
+  selector: { matchLabels: { env: edge } }

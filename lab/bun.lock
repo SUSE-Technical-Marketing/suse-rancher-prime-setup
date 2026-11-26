@@ -18,6 +18,7 @@
         "@aws-sdk/client-cloudformation": "^3.1158.0",
         "@aws-sdk/client-ec2": "^3.1158.0",
         "@aws-sdk/client-eks": "^3.1158.0",
+        "@lab/backends": "workspace:*",
         "@lab/core": "workspace:*",
         "@lab/schema": "workspace:*",
         "@pulumi/pulumi": "^3.271.0",
@@ -42,6 +43,14 @@
       "dependencies": {
         "@lab/schema": "workspace:*",
         "@pulumi/aws": "^7.52.0",
+        "@pulumi/pulumi": "^3.271.0",
+      },
+    },
+    "packages/backends": {
+      "name": "@lab/backends",
+      "version": "0.1.0",
+      "dependencies": {
+        "@lab/schema": "workspace:*",
         "@pulumi/pulumi": "^3.271.0",
       },
     },
@@ -130,6 +139,7 @@
       "dependencies": {
         "@lab/apps": "workspace:*",
         "@lab/aws": "workspace:*",
+        "@lab/backends": "workspace:*",
         "@lab/harvester": "workspace:*",
         "@lab/kube": "workspace:*",
         "@lab/kubernetes": "workspace:*",
@@ -266,6 +276,8 @@
     "@lab/apps": ["@lab/apps@workspace:packages/apps"],
 
     "@lab/aws": ["@lab/aws@workspace:packages/aws"],
+
+    "@lab/backends": ["@lab/backends@workspace:packages/backends"],
 
     "@lab/cli": ["@lab/cli@workspace:cli"],
 

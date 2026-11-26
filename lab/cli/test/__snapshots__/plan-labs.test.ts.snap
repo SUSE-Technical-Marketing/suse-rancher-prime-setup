@@ -1,0 +1,808 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`lab plan of the example labs > asgard-k3k.yaml 1`] = `
+"Lab asgard-k3k  (domain lab.geeko.me, TLS letsencrypt)
+
+Harvesters
+  asgard  https://asgard.lab.example.com  (TLS not verified)
+    networks: untagged, vlan20 (dhcp) (lb 10.29.20.200-10.29.20.220) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  odin  VM on asgard, leap-16, 4 CPU / 8Gi / 40Gi, network vlan20
+    odin.lab.geeko.me  profiles: rke2 → cert-manager → harvester-cloud-provider → outrider → sprouter → rancher
+
+Downstream clusters
+  apps  rke2 on asgard, managed by Rancher on odin
+    pool all: 1 × 8 CPU / 16Gi / 80Gi, leap-16, network vlan20 [etcd, controlplane, worker]
+  team-a  k3k shared in apps (namespace k3k-team-a), managed by Rancher on odin, labels team=a
+    1 server, 0 agents, k3s as the parent, etcd on a default-size PVC (default StorageClass)
+  team-b  k3k virtual in apps (namespace k3k-team-b), managed by Rancher on odin, labels team=b
+    1 server, 1 agent, k3s as the parent, ephemeral
+
+Fleet (Rancher on odin)
+  groups: all-downstream-clusters
+  repo ai-apps  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/ai
+  repo lab-setup-appco  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/appco → all-downstream-clusters
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-suse  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/suse
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+
+Kubernetes secrets and configmaps
+  secret fleet-default/application-collection-basicauth on odin  username, password
+  secret fleet-default/fleet-secrets on odin  appco-values.yaml, harbor-values.yaml, suse-registry-values.yaml, cert-manager-values.yaml
+  secret fleet-default/scc-suse-basicauth on odin  username, password
+  skipped secret fleet-secrets/suse-observability-values.yaml: needs suse-observability-password, suse-observability-token
+
+Secrets
+  ok       appco (username + password)
+  ok       cloudflare (token)
+  ok       observability (license)
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       scc (username + password)
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > asgard-m1.yaml 1`] = `
+"Lab asgard-m1  (domain lab.geeko.me, TLS letsencrypt)
+
+Harvesters
+  asgard  https://asgard.lab.example.com  (TLS not verified)
+    networks: untagged, vlan20 (dhcp) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  m1-test  VM on asgard, leap-16, 2 CPU / 4Gi / 30Gi, network vlan20
+    m1-test.lab.geeko.me  profiles: none
+
+Secrets
+  ok       cloudflare (token)
+  ok       routeros (username + password)
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > asgard-m2.yaml 1`] = `
+"Lab asgard-m2  (domain lab.geeko.me, TLS letsencrypt-staging)
+
+Harvesters
+  asgard  https://asgard.lab.example.com  (TLS not verified)
+    networks: untagged, vlan20 (dhcp) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  rancher  VM on asgard, leap-16, 4 CPU / 16Gi / 100Gi, network vlan20
+    rancher.lab.geeko.me  profiles: k3s → cert-manager → outrider → sprouter → traefik → rancher
+
+Fleet (Rancher on rancher)
+  groups: all-downstream-clusters
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+  skipped repo ai-apps: needs appco
+  skipped repo lab-setup-appco: needs appco
+  skipped repo lab-setup-suse: needs scc
+
+Kubernetes secrets and configmaps
+  secret fleet-default/fleet-secrets on rancher  cert-manager-values.yaml
+  skipped secret fleet-default/application-collection-basicauth on rancher: needs appco
+  skipped secret fleet-secrets/appco-values.yaml: needs appco
+  skipped secret fleet-secrets/harbor-values.yaml: needs appco
+  skipped secret fleet-secrets/suse-registry-values.yaml: needs scc
+  skipped secret fleet-secrets/suse-observability-values.yaml: needs suse-observability-license, suse-observability-password, suse-observability-token
+  skipped secret fleet-default/scc-suse-basicauth on rancher: needs scc
+
+Secrets
+  ok       cloudflare (token)
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > asgard-m2-lb.yaml 1`] = `
+"Lab asgard-m2-lb  (domain lab.geeko.me, TLS letsencrypt-staging)
+
+Harvesters
+  asgard  https://asgard.lab.example.com  (TLS not verified)
+    networks: untagged, vlan20 (dhcp) (lb 10.29.20.200-10.29.20.220) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  rancher  VM on asgard, leap-16, 4 CPU / 16Gi / 100Gi, network vlan20
+    rancher.lab.geeko.me  profiles: k3s → cert-manager → harvester-cloud-provider → outrider → sprouter → traefik → rancher
+
+Fleet (Rancher on rancher)
+  groups: all-downstream-clusters
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+  skipped repo ai-apps: needs appco
+  skipped repo lab-setup-appco: needs appco
+  skipped repo lab-setup-suse: needs scc
+
+Kubernetes secrets and configmaps
+  secret fleet-default/fleet-secrets on rancher  cert-manager-values.yaml
+  skipped secret fleet-default/application-collection-basicauth on rancher: needs appco
+  skipped secret fleet-secrets/appco-values.yaml: needs appco
+  skipped secret fleet-secrets/harbor-values.yaml: needs appco
+  skipped secret fleet-secrets/suse-registry-values.yaml: needs scc
+  skipped secret fleet-secrets/suse-observability-values.yaml: needs suse-observability-license, suse-observability-password, suse-observability-token
+  skipped secret fleet-default/scc-suse-basicauth on rancher: needs scc
+
+Secrets
+  ok       cloudflare (token)
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > asgard-m2-rke2.yaml 1`] = `
+"Lab asgard-m2-rke2  (domain lab.geeko.me, TLS letsencrypt-staging)
+
+Harvesters
+  asgard  https://asgard.lab.example.com  (TLS not verified)
+    networks: untagged, vlan20 (dhcp) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  rancher  VM on asgard, leap-16, 4 CPU / 16Gi / 100Gi, network vlan20
+    rancher.lab.geeko.me  profiles: rke2 → cert-manager → outrider → sprouter → traefik → rancher
+
+Fleet (Rancher on rancher)
+  groups: all-downstream-clusters
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+  skipped repo ai-apps: needs appco
+  skipped repo lab-setup-appco: needs appco
+  skipped repo lab-setup-suse: needs scc
+
+Kubernetes secrets and configmaps
+  secret fleet-default/fleet-secrets on rancher  cert-manager-values.yaml
+  skipped secret fleet-default/application-collection-basicauth on rancher: needs appco
+  skipped secret fleet-secrets/appco-values.yaml: needs appco
+  skipped secret fleet-secrets/harbor-values.yaml: needs appco
+  skipped secret fleet-secrets/suse-registry-values.yaml: needs scc
+  skipped secret fleet-secrets/suse-observability-values.yaml: needs suse-observability-license, suse-observability-password, suse-observability-token
+  skipped secret fleet-default/scc-suse-basicauth on rancher: needs scc
+
+Secrets
+  ok       cloudflare (token)
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > asgard-m3.yaml 1`] = `
+"Lab asgard-m3  (domain lab.geeko.me, TLS letsencrypt-staging)
+
+Harvesters
+  asgard  https://asgard.lab.example.com  (TLS not verified)
+    networks: untagged, vlan20 (dhcp) (lb 10.29.20.200-10.29.20.220) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  rancher  VM on asgard, leap-16, 4 CPU / 16Gi / 100Gi, network vlan20
+    rancher.lab.geeko.me  profiles: k3s → cert-manager → harvester-cloud-provider → outrider → sprouter → traefik → rancher
+
+Downstream clusters
+  apps  rke2 on asgard, managed by Rancher on rancher, labels env=demo
+    pool all: 1 × 4 CPU / 8Gi / 60Gi, leap-16, network vlan20 [etcd, controlplane, worker]
+
+Fleet (Rancher on rancher)
+  groups: all-downstream-clusters
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+  skipped repo ai-apps: needs appco
+  skipped repo lab-setup-appco: needs appco
+  skipped repo lab-setup-suse: needs scc
+
+Kubernetes secrets and configmaps
+  secret fleet-default/fleet-secrets on rancher  cert-manager-values.yaml
+  skipped secret fleet-default/application-collection-basicauth on rancher: needs appco
+  skipped secret fleet-secrets/appco-values.yaml: needs appco
+  skipped secret fleet-secrets/harbor-values.yaml: needs appco
+  skipped secret fleet-secrets/suse-registry-values.yaml: needs scc
+  skipped secret fleet-secrets/suse-observability-values.yaml: needs suse-observability-license, suse-observability-password, suse-observability-token
+  skipped secret fleet-default/scc-suse-basicauth on rancher: needs scc
+
+Secrets
+  ok       cloudflare (token)
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > asgard-m4.yaml 1`] = `
+"Lab asgard-m4  (domain lab.geeko.me, TLS letsencrypt-staging)
+
+Harvesters
+  asgard  https://asgard.lab.example.com  (TLS not verified)
+    networks: untagged, vlan20 (dhcp) (lb 10.29.20.200-10.29.20.220) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  rancher  VM on asgard, leap-16, 4 CPU / 16Gi / 100Gi, network vlan20
+    rancher.lab.geeko.me  profiles: k3s → cert-manager → harvester-cloud-provider → outrider → sprouter → traefik → rancher
+  edge-01  VM on asgard, leap-16, 4 CPU / 8Gi / 60Gi, network vlan20
+    edge-01.lab.geeko.me  profiles: none
+
+Downstream clusters
+  edge  metal rke2, managed by Rancher on rancher, labels env=edge
+    node edge-01 [etcd, controlplane, worker]
+
+Fleet (Rancher on rancher)
+  groups: all-downstream-clusters
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+  skipped repo ai-apps: needs appco
+  skipped repo lab-setup-appco: needs appco
+  skipped repo lab-setup-suse: needs scc
+
+Kubernetes secrets and configmaps
+  secret fleet-default/fleet-secrets on rancher  cert-manager-values.yaml
+  skipped secret fleet-default/application-collection-basicauth on rancher: needs appco
+  skipped secret fleet-secrets/appco-values.yaml: needs appco
+  skipped secret fleet-secrets/harbor-values.yaml: needs appco
+  skipped secret fleet-secrets/suse-registry-values.yaml: needs scc
+  skipped secret fleet-secrets/suse-observability-values.yaml: needs suse-observability-license, suse-observability-password, suse-observability-token
+  skipped secret fleet-default/scc-suse-basicauth on rancher: needs scc
+
+Secrets
+  ok       cloudflare (token)
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > asgard-m4-custom.yaml 1`] = `
+"Lab asgard-m4-custom  (domain lab.geeko.me, TLS letsencrypt-staging)
+
+Harvesters
+  none
+
+Hosts
+  machine-01  existing machine lab@machine-01.lab.geeko.me, leap-16
+    machine-01.lab.geeko.me  profiles: k3s → cert-manager → outrider → sprouter → rancher
+  machine-02  existing machine lab@machine-02.lab.geeko.me, leap-16
+    machine-02.lab.geeko.me  profiles: none
+  machine-03  existing machine lab@machine-03.lab.geeko.me, leap-16
+    machine-03.lab.geeko.me  profiles: none
+
+Downstream clusters
+  edge  metal rke2, managed by Rancher on machine-01, labels env=edge
+    node machine-02 [etcd, controlplane, worker]
+    node machine-03 [worker]
+
+Fleet (Rancher on machine-01)
+  groups: all-downstream-clusters
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+  skipped repo ai-apps: needs appco
+  skipped repo lab-setup-appco: needs appco
+  skipped repo lab-setup-suse: needs scc
+
+Kubernetes secrets and configmaps
+  secret fleet-default/fleet-secrets on machine-01  cert-manager-values.yaml
+  skipped secret fleet-default/application-collection-basicauth on machine-01: needs appco
+  skipped secret fleet-secrets/appco-values.yaml: needs appco
+  skipped secret fleet-secrets/harbor-values.yaml: needs appco
+  skipped secret fleet-secrets/suse-registry-values.yaml: needs scc
+  skipped secret fleet-secrets/suse-observability-values.yaml: needs suse-observability-license, suse-observability-password, suse-observability-token
+  skipped secret fleet-default/scc-suse-basicauth on machine-01: needs scc
+
+Secrets
+  ok       cloudflare (token)
+  ok       rancher-admin
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > asgard-m4-machines.yaml 1`] = `
+"Lab asgard-m4-machines  (domain lab.geeko.me, TLS none)
+
+Harvesters
+  none
+
+Hosts
+  machine-01  existing machine lab@machine-01.lab.geeko.me, leap-16
+    machine-01.lab.geeko.me  profiles: rke2
+  machine-02  existing machine lab@machine-02.lab.geeko.me, leap-16
+    machine-02.lab.geeko.me  profiles: rke2 → metallb → traefik
+  machine-03  existing machine lab@machine-03.lab.geeko.me, leap-16
+    machine-03.lab.geeko.me  profiles: k3s
+
+Secrets
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > asgard-m4-vms.yaml 1`] = `
+"Lab asgard-m4-vms  (domain lab.geeko.me, TLS none)
+
+Harvesters
+  asgard  https://asgard.lab.example.com  (TLS not verified)
+    networks: untagged, vlan20 (dhcp) (lb 10.29.20.200-10.29.20.220) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  machine-01  VM on asgard, leap-16, 4 CPU / 8Gi / 40Gi, network vlan20
+    machine-01.lab.geeko.me  profiles: none
+  machine-02  VM on asgard, leap-16, 4 CPU / 8Gi / 40Gi, network vlan20
+    machine-02.lab.geeko.me  profiles: none
+  machine-03  VM on asgard, leap-16, 4 CPU / 8Gi / 40Gi, network vlan20
+    machine-03.lab.geeko.me  profiles: none
+
+Secrets
+  ok       routeros (username + password)
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > asgard-odin.yaml 1`] = `
+"Lab asgard-odin  (domain lab.geeko.me, TLS letsencrypt)
+
+Harvesters
+  asgard  https://asgard.lab.example.com  (TLS not verified)
+    networks: untagged, vlan20 (dhcp) (lb 10.29.20.200-10.29.20.220) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  odin  VM on asgard, leap-16, 4 CPU / 8Gi / 40Gi, network vlan20
+    odin.lab.geeko.me  profiles: rke2 → cert-manager → harvester-cloud-provider → outrider → sprouter → rancher → ai-factory
+  dgx-spark  existing machine jeroen@dgx-spark.lab.geeko.me, leap-16
+    dgx-spark.lab.geeko.me  profiles: none
+
+Downstream clusters
+  heimdall  k3s on asgard, managed by Rancher on odin, labels needs-traefik=true, needs-storage=true, needs-observability=true, annotations hosted-domain=lab.geeko.me
+    pool all: 1 × 12 CPU / 40Gi / 500Gi, leap-16, network vlan20 [etcd, controlplane, worker]
+    Fleet profiles: traefik, storage, observability (installed by Fleet)
+  freya  rke2 on asgard, managed by Rancher on odin, labels needs-storage=true, needs-security=true, annotations hosted-domain=lab.geeko.me, rancher-host=odin
+    pool all: 1 × 4 CPU / 16Gi / 100Gi, leap-16, network vlan20 [etcd, controlplane, worker]
+    Fleet profiles: storage, security (installed by Fleet)
+    profiles: suse-observability-agent (ChartProfiles, installed by the engine)
+  dgx  metal rke2, managed by Rancher on odin, labels has-gpu=nvidia, annotations hosted-domain=lab.geeko.me
+    node dgx-spark [etcd, controlplane, worker]
+    Fleet profiles: gpu-operator (installed by Fleet)
+    profiles: suse-observability-agent (ChartProfiles, installed by the engine)
+
+Fleet (Rancher on odin)
+  groups: all-downstream-clusters
+  repo ai-apps  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/ai
+  repo lab-setup-appco  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/appco → all-downstream-clusters
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-suse  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/suse
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+
+Kubernetes secrets and configmaps
+  secret fleet-default/application-collection-basicauth on odin  username, password
+  secret fleet-default/fleet-secrets on odin  appco-values.yaml, harbor-values.yaml, suse-registry-values.yaml, cert-manager-values.yaml, suse-observability-values.yaml
+  secret fleet-default/scc-suse-basicauth on odin  username, password
+
+Secrets
+  ok       appco (username + password)
+  ok       cloudflare (token)
+  ok       nvidia (username + password)
+  ok       observability (license + password + token)
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       scc (username + password)
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > asgard-odin-ai.yaml 1`] = `
+"Lab asgard-odin-ai  (domain lab.geeko.me, TLS letsencrypt)
+
+Harvesters
+  asgard  https://asgard.lab.example.com  (TLS not verified)
+    networks: untagged, vlan20 (dhcp) (lb 10.29.20.200-10.29.20.220) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  odin  VM on asgard, leap-16, 4 CPU / 8Gi / 40Gi, network vlan20
+    odin.lab.geeko.me  profiles: rke2 → cert-manager → harvester-cloud-provider → outrider → sprouter → rancher → ai-factory → ai-demos
+  dgx-spark  existing machine jeroen@dgx-spark.lab.geeko.me, leap-16
+    dgx-spark.lab.geeko.me  profiles: none
+
+Downstream clusters
+  heimdall  k3s on asgard, managed by Rancher on odin, labels needs-traefik=true, needs-storage=true, needs-observability=true, annotations hosted-domain=lab.geeko.me
+    pool all: 1 × 12 CPU / 40Gi / 500Gi, leap-16, network vlan20 [etcd, controlplane, worker]
+    Fleet profiles: traefik, storage, observability (installed by Fleet)
+  freya  rke2 on asgard, managed by Rancher on odin, labels needs-storage=true, needs-sbomscanner=true, needs-cnpg=true, annotations hosted-domain=lab.geeko.me
+    pool all: 1 × 4 CPU / 16Gi / 100Gi, leap-16, network vlan20 [etcd, controlplane, worker]
+    Fleet profiles: storage, sbomscanner, cloudnative-pg (installed by Fleet)
+    profiles: opentelemetry → open-webui → suse-observability-agent (ChartProfiles, installed by the engine)
+  dgx  metal rke2, managed by Rancher on odin, labels has-gpu=nvidia, annotations hosted-domain=lab.geeko.me
+    node dgx-spark [etcd, controlplane, worker]
+    Fleet profiles: gpu-operator (installed by Fleet)
+    profiles: suse-observability-agent → vllm → opentelemetry (ChartProfiles, installed by the engine)
+
+Fleet (Rancher on odin)
+  groups: all-downstream-clusters
+  repo ai-apps  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/ai
+  repo lab-setup-appco  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/appco → all-downstream-clusters
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-suse  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/suse
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+
+Kubernetes secrets and configmaps
+  secret fleet-default/application-collection-basicauth on odin  username, password
+  secret fleet-default/fleet-secrets on odin  appco-values.yaml, harbor-values.yaml, suse-registry-values.yaml, cert-manager-values.yaml, suse-observability-values.yaml
+  secret fleet-default/scc-suse-basicauth on odin  username, password
+
+Secrets
+  ok       appco (username + password)
+  ok       cloudflare (token)
+  ok       nvidia (username + password)
+  ok       observability (license + password + token)
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       scc (username + password)
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > empty.yaml 1`] = `
+"Lab empty  (domain lab.geeko.me, TLS letsencrypt)
+
+Harvesters
+  none
+
+Hosts
+  none"
+`;
+
+exports[`lab plan of the example labs > lab-polaris.yaml 1`] = `
+"Lab my-lab  (domain lab.geeko.me, TLS letsencrypt-staging)
+
+Harvesters
+  polaris  https://polaris.lab.geeko.me  (TLS not verified)
+    networks: untagged [default], vlan20 (dhcp) (lb 10.29.20.200-10.29.20.250)
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  sirius  VM on polaris, leap-16, 4 CPU / 8Gi / 40Gi, network vlan20
+    sirius.lab.geeko.me  profiles: rke2 → cert-manager → harvester-cloud-provider → outrider → sprouter → rancher
+
+Downstream clusters
+  orion  k3s on polaris, managed by Rancher on sirius, labels needs-storage=true, needs-observability=true, annotations hosted-domain=lab.geeko.me
+    pool all: 1 × 12 CPU / 40Gi / 500Gi, leap-16, network vlan20 [etcd, controlplane, worker]
+  castor  rke2 on polaris, managed by Rancher on sirius, labels needs-storage=true
+    pool all: 1 × 4 CPU / 8Gi / 40Gi, leap-16, network untagged [etcd, controlplane, worker]
+
+Fleet (Rancher on sirius)
+  groups: all-downstream-clusters
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+  skipped repo ai-apps: needs appco
+  skipped repo lab-setup-appco: needs appco
+  skipped repo lab-setup-suse: needs scc
+
+Kubernetes secrets and configmaps
+  secret fleet-default/fleet-secrets on sirius  cert-manager-values.yaml
+  skipped secret fleet-default/application-collection-basicauth on sirius: needs appco
+  skipped secret fleet-secrets/appco-values.yaml: needs appco
+  skipped secret fleet-secrets/harbor-values.yaml: needs appco
+  skipped secret fleet-secrets/suse-registry-values.yaml: needs scc
+  skipped secret fleet-secrets/suse-observability-values.yaml: needs suse-observability-license, suse-observability-password, suse-observability-token
+  skipped secret fleet-default/scc-suse-basicauth on sirius: needs scc
+
+Secrets
+  ok       asgard (username + password)
+  ok       cloudflare-token
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > landlock-machine.yaml 1`] = `
+"Lab landlock-machine  (domain lab.geeko.me, TLS none)
+
+Harvesters
+  none
+
+Hosts
+  ll-box  existing machine lab@10.29.40.201, leap-16
+    10.29.40.201  profiles: landlock
+
+Secrets
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > landlock-probe.yaml 1`] = `
+"Lab landlock-probe  (domain lab.geeko.me, TLS none)
+
+Harvesters
+  prod-virt-ams01  https://prod-virt-ams01.lab.example.com  (TLS not verified)
+    networks: untagged [default]
+    storage class: longhorn-single-probe (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  ll-leap16  VM on prod-virt-ams01, leap-16-no-landlock, 2 CPU / 4Gi / 20Gi, network default/vlan40
+    ll-leap16.lab.geeko.me  profiles: landlock → rke2
+  ll-box  VM on prod-virt-ams01, leap-16-no-landlock, 1 CPU / 2Gi / 20Gi, network default/vlan40
+    ll-box.lab.geeko.me  profiles: none
+
+Secrets
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > mlm-multi-os.yaml 1`] = `
+"Lab mlm-multi-os  (domain lab.geeko.me, TLS letsencrypt)
+
+Harvesters
+  hv-north  https://hv-north.lab.example.com  (TLS not verified)
+    networks: untagged, vlan100 (dhcp) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download), rocky-9 (download), sl-micro-6.1 (download), sles-16 (download), ubuntu-24.04 (download)
+
+Hosts
+  mlm  VM on hv-north, sl-micro-6.1, 4 CPU / 16Gi / 400Gi, network vlan100
+    mlm.lab.geeko.me  profiles: mlm-server
+  sles-01  VM on hv-north, sles-16, 2 CPU / 4Gi / 40Gi, network vlan100
+    sles-01.lab.geeko.me  profiles: mlm-client
+  ubuntu-01  VM on hv-north, ubuntu-24.04, 2 CPU / 4Gi / 40Gi, network vlan100
+    ubuntu-01.lab.geeko.me  profiles: mlm-client
+  rocky-01  VM on hv-north, rocky-9, 2 CPU / 4Gi / 40Gi, network vlan100
+    rocky-01.lab.geeko.me  profiles: mlm-client
+  leap-01  VM on hv-north, leap-16, 2 CPU / 4Gi / 40Gi, network vlan100
+    leap-01.lab.geeko.me  profiles: mlm-client
+
+Secrets
+  ok       cloudflare (token)
+  ok       mlm-admin
+  ok       routeros (username + password)
+  ok       scc-regcode-sles
+  ok       scc-regcode-slmicro
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > polaris-ai.yaml 1`] = `
+"Lab polaris-ai  (domain lab.geeko.me, TLS letsencrypt)
+
+Harvesters
+  polaris  https://polaris.lab.example.com  (TLS not verified)
+    networks: untagged, vlan40 (dhcp) (lb 10.29.40.200-10.29.40.220) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+  terra  https://terra.lab.example.com  (TLS not verified)
+    networks: untagged, vlan20 (dhcp) (lb 10.29.20.201-10.29.20.250) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  sirius  VM on terra, leap-16, 4 CPU / 8Gi / 40Gi, network vlan20
+    sirius.lab.geeko.me  profiles: rke2 → cert-manager → harvester-cloud-provider → outrider → sprouter → rancher → ai-factory → ai-demos
+  dgx-spark  existing machine jeroen@dgx-spark.lab.geeko.me, leap-16
+    dgx-spark.lab.geeko.me  profiles: none
+
+Downstream clusters
+  orion  k3s on polaris, managed by Rancher on sirius, labels needs-traefik=true, needs-storage=true, needs-observability=true, annotations hosted-domain=lab.geeko.me
+    pool all: 1 × 12 CPU / 40Gi / 500Gi, leap-16, network vlan40 [etcd, controlplane, worker]
+    Fleet profiles: traefik, storage, observability (installed by Fleet)
+    profiles: opentelemetry (ChartProfiles, installed by the engine)
+  vega  rke2 on terra, managed by Rancher on sirius, labels needs-storage=true, needs-sbomscanner=true, needs-cnpg=true, annotations hosted-domain=lab.geeko.me
+    pool all: 1 × 8 CPU / 32Gi / 100Gi, leap-16, network vlan20 [etcd, controlplane, worker]
+    Fleet profiles: storage, sbomscanner, cloudnative-pg (installed by Fleet)
+    profiles: opentelemetry → open-webui → suse-observability-agent (ChartProfiles, installed by the engine)
+  dgx  metal k3s, managed by Rancher on sirius, labels has-gpu=nvidia, annotations hosted-domain=lab.geeko.me
+    node dgx-spark [etcd, controlplane, worker]
+    Fleet profiles: gpu-operator (installed by Fleet)
+    profiles: suse-observability-agent → vllm → opentelemetry (ChartProfiles, installed by the engine)
+  algol  rke2 on polaris, managed by Rancher on sirius, labels needs-sbomscanner=true, needs-cnpg=true
+    pool all: 1 × 6 CPU / 32Gi / 500Gi, leap-16, network vlan40 [etcd, controlplane, worker]
+    Fleet profiles: sbomscanner, cloudnative-pg (installed by Fleet)
+
+Fleet (Rancher on sirius)
+  groups: all-downstream-clusters
+  repo ai-apps  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/ai
+  repo lab-setup-appco  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/appco → all-downstream-clusters
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-suse  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/suse
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+
+Kubernetes secrets and configmaps
+  secret fleet-default/application-collection-basicauth on sirius  username, password
+  secret fleet-default/fleet-secrets on sirius  appco-values.yaml, harbor-values.yaml, suse-registry-values.yaml, cert-manager-values.yaml, suse-observability-values.yaml
+  secret fleet-default/scc-suse-basicauth on sirius  username, password
+
+Secrets
+  ok       appco (username + password)
+  ok       cloudflare (token)
+  ok       nvidia (username + password)
+  ok       observability (license + password + token)
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       scc (username + password)
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > rancher-custom-edge.yaml 1`] = `
+"Lab rancher-custom-edge  (domain lab.geeko.me, TLS letsencrypt)
+
+Harvesters
+  hv-north  https://hv-north.lab.example.com  (TLS not verified)
+    networks: untagged [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download)
+
+Hosts
+  rancher  VM on hv-north, leap-16, 4 CPU / 16Gi / 100Gi, network untagged
+    rancher.lab.geeko.me  profiles: k3s → cert-manager → sprouter → traefik → rancher
+  nuc-01  existing machine root@nuc-01.lab.geeko.me, sles-16
+    nuc-01.lab.geeko.me  profiles: none
+
+Downstream clusters
+  edge  metal rke2, managed by Rancher on rancher, labels env=edge
+    node nuc-01 [etcd, controlplane, worker]
+
+Fleet (Rancher on rancher)
+  groups: all-downstream-clusters, edge
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+  skipped repo ai-apps: needs appco
+  skipped repo lab-setup-appco: needs appco
+  skipped repo lab-setup-suse: needs scc
+
+Kubernetes secrets and configmaps
+  skipped secret fleet-default/application-collection-basicauth on rancher: needs appco
+  skipped secret fleet-secrets/appco-values.yaml: needs appco
+  skipped secret fleet-secrets/harbor-values.yaml: needs appco
+  skipped secret fleet-secrets/suse-registry-values.yaml: needs scc
+  skipped secret fleet-secrets/suse-observability-values.yaml: needs suse-observability-license, suse-observability-password, suse-observability-token
+  skipped secret fleet-default/fleet-secrets on rancher: needs downstream-secrets (outrider) on rancher
+  skipped secret fleet-default/scc-suse-basicauth on rancher: needs scc
+
+Secrets
+  ok       cloudflare (token)
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       scc-regcode-sles
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > rancher-harvester-rke2.yaml 1`] = `
+"Lab rancher-harvester-rke2  (domain lab.geeko.me, TLS letsencrypt)
+
+Harvesters
+  hv-north  https://hv-north.lab.example.com  (TLS not verified)
+    networks: untagged, vlan100 (dhcp) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download), sles-16 (download)
+
+Hosts
+  rancher  VM on hv-north, leap-16, 4 CPU / 16Gi / 100Gi, network vlan100
+    rancher.lab.geeko.me  profiles: k3s → cert-manager → sprouter → traefik → rancher
+
+Downstream clusters
+  apps  rke2 on hv-north, managed by Rancher on rancher, labels env=demo
+    pool all: 3 × 4 CPU / 8Gi / 60Gi, sles-16, network vlan100 [etcd, controlplane, worker]
+
+Fleet (Rancher on rancher)
+  groups: all-downstream-clusters, demo
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+  skipped repo ai-apps: needs appco
+  skipped repo lab-setup-appco: needs appco
+  skipped repo lab-setup-suse: needs scc
+
+Kubernetes secrets and configmaps
+  skipped secret fleet-default/application-collection-basicauth on rancher: needs appco
+  skipped secret fleet-secrets/appco-values.yaml: needs appco
+  skipped secret fleet-secrets/harbor-values.yaml: needs appco
+  skipped secret fleet-secrets/suse-registry-values.yaml: needs scc
+  skipped secret fleet-secrets/suse-observability-values.yaml: needs suse-observability-license, suse-observability-password, suse-observability-token
+  skipped secret fleet-default/fleet-secrets on rancher: needs downstream-secrets (outrider) on rancher
+  skipped secret fleet-default/scc-suse-basicauth on rancher: needs scc
+
+Secrets
+  ok       cloudflare (token)
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       scc-regcode-sles
+  ok       ssh-key"
+`;
+
+exports[`lab plan of the example labs > rancher-mlm-airgap.yaml 1`] = `
+"Lab rancher-mlm-airgap  (domain lab.geeko.me, TLS letsencrypt)
+
+Harvesters
+  hv-north  https://hv-north.lab.example.com  (TLS not verified)
+    networks: untagged, vlan100 (dhcp) [default]
+    storage class: longhorn-single (1 replica)
+    images: leap-16 (download), sl-micro-6.1 (download)
+
+Hosts
+  rancher  VM on hv-north, leap-16, 4 CPU / 16Gi / 100Gi, network vlan100
+    rancher.lab.geeko.me  profiles: k3s → cert-manager → sprouter → traefik → rancher
+  mlm  VM on hv-north, sl-micro-6.1, 4 CPU / 16Gi / 300Gi, network vlan100
+    mlm.lab.geeko.me  profiles: mlm-server
+  registry  VM on hv-north, leap-16, 2 CPU / 4Gi / 200Gi, network vlan100
+    registry.lab.geeko.me  profiles: hauler
+
+Fleet (Rancher on rancher)
+  groups: all-downstream-clusters
+  repo lab-setup-base  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/base → all-downstream-clusters
+  repo lab-setup-demos  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/demos
+  repo fleet-local/lab-setup-local  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/local
+  repo lab-setup-platform  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/platform
+  repo lab-setup-thirdparty  https://github.com/SUSE-Technical-Marketing/suse-rancher-prime-setup.git@main /apps/thirdparty
+  helmop suse-observability  suse-observability 2.12.0 from https://charts.rancher.com/server-charts/prime/suse-observability → needs-observability=true
+  skipped repo ai-apps: needs appco
+  skipped repo lab-setup-appco: needs appco
+  skipped repo lab-setup-suse: needs scc
+
+Kubernetes secrets and configmaps
+  skipped secret fleet-default/application-collection-basicauth on rancher: needs appco
+  skipped secret fleet-secrets/appco-values.yaml: needs appco
+  skipped secret fleet-secrets/harbor-values.yaml: needs appco
+  skipped secret fleet-secrets/suse-registry-values.yaml: needs scc
+  skipped secret fleet-secrets/suse-observability-values.yaml: needs suse-observability-license, suse-observability-password, suse-observability-token
+  skipped secret fleet-default/fleet-secrets on rancher: needs downstream-secrets (outrider) on rancher
+  skipped secret fleet-default/scc-suse-basicauth on rancher: needs scc
+
+Secrets
+  ok       cloudflare (token)
+  ok       mlm-admin
+  ok       rancher-admin
+  ok       routeros (username + password)
+  ok       scc-regcode-slmicro
+  ok       ssh-key"
+`;

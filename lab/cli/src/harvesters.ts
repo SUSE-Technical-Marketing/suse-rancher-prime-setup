@@ -3,10 +3,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
-    claim, HarvesterApi, HarvesterOwnerStore, isSupportedHarvesterVersion, MIN_HARVESTER_VERSION,
-    Owner, release,
+    checkSite, claimSite, HarvesterApi, HarvesterOwnerStore, isSupportedHarvesterVersion, MIN_HARVESTER_VERSION,
+    Owner, releaseSite, singleClaimStore,
 } from "@lab/core";
-import { ResolvedHarvester, ResolvedLab } from "@lab/schema";
+import { ResolvedHarvester, ResolvedLab, SITE_TRAITS } from "@lab/schema";
 import { AwsKeys, credentialsFile } from "./aws";
 import { log } from "./log";
 import { credentialsFrom, ResolvedSecret } from "./secrets";
@@ -98,23 +98,23 @@ export function writeRunFiles(labName: string, sessions: HarvesterSession[], aws
 }
 
 const me = (lab: ResolvedLab): Owner => ({ lab: lab.name, user: currentUser() });
+/** Whether labs may share a Harvester: the site kind says (a Harvester's add-ons and default storage class belong to one lab). */
+const sharing = SITE_TRAITS.harvester.sharing;
 
 /** Read-only: fail early if another lab owns one of our Harvesters. */
 export async function checkOwnership(lab: ResolvedLab, sessions: HarvesterSession[]): Promise<void> {
     const owner = me(lab);
     for (const { harvester: h, api, version } of sessions) {
-        const current = await new HarvesterOwnerStore(api).get();
         const v = version ? ` (${version})` : "";
-        if (!current) log.info(`harvester ${h.name}${v}: free`);
-        else if (current.lab === owner.lab && current.user === owner.user) log.info(`harvester ${h.name}${v}: already claimed by this lab`);
-        else throw new Error(`harvester "${h.name}" is in use by lab "${current.lab}" (${current.user}${current.claimedAt ? `, since ${current.claimedAt}` : ""})`);
+        const status = await checkSite(h.name, singleClaimStore(new HarvesterOwnerStore(api)), owner, sharing);
+        log.info(`harvester ${h.name}${v}: ${status === "free" ? "free" : "already claimed by this lab"}`);
     }
 }
 
 export async function claimHarvesters(lab: ResolvedLab, sessions: HarvesterSession[]): Promise<void> {
     const owner = me(lab);
     for (const { harvester: h, api } of sessions) {
-        const result = await claim(h.name, new HarvesterOwnerStore(api), owner);
+        const result = await claimSite(h.name, singleClaimStore(new HarvesterOwnerStore(api)), owner, sharing);
         log.info(`harvester ${h.name}: ${result === "claimed" ? "claimed for this lab" : "already claimed by this lab"}`);
     }
 }
@@ -122,7 +122,7 @@ export async function claimHarvesters(lab: ResolvedLab, sessions: HarvesterSessi
 export async function releaseHarvesters(lab: ResolvedLab, sessions: HarvesterSession[], force = false): Promise<void> {
     const owner = me(lab);
     for (const { harvester: h, api } of sessions) {
-        const result = await release(h.name, new HarvesterOwnerStore(api), owner, force);
+        const result = await releaseSite(h.name, singleClaimStore(new HarvesterOwnerStore(api)), owner, sharing, force);
         log.info(`harvester ${h.name}: ${result === "released" ? "released" : "was not claimed"}`);
     }
 }

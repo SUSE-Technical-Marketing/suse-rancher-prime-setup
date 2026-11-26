@@ -1,6 +1,8 @@
 # Lab engine — design
 
-Status: **M0 implemented** (CLI, schema, validation, secrets, ownership guard). M1 onwards not built yet.
+Status: M0, M1, M2 (Rancher on a lab VM), M4 (metal clusters) built, and most of M3 (Rancher-provisioned
+clusters on Harvester, EC2, EKS, k3k). Open: the Multi-Linux Manager profiles (M6). Next: more VM
+backends than Harvester (§18).
 
 A config-driven way to build complete demo/lab environments on SUSE Virtualization (Harvester):
 describe a lab in one YAML file, run one command, get VMs, Kubernetes, Rancher, Multi-Linux
@@ -29,7 +31,8 @@ code from `pulumi/modules` is ported (copied and adapted), not imported.
 
 **Non-goals**
 
-- Several labs sharing one Harvester at the same time. One Harvester runs one lab.
+- Several labs sharing one Harvester at the same time. One Harvester runs one lab. (Other kinds of site
+  host many labs, §18.3.)
 - Managing application workloads. Apps stay in Fleet (`apps/` + GitRepos); the lab only
   bootstraps Fleet.
 - Long-lived production environments, upgrades in place, or day-2 operations beyond re-running
@@ -91,10 +94,12 @@ lab/
     crds/                   # typed CRD classes, generated with crd2pulumi from crd-sources/
     os/                     # cloud-init builders per OS family (suse, rhel, debian)
     harvester/              # Harvester base, VMs, images, networks, add-ons
-    kubernetes/             # k3s/RKE2 install on hosts, kubeconfig retrieval, HelmApp
+    kubernetes/             # k3s/RKE2 install on hosts, kubeconfig retrieval, HelmApp, Hauler
+    apps/                   # cert-manager, Sprouter, Traefik, Outrider, observability, ...
+    kube/                   # Kubernetes and Rancher API clients, polling
+    aws/                    # AWS sites: network, pinned values
+    backends/               # the host and site backend contracts (§18): HostBackend, SiteBackend
     rancher/                # Rancher install, plugins, Fleet, Harvester import, downstream clusters
-    mlm/                    # Multi-Linux Manager server, products, activation keys, clients
-    registry/               # Hauler (host and Kubernetes modes)
   catalog/                  # built-in defaults as data (§16): components/, plugins.yaml, secrets/, fleet/, os/ (§6)
   labs/                     # example lab files (the four reference labs, §13)
 ```
@@ -116,6 +121,7 @@ Packages are consumed as TypeScript source: no `main: bin/...`, so there is no s
 ```yaml
 lab: rancher-airgap            # unique name; also the Pulumi stack name
 domain: lab.geeko.me           # base DNS domain for every host
+ttl: 8h                        # optional: how long the lab is meant to live from its creation; `lab reap` destroys it after that
 tls:
   acme: letsencrypt            # an AcmeServer (letsencrypt, letsencrypt-staging) or none
   email: me@example.com
@@ -363,8 +369,11 @@ profile. `lab profiles` prints the current list with all rules.
 | `open-webui` | a ChartProfile for downstream clusters; `uses` `opentelemetry`; needs the lab's `appco` input, a `hosted-domain` (Fleet's wildcard certificate) | `openaiUrl` (required, an OpenAI-compatible API: a vLLM's router), `openaiApiKey`, `defaultModel`, `title`, `host` (default `open-webui.<cluster>.<domain>`), `storageClass`, `pipelines` (default true), `filterVersion` (default `v2.0.0`), `version`, `values` | Open WebUI (Application Collection; chart 8.19.1, as 7.2.0's image can't sign anyone up) in `suse-ai`, the API through the chart's `openaiBaseApiUrl`, at its ingress with the wildcard certificate; with `pipelines`, SUSE AI's Open WebUI filter (GenAI traces for SUSE Observability) in front of the API; with the opentelemetry profile on the cluster, its own traces (`ENABLE_OTEL_TRACES`: off by default in Open WebUI; its client spans to the model make the service graph's edge) and metrics to the collector |
 | `opentelemetry` | a ChartProfile for downstream clusters; `clusterRefs` `observer` (a cluster with SUSE Observability); `uses` `vllm`; needs the lab's `appco` input, and the SUSE registry pull secret (Sprouter) for the collector image | `observer` (required), `apiKey` (a secret, default the instance's bootstrap token), `clusterName`, `suseAiNamespace` (default `suse-ai`), `collectorImage` (default SUSE AI's, amd64 only; `otel/opentelemetry-collector-contrib` on arm64), `topology` (default true: SUSE's topology exporter, only in SUSE AI's image), `gateway` (a cluster whose collector serves one: this one sends its client and server spans there), `serveGateway` (be that gateway), `collectorVersion` (default `0.149.0`), `vllm`, `qdrant`, `milvus`, `opensearch` (what to scrape that the lab doesn't deploy), `version`, `values` | SUSE AI Factory's AI monitoring: the OpenTelemetry Operator (Application Collection), once Fleet's cert-manager and pull secrets are on the cluster; SUSE AI's collector in `observability` (its RBAC, the API key Secret), sending OTLP to the observer's `otlp` endpoint and GenAI topology to its `url` (the exporter's `instance_url` before 0.160, `cluster_name` from it), as the cluster's name; overlays scrape the GPU Operator's DCGM exporter (`'gpu' in target.capabilities`), vLLM (the vllm profile's `outputs`, or the setting), Qdrant, Milvus, OpenSearch, each with the resource attributes SUSE AI 3.0's monitors select on (`suse.ai.product`, `service.namespace`; the GPU's node as `k8s.node.name` and its pod labels as `pod_namespace`/`pod_name`), and the pushed traces and metrics get a nonempty `service.namespace` (the Kubernetes namespace, else `default`); with `gateway`, the CLIENT and SERVER spans (unsampled) also go to `otlp-gateway.<cluster>.<domain>:443`, where the `serveGateway` collector (an ingress with the wildcard certificate, an unauthenticated receiver on 4319, no sampling) pairs them with the `servicegraph` connector into SUSE AI 3.0's `suse.ai.service.calls`, the edges between services of different clusters (Open WebUI to vLLM); the usual address `opentelemetry-collector.observability.svc.cluster.local`; `outputs` `opentelemetry.grpc`/`.http` (that address) for the cluster's apps, and expects `open-telemetry` and `suse-ai` on its observer (`observerStackPacks`: a warning without them); an `Instrumentation` workloads opt in to by annotation (`instrumentation.opentelemetry.io/inject-python: observability/otel-instrumentation`) |
 | `vllm` | a ChartProfile for downstream clusters with NVIDIA GPUs (the gpu-operator Fleet profile); needs the lab's `appco` input | `model` (required, a Hugging Face model), `name`, `imageRegistry`/`imageRepository`/`imageTag` (default Application Collection's `vllm-openai` 0.19.0), `requestCPU`, `requestMemory`, `requestGPU`, `shmSize`, `pvcStorage`, `storageClass`, `runtimeClassName` (default `nvidia`), `nodePort` (the router on every node's address, for other clusters), `hostCache` (a node directory for the model and compiled kernels), `startupMinutes` (default 30), `otlpTracesEndpoint` (vLLM's `--otlp-traces-endpoint`, the engine's request spans, as service `vllm`), `dropCaches` (a privileged init container freeing the page cache first: shared CPU/GPU memory), `hfToken` (a secret); engine settings defaulting to the DGX Spark stack's (`~/stacks/vllm-node`): `maxNumSeqs` 8, `maxNumBatchedTokens` 16384, `gpuMemoryUtilization` 0.7, `kvCacheDtype` fp8, `tensorParallelSize` 1, chunked prefill, prefix caching, async scheduling, `trustRemoteCode`; the model's own: `maxModelLen`, `loadFormat`, `speculativeConfig`, `reasoningParser`, `toolCallParser` (with automatic tool choice); `version`, `values` | The vLLM production stack (Application Collection) in `suse-ai`, serving one model (Recreate: the old engine lets go of its GPUs first), once the GPU Operator's ClusterPolicy is Ready and the pull secret is there; flags without a field of the chart's `vllmConfig` go to its `extraArgs`, unset ones left out; `outputs` `vllm.namespace` for the opentelemetry profile to scrape |
+| `keycloak` | a ChartProfile (hosts and clusters); requires `kubernetes`; uses `ingress`, `tls`, `secret-propagation`; provides and conflicts `oidc`; the codecentric `keycloakx` chart (Application Collection has none) | `adminPassword` (required, a secret), `hostname` (default `keycloak`), `realm` (default `lab`), `users` (default `[demo]`) and `userPassword` (without it no users), `rancherUrl` and `clientSecret` (a client `rancher` redirecting to Rancher, with a groups claim), `storage` (2Gi), `version`, `values` | Keycloak at `<hostname>.<target>.<domain>` with the target's ingress and wildcard certificate; one replica on Keycloak's own file store (`--db=dev-file`) on a volume: a demo, not a production database. The realm is imported at the first start from a Secret (an existing realm is kept, so changing users later means doing it in Keycloak). Rendered with `helm template` against chart 7.4.0; **not yet run on a cluster** |
+| `rancher-sso` | a ResourceProfile for the Rancher host only; requires `rancher` | `issuer` (required: `https://keycloak.<target>.<domain>/realms/<realm>`), `clientSecret` (required, the keycloak profile's), `clientId` (default `rancher`), `hostname` (default `rancher`), `accessMode` (default `unrestricted`) | Rancher's `keycloakoidc` AuthConfig and its client secret in `cattle-global-data`; the local admin keeps working. **Not yet tried against a running Rancher** (the object's fields and the secret's name follow Rancher's conventions, not checked against one) |
 | `traefik` | a ChartProfile (hosts and clusters); requires `kubernetes`; uses `load-balancer`; provides `ingress` and `gateway-api` (replacing the distribution's own Traefik) | `version`, `gatewayApi` | Gateway API CRDs + Traefik with its Gateway provider |
 | `outrider` | requires `kubernetes`; provides `downstream-secrets` | `version` | Propagates annotated secrets to downstream clusters |
+| `public-ingress` | requires `kubernetes`; `status: planned` | none yet | Placeholder for the Cloudflare tunnel operator: makes the host's ingress reachable from the internet, which `ec2` and `eks` clusters need of their Rancher's host |
 | `rancher` | requires `kubernetes`, `ingress`, `tls`, `secret-propagation`, and `gateway-api` when `exposure: gateway`; uses `downstream-secrets` (a Fleet secret can need it, §16.3) and `gateway-api`; secret `adminPassword` | `version`, `hostname`, `adminPassword`, `exposure` (`auto`, `gateway`, `ingress`; §9.1), `plugins`, `liz`, `fleet`, `values`, `settings` (Rancher settings by name; `server-url` is the engine's), `features` (feature flags, merged over the default `harvester-baremetal-container-workload: true`) | `RancherAccess` |
 | `hauler` | provides `registry`; one `registry` per host | `manifests` (HaulManifest names), `port` (5000), `fileserverPort`, `version` | Hauler as systemd services on the host, with a lego certificate (§9.4) |
 | `hauler-chart` | a ChartProfile (hosts and clusters); requires `kubernetes`, `ingress`, `tls`, `secret-propagation`; provides `registry`; one `registry` per host | `manifests`, `storage` (the store's volume, 50Gi), `fileserver`, `version`, `values` | The `hauler-helm` chart at `registry.<target>` (and `files.<target>`) with the wildcard certificate; its store synced by a Job (§9.4) |
@@ -529,9 +538,10 @@ needs a default StorageClass set on EKS (EKS marks none default), and the update
 **Reachability.** EC2 machines and EKS clusters reach Rancher over the internet, so `validate`
 rejects an `ec2` or `eks` cluster whose Rancher host doesn't provide `public-ingress`: their cluster
 types' `rancherNeeds` (a capability and why), which the resolver checks and the UI's cluster form
-says. No profile
-does yet: that's the Cloudflare tunnel operator's `public-ingress` profile, still to come. Until
-then they can be validated and previewed only with a stub profile (the tests do this).
+says. The catalog's `public-ingress` profile is a placeholder (`status: planned`) for the
+Cloudflare tunnel operator, still to come: a lab with it validates and plans (the
+`ai-factory-gpu` example does), and `preview` and `up` refuse it. The program tests preview such
+labs with a stub of their own.
 
 **Metal** — Rancher installs Kubernetes on the lab's own hosts (what Rancher calls a custom
 cluster: it doesn't create the machines, the lab supplies them):
@@ -631,7 +641,7 @@ spec:
   credentials: "{{ secrets.aws }}"          # a map secret with accessKey and secretKey, or { accessKey, secretKey }
   vpc: { cidr: 10.100.0.0/16 }              # default: Defaults aws.vpcCidr
   zones: [ a, b ]                           # default: Defaults aws.zones
-  ttl: 8h                                   # tagged as lab.geeko.me/expires; nothing enforces it
+  ttl: 8h                                   # tagged as lab.geeko.me/expires; nothing enforces it (the Lab's own `ttl` is enforced by `lab reap`)
 ```
 
 The engine creates the VPC, an internet gateway, a route table with the default route, a public
@@ -1384,7 +1394,9 @@ removes a stale guard by hand.
   networks, images not present before), to catch leaks during development, and on each AWS site
   (by the lab's tags: instances, volumes, the VPC and what's in it, network interfaces left in the
   VPC, and key pairs named like the lab's machines; for EKS clusters, the EKS cluster, the
-CloudFormation stacks and the launch template Rancher names after it).
+  CloudFormation stacks and the launch template Rancher names after it). It exits 0 when clean, 1
+  when something is left, and 3 when a check couldn't run (no access, an API error) and nothing was
+  found: not known to be clean. `lab reap` runs it after each lab it destroys and exits the same way.
 - **AWS: machines before the network.** An `ec2` or `eks` cluster depends on its site's network,
   so destroy deletes the cluster (Rancher terminates its machines, or deletes the EKS cluster, its
   node groups and IAM stacks, waiting up to `timeouts.downstreamDelete`) before the security group,
@@ -1506,6 +1518,7 @@ downstream:
 | M5 | `hauler` (systemd) and `hauler-chart` (Kubernetes), HaulManifests, lego certificates | Registry part of reference lab 1. Built and tested under mocks; not yet run against a lab |
 | M6 | `sl-micro-6.1`, `ubuntu-24.04`, `rocky-9`; `mlm-server`, `mlm-client` | Reference labs 1 and 3 |
 | M7 | Docs for lab authors (`lab/README.md`), more examples, `AGENTS.md` | Someone new can write a lab without reading TypeScript |
+| M8 | More backends than Harvester: the host/site seam (phase 1), libvirt, EC2 and Hetzner VMs, stop/start, hybrid | §18 |
 
 ---
 
@@ -2088,3 +2101,144 @@ A profile whose requirements aren't met on a host isn't rendered there (the rule
 program gets plain values; the protected paths are the leaves of `lockedValues`, templates or not.
 Secret templates (§16.6) keep their `$input`/`$lab` refs: their values are secrets resolved at
 deploy time, and a key is left out when its inputs are missing.
+
+---
+
+## 18. More backends than Harvester
+
+Status: **Phase 0 and 1 built** (§18.7). Phases 2 to 5 are planned.
+
+Today a VM lives on a Harvester. This section adds other places VMs can live (libvirt on an
+existing machine, EC2, Hetzner) without touching what runs on them: profiles, Kubernetes, Rancher
+and downstream clusters. The idea comes from comparing the engine with lab-in-a-box, which runs
+labs on KVM and eight clouds; we keep our typed, declarative, previewable model and take its reach.
+The full comparison, gap analysis and progress are in
+[Lab engine vs lab-in-a-box: analysis and plan](https://claude.ai/artifact/Js7df1nNqAchg8KSBc2V3h)
+(a shared doc, written 2026-11-26). The SUSE AI Factory deployment repos (Terraform on seven
+providers, and Metal3 bare metal) are compared in
+[docs/analysis/suse-ai-factory-repos.md](docs/analysis/suse-ai-factory-repos.md), and what we take from
+them is planned in [docs/plans/ai-factory-learnings.md](docs/plans/ai-factory-learnings.md).
+
+### 18.1 Decisions
+
+1. **One kind per backend**, not one `VM` kind with `backend:`. `HarvesterVM` keeps its Harvester
+   fields (`network`, namespaces), `Ec2VM` gets `instanceType`, `LibvirtVM` gets `pool` and `bridge`.
+   Fields are typed per backend, errors name the right document (`Ec2VM/web.spec.instanceType`), the
+   composer's per-kind forms keep working, and a new backend is additive. The cost (no one-field
+   switch between backends) is met by a later `lab convert` command.
+2. **A shared base spec** (`VmCommon`: `os`, `cpu`, `memory`, `disk`, `fqdn`, `profiles`) that every
+   VM kind extends, so the common fields stay the same everywhere.
+3. **A kind-agnostic resolved `Host`.** After resolution a Harvester VM, an EC2 VM and a `Machine`
+   are all hosts; profiles, `plan`, kubeconfigs and cluster references read the host, never the
+   kind. Only provisioning switches on the backend, and the compiler checks that every backend is
+   handled (`exhaustive.ts`).
+4. **A `Site` is where VMs live**: a `Harvester`, an `AwsSite`, later a `LibvirtSite` and a
+   `HetznerSite`. A site holds the connection (its own credentials, or for libvirt an existing
+   `Machine`) and **hosts many labs**: each lab owns a namespace, VPC, tag set or domain prefix on
+   it. This relaxes "one lab per Harvester" (§1, §10).
+5. **`Machine` stays its own kind**: an existing box reached over SSH, never created or destroyed.
+   A `LibvirtSite` names a `Machine` as the place it runs on and reaches libvirt through that
+   machine's SSH.
+6. **`LibvirtSite` / `LibvirtVM`**, not `KvmSite`, with a `driver:` field that accepts only `qemu`
+   for now. Other libvirt drivers (Xen, VirtualBox, VMware) need their own domain XML, cloud-init
+   delivery and guest-agent readiness; they are a `driver` value and a builder each, built only if
+   wanted. Proxmox and vSphere are not libvirt: they would be sites of their own.
+7. **Downstream clusters on a backend without a Rancher node driver are custom (`metal`) clusters**,
+   which the engine already builds on hosts.
+
+### 18.2 Target model
+
+```
+Site kinds:   Harvester | AwsSite | LibvirtSite (-> Machine) | HetznerSite
+VM kinds:     HarvesterVM | Ec2VM | LibvirtVM | HetznerVM        (each extends VmCommon)
+Existing:     Machine (SSH; never created or destroyed)
+Resolved:     Host { name, os, fqdn, kind, site?, ... }           profiles, plan and refs read this
+Seam:         HostBackend { kind, created, provision(), leftovers() }   one per VM kind
+```
+
+### 18.3 Ownership on a shared site
+
+A site's claim stops being "one lab" and becomes a set of claims, one per lab, each tied to the user
+who runs it (the same lab name run by someone else is still refused). A Harvester stays
+**exclusive** for now: its cluster-wide pieces (the DHCP and DNS add-ons, the default storage class)
+have one owner, and sharing them needs reference counting that is not designed yet. A site kind
+declares whether it is exclusive or shared; libvirt, EC2 and Hetzner are shared by construction
+(domains, volumes, VPC and tags are per lab).
+
+Every backend must implement `leftovers()`: what is still there for a lab after `destroy`, found by
+the lab's name (namespace, tag, domain metadata). `destroy --check` runs it for every site.
+
+### 18.4 Phases
+
+| Phase | Scope | Done when |
+|---|---|---|
+| 0 | Groundwork: docs match the code, red test fixed, CI, every file in `labs/` validated by a test | CI green on main; `labs/` all load |
+| 1 | The seam: `VmCommon`, `Host` traits, `Site`, `HostBackend` with Harvester and SSH behind it, claims per lab (§18.3) | Every existing lab plans identically; Pulumi resource addresses unchanged; no Harvester logic outside its backend |
+| 2 | `LibvirtSite` + `LibvirtVM`: `virsh` over the Machine's SSH (spike the Pulumi libvirt provider first), preflight of `virsh`/pool/network, bridge networking with fixed addresses, deterministic addresses, dnsmasq or RouterOS DNS, image cache, ownership by domain metadata, `via: site` jump host | `rancher-harvester-rke2` with its `harvester:` references changed runs on one KVM box and `destroy` leaves nothing |
+| 3 | `Ec2VM` (reuses `AwsSite`), `HetznerSite` + `HetznerVM`, Route53 and Cloudflare DNS profiles | The same Rancher + RKE2 lab runs on EC2 and on Hetzner; `destroy` leaves nothing tagged |
+| 4 | `lab stop` / `lab start`, an active `ttl` with `lab reap`, `lab examples` and `lab up --example`, `lab convert` | A new user runs an example with no lab file; a cloud lab stops and starts |
+| 5 | WireGuard overlay between sites, a version compatibility matrix in the catalog, catalog profile gaps, CI per backend | One lab spans Harvester and a cloud site |
+
+### 18.5 Decided later, per phase
+
+- Libvirt through the Pulumi provider or through `virsh` over SSH: a one-day spike at the start of
+  phase 2, defaulting to SSH.
+- Libvirt networking: bridge on the host's LAN first (fixed addresses, DNS records ours to make);
+  NAT or an isolated network with lab DHCP after.
+- Whether a `kvm-host` profile may install and configure libvirt on the `Machine`. Until decided the
+  site is a precondition, checked by a preflight. Such a profile would be the one thing `destroy`
+  leaves on a machine.
+
+### 18.6 Not taken from lab-in-a-box
+
+Its hosted-model-provider add-ons, its translated documentation and its imperative script contract.
+Breadth stops at libvirt, EC2 and Hetzner until all three are in real use: each backend costs a
+transport, DNS, leftovers, tests and documentation.
+
+### 18.7 Progress
+
+**Phase 0** (done)
+
+- README status and §4 layout match the code.
+- Version assertions in the program tests read the catalog (`catalogChartVersion`), so a catalog bump no longer breaks them.
+- Every file in `labs/` is loaded by a test (`packages/schema/test/labs.test.ts`); `lab-polaris.yaml`
+  was stale (`dns:` moved under `profiles`, a removed OS profile, a missing `tls.email`) and is repaired.
+- `lab plan` of every example lab is a snapshot (`cli/test/plan-labs.test.ts`), taken before the phase 1
+  refactor and unchanged after it.
+- CI: `.github/workflows/lab.yml` runs `mise run typecheck` and `mise run test`. Written, **not yet run
+  on GitHub**.
+
+**Phase 1** (done, with the exceptions below)
+
+| What | Where |
+|---|---|
+| `VmCommon`: the fields every VM kind has; `VM_SPECS` lists the VM kinds and a test requires each to contain all of it | `packages/schema/src/schema.ts` |
+| `Host` traits (`created`, `bootstrap: user-data \| ssh`), `hostSite`, `sshUserOf`: callers ask these instead of comparing kinds | `packages/schema/src/host-model.ts` |
+| `Site` registry (`SITE_TRAITS`: label and `sharing`), `sitesOf(lab)` | `packages/schema/src/sites.ts` |
+| Claims per lab: `claimSite`, `releaseSite`, `checkSite` over a `ClaimStore`, exclusive or shared; the old single-owner `claim`/`release` are the exclusive case of them | `packages/core/src/claims.ts` |
+| `HostBackend` and `SiteBackend` contracts, registries typed over every kind, `provisionHost`, `findLeftovers` | `packages/backends` |
+| Harvester and SSH provisioning moved out of `program/index.ts` into backends | `program/backends/` |
+| `destroy --check` asks every kind of site the lab uses through `siteBackends`; the Harvester's claim reads the site's `sharing` | `cli/src/sites.ts`, `cli/src/harvesters.ts` |
+
+Not done, and why:
+
+- **A Harvester is still exclusive.** The claim logic supports shared sites, and `SITE_TRAITS` is where
+  a kind says which it is, but sharing a Harvester also needs its cluster-wide pieces (DHCP and DNS
+  add-ons, the default storage class) to have a single owner or a reference count. Not designed. The
+  first shared site is libvirt (phase 2).
+- **Harvester knowledge outside its backend** remains in four places: the resolver's network lookup and
+  fixed-address checks (`phases/hosts.ts`, `phases/checks.ts`), the profile rule that needs a network
+  feature (`profiles/rules.ts`), the program's collection of the networks a Harvester's base must make
+  (`program/index.ts`), and the composer's host form. These are about networks, which the second site
+  kind will model its own way; they are phase 2's first job, not worth abstracting from one example.
+- **`leftovers()` for a lab's sites is wired through `SiteBackend`** but a host backend has none: a
+  Harvester and AWS site find leftovers by namespace or tag, and an existing machine has none to find.
+- The **`Machine`** kind is unchanged and has no site; a `LibvirtSite` will name one (§18.1).
+
+| Phase | State |
+|---|---|
+| 0 | done; CI written, not yet run on GitHub |
+| 1 | done, with the above |
+| 4 (part) | `lab examples [name]` and `--example <name>` done (`cli/src/examples.ts`, generic labs in `examples/`, each loaded and planned by `cli/test/examples.test.ts`) |
+| 4 (part) | Lab `ttl` and `lab reap <lab.yaml>...` done (`cli/src/ttl.ts`; expiry = the stack's `lab:createdAt` + `ttl`; `--dry-run`, `--yes`). Reap needs the lab files: it logs in to the lab's sites to destroy it, so there is no registry of labs to sweep. Not covered: AWS-only labs have no claim, so nothing else shows them |
+| 2, 3, 5 and the rest of 4 | planned |

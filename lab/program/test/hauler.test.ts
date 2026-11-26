@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runProgram } from "./run-program";
+import { runProgram, catalogChartVersion } from "./run-program";
 
 // The whole program under Pulumi's mocks, for Hauler both ways: as systemd services on a plain VM,
 // and with its chart on a Rancher host's cluster.
@@ -65,7 +65,7 @@ describe("hauler", () => {
     it("installs the chart on Rancher's cluster, then syncs its store with a Job", async () => {
         const release = registered.find(r => r.type === "kubernetes:helm.sh/v3:Release" && r.name === "rancher/hauler-chart/chart");
         expect(release, registered.filter(r => r.type.includes("Release")).map(r => r.name).join(", ")).toBeDefined();
-        expect(release!.inputs).toMatchObject({ chart: "hauler-helm", version: "2.4.2", namespace: "hauler" });
+        expect(release!.inputs).toMatchObject({ chart: "hauler-helm", version: catalogChartVersion("hauler-helm"), namespace: "hauler" });
         expect(release!.inputs.values).toMatchObject({
             hauler: { data: { pvc: { accessModes: "ReadWriteOnce", storageRequest: "20Gi" } } },
             haulerRegistry: { ingress: { hostname: "registry.rancher.lab.example.com", tls: { enabled: true, secretName: "wildcard-cert" } } },

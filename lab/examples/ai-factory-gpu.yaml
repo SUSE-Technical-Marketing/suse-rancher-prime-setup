@@ -1,0 +1,105 @@
+# SUSE AI Factory: Rancher on a Harvester VM, with a GPU cluster on EC2 running NVIDIA's GPU operator.
+# Not deployable yet: public-ingress (Rancher reachable from the internet, for the EC2 machines) is a
+# placeholder until the Cloudflare Tunnel operator exists. It validates and plans; preview and up refuse it.
+# Copy it, then change the domain, the email, the Harvester, its network and the AWS site to yours.
+# The Harvester's url and credentials come from your personal config (harvesters.my-harvester).
+# GPU instances are billed by the hour: give the lab a ttl and run "lab reap" from cron.
+apiVersion: lab.geeko.me/v1alpha1
+kind: Lab
+metadata:
+  name: ai-factory-gpu
+spec:
+  domain: example.com
+  ttl: 8h
+
+  tls:
+    acme: letsencrypt
+    email: you@example.com
+    cloudflare: "{{ secrets.cloudflare.token }}"
+
+  ssh:
+    user: lab
+    publicKey: { file: ~/.ssh/id_ed25519.pub }
+    privateKey: "{{ secrets['ssh-key'] }}"
+  # Registry logins for Fleet's repos: the GPU operator comes from the ai-apps repo, which needs appco.
+  inputs:
+    appco: "{{ secrets.appco }}"
+    scc: "{{ secrets.scc }}"
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: Harvester
+metadata:
+  name: my-harvester
+spec:
+  profiles:
+    harvester-dns-controller:
+      backend: routeros
+      host: 192.168.100.1
+      credentials: "{{ secrets.routeros }}"
+  networks:
+    default: vlan100
+    vlans:
+      - id: 100
+        dhcp: { cidr: 192.168.100.0/24, gateway: 192.168.100.1, range: [ 192.168.100.100, 192.168.100.150 ] }
+---
+# The management cluster: Rancher with SUSE AI Factory's operator and UI extension.
+apiVersion: lab.geeko.me/v1alpha1
+kind: HarvesterVM
+metadata:
+  name: rancher
+spec:
+  harvester: my-harvester
+  os: leap-16
+  cpu: 4
+  memory: 16Gi
+  disk: 100Gi
+  profiles:
+    k3s: {}
+    cert-manager: {}
+    sprouter: {}
+    traefik: {}
+    rancher:
+      adminPassword: "{{ secrets['rancher-admin'] }}"
+    ai-factory:
+      applicationCollection: "{{ secrets.appco }}"
+      suseRegistry: "{{ secrets.scc }}"
+    # The EC2 machines register with Rancher over the internet.
+    public-ingress: {}
+---
+apiVersion: lab.geeko.me/v1alpha1
+kind: AwsSite
+metadata:
+  name: aws-eu
+spec:
+  region: eu-west-1
+  credentials: "{{ secrets.aws }}"
+  zones: [ a ]
+  ttl: 8h
+---
+# The GPU cluster: one control-plane machine and one GPU worker, both SLES 16 (BYOS AMI).
+# Not yet checked: the GPU operator's driver install on SLES 16, and whether 100Gi of root disk is enough.
+apiVersion: lab.geeko.me/v1alpha1
+kind: DownstreamCluster
+metadata:
+  name: gpu
+spec:
+  type: ec2
+  rancher: rancher
+  site: aws-eu
+  distro: rke2
+  labels: { env: ai }
+  pools:
+    - name: control
+      quantity: 1
+      roles: [ etcd, controlplane ]
+      instanceType: m6i.xlarge
+      disk: 60Gi
+      os: sles-16
+    - name: gpu
+      quantity: 1
+      roles: [ worker ]
+      instanceType: g5.xlarge        # one NVIDIA A10G
+      disk: 100Gi
+      os: sles-16
+  fleetProfiles:
+    gpu-operator: {}

@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import * as path from "node:path";
-import { awsFootprint, BUILTIN_CATALOG_DIR, describeCapability, planCluster, ProfileRegistry, ResolvedCatalog, ResolvedLab, secretSettings, VersionValue } from "@lab/schema";
+import { assertNever, awsFootprint, BUILTIN_CATALOG_DIR, describeCapability, planCluster, ProfileRegistry, ResolvedCatalog, ResolvedLab, secretSettings, VersionValue } from "@lab/schema";
 
 /** Human-readable summary of what a lab will build, for `lab plan`. */
 export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): string {
@@ -9,6 +9,7 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
     const profiles = (order: string[]) => order.join(" → ") || "none";
 
     line(`Lab ${lab.name}  (domain ${lab.domain}, TLS ${lab.tls.acme})`);
+    if (lab.ttl) line(`  meant to live ${lab.ttl % 3600 === 0 ? `${lab.ttl / 3600}h` : `${Math.round(lab.ttl / 60)}m`} from its creation; "lab reap" destroys it after that`);
 
     line();
     line("Harvesters");
@@ -44,10 +45,15 @@ export function renderPlan(lab: ResolvedLab, missingSecrets: Set<string>): strin
     line("Hosts");
     if (lab.hosts.length === 0) line("  none");
     for (const h of lab.hosts) {
-        if (h.kind === "harvester") {
-            line(`  ${h.name}  VM on ${h.harvester}, ${h.os}, ${h.cpu} CPU / ${h.memory} / ${h.disk}, network ${h.network}`);
-        } else {
-            line(`  ${h.name}  existing machine ${h.user}@${h.address}, ${h.os}`);
+        switch (h.kind) {
+            case "harvester":
+                line(`  ${h.name}  VM on ${h.harvester}, ${h.os}, ${h.cpu} CPU / ${h.memory} / ${h.disk}, network ${h.network}`);
+                break;
+            case "ssh":
+                line(`  ${h.name}  existing machine ${h.user}@${h.address}, ${h.os}`);
+                break;
+            default:
+                assertNever(h, "host kind");
         }
         line(`    ${h.fqdn}  profiles: ${profiles(h.profileOrder)}`);
         if (h.charts.length > 0) line(`    charts: ${h.charts.map(c => `${c.name} ${c.version} (${c.namespace})`).join(", ")}`);

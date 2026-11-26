@@ -1,4 +1,5 @@
 import { MetalCluster } from "@lab/rancher";
+import { hostTraits } from "@lab/schema";
 import { distribution, version } from "../catalog";
 import type { ClusterBuilder, ClusterOf } from "./types";
 
@@ -22,7 +23,7 @@ export const metal: ClusterBuilder<ClusterOf<"metal">> = {
                     host: access,
                     roles: n.roles,
                     // A lab VM got its OS profile's setup from its user data; a machine gets it now.
-                    prepare: host.kind === "ssh" ? machineCommands(lab.os[host.os], true) : [],
+                    prepare: hostTraits(host).bootstrap === "ssh" ? machineCommands(lab.os[host.os], true) : [],
                     after: ready,
                     deletedWith: machine,
                 };

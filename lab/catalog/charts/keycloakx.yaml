@@ -1,0 +1,10 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: HelmChart
+metadata:
+  name: keycloakx
+  description: "Keycloak (the codecentric keycloakx chart: Keycloak's Quarkus distribution). Application Collection has no Keycloak chart"
+spec:
+  repo: https://codecentric.github.io/helm-charts
+  chart: keycloakx
+  version: 7.4.0
+  namespace: keycloak

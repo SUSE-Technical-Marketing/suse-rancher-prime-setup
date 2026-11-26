@@ -1,54 +1,9 @@
 import { HarvesterApi } from "./harvester-api";
+import type { Owner, OwnerStore } from "./claims";
 
-/** Who has a Harvester: one lab, run by one person, at a time (DESIGN.md §10). */
-export interface Owner {
-    lab: string;
-    user: string;
-    claimedAt?: string;
-}
-
-/** Where the claim is stored. On a Harvester that's a ConfigMap; tests use an in-memory store. */
-export interface OwnerStore {
-    get(): Promise<Owner | undefined>;
-    /** Create the claim. Returns false if someone else created one first. */
-    create(owner: Owner): Promise<boolean>;
-    delete(): Promise<void>;
-}
-
-export class OwnershipConflict extends Error {
-    constructor(readonly harvester: string, readonly owner: Owner) {
-        super(
-            `harvester "${harvester}" is in use by lab "${owner.lab}" (${owner.user}` +
-            `${owner.claimedAt ? `, since ${owner.claimedAt}` : ""}). ` +
-            `Ask them to run "lab destroy", or use "lab release" if that lab no longer exists.`,
-        );
-    }
-}
-
-const sameOwner = (a: Owner, b: Owner) => a.lab === b.lab && a.user === b.user;
-
-/** Claim a Harvester for this lab. Idempotent for the same lab and user. */
-export async function claim(harvester: string, store: OwnerStore, me: Owner, now = new Date()): Promise<"claimed" | "already-ours"> {
-    const current = await store.get();
-    if (current) {
-        if (sameOwner(current, me)) return "already-ours";
-        throw new OwnershipConflict(harvester, current);
-    }
-    if (await store.create({ ...me, claimedAt: now.toISOString() })) return "claimed";
-    // Lost a race with someone else claiming it at the same moment.
-    const winner = await store.get();
-    if (winner && sameOwner(winner, me)) return "already-ours";
-    throw new OwnershipConflict(harvester, winner ?? { lab: "unknown", user: "unknown" });
-}
-
-/** Release a claim. Only the owner may release it, unless `force` is set. */
-export async function release(harvester: string, store: OwnerStore, me: Owner, force = false): Promise<"released" | "not-claimed"> {
-    const current = await store.get();
-    if (!current) return "not-claimed";
-    if (!sameOwner(current, me) && !force) throw new OwnershipConflict(harvester, current);
-    await store.delete();
-    return "released";
-}
+// Who has a Harvester (DESIGN.md §10): the claim logic is in claims.ts, shared with the other kinds
+// of site; this is where a Harvester keeps it.
+export { claim, release, OwnershipConflict, type Owner, type OwnerStore } from "./claims";
 
 const CONFIGMAP_PATH = "/api/v1/namespaces/default/configmaps";
 const CONFIGMAP_NAME = "lab-owner";

@@ -69,7 +69,7 @@ export function resolveHosts(r: Resolution): void {
             registry,
             host,
             osFamily: allOs[host.os]?.family,
-            networkFeatures: [...(network?.dhcp ? ["dhcp" as const] : []), ...(network?.loadBalancer ? ["loadBalancer" as const] : [])],
+            networkFeatures: host.kind === "harvester" ? [...(network?.dhcp ? ["dhcp" as const] : []), ...(network?.loadBalancer ? ["loadBalancer" as const] : [])] : undefined,
             networkAt,
             profilesOf: name => hosts.get(name)?.profiles,
             error: (at, message) => diags.error(L, at, message),

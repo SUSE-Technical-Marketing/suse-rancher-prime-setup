@@ -156,21 +156,20 @@ export const ChartPlacement = z.strictObject({
 });
 export type ChartPlacement = z.infer<typeof ChartPlacement>;
 
-export const HostInput = z.strictObject({
-    on: z.string().min(1),
-    os: z.string().min(1).meta(form({ label: "OS", options: "osProfiles" })),
+/** How big a VM is. */
+const vmSizing = {
     cpu: z.int().min(1).optional().meta(form({ label: "CPUs", placeholder: "default {defaults.vm.cpu}" })),
     memory: quantity.optional().meta(form({ placeholder: "default {defaults.vm.memory}" })),
     disk: quantity.optional().meta(form({ placeholder: "default {defaults.vm.disk}" })),
-    /** A network of the Harvester document (`vlan20`), or one already on the Harvester (`default/vlan40`). */
-    network: z.string().optional().meta(form({
-        suggestionsFrom: "networks", placeholder: "the Harvester's default", hint: "a network of the Harvester document, or one already on the Harvester: namespace/name",
-    })),
-    ...addressFields,
-    /** Its name, when it has one outside the lab (`gitlab.example.com`): instead of `<name>.<domain>`, everywhere. */
+};
+
+/** Its name outside the lab, when it has one (`gitlab.example.com`): instead of `<name>.<domain>`, everywhere. */
+const hostFqdn = {
     fqdn: dnsName.optional().meta(form({ label: "DNS name", placeholder: "default: <name>.<domain>", hint: "its name outside the lab (its DNS record is yours); used everywhere instead" })),
-    address: z.string().optional().meta(form({ hint: "its DNS name or IP" })),
-    user: z.string().optional().meta(form({ placeholder: "default: the lab's ssh user" })),
+};
+
+/** What the lab puts on any host, whatever made it: profiles, and the catalog's secrets, configmaps and charts for its cluster. */
+const hostContents = {
     /** Profile name -> settings; checked against the profile's catalog schema by the resolver. */
     profiles: z.record(z.string(), z.record(z.string(), z.unknown())).default({}).meta(form({ section: "hidden" })),
     /** Catalog secret and configmap templates to create on the host's cluster (§16.6). */
@@ -178,6 +177,31 @@ export const HostInput = z.strictObject({
     configmaps: z.array(Placement).optional().meta(form({ section: "advanced", hint: "catalog configmaps to create on the host's cluster" })),
     /** Catalog HelmCharts to install on the host's cluster, after its profiles (§17). */
     charts: z.array(ChartPlacement).optional().meta(form({ section: "advanced", hint: "catalog HelmCharts to install after the profiles: [{ name, namespace, values }]" })),
+};
+
+const hostOs = z.string().min(1).meta(form({ label: "OS", options: "osProfiles" }));
+
+/**
+ * What every kind of VM the lab creates has, whichever backend makes it (DESIGN.md §18.1): its OS,
+ * size, name and contents. A VM kind (`HarvesterVM`, later `LibvirtVM`, `Ec2VM`, `HetznerVM`) adds only
+ * what is its backend's own (a Harvester network, an instance type) on top of these.
+ */
+export const VmCommon = z.strictObject({ os: hostOs, ...vmSizing, ...hostFqdn, ...hostContents });
+export type VmCommon = z.infer<typeof VmCommon>;
+
+export const HostInput = z.strictObject({
+    on: z.string().min(1),
+    os: hostOs,
+    ...vmSizing,
+    /** A network of the Harvester document (`vlan20`), or one already on the Harvester (`default/vlan40`). */
+    network: z.string().optional().meta(form({
+        suggestionsFrom: "networks", placeholder: "the Harvester's default", hint: "a network of the Harvester document, or one already on the Harvester: namespace/name",
+    })),
+    ...addressFields,
+    ...hostFqdn,
+    address: z.string().optional().meta(form({ hint: "its DNS name or IP" })),
+    user: z.string().optional().meta(form({ placeholder: "default: the lab's ssh user" })),
+    ...hostContents,
 });
 export type HostInput = z.infer<typeof HostInput>;
 
@@ -187,6 +211,12 @@ export const HarvesterVMSpec = z.strictObject({
     harvester: z.string().min(1).meta(form({ label: "Harvester", options: "harvesters" })),
     ...HostInput.omit({ on: true, address: true, user: true }).shape,
 });
+
+/**
+ * Every VM kind's spec, by document kind. Each must contain all of `VmCommon` (checked by a test):
+ * a new backend adds its kind here and gets that check for free.
+ */
+export const VM_SPECS = { HarvesterVM: HarvesterVMSpec } as const;
 
 /** A `Machine` document's spec: an existing machine the lab reaches over SSH. */
 export const MachineSpec = z.strictObject({
@@ -219,6 +249,8 @@ export const Include = z.array(z.string().min(1)).default([]);
 export const LabFile = z.strictObject({
     lab: dnsLabel,
     domain: dnsName.meta(form({ hint: "hosts are <name>.<domain>" })),
+    /** How long the lab is meant to live, from when it is first created: `lab reap` destroys it after that. */
+    ttl: duration.optional().meta(form({ section: "lifetime", placeholder: "none", hint: "e.g. 8h; `lab reap` destroys the lab once it is older" })),
     tls: z.strictObject({
         /** An AcmeServer from the catalog (`letsencrypt`, `letsencrypt-staging`), or `none`. */
         acme: z.string().min(1).default("letsencrypt")

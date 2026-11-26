@@ -1,0 +1,11 @@
+# Keeps the SHA-pinned GitHub Actions in .github/workflows/ current: a weekly pull request that
+# updates the SHA and its version comment together. The lab's npm dependencies aren't covered.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

@@ -3,9 +3,12 @@
 Describe a lab environment on SUSE Virtualization (Harvester) in one YAML file and build it with
 one command. See [DESIGN.md](DESIGN.md) for the full design and the lab file reference.
 
-> **Status: M0.** The CLI, the lab file format, validation, secrets and the Harvester ownership
-> check work. Nothing is built on Harvester yet: `up` of a lab with hosts only records the lab.
-> Next up is M1 (Harvester base and VMs).
+> **Status.** Built (DESIGN.md §14 says which parts have run against a real lab): VMs on Harvester and on existing machines
+> (SSH), k3s and RKE2, Rancher with plugins and Fleet, Rancher-provisioned clusters on Harvester,
+> EC2, EKS and metal machines, k3k virtual clusters, Hauler, observability and AI profiles, and
+> the composer UI. Not built yet: the Multi-Linux Manager profiles (`mlm-server`, `mlm-client`,
+> planned). Milestone by milestone, and what is next (more backends than Harvester: libvirt, EC2,
+> Hetzner), is in [DESIGN.md](DESIGN.md) §14 and §18.
 
 ## Getting started
 
@@ -383,7 +386,8 @@ touch a Harvester claimed by another lab or person. `destroy` releases the claim
 
 AWS sites aren't claimed: each lab gets its own VPC, and everything it makes there is tagged with
 the lab, the site and who ran `up` (`lab.geeko.me/*`). `destroy --check` finds leftovers by those
-tags.
+tags. It exits 0 when the lab is clean, 1 when something is left, and 3 when a check couldn't run
+(for scripts: not known to be clean). `lab reap` checks each lab it destroys the same way.
 
 ## Development
 
@@ -402,4 +406,5 @@ mise run crds            # after changing packages/crds/crd-sources/: regenerate
 | `packages/schema/src/profiles/` | Profile rule checks; the profiles themselves are `Profile` documents in `catalog/profiles/` |
 | `packages/core/` | Harvester API client, ownership claims |
 | `catalog/` | Built-in defaults as documents (see Catalog above): `plugins.yaml`, `secrets/`, `configmaps/`, Fleet repos and groups in `fleet/`, OS profiles in `os/` (`lab catalog` shows the effective set) |
-| `labs/` | Example labs |
+| `labs/` | The author's lab files (test and reference labs; they name his Harvesters and domain) |
+| `examples/` | Generic example labs to copy: `lab examples` lists them, `lab examples <name> > my-lab.yaml` prints one, `lab plan --example <name>` uses one in place |

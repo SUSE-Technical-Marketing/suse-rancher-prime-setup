@@ -1,0 +1,135 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: ChartProfile
+metadata:
+  name: keycloak
+  description: "Keycloak with a realm imported at start (users, groups, a client for Rancher): an OIDC provider for the lab"
+spec:
+  icon: key-round            # in the lab UI (lucide.dev/icons)
+  # On a host (next to Rancher) or a downstream cluster (its ingress at keycloak.<target>, with the
+  # wildcard certificate). Meant for demos: the database is Keycloak's own file store on a volume
+  # (`--db=dev-file`), one replica.
+  uses: [ ingress, tls, secret-propagation ]
+  requires: [ kubernetes ]
+  provides: [ oidc ]
+  conflicts: [ oidc ]
+  charts:
+    - chart: keycloakx
+      namespace: keycloak
+      waitFor:
+        - path: "/api/v1/namespaces/cert-manager/secrets/{{ 'wildcard-tls' if target.kind == 'cluster' else 'wildcard-cert' }}"
+      values:
+        replicas: 1
+        resources:
+          requests: { cpu: 250m, memory: 768Mi }
+          limits: { memory: 1536Mi }
+      lockedValues:
+        # One replica needs no anti-affinity (the chart's default requires separate nodes).
+        affinity: ""
+        command: [ /opt/keycloak/bin/kc.sh ]
+        args: [ start, --db=dev-file, --import-realm, --http-enabled=true, --hostname-strict=false ]
+        http: { relativePath: / }
+        # Behind the ingress (X-Forwarded-*), and one replica: no clustering, so no JDBC discovery.
+        proxy: { enabled: true, mode: xforwarded }
+        cache: { stack: custom }
+        extraEnv: |
+          - name: KC_BOOTSTRAP_ADMIN_USERNAME
+            value: admin
+          - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+            valueFrom: { secretKeyRef: { name: keycloak-admin, key: password } }
+          - name: KC_HOSTNAME
+            value: "https://{{ settings.hostname }}.{{ target.fqdn }}"
+          - name: KC_CACHE
+            value: local
+        extraVolumes: |
+          - name: realm
+            secret: { secretName: keycloak-realm }
+          - name: data
+            persistentVolumeClaim: { claimName: keycloak-data }
+        extraVolumeMounts: |
+          - { name: realm, mountPath: /opt/keycloak/data/import, readOnly: true }
+          - { name: data, mountPath: /opt/keycloak/data/h2 }
+        ingress:
+          enabled: true
+          ingressClassName: "{{ outputs.ingress.ingressClassName if outputs.ingress is defined else '' }}"
+          rules:
+            - host: "{{ settings.hostname }}.{{ target.fqdn }}"
+              paths: [ { path: /, pathType: Prefix } ]
+          tls:
+            - secretName: "{{ outputs.tls.secretName if outputs.tls is defined else 'wildcard-tls' }}"
+              hosts: [ "{{ settings.hostname }}.{{ target.fqdn }}" ]
+  # The chart installs first and its pods wait for these (volume and secrets), so they come before it.
+  objects:
+    - name: namespace
+      object:
+        apiVersion: v1
+        kind: Namespace
+        metadata: { name: keycloak }
+    - name: admin
+      object:
+        apiVersion: v1
+        kind: Secret
+        metadata: { name: keycloak-admin, namespace: keycloak }
+        stringData: { password: "{{ settings.adminPassword }}" }
+    - name: data
+      object:
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata: { name: keycloak-data, namespace: keycloak }
+        spec:
+          accessModes: [ ReadWriteOnce ]
+          resources: { requests: { storage: "{{ settings.storage }}" } }
+    # The realm Keycloak imports at its first start (not again: an existing realm is kept), as a
+    # Secret since it holds the users' passwords and the client's secret.
+    - name: realm
+      object:
+        apiVersion: v1
+        kind: Secret
+        metadata: { name: keycloak-realm, namespace: keycloak }
+        stringData:
+          realm.json: |
+            {
+              "realm": {{ settings.realm | dump }},
+              "enabled": true,
+              "users": [
+              {%- if settings.userPassword %}{% for u in settings.users %}
+                {
+                  "username": {{ u | dump }}, "email": {{ (u ~ '@' ~ lab.domain) | dump }}, "enabled": true, "emailVerified": true,
+                  "credentials": [ { "type": "password", "value": {{ settings.userPassword | dump }}, "temporary": false } ]
+                }{{ "," if not loop.last }}
+              {%- endfor %}{% endif %}
+              ],
+              "clients": [
+              {%- if settings.rancherUrl %}
+                {
+                  "clientId": "rancher", "enabled": true, "protocol": "openid-connect", "publicClient": false,
+                  "secret": {{ settings.clientSecret | dump }},
+                  "standardFlowEnabled": true,
+                  "redirectUris": [ {{ (settings.rancherUrl ~ '/verify-auth') | dump }} ],
+                  "protocolMappers": [
+                    { "name": "groups", "protocol": "openid-connect", "protocolMapper": "oidc-group-membership-mapper",
+                      "config": { "claim.name": "groups", "full.path": "false", "id.token.claim": "true", "access.token.claim": "true", "userinfo.token.claim": "true" } }
+                  ]
+                }
+              {%- endif %}
+              ]
+            }
+  settings:
+    type: object
+    required: [ adminPassword ]
+    properties:
+      version: { type: string }
+      hostname: { type: dnsLabel, default: keycloak, description: "First label of Keycloak's name: <hostname>.<target>.<domain>" }
+      adminPassword: { type: secret, description: "The bootstrap admin's password (user `admin`, in the master realm)" }
+      realm: { type: dnsLabel, default: lab, description: "The realm to import" }
+      users:
+        type: array
+        items: { type: string }
+        default: [ demo ]
+        description: Usernames to create in the realm, each with the `userPassword` and an email at the lab's domain
+      userPassword: { type: secret, description: "Their password. Without it, no users are made" }
+      rancherUrl:
+        type: string
+        description: "Rancher's URL (https://rancher.<host>.<domain>): adds a client `rancher` redirecting to it, for the rancher-sso profile"
+      clientSecret: { type: secret, description: "The `rancher` client's secret; required with rancherUrl" }
+      storage: { type: quantity, default: 2Gi }
+      values: { type: chartValues }

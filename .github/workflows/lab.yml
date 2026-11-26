@@ -1,0 +1,31 @@
+name: lab
+
+# The lab engine (lab/): typecheck, unit tests, and every example lab in lab/labs/ loaded and
+# resolved (packages/schema/test/labs.test.ts, part of the tests). Tool versions come from
+# lab/mise.toml, as on a developer machine. Actions are pinned to commit SHAs (the version in the
+# comment); dependabot (.github/dependabot.yml) proposes updates.
+on:
+  push:
+    branches: [main]
+    paths: ["lab/**", ".github/workflows/lab.yml"]
+  pull_request:
+    paths: ["lab/**", ".github/workflows/lab.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lab
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+        with:
+          working_directory: lab
+      - name: Typecheck
+        run: mise run typecheck
+      - name: Test
+        run: mise run test

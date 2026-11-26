@@ -5,6 +5,7 @@ import {
     EC2Client, type Filter,
 } from "@aws-sdk/client-ec2";
 import { DescribeClusterCommand, EKSClient, ListClustersCommand } from "@aws-sdk/client-eks";
+import type { Leftovers } from "@lab/backends";
 import { awsFootprint, AWS_CREDENTIAL_FIELDS, mapOf, renderSecretTemplate, ResolvedAwsSite, ResolvedLab } from "@lab/schema";
 import { ResolvedSecret } from "./secrets";
 
@@ -39,9 +40,10 @@ const EKS_STACKS = ["eks-service-role", "node-instance-role", "ebs-csi-driver-ro
  * the lab's VPCs (a load balancer's, say) block deleting them. For EKS clusters: the EKS cluster
  * (tagged), and the IAM stacks and launch template Rancher names after it.
  */
-export async function findAwsLeftovers(lab: ResolvedLab, keys: AwsKeys[]): Promise<{ found: string[]; terminating: string[] }> {
+export async function findAwsLeftovers(lab: ResolvedLab, keys: AwsKeys[]): Promise<Leftovers> {
     const found: string[] = [];
     const terminating: string[] = [];
+    const unknown: string[] = [];
     for (const k of keys) {
         const ec2 = new EC2Client(options(k));
         const at = `${k.site.name} (${k.site.region})`;
@@ -95,8 +97,8 @@ export async function findAwsLeftovers(lab: ResolvedLab, keys: AwsKeys[]): Promi
                 report("launch templates of the EKS clusters", (templates.LaunchTemplates ?? []).map(t => t.LaunchTemplateName!));
             }
         } catch (e) {
-            found.push(`${at}: couldn't check (${(e as Error).message})`);
+            unknown.push(`${at}: couldn't check (${(e as Error).message})`);
         }
     }
-    return { found, terminating };
+    return { found, terminating, unknown };
 }

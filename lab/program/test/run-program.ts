@@ -3,6 +3,9 @@ import { MockMonitor } from "@pulumi/pulumi/runtime/mocks";
 import { expect } from "vitest";
 import { loadLab, type ResolvedLab } from "@lab/schema";
 import { register } from "tsx/cjs/api";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as YAML from "yaml";
 
 // The generated CRD classes load their modules with require(), as under Pulumi's own TypeScript runner.
 register();
@@ -89,4 +92,15 @@ export async function runProgram(LAB: string, opts: RunOptions): Promise<Registe
     // The mock monitor keeps each registered resource under its URN.
     addresses.push(...((pulumi.runtime.getMonitor() as unknown as { resources: Map<string, unknown> }).resources.keys()));
     return registered;
+}
+
+/**
+ * The version the built-in catalog pins for a chart (`catalog/charts/<name>.yaml`), so a test of
+ * "installs chart X at its catalog version" doesn't break every time the catalog is bumped.
+ */
+export function catalogChartVersion(name: string): string {
+    const file = path.resolve(__dirname, "../../catalog/charts", `${name}.yaml`);
+    const doc = YAML.parse(fs.readFileSync(file, "utf8")) as { spec?: { version?: string } };
+    if (!doc.spec?.version) throw new Error(`catalog/charts/${name}.yaml has no spec.version`);
+    return doc.spec.version;
 }

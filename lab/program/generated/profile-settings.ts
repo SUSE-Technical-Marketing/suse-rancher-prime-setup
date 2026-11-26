@@ -78,6 +78,27 @@ export type K3sSettings = {
     version?: string;
 };
 
+/** Settings of the `keycloak` profile: Keycloak with a realm imported at start (users, groups, a client for Rancher): an OIDC provider for the lab */
+export type KeycloakSettings = {
+    version?: string;
+    /** First label of Keycloak's name: <hostname>.<target>.<domain> */
+    hostname: string;
+    /** The bootstrap admin's password (user `admin`, in the master realm) */
+    adminPassword: string;
+    /** The realm to import */
+    realm: string;
+    /** Usernames to create in the realm, each with the `userPassword` and an email at the lab's domain */
+    users: string[];
+    /** Their password. Without it, no users are made */
+    userPassword?: string;
+    /** Rancher's URL (https://rancher.<host>.<domain>): adds a client `rancher` redirecting to it, for the rancher-sso profile */
+    rancherUrl?: string;
+    /** The `rancher` client's secret; required with rancherUrl */
+    clientSecret?: string;
+    storage: string;
+    values?: Record<string, unknown>;
+};
+
 /** Settings of the `landlock` profile: Landlock on every node: the kernel's sandboxing LSM, which OpenShell's agent sandboxes need */
 export type LandlockSettings = Record<string, never>;
 
@@ -171,6 +192,9 @@ export type OutriderSettings = {
     values?: Record<string, unknown>;
 };
 
+/** Settings of the `public-ingress` profile: Makes the host's ingress reachable from the internet, through a Cloudflare Tunnel (operator to come) */
+export type PublicIngressSettings = Record<string, never>;
+
 /** Settings of the `rancher` profile: Rancher Manager on the host's Kubernetes cluster, with UI plugins and Fleet */
 export type RancherSettings = {
     version?: string;
@@ -196,6 +220,19 @@ export type RancherSettings = {
         /** HelmOps by catalog name; default the HelmOps with default: true */
         helmOps?: string[];
     };
+};
+
+/** Settings of the `rancher-sso` profile: Rancher logs in through a Keycloak (OIDC): its auth provider, with the client the keycloak profile imports. Not yet tried against a running Rancher */
+export type RancherSsoSettings = {
+    /** The realm's URL: https://keycloak.<target>.<domain>/realms/<realm> */
+    issuer: string;
+    /** The client's secret: the keycloak profile's clientSecret */
+    clientSecret: string;
+    clientId: string;
+    /** First label of Rancher's name, as the rancher profile's hostname */
+    hostname: string;
+    /** Who may log in: any user of the realm (unrestricted), or only those given access in Rancher */
+    accessMode: "unrestricted" | "required" | "restricted";
 };
 
 /** Settings of the `rke2` profile: Single-node RKE2 cluster on the host */
@@ -301,6 +338,7 @@ export interface ProfileSettings {
     "hauler": HaulerSettings;
     "hauler-chart": HaulerChartSettings;
     "k3s": K3sSettings;
+    "keycloak": KeycloakSettings;
     "landlock": LandlockSettings;
     "metallb": MetallbSettings;
     "mlm-client": MlmClientSettings;
@@ -308,7 +346,9 @@ export interface ProfileSettings {
     "open-webui": OpenWebuiSettings;
     "opentelemetry": OpentelemetrySettings;
     "outrider": OutriderSettings;
+    "public-ingress": PublicIngressSettings;
     "rancher": RancherSettings;
+    "rancher-sso": RancherSsoSettings;
     "rke2": Rke2Settings;
     "sprouter": SprouterSettings;
     "suse-observability-agent": SuseObservabilityAgentSettings;
