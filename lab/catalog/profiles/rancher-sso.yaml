@@ -1,0 +1,49 @@
+apiVersion: lab.geeko.me/v1alpha1
+kind: ResourceProfile
+metadata:
+  name: rancher-sso
+  description: "Rancher logs in through a Keycloak (OIDC): its auth provider, with the client the keycloak profile imports. Not yet tried against a running Rancher"
+spec:
+  icon: log-in               # in the lab UI (lucide.dev/icons)
+  # On the Rancher host. The Keycloak may be on this host or a downstream cluster: Rancher only needs
+  # its issuer URL, and the Keycloak its Rancher URL and the same client secret (the keycloak profile's
+  # `rancherUrl` and `clientSecret`). The local admin keeps working, so a wrong setting locks nobody out.
+  targets: [ host ]
+  requires: [ rancher ]
+  objects:
+    # The client's secret, where Rancher reads an auth provider's (cattle-global-data, <provider>config-clientsecret).
+    - name: client-secret
+      object:
+        apiVersion: v1
+        kind: Secret
+        metadata: { name: keycloakoidcconfig-clientsecret, namespace: cattle-global-data }
+        stringData: { clientsecret: "{{ settings.clientSecret }}" }
+    - name: auth-config
+      admitted: true
+      object:
+        apiVersion: management.cattle.io/v3
+        kind: AuthConfig
+        metadata: { name: keycloakoidc }
+        type: keyCloakOIDCConfig
+        enabled: true
+        accessMode: "{{ settings.accessMode }}"
+        clientId: "{{ settings.clientId }}"
+        rancherUrl: "https://{{ settings.hostname }}.{{ host.fqdn }}/verify-auth"
+        issuer: "{{ settings.issuer }}"
+        authEndpoint: "{{ settings.issuer }}/protocol/openid-connect/auth"
+        tokenEndpoint: "{{ settings.issuer }}/protocol/openid-connect/token"
+        userInfoEndpoint: "{{ settings.issuer }}/protocol/openid-connect/userinfo"
+        groupsClaim: groups
+        scope: openid profile email
+  settings:
+    type: object
+    required: [ issuer, clientSecret ]
+    properties:
+      issuer: { type: string, description: "The realm's URL: https://keycloak.<target>.<domain>/realms/<realm>" }
+      clientSecret: { type: secret, description: "The client's secret: the keycloak profile's clientSecret" }
+      clientId: { type: string, default: rancher }
+      hostname: { type: dnsLabel, default: rancher, description: "First label of Rancher's name, as the rancher profile's hostname" }
+      accessMode:
+        enum: [ unrestricted, required, restricted ]
+        default: unrestricted
+        description: "Who may log in: any user of the realm (unrestricted), or only those given access in Rancher"

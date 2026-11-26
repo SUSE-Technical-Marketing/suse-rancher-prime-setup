@@ -474,6 +474,82 @@ downstream:
     });
 });
 
+describe("keycloak profile", () => {
+    const vm = (settings: string) => load(`${BASE}
+hosts:
+  vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, keycloak: { adminPassword: "{{ secrets.kc }}"${settings} } } }
+`);
+    const keycloak = (settings = "") => vm(settings).lab!.hosts[0].chartValues.keycloak;
+
+    it("provides oidc, and serves at keycloak.<host>.<domain> with the host's ingress and certificate", () => {
+        const result = vm("");
+        expect(errors(result)).toEqual([]);
+        const host = result.lab!.hosts[0];
+        expect(host.providers).toMatchObject({ oidc: ["keycloak"] });
+        const locked = keycloak().entries[0].lockedValues as any;
+        expect(locked.ingress.rules[0].host).toBe("keycloak.vm.lab.geeko.me");
+        expect(locked.ingress.ingressClassName).toBe("traefik");
+        expect(locked.ingress.tls[0].secretName).toBe("wildcard-cert");
+        expect(keycloak().entries[0].waitFor?.[0].path).toBe("/api/v1/namespaces/cert-manager/secrets/wildcard-cert");
+    });
+
+    it("imports a realm with the users and, with rancherUrl, a client for Rancher", () => {
+        const realm = (settings: string) => {
+            const secret = keycloak(settings).objects.find(o => o.name === "realm")!.object as any;
+            return JSON.parse(secret.stringData["realm.json"]);
+        };
+        // Without a password or a Rancher URL: an empty realm, no users or clients.
+        expect(realm("")).toMatchObject({ realm: "lab", enabled: true, users: [], clients: [] });
+        const full = realm(`, users: [ann, bob], userPassword: "{{ secrets.users }}", rancherUrl: "https://rancher.vm.lab.geeko.me", clientSecret: "{{ secrets.client }}"`);
+        expect(full.users.map((u: any) => [u.username, u.email])).toEqual([["ann", "ann@lab.geeko.me"], ["bob", "bob@lab.geeko.me"]]);
+        expect(full.clients).toHaveLength(1);
+        expect(full.clients[0]).toMatchObject({ clientId: "rancher", redirectUris: ["https://rancher.vm.lab.geeko.me/verify-auth"] });
+        expect(full.clients[0].protocolMappers[0].protocolMapper).toBe("oidc-group-membership-mapper");
+    });
+
+    it("needs the admin password", () => {
+        expect(errors(load(`${BASE}
+hosts:
+  vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, keycloak: {} } }
+`)).join("\n")).toContain("adminPassword");
+    });
+});
+
+describe("rancher-sso profile", () => {
+    const host = (sso: string, extra = "") => load(`${BASE}
+hosts:
+  vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, cert-manager: {}, sprouter: {}, rancher: { adminPassword: "{{ secrets.ra }}" }${extra}, rancher-sso: ${sso} } }
+`);
+
+    it("makes Rancher's Keycloak auth provider from the realm's issuer, after Rancher", () => {
+        const result = host(`{ issuer: "https://keycloak.apps.lab.geeko.me/realms/lab", clientSecret: "{{ secrets.client }}" }`);
+        expect(errors(result)).toEqual([]);
+        const objects = result.lab!.hosts[0].chartValues["rancher-sso"].objects;
+        expect(objects.map(o => o.name)).toEqual(["client-secret", "auth-config"]);
+        expect(objects[1].object).toMatchObject({
+            kind: "AuthConfig", metadata: { name: "keycloakoidc" }, type: "keyCloakOIDCConfig", enabled: true, accessMode: "unrestricted",
+            clientId: "rancher", rancherUrl: "https://rancher.vm.lab.geeko.me/verify-auth",
+            authEndpoint: "https://keycloak.apps.lab.geeko.me/realms/lab/protocol/openid-connect/auth",
+            tokenEndpoint: "https://keycloak.apps.lab.geeko.me/realms/lab/protocol/openid-connect/token",
+            userInfoEndpoint: "https://keycloak.apps.lab.geeko.me/realms/lab/protocol/openid-connect/userinfo", groupsClaim: "groups",
+        });
+    });
+
+    it("needs the issuer and the client secret, and Rancher on the host", () => {
+        expect(errors(host("{}")).join("\n")).toMatch(/issuer/);
+        const noRancher = load(`${BASE}
+hosts:
+  vm: { on: hv-north, os: leap-16, cpu: 4, memory: 16Gi, disk: 100Gi, profiles: { k3s: {}, rancher-sso: { issuer: "https://k.example.com/realms/lab", clientSecret: "{{ secrets.client }}" } } }
+`);
+        expect(errors(noRancher).join("\n")).toMatch(/rancher/);
+    });
+
+    it("takes Rancher's hostname from its own setting (the rancher profile's hostname)", () => {
+        const result = host(`{ issuer: "https://k.example.com/realms/lab", clientSecret: "{{ secrets.client }}", hostname: ranch }`);
+        expect((result.lab!.hosts[0].chartValues["rancher-sso"].objects[1].object as any).rancherUrl).toBe("https://ranch.vm.lab.geeko.me/verify-auth");
+    });
+});
+
 describe("lab ttl", () => {
     it("is seconds on the resolved lab, and absent without one", () => {
         expect(load(BASE.replace("domain: lab.geeko.me", "domain: lab.geeko.me\nttl: 8h")).lab!.ttl).toBe(8 * 3600);
@@ -1017,7 +1093,7 @@ ${catalog}`;
 
     it("takes only ChartProfiles, with their rules, on a cluster", () => {
         expect(errors(load(lab("    profiles: { k3s: {}, storage: {}, nope: {}, ai-factory: { applicationCollection: \"{{ secrets.a }}\", suseRegistry: \"{{ secrets.s }}\" } }")))).toEqual([
-            expect.stringMatching(/^downstream\.apps\.profiles\.k3s: is a Profile for lab hosts .*a downstream cluster takes: ai-demos, ai-factory, cert-manager, hauler-chart, landlock, metallb, open-webui, opentelemetry, outrider, sprouter, suse-observability-agent, traefik, vllm$/),
+            expect.stringMatching(/^downstream\.apps\.profiles\.k3s: is a Profile for lab hosts .*a downstream cluster takes: ai-demos, ai-factory, cert-manager, hauler-chart, keycloak, landlock, metallb, open-webui, opentelemetry, outrider, sprouter, suse-observability-agent, traefik, vllm$/),
             "downstream.apps.profiles.storage: is a Fleet profile: list it under fleetProfiles",
             expect.stringMatching(/^downstream\.apps\.profiles\.nope: unknown profile "nope"/),
             expect.stringMatching(/^downstream\.apps\.profiles\.ai-factory: needs rancher .*on the same cluster$/),
@@ -1259,7 +1335,7 @@ hosts:
   vm: { on: hv-north, os: leap-16, cpu: 2, memory: 4Gi, disk: 20Gi, profiles: { nope: {}, k3s: { versoin: x }, hauler: { port: 70000 } } }
 `);
         expect(errors(result)).toEqual([
-            'hosts.vm.profiles: unknown profile "nope"; known: ai-demos, ai-factory, cert-manager, harvester-cloud-provider, harvester-dns-controller, hauler, hauler-chart, k3s, landlock, metallb, mlm-client, mlm-server, open-webui, opentelemetry, outrider, rancher, rke2, sprouter, suse-observability-agent, traefik, vllm',
+            'hosts.vm.profiles: unknown profile "nope"; known: ai-demos, ai-factory, cert-manager, harvester-cloud-provider, harvester-dns-controller, hauler, hauler-chart, k3s, keycloak, landlock, metallb, mlm-client, mlm-server, open-webui, opentelemetry, outrider, rancher, rancher-sso, rke2, sprouter, suse-observability-agent, traefik, vllm',
             'hosts.vm.profiles.k3s.versoin: unknown field "versoin"',
             "hosts.vm.profiles.hauler.port: Too big: expected number to be <=65535",
         ]);

@@ -12,8 +12,8 @@ describe("profiles in the catalog", () => {
         const { catalog, diagnostics } = loadCatalog({ personalConfig: noPersonal });
         expect(diagnostics.errors).toEqual([]);
         expect(Object.keys(catalog!.profiles).sort()).toEqual([
-            "ai-demos", "ai-factory", "cert-manager", "harvester-cloud-provider", "harvester-dns-controller", "hauler", "hauler-chart", "k3s", "landlock", "metallb", "mlm-client", "mlm-server",
-            "open-webui", "opentelemetry", "outrider", "rancher", "rke2", "sprouter", "suse-observability-agent", "traefik", "vllm",
+            "ai-demos", "ai-factory", "cert-manager", "harvester-cloud-provider", "harvester-dns-controller", "hauler", "hauler-chart", "k3s", "keycloak", "landlock", "metallb", "mlm-client", "mlm-server",
+            "open-webui", "opentelemetry", "outrider", "rancher", "rancher-sso", "rke2", "sprouter", "suse-observability-agent", "traefik", "vllm",
         ]);
         expect(catalog!.profiles.rancher).toMatchObject({ requires: ["kubernetes", "ingress", "tls", "secret-propagation"], chart: "rancher" });
         expect(catalog!.profiles.k3s).toMatchObject({ distribution: "k3s" });
